@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+# Stops "git push" to a public GitHub repository. This folder holds a resume, other people's
+# contact details, references and offer terms, so it must only ever go to a PRIVATE repository.
+# Turn it on once with:   git config core.hooksPath .githooks
+# Works with macOS bash 3.2 and Git for Windows bash. Keep in step with .claude/hooks/guard.sh.
+#
+# Git calls this with: $1 = remote name, $2 = remote URL (refs to push arrive on stdin).
+cat >/dev/null 2>&1   # read what git sends so it never sees a broken pipe
+
+url="$2"
+
+# True if ssh really connects to GitHub for this host name (an alias like "github-work" in ~/.ssh/config).
+is_github_alias() {
+  command -v ssh >/dev/null 2>&1 || return 1
+  case "$(ssh -G "$1" </dev/null 2>/dev/null | awk '$1 == "hostname" { print tolower($2); exit }')" in
+    github.com|ssh.github.com) return 0 ;;
+  esac
+  return 1
+}
+
+u="${url%/}"; u="${u%.git}"; h=""
+re_ssh='^(ssh|git\+ssh|ssh\+git)://([^@/]*@)?([^/:]+)(:[0-9]+)?/(.*)$'
+re_scp='^([^@/]*@)?([^/:\\]+):(.*)$'
+case "$u" in
+  *github.com[:/]*) p="${u#*github.com}"; p="${p#:}"; p="${p#/}" ;;
+  *)
+    if [[ $u =~ $re_ssh ]]; then h="${BASH_REMATCH[3]}"; p="${BASH_REMATCH[5]}"
+    elif [[ $u != *://* && $u =~ $re_scp ]]; then h="${BASH_REMATCH[2]}"; p="${BASH_REMATCH[3]}"
+    fi
+    case "$h" in ?|*[!A-Za-z0-9_.-]*) h="" ;; esac   # one letter = a Windows drive (C:\...)
+    [ -n "$h" ] && is_github_alias "$h" || exit 0     # not GitHub: nothing to check
+    p="${p#/}" ;;
+esac
+case "$p" in [0-9]*/*) p="${p#*/}" ;; esac
+owner="${p%%/*}"; repo="${p#*/}"; repo="${repo%%/*}"; repo="${repo%.git}"
+
+code=""
+case "$owner$repo" in
+  ''|*[!A-Za-z0-9_.-]*) ;;
+  *) code="$(curl -sL -o /dev/null -w '%{http_code}' --connect-timeout 5 --max-time 10 \
+       -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/$owner/$repo" 2>/dev/null)" ;;
+esac
+
+case "$code" in
+  404) exit 0 ;;   # private (GitHub hides private repositories from anyone not logged in)
+  200)
+    cat >&2 <<EOF
+
+STOPPED: nothing was pushed.
+The GitHub repository $owner/$repo is PUBLIC, so anyone on the internet could read it.
+This folder holds your resume, other people's contact details, your references and offer
+terms, so it must only go to a private repository.
+
+To fix it, make the repository private, then push again:
+  - On github.com: open $owner/$repo, click Settings, scroll to "Danger Zone",
+    click "Change visibility", then "Make private".
+  - Or in a terminal: gh repo edit $owner/$repo --visibility private --accept-visibility-change-consequences
+
+EOF
+    exit 1 ;;
+  *)
+    cat >&2 <<EOF
+
+STOPPED: nothing was pushed.
+Couldn't check whether the GitHub repository $owner/$repo is private
+(no internet connection, or GitHub didn't answer). This folder must never go to a
+public repository, so the push was stopped to be safe.
+
+Check on github.com that $owner/$repo is private (Settings, then "Change visibility"),
+then try again when the safety check can reach GitHub. Don't bypass this check; a local
+zip backup (/my-data) works meanwhile. If it keeps failing, ask whoever set up this folder.
+
+EOF
+    exit 1 ;;
+esac

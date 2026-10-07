@@ -1,0 +1,53 @@
+---
+name: tailor-resume
+description: "Build a resume (one page by default; longer where the job's country or the user's seniority expects it) tailored to a specific job from the user's master resume, fact-checked and ATS-friendly. Use when the user asks for a resume for a job, to tailor or update their resume for an application."
+---
+
+# /tailor-resume
+
+Usage: `/tailor-resume <job folder or company + role>` (or just ask in plain English).
+
+Job: `$ARGUMENTS`. If there's no job folder with `posting.md`, run `/add-job` first (it saves the posting and its details).
+
+## Build
+1. Read `jobs/<folder>/posting.md`, `jobs/<folder>/fit.md` (if present), `profile/master-resume.md`, `profile/voice.md`, `knowledge/resume-keywords.md` (keywords by role, each tied to the user's evidence, and its bullet patterns; if it still says `STATUS: not generated`, take the keywords from the posting instead), `templates/resume-template.html`.
+2. Choose content **only from the master resume** (leave out any contact item still marked `[ASK]`, such as an unconfirmed LinkedIn URL, until the user confirms it):
+   - Order experience by relevance to this job (most relevant role first is fine within Experience if dates stay visible; default is reverse-chronological). Within each role, the bullet that matches the posting's first two or three duties goes first.
+   - 3–4 bullets per recent role (fewer for older or less relevant ones), chosen and reworded to echo the posting's language where true (e.g. "reporting" → "SQL reporting" only if they did it): its exact tool and method names help recruiters' keyword searches; repeating them doesn't. Job titles stay the user's real ones. Keep every number exactly as in the master resume; where there's none, use scale, frequency or before/after, and ask the user rather than estimate.
+   - Projects (if any): only if relevant; for students and new grads, a major capstone or thesis usually belongs.
+   - Skills: short labeled lines, the posting's matching skills first; a key skill the posting asks for should also show up used in a bullet. Never add a skill that isn't in the master resume.
+   - No objective statement. Summary by stage: students and new grads usually none; career changers, people returning from a break, and experienced hires one or two lines naming the target role and the bridge. Never a restated graduation date. In-progress work is written in the present tense and doesn't claim stages that haven't happened yet.
+   - **Format by stage** (student, career changer, returning after a break, senior, academic/federal): section order, gaps, older roles and dates per `references/tailoring-and-formats.md` §2. Never a skills-only "functional" resume.
+   - **Country norms:** follow the norms of the country the job is in (from the posting, else `home_base`). US/Canada (the default): one page, Letter paper, no photo, no birth date. Many EU countries expect a longer CV on A4; the UK says "CV". Outside the US, ask the user once if unsure rather than assuming one page is universal.
+   - **Nothing hidden:** never add white, tiny or invisible text, keyword stuffing, or prompts aimed at screening AI. Recruiters reject on sight, and screening tools now look for it. AI screeners read the same text a person does; plain, true, posting-matched wording is the only thing that works (evidence: `references/tailoring-and-formats.md` §5).
+3. Write `jobs/<folder>/resume.md` (plain content) and `jobs/<folder>/resume.html` (from the template; the target page count; standard headings; no tables/icons/columns). Decide the target page count before drafting: one page by default, two only where the posting, the country norms or the stage norms above call for it. Never cut an agreed two-page CV down to one.
+4. **The target length, checked for real:** for one page, aim for about 400–450 words and no more than 12–13 bullets, then run `bash .claude/skills/tailor-resume/scripts/page-count.sh jobs/<folder>/resume.html` (Windows without bash: `powershell -NoProfile -ExecutionPolicy Bypass -File .claude\skills\tailor-resume\scripts\make-pdf.ps1 jobs\<folder>\resume.html -CheckOnly`). It prints to a throwaway file; no PDF is kept yet. If it reports more pages than the target (1, unless country or stage norms set 2), trim the weakest bullet and run it again. If it reports `no-browser` or `print-failed`, keep the target page count; for a one-page target, stay under 430 words. Tell the user to check the print preview shows the target number of pages.
+
+## Check (don't skip)
+5. Run the `truth-checker` agent on `resume.md` vs the master resume. Fix every flag.
+6. Run the `voice-editor` agent on `resume.md` (stock verbs, sameness, AI tells; no new facts), then the `recruiter-reviewer` agent on `resume.md` + `posting.md`. Apply fixes that are true and improve it; if either changed a claim, re-run `truth-checker` on the changed lines.
+   The checks are mandatory for anything going out; for a priority C job, one combined pass (truth, voice, then recruiter view) is fine.
+7. Write `jobs/<folder>/resume-notes.md`: what changed vs. the master, requirement coverage (Met/Partly/Not met), and the 2 gaps to prepare for in interviews.
+
+## Make the PDF (only after steps 5–6 are done and fixed)
+8. Rebuild `resume.html` from the final checked `resume.md` if anything changed, then make the PDF yourself:
+   `bash .claude/skills/tailor-resume/scripts/make-pdf.sh jobs/<folder>/resume.html "<First Last>" "<Company>"`
+   (Windows without bash: `powershell -NoProfile -ExecutionPolicy Bypass -File .claude\skills\tailor-resume\scripts\make-pdf.ps1 jobs\<folder>\resume.html "<First Last>" "<Company>"`.)
+   `<First Last>` is `name:` from `profile/preferences.md` (else the master resume's name); `<Company>` is the job's `company` exactly as in `jobs/tracker.csv`, so the Apply Kit finds the file. It saves `jobs/<folder>/<First>-<Last>-Resume-<Company>.pdf` with no header or footer, on the paper size the template's `@page` sets (Letter, or A4 per country norms), and prints `paper:`, `pages:` and `parse:`.
+   - `pages:` more than the target → trim the weakest bullet in `resume.md` and `resume.html`, run it again (it overwrites the PDF).
+   - `paper-warning:` → fix `@page` in `resume.html` and run it again.
+   - `parse: check these: ...` → the PDF's text layer doesn't read back cleanly (name, email, phone, headings, dates, in order). Fix the HTML (usually a layout trick or a missing contact item) and run it again. `parse: skipped` means `pdftotext` isn't installed, so the text check didn't run; say so at hand-off (step 9). This is a real parse check, not an "ATS score": never quote ATS score percentages or the "75% of resumes are auto-rejected" myth.
+   - `no-browser` or `print-failed` → fall back to the manual steps: the user opens `resume.html` in their browser → Print (Ctrl+P / Cmd+P) → Save as PDF, Margins: Default, Headers and footers: off → names it `<First>-<Last>-Resume-<Company>.pdf`, and checks the preview shows the target page count.
+   **Optional RenderCV engine:** if `profile/preferences.md` says `pdf_engine: rendercv` and `command -v rendercv` finds it, write `jobs/<folder>/resume.rendercv.yaml` from the checked `resume.md` (same facts, nothing new) following `references/rendercv.md`, and run the same `make-pdf` command on the `.yaml` file instead. `no-rendercv` or `render-failed` you can't fix → use the HTML route above. Never install RenderCV unless the user asks (see the reference).
+
+   **Look:** the template's font, name/rule accent, spacing and default paper come from the `documents` block of `profile/design.md` (ATS-safe choices only; `page-design` changes them). Don't restyle `resume.html` by hand. If the job's country needs other paper than the template's, change only `size:` in its `@page`.
+
+## Optional: a designed version (creative fields only)
+8b. Offer it only if the user's `field` or target roles are creative or visual (design, UX, marketing, advertising, communications, architecture, media, film, fashion, and similar) or they ask for "a nicer-looking" or designed resume. Say plainly: "Online application forms should get the plain version; the designed one is for emailing a person, sharing directly, or bringing to an interview." It is always made **alongside** the checked ATS PDF above, never instead of it, and never before it.
+   - Copy `templates/resume-designed-template.html` to `jobs/<folder>/resume-designed.html` and fill it with **exactly the checked `resume.md` text** (same bullets, order, numbers; no new claims, no summary that isn't in `resume.md`). If any wording differs from `resume.md`, run `truth-checker` on the changed lines first.
+   - Same page target as the ATS version; check with `page-count.sh`. Then `bash .claude/skills/tailor-resume/scripts/make-pdf.sh jobs/<folder>/resume-designed.html "<First Last>" "<Company>"` (Windows without bash: `make-pdf.ps1` with the same arguments). It saves `<First>-<Last>-Resume-<Company>-Designed.pdf`; the ATS file name doesn't change, and the Apply Kit keeps offering the ATS PDF for uploads. Fix anything but `parse: ok` the same way as above.
+   - Run `page-review`'s "Theme and audience" checks on it (real text, nothing hidden, contrast on white). Manual fallback: Print → Save as PDF with **Background graphics on**.
+
+## Hand off
+9. Tell the user: what you emphasized (2 lines, matching the actual order on the page), where the PDF is (`<First>-<Last>-Resume-<Company>.pdf` in the job's folder), and only the checks that actually ran: say it's the right length only if `pages:` matched the target, and that its text reads back cleanly only for `parse: ok`. For `parse: skipped` or `parse: failed`, say "The PDF is made, but I couldn't check its text automatically." If they printed it by hand, ask them to confirm the page count. Ask them to **open the PDF and look it over before sending it**; they are the last check. If you also made the designed version, name both files and which one goes where (plain one for application forms and portals, designed one for people). PDF is the default; if the posting, upload field or a recruiter asks for Word (.docx) and a docx skill is available, offer one with the same checked text (when and why: `references/tailoring-and-formats.md` §4).
+10. If the job isn't applied yet, re-read `jobs/tracker.csv` and set that row's `next_action` → `Review package and submit` (keep the date), then add one line to `history/activity.md`.

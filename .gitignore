@@ -1,0 +1,17 @@
+# Personal files you drop in (resume, LinkedIn export with other people's data, offer PDFs)
+imports/*
+!imports/README.md
+
+# Local-only Claude settings
+.claude/settings.local.json
+
+# OS and Office clutter (Excel leaves ~$tracker.csv lock files while a file is open)
+.DS_Store
+Thumbs.db
+~$*
+
+# Publish copies of pages (made fresh each time)
+pages/.publish/
+
+# Page-count check PDFs
+*.check.pdf

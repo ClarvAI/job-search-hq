@@ -1,0 +1,124 @@
+// Builds the CSS that themes the pages and print templates. Run it directly (`node tokens.mjs`)
+// to print a preset's page token block (`node tokens.mjs [default|modern|minimal|high-contrast]`);
+// scripts/apply-theme.mjs uses the exports.
+import { fileURLToPath } from 'node:url'
+import { buildRamps } from './palette.mjs'
+import { FONTS, DOC_FONTS, DENSITY, DOC_DENSITY, PRESETS, resolveTheme, fixContrast } from './themes.mjs'
+
+export const MARK = {
+  pageStart: '  /* ---- Design tokens', pageEnd: '  /* ---- End design tokens ---- */',
+  docStart: '  /* ---- Document theme', docEnd: '  /* ---- End document theme ---- */',
+  designedStart: '  /* ---- Designed resume theme', designedEnd: '  /* ---- End designed resume theme ---- */',
+}
+const FALLBACK = {
+  serif: '"Iowan Old Style", "Palatino Linotype", Georgia, serif',
+  sans: '"Segoe UI", system-ui, sans-serif',
+  mono: 'ui-monospace, "SF Mono", Menlo, Consolas, monospace',
+}
+const ROLE_KIND = { heading: 'sans', body: 'sans', mono: 'mono' }
+
+export function fontStack(name, role) {
+  const f = FONTS[name]
+  if (f && f.stack) return f.stack
+  return `"${name}", ${FALLBACK[f ? f.kind : ROLE_KIND[role]]}`
+}
+// The Google Fonts stylesheet for the page fonts, or an empty stylesheet when all three are system fonts.
+export function fontsHref(theme) {
+  const fams = []
+  for (const role of ['heading', 'body', 'mono']) {
+    const name = theme.fonts[role], f = FONTS[name]
+    const q = f ? f.google : `${name.trim().replace(/\s+/g, '+')}:wght@400;700`
+    if (q && !fams.includes(q)) fams.push(q)
+  }
+  return fams.length ? `https://fonts.googleapis.com/css2?${fams.map(q => 'family=' + q).join('&')}&display=swap` : 'data:text/css,'
+}
+export const fontsLink = theme => `<link rel="stylesheet" href="${fontsHref(theme)}">`
+// Matches the fonts line this system writes (Google Fonts or the empty stylesheet).
+export const FONTS_LINK_RE = /<link rel="stylesheet" href="(?:https:\/\/fonts\.googleapis\.com\/css2\?[^"]*|data:text\/css,[^"]*)">/
+
+const pct = n => `${Math.round(n * 1000) / 1000}%`
+
+export function tokenBlock(theme, R = buildRamps(theme.spec)) {
+  const on = theme.spec.onAccent || { light: '#ffffff', dark: '#ffffff' }
+  const prim = t => Object.entries(R[t]).map(([name, steps]) => steps.map((v, i) => `--${name}-${i + 1}: ${v};`).join(' ')).join('\n    ')
+  const sem = dark => `
+    --color-bg-page: var(--neutral-${dark ? 2 : 2}); --color-bg-surface: var(--neutral-${dark ? 3 : 1}); --color-bg-raised: var(--neutral-${dark ? 4 : 1}); --color-bg-sunken: var(--neutral-${dark ? 1 : 3}); --color-bg-hover: var(--neutral-${dark ? 5 : 4});
+    --color-text-primary: var(--neutral-12); --color-text-secondary: var(--neutral-11); --color-text-disabled: var(--neutral-9); --color-text-on-accent: ${dark ? on.dark : on.light};
+    --color-border-subtle: var(--neutral-6); --color-border: var(--neutral-7); --color-border-strong: var(--neutral-8); --color-graphic-idle: var(--neutral-9);
+    --color-accent-subtle: var(--accent-3); --color-accent-subtle-hover: var(--accent-4); --color-accent-border: var(--accent-7); --color-accent-solid: var(--accent-9); --color-accent-solid-hover: var(--accent-10); --color-accent-text: var(--accent-11); --color-focus: var(--accent-${dark ? 11 : 9});
+    --color-success-subtle: var(--success-3); --color-success-solid: var(--success-9); --color-success-text: var(--success-11);
+    --color-warning-subtle: var(--warning-3); --color-warning-solid: var(--warning-9); --color-warning-text: var(--warning-11);
+    --color-danger-subtle: var(--danger-3); --color-danger-solid: var(--danger-9); --color-danger-text: var(--danger-11);
+    --shadow-surface: ${dark ? '0 0 0 1px oklch(1 0 0 / 0.08)' : '0 0 0 1px oklch(0 0 0 / 0.06), 0 1px 2px -1px oklch(0 0 0 / 0.06), 0 2px 4px 0 oklch(0 0 0 / 0.04)'};
+    --shadow-raised: ${dark ? '0 0 0 1px oklch(1 0 0 / 0.12), 0 16px 32px -16px oklch(0 0 0 / 0.7)' : '0 0 0 1px oklch(0 0 0 / 0.07), 0 2px 4px -2px oklch(0 0 0 / 0.08), 0 16px 32px -16px oklch(0 0 0 / 0.22)'};`
+  const h = theme.spec.hues, r = Math.round
+  const md = theme.radius, sm = Math.round(md / 2), lg = md ? md + 8 : 0
+  const high = theme.spec.contrast === 'high'
+  const motionRule = theme.motion === 'reduced' ? `
+  /* Motion: reduced (profile/design.md). Movement is off everywhere; color and fade changes stay. */
+  *, ::before, ::after { animation: none !important; transition-property: color, background-color, border-color, outline-color, box-shadow, opacity !important; transition-delay: 0s !important; scroll-behavior: auto !important; }` : ''
+  return `${MARK.pageStart} (generated; see .claude/skills/page-design/SKILL.md) ----
+     Primitives are role-based 12-step ramps (1 page bg … 9 solid fill … 11 low-contrast text, 12 high-contrast text),
+     built in OKLCH: neutral (hue ${r(h.neutral)}), accent${theme.accentName ? ` "${theme.accentName}"` : ''} (${r(h.accent)}), success (${r(h.success)}), warning (${r(h.warning)}), danger (${r(h.danger)}).
+     Components use only the semantic --color-* tokens. Every text pair is measured >= ${high ? '7' : '4.5'}:1 in both themes. */
+  :root {
+    color-scheme: light;
+    ${prim('light')}
+    ${sem(false)}
+    --radius-sm: ${sm}px; --radius-md: ${md}px; --radius-lg: ${lg}px;
+    --ease-out: cubic-bezier(0.2, 0, 0, 1);
+    --font-display: ${fontStack(theme.fonts.heading, 'heading')};
+    --font-body: ${fontStack(theme.fonts.body, 'body')};
+    --font-data: ${fontStack(theme.fonts.mono, 'mono')};
+    --spacing: ${DENSITY[theme.density]}rem; --motion: ${theme.motion}; font-size: ${pct(theme.baseSize)};
+    --print-accent-text: ${R.light.accent[9]}; --print-accent-subtle: ${R.light.accent[2]};
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    ${prim('dark')}
+    ${sem(true)}
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    ${prim('dark')}
+    ${sem(true)}
+  }${motionRule}
+${MARK.pageEnd}`
+}
+
+// Designed resume: light colors only (it is printed), the page fonts, paper and margins.
+export function designedBlock(theme, R = buildRamps(theme.spec)) {
+  const n = R.light.neutral, a = R.light.accent
+  const [size, lead, margin] = DOC_DENSITY.designed[theme.docs.density]
+  return `${MARK.designedStart} (generated from profile/design.md; see .claude/skills/page-design/SKILL.md) ---- */
+  :root {
+    --r-ink: ${n[11]}; --r-muted: ${n[10]}; --r-line: ${n[5]}; --r-accent: ${a[8]}; --r-accent-text: ${a[10]}; --r-wash: ${a[2]};
+    --font-display: ${fontStack(theme.fonts.heading, 'heading')};
+    --font-body: ${fontStack(theme.fonts.body, 'body')};
+    --font-data: ${fontStack(theme.fonts.mono, 'mono')};
+    --r-size: ${size}; --r-leading: ${lead};
+  }
+  @page { size: ${theme.docs.paper}; margin: ${margin}; }
+${MARK.designedEnd}`
+}
+
+// ATS resume and cover letter: font from the safe list, accent for the name and rules only, paper, density.
+export function documentBlock(docs, kind) {
+  const f = DOC_FONTS[docs.font] || DOC_FONTS.Arial
+  const [size, lead, margin] = DOC_DENSITY[kind === 'letter' ? 'letter' : 'resume'][docs.density]
+  const imp = f.google ? `\n  @import url("https://fonts.googleapis.com/css2?family=${f.google}&display=swap");` : ''
+  return `${MARK.docStart} (generated from profile/design.md; see .claude/skills/page-design/SKILL.md) ---- */${imp}
+  :root { --doc-font: ${f.stack}; --doc-accent: ${docs.accent}; --doc-size: ${size}; --doc-leading: ${lead}; }
+  @page { size: ${docs.paper}; margin: ${margin}; }
+${MARK.docEnd}`
+}
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  const name = process.argv[2] || 'default'
+  if (!PRESETS[name]) { console.error(`unknown preset ${name}`); process.exit(2) }
+  const t = resolveTheme({}, { preset: name }), f = fixContrast(t.spec)
+  t.spec = f.spec
+  process.stdout.write(tokenBlock(t, f.R))
+}

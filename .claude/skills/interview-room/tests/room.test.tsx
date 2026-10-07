@@ -1,0 +1,86 @@
+import { expect, mock, test } from 'claude-code/testing'
+
+const PANE = { component: 'Pane', requestId: 'interview-room', props: { title: 'Interview Room', isFocused: true, bodyColumns: 90 } } as const
+
+for (const surface of ['terminal', 'desktop'] as const) {
+  test(`a full mock round draws on ${surface}`, async ($, on) => {
+    const time = mock.clock(on)
+    on('audio.speak', () => ({ value: { synthesizer: 'system' } }) as never)
+    const filled: string[] = []
+    on('prompt.fill', (_$, e) => { filled.push((e as { text: string }).text); return { isFilled: true } as never })
+    on('ui.open', () => ({ value: { isPlaced: true } }) as never)
+    const ui = await $.ui.mount({ plugin: 'interview-room', surface, ...PANE } as never)
+    expect(JSON.stringify(await ui.drawn())).toContain('/mock-interview')
+
+    await $.tool.call({ tool: 'mcp__interview-room__interview_start', company: 'Globex', role: 'Data Analyst', interviewer: 'Hiring manager', style: 'behavioral', total: 3 } as never)
+    // The mocked voice reports done at once; 9 words still take 2.7 s to read at 200 wpm.
+    await $.tool.call({ tool: 'mcp__interview-room__interview_say', text: 'Tell me about a time you improved a process.', kind: 'question', seconds: 120 } as never)
+    await time.advance(1000)
+    let drawn = JSON.stringify(await ui.drawn())
+    expect(drawn).toContain('Question 1 of 3')
+    expect(drawn).toContain('Tell me about a time you improved a process.')
+    expect(drawn).toContain('Your clock starts when it ends')
+    expect(drawn).toContain('How to answer out loud')
+    expect(drawn).toContain(surface === 'terminal' ? '/voice' : 'microphone')
+
+    await time.advance(4000)
+    drawn = JSON.stringify(await ui.drawn())
+    expect(drawn).toContain('0:02 / 2:00')
+    expect(drawn).not.toContain('Your clock starts when it ends')
+
+    await ui.press({ key: 'done' })
+    expect(filled[0]).toContain('answered in 0:02')
+    await $.tool.call({ tool: 'mcp__interview-room__interview_score', question: 'Process improvement', score: 4, note: 'Strong result; add the before/after number first.' } as never)
+    await $.tool.call({ tool: 'mcp__interview-room__interview_end' } as never)
+    drawn = JSON.stringify(await ui.drawn())
+    expect(drawn).toContain('Scorecard')
+    expect(drawn).toContain('Interview over')
+    await ui.unmount()
+  })
+}
+
+test('one-way mode counts think time first, then the answer', async ($, on) => {
+  const time = mock.clock(on)
+  on('audio.speak', () => ({ value: { synthesizer: 'system' } }) as never)
+  on('ui.open', () => ({ value: { isPlaced: true } }) as never)
+  const ui = await $.ui.mount({ plugin: 'interview-room', surface: 'terminal', ...PANE } as never)
+  await $.tool.call({ tool: 'mcp__interview-room__interview_start', company: 'Initech', role: 'Operations Analyst', interviewer: 'Recorded video', style: 'one-way', total: 2 } as never)
+  await $.tool.call({ tool: 'mcp__interview-room__interview_say', text: 'Why this field?', kind: 'question', seconds: 90, prep_seconds: 30 } as never)
+  await time.advance(10000)
+  expect(JSON.stringify(await ui.drawn())).toContain('Think time: 0:20 left')
+  // 3 words take 0.9 s to read, so the answer clock starts at 30.9 s.
+  await time.advance(26000)
+  expect(JSON.stringify(await ui.drawn())).toContain('0:05 / 1:30')
+  await ui.unmount()
+})
+
+test('a downloaded Premium voice is picked automatically; without one, a tip shows', async ($, on) => {
+  mock.clock(on)
+  const voices: (string | undefined)[] = []
+  on('audio.speak', (_$, e) => { voices.push((e as { voice?: string }).voice); return { value: { via: 'system' } } as never })
+  let listing = 'Albert              en_US    # Hello! My name is Albert.\nAva (Premium)       en_US    # Hello! My name is Ava.\nSamantha            en_US    # Hello! My name is Samantha.\n'
+  on('process.run', () => ({ value: { exitCode: 0, stdout: listing, stderr: '', isStdoutTruncated: false } }) as never)
+  on('ui.open', () => ({ value: { isPlaced: true } }) as never)
+  const ui = await $.ui.mount({ plugin: 'interview-room', surface: 'terminal', ...PANE } as never)
+  await $.tool.call({ tool: 'mcp__interview-room__interview_start', company: 'Acme', role: 'Analyst', interviewer: 'Maria', style: 'behavioral', total: 1 } as never)
+  await $.tool.call({ tool: 'mcp__interview-room__interview_say', text: 'Hi Alex.', kind: 'intro' } as never)
+  expect(voices[0]).toBe('Ava (Premium)')
+  expect(JSON.stringify(await ui.drawn())).not.toContain('Read & Speak')
+
+  listing = 'Albert              en_US    # Hello!\nSamantha            en_US    # Hello!\n'
+  await $.tool.call({ tool: 'mcp__interview-room__interview_start', company: 'Acme', role: 'Analyst', interviewer: 'Maria', style: 'behavioral', total: 1 } as never)
+  await $.tool.call({ tool: 'mcp__interview-room__interview_say', text: 'Hi again.', kind: 'intro' } as never)
+  expect(voices[1]).toBeUndefined()
+  expect(JSON.stringify(await ui.drawn())).toContain('Read & Speak')
+  await ui.unmount()
+})
+
+test('a question asked before interview_start is still shown', async ($, on) => {
+  mock.clock(on)
+  on('audio.speak', () => ({ value: { via: 'system' } }) as never)
+  on('ui.open', () => ({ value: { isPlaced: true } }) as never)
+  const ui = await $.ui.mount({ plugin: 'interview-room', surface: 'terminal', ...PANE } as never)
+  await $.tool.call({ tool: 'mcp__interview-room__interview_say', text: 'Walk me through your resume.', kind: 'question', seconds: 90 } as never)
+  expect(JSON.stringify(await ui.drawn())).toContain('Walk me through your resume.')
+  await ui.unmount()
+})

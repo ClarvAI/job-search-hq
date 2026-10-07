@@ -1,0 +1,46 @@
+---
+name: apply-kit
+description: "While the user fills in an online application form themselves, print every answer the form will ask for (contact details, work authorization, start date, relocation, salary, self-identification choice, education, each past job, the job's own questions with drafted answers, and which files to upload) as copyable blocks, then mark the job applied when they say they submitted. Use when the user says apply kit, 'I'm filling out the application now', 'what do I put for…' on a form, or asks for their answers to copy."
+---
+
+# Apply Kit (chat version)
+
+The chat version of the Claude Apply Kit panel. Read-only, except marking the job applied when the user says they submitted. Never show or store sensitive data (SSN, date of birth, ID, bank or passport numbers, passwords): if a file holds any, leave it out, tell the user to type it into the employer's site themselves, and offer to remove it from the file.
+
+## 1. Pick the job
+
+Read `jobs/tracker.csv` fresh (tolerate a byte-order mark, Windows line endings, quoted commas, and Excel dates like `10/14/2026`). If the user named a job, use that row (match the `folder`, or company + role). Otherwise use the `interested` job whose `next_action` starts with `Review package and submit` (if several, the one with the soonest `deadline`, then `next_action_date`). If there is none, list the `interested` jobs and ask which one, one question only. If nothing is `interested`, say so and offer `add-job` or `find-jobs`.
+
+## 2. Gather (read, never guess)
+
+- `profile/master-resume.md` → Contact (name, email, phone, city, LinkedIn, portfolio), Education, Experience. Skip anything inside `<!-- -->` comments (those are templates, not facts).
+- `profile/preferences.md` → `name`, `home_base`, Work authorization (and sponsorship if listed separately), Earliest start date, relocation (a relocation line, or the Locations line if it mentions relocating), Willing to travel, Salary floor, and the Voluntary self-identification section.
+- The job folder `jobs/<folder>/`: `posting.md` header (`apply_link`, `job_id`, `deadline`, `documents`, `questions`), `application-answers.md` (each question is a heading or bold line with the answer under it), and which of `resume.html`, `cover-letter.html` and the PDFs exist.
+
+Any value that is empty or still says `[ASK]` prints as `[not set]`, with a note that the user can tell you the answer and you'll add it to their profile (ask before changing it). Never fill a gap from memory or inference (AGENTS.md ground rule 1).
+
+## 3. Print the kit
+
+Plain headings, and **each answer in its own fenced code block** so the user can copy it with one click (Codex and most chat apps show a copy button on code blocks). Label above each block. Order:
+
+1. **This job:** company and role, apply link, job ID (if any), deadline, and the contact's name if the tracker has one (for the referral field, only if that person referred them).
+2. **Contact details:** full name, email, phone, city and state, LinkedIn, portfolio (optional).
+3. **Eligibility and preferences:** work authorization (and sponsorship), earliest start date, willing to relocate, willing to travel, salary expectation. If no salary is set (or it says "not set; use market range"), don't invent one: say "Leave it blank if the field is optional, or type `Negotiable`", and offer a market range for this job if the form forces a number.
+4. **Voluntary self-identification:** show only what the user confirmed. "Use these on applications" = yes → the recorded answers (any still `[ASK]`: "answer this one yourself"); "decide each time" → say they chose to decide each time and print no answers; decline → tell them to pick "I don't wish to answer" for each; not set → say these are optional, they can answer on the form or ask you to record a choice. Never guess these.
+5. **Education:** school, location, degree and major, dates, other listed details.
+6. **Work history (for forms that make you retype your resume):** one block per job, newest first: employer, job title, start, end, location, and the description bullets as one copyable block.
+7. **This job's application questions:** each question with its drafted answer from `application-answers.md`. Any answer with a bracketed blank like `[ASK]`, `[ASK: ...]` or `[Your answer]`: show it but say it needs the user's own answer. List any question in the posting's `questions` that has no drafted answer as "Not drafted yet". If there is no answers file, say so and offer to draft the answers now (the `apply` skill, step 2).
+8. **Files to upload:** `<First>-<Last>-Resume-<Company>.pdf` and, if used, `<First>-<Last>-Cover-Letter-<Company>.pdf` (name hyphenated, from preferences or the master resume). For each say whether the PDF is in the job folder, or the `.html` is ready to print (open it in a browser → Print → Save as PDF with that name), or it isn't made yet (offer `tailor-resume` / `cover-letter`). A cover letter the posting doesn't ask for: "Not needed". List other `documents` (transcript, portfolio) as "you provide this one".
+
+End with one line: "Tell me when you've submitted it and I'll mark it applied and set your follow-up."
+
+## 4. When the user says they submitted
+
+Only when they say it happened, and with the real date they applied ("yesterday" means yesterday). Re-read `jobs/tracker.csv` right before the change and edit only that row (targeted edit, plain characters, the playbook's CSV rules for quoting and formula protection, dates as `YYYY-MM-DD`). If the row is no longer `interested`, change nothing and tell them what it says.
+
+- `status=applied`, `date_applied` = the date they applied
+- `next_action=Follow up` (or `Follow up with <contact>` if the row has a contact)
+- `next_action_date` = 7 business days after applying (playbook "Follow-up cadence": applied online, 7–10 business days)
+- `followups=0`
+
+Then add one line to `history/activity.md` (`date '+%Y-%m-%d %H:%M'` for the time; Windows PowerShell: `Get-Date -Format 'yyyy-MM-dd HH:mm'`; e.g. `- 2026-10-06 14:05 · Codex · Acme Corp (Operations Analyst): marked applied on 2026-10-06; follow-up set for 2026-10-15`), re-read the row to confirm, and tell the user in one sentence when the follow-up is. Finish the rest of the `apply` skill's step 6 (a recruiter question in the Outbox, a referral noted in `contacts/contacts.csv`). If the save fails because Excel has the file open, ask them to save and close it, then try again.

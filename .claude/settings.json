@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Read",
+      "Glob",
+      "Grep",
+      "WebSearch",
+      "WebFetch",
+      "Skill",
+      "mcp__interview-room",
+      "Bash(ls:*)",
+      "Bash(date:*)",
+      "Bash(unzip:*)",
+      "Bash(bash .claude/hooks/summary.sh:*)",
+      "Bash(bash .claude/skills/tailor-resume/scripts/page-count.sh:*)",
+      "Bash(bash .claude/skills/tailor-resume/scripts/make-pdf.sh:*)",
+      "Bash(say:*)",
+      "Bash(date +%s)",
+      "Bash(mv outbox/*:*)"
+    ],
+    "ask": [
+      "Edit(profile/master-resume.md)",
+      "Edit(profile/preferences.md)"
+    ],
+    "deny": [
+      "Bash(rm -rf:*)",
+      "Bash(git push:*)",
+      "Bash(curl:*)",
+      "Bash(wget:*)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "mcp__.*|WebFetch|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard.sh\" || { echo 'Safety check could not run, so this was blocked to be safe. Tell the user the safety check in .claude/hooks/guard.sh is not working.' >&2; exit 2; }",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/after-write.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "bash \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/statusline.sh\""
+  },
+  "companyAnnouncements": [
+    "Welcome to your Job Search HQ. First time? Type /start. Every day: /today. Lost? /menu."
+  ]
+}

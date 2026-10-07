@@ -1,0 +1,90 @@
+<!doctype html>
+<!--
+  ATS-friendly resume template.
+  Assistant: copy this file to jobs/<folder>/resume.html and replace the content
+  inside <main>. Keep: one column, standard headings, real text (no images,
+  tables or icons), one page by default (two where the job's country or the
+  user's seniority expects it; see tailor-resume). After the checks, make the PDF with
+  .claude/skills/tailor-resume/scripts/make-pdf.sh (Windows without bash: make-pdf.ps1);
+  paper size comes from @page below.
+  Fallback: the user opens it in a browser and uses Print -> Save as PDF
+  (Margins: Default, Headers and footers: off).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Your Name Resume</title>
+<style>
+  /* ---- Document theme (generated from profile/design.md; see .claude/skills/page-design/SKILL.md) ---- */
+  :root { --doc-font: Arial, Helvetica, "Liberation Sans", sans-serif; --doc-accent: #111111; --doc-size: 10.5pt; --doc-leading: 1.2; }
+  @page { size: Letter; margin: 0.5in 0.6in; }
+  /* ---- End document theme ---- */
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto; max-width: 7.3in; padding: 0.4in 0;
+    /* Font, accent, size and paper come from the document theme above (ATS-safe choices only).
+       Arial, the default, is on every Mac and PC, so the one-page fit is predictable.
+       Body text is always near-black; the accent colors only the name and the section rules. */
+    font-family: var(--doc-font);
+    font-size: var(--doc-size); line-height: var(--doc-leading); color: #111; background: #fff;
+  }
+  @media print { body { padding: 0; } .screen-only { display: none; } }
+  h1 { font-size: 18pt; margin: 0; text-align: center; letter-spacing: 0; color: var(--doc-accent); }
+  .contact { text-align: center; margin: 2px 0 6px; font-size: 10pt; }
+  .contact a { color: #111; text-decoration: none; }
+  h2 {
+    font-size: 11pt; text-transform: uppercase; letter-spacing: 0.6px;
+    border-bottom: 1px solid var(--doc-accent); margin: 9px 0 4px; padding-bottom: 1px;
+  }
+  .row { display: flex; justify-content: space-between; gap: 12px; }
+  .row .left { font-weight: bold; }
+  .row .right { white-space: nowrap; }
+  .sub { display: flex; justify-content: space-between; gap: 12px; font-style: italic; }
+  .sub span:last-child { white-space: nowrap; }
+  ul { margin: 2px 0 5px 0; padding-left: 16px; }
+  li { margin: 0 0 1.5px 0; }
+  p { margin: 2px 0; }
+  .entry { margin-bottom: 4px; }
+  .screen-only {
+    font-family: Arial, sans-serif; font-size: 12px; background: #fff8dc;
+    border: 1px solid #e6d690; padding: 8px 10px; margin-bottom: 14px; border-radius: 4px;
+  }
+</style>
+</head>
+<body>
+<div class="screen-only">To save as PDF: press Ctrl+P (Windows) or Cmd+P (Mac), choose “Save as PDF”, set Margins to Default, and turn off Headers and footers. If it runs onto a second page, ask your assistant to trim it. This yellow box won’t print.</div>
+<main>
+  <h1>Your Name</h1>
+  <p class="contact">City, ST | (555) 555-0100 | you@example.com | <a href="https://www.linkedin.com/in/your-name">linkedin.com/in/your-name</a></p>
+
+  <h2>Education</h2>
+  <div class="entry">
+    <div class="row"><span class="left">School Name</span><span class="right">City, ST</span></div>
+    <div class="sub"><span>Degree, Major; Minor (if any)</span><span>Month YYYY</span></div>
+    <p>Honors, awards, or relevant coursework (optional)</p>
+  </div>
+
+  <h2>Experience</h2>
+  <div class="entry">
+    <div class="row"><span class="left">Company</span><span class="right">City, ST</span></div>
+    <div class="sub"><span>Role</span><span>Mon YYYY – Mon YYYY</span></div>
+    <ul>
+      <li>Bullet from master resume, reordered and reworded for this job.</li>
+    </ul>
+  </div>
+
+  <h2>Projects</h2>
+  <div class="entry">
+    <div class="row"><span class="left">Project Name</span><span class="right">Mon YYYY – Mon YYYY</span></div>
+    <ul>
+      <li>Bullet.</li>
+    </ul>
+  </div>
+
+  <h2>Skills</h2>
+  <p><strong>Technical:</strong> Tool, tool, tool, software, software</p>
+  <p><strong>Methods:</strong> Method, method, method</p>
+  <p><strong>Certifications:</strong> Certification name (issuer)</p>
+</main>
+</body>
+</html>

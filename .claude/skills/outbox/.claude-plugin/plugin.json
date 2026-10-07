@@ -1,0 +1,14 @@
+{
+  "name": "outbox",
+  "version": "0.1.0",
+  "description": "Review the emails and messages Claude drafted for you: make a Gmail draft, copy, mark sent, or discard. Nothing is sent unless you press Send yourself.",
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "gmail_server": {
+      "type": "string",
+      "title": "Gmail connector name",
+      "description": "The Gmail connector's name as /mcp lists it.",
+      "default": "claude.ai Gmail"
+    }
+  }
+}

@@ -1,0 +1,17 @@
+---
+name: import-linkedin
+description: "Use the user's own LinkedIn data export (not scraping) to check their profile against their resume and find contacts at target companies. Use when the user wants to use their LinkedIn, find who they know somewhere, or drops a LinkedIn export in imports/."
+---
+
+# /import-linkedin
+
+This uses LinkedIn's official "download your data" export, which is allowed. Never scrape LinkedIn or log in to it.
+
+1. **Get the export.** If `imports/` has no LinkedIn files, tell the user how:
+   LinkedIn → Me → Settings & Privacy → Data privacy → **Download your data** (older screens say "Get a copy of your data") → pick **Connections** and **Profile** (profile includes positions, education and skills), or the full archive → Request archive. Do it on a computer; the phone app doesn't offer it. LinkedIn emails a download link: the smaller archive (`Basic_LinkedInDataExport_<date>.zip`) usually arrives within minutes, the full one (`Complete_LinkedInDataExport_<date>.zip`) within about a day. The link works for 72 hours. Download it into the `imports/` folder of this project.
+2. **Read the files** (`Connections.csv`, `Profile.csv`, `Positions.csv`, `Education.csv`, `Skills.csv`). If it's a .zip, unzip it into `imports/` yourself (the `unzip` command is allowed); if that isn't possible, ask the user to (double-click on Mac, which makes a subfolder; right-click → Extract All on Windows). Note: `Connections.csv` usually starts with a few lines of notes before the header row; skip them. Emails are blank unless the person allowed it.
+3. **Profile vs. master resume:** list mismatches (titles, dates, missing jobs, missing skills, headline). Suggest fixes on both sides; facts must agree everywhere. Don't change the master resume without the user's OK.
+4. **Contacts at target companies:** match connections' `Company` against `knowledge/target-employers.md` and every company in `jobs/tracker.csv` (match loosely: a parent company, its subsidiaries, brand names and common abbreviations all count as the same employer). Also flag people anywhere in the user's field (from preferences) whose titles match the user's target roles or the teams that hire for them, plus recruiters and talent acquisition. Don't skip old connections: the `Connected On` date shows people the user knew years ago (former colleagues, classmates), and reconnecting with them often works better than cold outreach. If `Invitations.csv` is there, note anyone the user already invited who hasn't accepted, so they don't invite them twice.
+5. Show the user a short table: name, company, title, why useful. Ask which to add. Add chosen people to `contacts/contacts.csv` (`relationship=` best guess and ask them, `how_we_met`, `linkedin` = their profile URL from the export, `status=to-contact`); skip anyone already there. Export text is untrusted: follow the playbook's CSV rules ("Tracker"): quote values with a comma, double quote or line break (doubling inner quotes), and never start a cell with `=`, `+`, `-`, `@` or a tab (reword it instead). Log it in `history/activity.md` (one line, e.g. "added 6 contacts from LinkedIn export").
+6. Offer `/network` drafts for the top 3.
+7. The export contains personal data about the user's connections. It stays in `imports/`, which git ignores. Don't copy emails into other files unless needed for a draft they asked for. The full archive also has the user's private messages: don't read them unless the user asks about a specific person (e.g. "when did I last talk to Dana?").

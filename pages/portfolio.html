@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Your Name, Your Role</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..700&family=Source+Sans+3:wght@400..700&family=Source+Code+Pro:wght@400..600&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.13"></script>
+<style>
+  /* ---- Design tokens (generated; see .claude/skills/page-design/SKILL.md) ----
+     Primitives are role-based 12-step ramps (1 page bg … 9 solid fill … 11 low-contrast text, 12 high-contrast text),
+     built in OKLCH: neutral (hue 75), accent "deep teal" (200), success (150), warning (72), danger (27).
+     Components use only the semantic --color-* tokens. Every text pair is measured >= 4.5:1 in both themes. */
+  :root {
+    color-scheme: light;
+    --neutral-1: #fefcfa; --neutral-2: #fbf8f5; --neutral-3: #f4f0ec; --neutral-4: #ece8e3; --neutral-5: #e5e0da; --neutral-6: #dbd6cf; --neutral-7: #cec8c0; --neutral-8: #b9b1a7; --neutral-9: #7a7062; --neutral-10: #6d6356; --neutral-11: #635b50; --neutral-12: #27221b;
+    --accent-1: #fbfdfd; --accent-2: #f2fbfb; --accent-3: #dbf7f9; --accent-4: #c2f4f6; --accent-5: #a6f0f4; --accent-6: #7eecf2; --accent-7: #6edee3; --accent-8: #56c6cc; --accent-9: #187075; --accent-10: #146266; --accent-11: #25676b; --accent-12: #182626;
+    --success-1: #fbfdfc; --success-2: #f3fbf5; --success-3: #dff9e3; --success-4: #c9f7d1; --success-5: #aff5bd; --success-6: #85f49f; --success-7: #6ee78e; --success-8: #56cf78; --success-9: #1a7d3d; --success-10: #166e35; --success-11: #256d3a; --success-12: #18271b;
+    --warning-1: #fdfdfc; --warning-2: #fbf8f5; --warning-3: #f9efe4; --warning-4: #f6e6d3; --warning-5: #f4ddc1; --warning-6: #f3d1a8; --warning-7: #f1bf82; --warning-8: #e5a44d; --warning-9: #d28e26; --warning-10: #c18222; --warning-11: #795420; --warning-12: #2a2116;
+    --danger-1: #fdfcfc; --danger-2: #fbf8f7; --danger-3: #f9eeed; --danger-4: #f6e4e2; --danger-5: #f5dad6; --danger-6: #f3cdc8; --danger-7: #f1bab3; --danger-8: #f0978d; --danger-9: #c01e20; --danger-10: #aa191b; --danger-11: #a32925; --danger-12: #351a17;
+    
+    --color-bg-page: var(--neutral-2); --color-bg-surface: var(--neutral-1); --color-bg-raised: var(--neutral-1); --color-bg-sunken: var(--neutral-3); --color-bg-hover: var(--neutral-4);
+    --color-text-primary: var(--neutral-12); --color-text-secondary: var(--neutral-11); --color-text-disabled: var(--neutral-9); --color-text-on-accent: #ffffff;
+    --color-border-subtle: var(--neutral-6); --color-border: var(--neutral-7); --color-border-strong: var(--neutral-8); --color-graphic-idle: var(--neutral-9);
+    --color-accent-subtle: var(--accent-3); --color-accent-subtle-hover: var(--accent-4); --color-accent-border: var(--accent-7); --color-accent-solid: var(--accent-9); --color-accent-solid-hover: var(--accent-10); --color-accent-text: var(--accent-11); --color-focus: var(--accent-9);
+    --color-success-subtle: var(--success-3); --color-success-solid: var(--success-9); --color-success-text: var(--success-11);
+    --color-warning-subtle: var(--warning-3); --color-warning-solid: var(--warning-9); --color-warning-text: var(--warning-11);
+    --color-danger-subtle: var(--danger-3); --color-danger-solid: var(--danger-9); --color-danger-text: var(--danger-11);
+    --shadow-surface: 0 0 0 1px oklch(0 0 0 / 0.06), 0 1px 2px -1px oklch(0 0 0 / 0.06), 0 2px 4px 0 oklch(0 0 0 / 0.04);
+    --shadow-raised: 0 0 0 1px oklch(0 0 0 / 0.07), 0 2px 4px -2px oklch(0 0 0 / 0.08), 0 16px 32px -16px oklch(0 0 0 / 0.22);
+    --radius-sm: 5px; --radius-md: 10px; --radius-lg: 18px;
+    --ease-out: cubic-bezier(0.2, 0, 0, 1);
+    --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+    --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+    --font-data: "Source Code Pro", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --spacing: 0.25rem; --motion: full; font-size: 100%;
+    --print-accent-text: #146266; --print-accent-subtle: #dbf7f9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --neutral-1: #0e0d0b; --neutral-2: #141210; --neutral-3: #1d1b17; --neutral-4: #25221d; --neutral-5: #2d2924; --neutral-6: #37332d; --neutral-7: #464139; --neutral-8: #5f584e; --neutral-9: #8a7e6f; --neutral-10: #7c7162; --neutral-11: #cbc1b4; --neutral-12: #f3ece1;
+    --accent-1: #0a0e0e; --accent-2: #0d1415; --accent-3: #111e1e; --accent-4: #152526; --accent-5: #192e2f; --accent-6: #1e383a; --accent-7: #26484a; --accent-8: #316264; --accent-9: #337f83; --accent-10: #2c7074; --accent-11: #6dd6db; --accent-12: #dbf2f3;
+    --success-1: #0a0e0b; --success-2: #0d150e; --success-3: #111f14; --success-4: #152719; --success-5: #19301e; --success-6: #1e3b25; --success-7: #264b2f; --success-8: #31663f; --success-9: #3a9554; --success-10: #34864b; --success-11: #6ddf8a; --success-12: #def4e1;
+    --warning-1: #0f0c09; --warning-2: #17120c; --warning-3: #22190f; --warning-4: #2b2013; --warning-5: #342717; --warning-6: #40301b; --warning-7: #523d23; --warning-8: #70532c; --warning-9: #db9d47; --warning-10: #ca9041; --warning-11: #eeb771; --warning-12: #f3ebe2;
+    --danger-1: #120b0a; --danger-2: #1d0e0c; --danger-3: #2c1210; --danger-4: #381714; --danger-5: #441b18; --danger-6: #54211d; --danger-7: #6c2a25; --danger-8: #933630; --danger-9: #dc403a; --danger-10: #c63933; --danger-11: #efb1a9; --danger-12: #f3eae9;
+    
+    --color-bg-page: var(--neutral-2); --color-bg-surface: var(--neutral-3); --color-bg-raised: var(--neutral-4); --color-bg-sunken: var(--neutral-1); --color-bg-hover: var(--neutral-5);
+    --color-text-primary: var(--neutral-12); --color-text-secondary: var(--neutral-11); --color-text-disabled: var(--neutral-9); --color-text-on-accent: #ffffff;
+    --color-border-subtle: var(--neutral-6); --color-border: var(--neutral-7); --color-border-strong: var(--neutral-8); --color-graphic-idle: var(--neutral-9);
+    --color-accent-subtle: var(--accent-3); --color-accent-subtle-hover: var(--accent-4); --color-accent-border: var(--accent-7); --color-accent-solid: var(--accent-9); --color-accent-solid-hover: var(--accent-10); --color-accent-text: var(--accent-11); --color-focus: var(--accent-11);
+    --color-success-subtle: var(--success-3); --color-success-solid: var(--success-9); --color-success-text: var(--success-11);
+    --color-warning-subtle: var(--warning-3); --color-warning-solid: var(--warning-9); --color-warning-text: var(--warning-11);
+    --color-danger-subtle: var(--danger-3); --color-danger-solid: var(--danger-9); --color-danger-text: var(--danger-11);
+    --shadow-surface: 0 0 0 1px oklch(1 0 0 / 0.08);
+    --shadow-raised: 0 0 0 1px oklch(1 0 0 / 0.12), 0 16px 32px -16px oklch(0 0 0 / 0.7);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --neutral-1: #0e0d0b; --neutral-2: #141210; --neutral-3: #1d1b17; --neutral-4: #25221d; --neutral-5: #2d2924; --neutral-6: #37332d; --neutral-7: #464139; --neutral-8: #5f584e; --neutral-9: #8a7e6f; --neutral-10: #7c7162; --neutral-11: #cbc1b4; --neutral-12: #f3ece1;
+    --accent-1: #0a0e0e; --accent-2: #0d1415; --accent-3: #111e1e; --accent-4: #152526; --accent-5: #192e2f; --accent-6: #1e383a; --accent-7: #26484a; --accent-8: #316264; --accent-9: #337f83; --accent-10: #2c7074; --accent-11: #6dd6db; --accent-12: #dbf2f3;
+    --success-1: #0a0e0b; --success-2: #0d150e; --success-3: #111f14; --success-4: #152719; --success-5: #19301e; --success-6: #1e3b25; --success-7: #264b2f; --success-8: #31663f; --success-9: #3a9554; --success-10: #34864b; --success-11: #6ddf8a; --success-12: #def4e1;
+    --warning-1: #0f0c09; --warning-2: #17120c; --warning-3: #22190f; --warning-4: #2b2013; --warning-5: #342717; --warning-6: #40301b; --warning-7: #523d23; --warning-8: #70532c; --warning-9: #db9d47; --warning-10: #ca9041; --warning-11: #eeb771; --warning-12: #f3ebe2;
+    --danger-1: #120b0a; --danger-2: #1d0e0c; --danger-3: #2c1210; --danger-4: #381714; --danger-5: #441b18; --danger-6: #54211d; --danger-7: #6c2a25; --danger-8: #933630; --danger-9: #dc403a; --danger-10: #c63933; --danger-11: #efb1a9; --danger-12: #f3eae9;
+    
+    --color-bg-page: var(--neutral-2); --color-bg-surface: var(--neutral-3); --color-bg-raised: var(--neutral-4); --color-bg-sunken: var(--neutral-1); --color-bg-hover: var(--neutral-5);
+    --color-text-primary: var(--neutral-12); --color-text-secondary: var(--neutral-11); --color-text-disabled: var(--neutral-9); --color-text-on-accent: #ffffff;
+    --color-border-subtle: var(--neutral-6); --color-border: var(--neutral-7); --color-border-strong: var(--neutral-8); --color-graphic-idle: var(--neutral-9);
+    --color-accent-subtle: var(--accent-3); --color-accent-subtle-hover: var(--accent-4); --color-accent-border: var(--accent-7); --color-accent-solid: var(--accent-9); --color-accent-solid-hover: var(--accent-10); --color-accent-text: var(--accent-11); --color-focus: var(--accent-11);
+    --color-success-subtle: var(--success-3); --color-success-solid: var(--success-9); --color-success-text: var(--success-11);
+    --color-warning-subtle: var(--warning-3); --color-warning-solid: var(--warning-9); --color-warning-text: var(--warning-11);
+    --color-danger-subtle: var(--danger-3); --color-danger-solid: var(--danger-9); --color-danger-text: var(--danger-11);
+    --shadow-surface: 0 0 0 1px oklch(1 0 0 / 0.08);
+    --shadow-raised: 0 0 0 1px oklch(1 0 0 / 0.12), 0 16px 32px -16px oklch(0 0 0 / 0.7);
+  }
+  /* ---- End design tokens ---- */
+
+  body { margin: 0; background: var(--color-bg-page); color: var(--color-text-primary); font-family: var(--font-body); font-size: 1rem; line-height: 1.55; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+  h1, h2, h3, h4 { font-family: var(--font-display); font-optical-sizing: auto; text-wrap: balance; margin: 0; }
+  p, li, dd { text-wrap: pretty; }
+  .num { font-variant-numeric: lining-nums tabular-nums; }
+  :focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+  @media (prefers-reduced-motion: no-preference) {
+    .btn { transition-property: scale, background-color, box-shadow, color; transition-duration: 150ms; transition-timing-function: ease-out; }
+    .btn:active:not(:disabled) { scale: 0.96; }
+  }
+  /* Concept: a personal profile page. A hero card (name, one-line headline, about, how to reach you),
+     a row of highlight tiles with the numbers from the resume, then experience as a stack of role cards
+     with their dates as chips, projects, and skills as tags. Only facts from profile/master-resume.md. */
+  .hero { position: relative; overflow: hidden; }
+  .hero::before { content: ""; position: absolute; inset-block: 0; inset-inline-start: 0; width: 0.375rem; background: var(--color-accent-solid); }
+  .chip { display: inline-flex; align-items: center; gap: 0.375rem; white-space: nowrap; border-radius: 999px; padding: 0.125rem 0.625rem; background: var(--color-accent-subtle); color: var(--color-accent-text); font-family: var(--font-data); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.02em; }
+  .tag { display: inline-flex; border-radius: 999px; padding: 0.125rem 0.625rem; background: var(--color-bg-sunken); font-size: 0.875rem; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .lift { transition: box-shadow 150ms ease-out, translate 150ms ease-out; }
+    @media (hover: hover) { .lift:hover { box-shadow: var(--shadow-raised); translate: 0 -2px; } }
+  }
+  @supports (animation-timeline: view()) {
+    @media (prefers-reduced-motion: no-preference) {
+      .reveal { animation: rise linear both; animation-timeline: view(); animation-range: entry 0% entry 65%; animation-duration: 1ms; }
+      @keyframes rise { from { opacity: 0.4; translate: 0 1rem; } to { opacity: 1; translate: 0 0; } }
+    }
+  }
+</style>
+<style type="text/tailwindcss">
+  @theme inline {
+    --color-page: var(--color-bg-page); --color-surface: var(--color-bg-surface); --color-raised: var(--color-bg-raised); --color-sunken: var(--color-bg-sunken); --color-hover: var(--color-bg-hover);
+    --color-fg: var(--color-text-primary); --color-fg-muted: var(--color-text-secondary); --color-fg-faint: var(--color-text-disabled); --color-on-accent: var(--color-text-on-accent);
+    --color-line-subtle: var(--color-border-subtle); --color-line: var(--color-border); --color-line-strong: var(--color-border-strong); --color-idle: var(--color-graphic-idle);
+    --color-accent: var(--color-accent-solid); --color-accent-hover: var(--color-accent-solid-hover); --color-accent-ink: var(--color-accent-text); --color-accent-wash: var(--color-accent-subtle); --color-accent-wash-hover: var(--color-accent-subtle-hover); --color-accent-edge: var(--color-accent-border); --color-ring: var(--color-focus);
+    --color-ok: var(--color-success-solid); --color-ok-ink: var(--color-success-text); --color-ok-wash: var(--color-success-subtle);
+    --color-warn: var(--color-warning-solid); --color-warn-ink: var(--color-warning-text); --color-warn-wash: var(--color-warning-subtle);
+    --color-bad: var(--color-danger-solid); --color-bad-ink: var(--color-danger-text); --color-bad-wash: var(--color-danger-subtle);
+    --font-serif: var(--font-display); --font-sans: var(--font-body); --font-mono: var(--font-data);
+    --text-display: clamp(2.5rem, 6.5vw, 4.25rem); --text-display--line-height: 1.02; --text-display--letter-spacing: -0.022em;
+    --text-title: clamp(1.75rem, 3.6vw, 2.25rem); --text-title--line-height: 1.1; --text-title--letter-spacing: -0.012em;
+    --text-heading: 1.375rem; --text-heading--line-height: 1.25;
+    --text-body: 1rem; --text-body--line-height: 1.55;
+    --text-small: 0.875rem; --text-small--line-height: 1.45;
+    --text-label: 0.75rem; --text-label--line-height: 1.3; --text-label--letter-spacing: 0.07em;
+  }
+  @layer components {
+    .label { @apply font-mono text-label uppercase font-medium text-fg-muted; }
+    .panel { @apply bg-surface rounded-(--radius-md) shadow-(--shadow-surface); }
+    .btn { @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-(--radius-md) bg-surface px-4 text-small font-semibold text-fg shadow-(--shadow-surface) hover:bg-hover cursor-pointer; }
+    .btn-primary { @apply bg-accent text-on-accent shadow-none hover:bg-accent-hover; }
+  }
+</style>
+
+<main id="main" class="mx-auto max-w-[64rem] px-4 sm:px-8 py-8 sm:py-12 flex flex-col gap-12 sm:gap-16">
+
+  <header class="hero panel p-6 sm:p-10 flex flex-col gap-8">
+    <div class="flex flex-col gap-3 max-w-[42rem]">
+      <span class="label">Your Field · City, ST</span>
+      <h1 class="font-serif text-display font-bold">Your Name</h1>
+      <p class="font-serif text-heading text-fg-muted">One sentence, in your words, about the work you do best.</p>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-[1fr_17rem] gap-8">
+      <section aria-labelledby="about" class="flex flex-col gap-2 max-w-[40rem]">
+        <h2 id="about" class="font-serif text-heading font-semibold">About</h2>
+        <p class="text-body">Example summary. Two or three sentences on your experience, the kind of work you have done, and the role you are looking for next. Your assistant fills this from your master resume once setup is done; you approve the wording before you share it.</p>
+        <p class="text-small text-fg-muted">Available: your earliest start date.</p>
+      </section>
+      <section aria-labelledby="contact" class="flex flex-col gap-3">
+        <h2 id="contact" class="font-serif text-heading font-semibold">Get in touch</h2>
+        <div class="flex flex-col gap-2 text-small">
+          <span class="flex flex-wrap items-center gap-x-2"><a id="email" class="font-mono text-accent-ink underline underline-offset-3 [overflow-wrap:anywhere]" href="mailto:you@example.com">you@example.com</a><button type="button" class="copy text-label font-semibold text-accent-ink underline underline-offset-3 min-h-6 px-1 cursor-pointer" data-target="email" data-what="Email">Copy<span class="sr-only"> email</span></button></span>
+          <span class="flex flex-wrap items-center gap-x-2"><a id="phone" class="font-mono text-accent-ink underline underline-offset-3 num" href="tel:+15555550100">(555) 555-0100</a><button type="button" class="copy text-label font-semibold text-accent-ink underline underline-offset-3 min-h-6 px-1 cursor-pointer" data-target="phone" data-what="Phone number">Copy<span class="sr-only"> phone number</span></button></span>
+          <a class="font-mono text-accent-ink underline underline-offset-3 [overflow-wrap:anywhere]" href="https://www.linkedin.com/in/your-name" target="_blank" rel="noopener">linkedin.com/in/your-name</a>
+        </div>
+        <p class="sr-only" role="status" id="copy-status"></p>
+      </section>
+    </div>
+  </header>
+
+  <section class="reveal flex flex-col gap-4" aria-labelledby="highlights">
+    <div class="flex flex-wrap items-baseline justify-between gap-2">
+      <h2 id="highlights" class="font-serif text-title font-bold">Highlights</h2>
+      <p class="text-small text-fg-muted">Example numbers. Your assistant replaces these with results stated on your resume.</p>
+    </div>
+    <dl class="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div class="panel p-4 flex flex-col-reverse justify-end gap-2"><dt class="text-small text-fg-muted">example result, first project</dt><dd class="font-serif text-[2.25rem] leading-none font-bold text-accent-ink num" data-count="30" data-pre="−" data-post="%">−30%</dd></div>
+      <div class="panel p-4 flex flex-col-reverse justify-end gap-2"><dt class="text-small text-fg-muted">example savings or revenue</dt><dd class="font-serif text-[2.25rem] leading-none font-bold text-accent-ink num" data-count="10" data-pre="$" data-post="K">$10K</dd></div>
+      <div class="panel p-4 flex flex-col-reverse justify-end gap-2"><dt class="text-small text-fg-muted">example improvement</dt><dd class="font-serif text-[2.25rem] leading-none font-bold text-accent-ink num" data-count="20" data-pre="+" data-post="%">+20%</dd></div>
+      <div class="panel p-4 flex flex-col-reverse justify-end gap-2"><dt class="text-small text-fg-muted">example time saved</dt><dd class="font-serif text-[2.25rem] leading-none font-bold text-accent-ink num" data-count="25" data-pre="−" data-post="%">−25%</dd></div>
+      <div class="panel p-4 flex flex-col-reverse justify-end gap-2 col-span-2 md:col-span-1"><dt class="text-small text-fg-muted">example people or sites served</dt><dd class="font-serif text-[2.25rem] leading-none font-bold text-accent-ink num" data-count="12" data-pre="" data-post="">12</dd></div>
+    </dl>
+  </section>
+
+  <section aria-labelledby="exp" class="flex flex-col gap-4">
+    <h2 id="exp" class="reveal font-serif text-title font-bold">Experience</h2>
+    <ol class="flex flex-col gap-4">
+      <li class="reveal panel p-5 sm:p-6 flex flex-col gap-2">
+        <div class="flex flex-wrap items-center gap-2"><span class="chip num">Month YYYY – Present</span><span class="text-small text-fg-muted">City, ST</span></div>
+        <h3 class="font-serif text-heading font-semibold">Role Title, <span class="text-accent-ink">Company</span></h3>
+        <p class="text-small text-fg-muted">One line on what the company does.</p>
+        <ul class="mt-1 flex flex-col gap-2 list-disc ps-5 marker:text-fg-faint max-w-[44rem]">
+          <li>Action verb, what you did, and the result with a number.</li>
+          <li>Action verb, what you did, and the result with a number.</li>
+          <li>Action verb, what you did, and the result with a number.</li>
+        </ul>
+      </li>
+      <li class="reveal panel p-5 sm:p-6 flex flex-col gap-2">
+        <div class="flex flex-wrap items-center gap-2"><span class="chip num">Month YYYY – Month YYYY</span><span class="text-small text-fg-muted">City, ST</span></div>
+        <h3 class="font-serif text-heading font-semibold">Role Title, <span class="text-accent-ink">Company</span></h3>
+        <p class="text-small text-fg-muted">One line on what the company does.</p>
+        <ul class="mt-1 flex flex-col gap-2 list-disc ps-5 marker:text-fg-faint max-w-[44rem]">
+          <li>Action verb, what you did, and the result with a number.</li>
+          <li>Action verb, what you did, and the result with a number.</li>
+        </ul>
+      </li>
+    </ol>
+  </section>
+
+  <section aria-labelledby="proj" class="flex flex-col gap-4">
+    <h2 id="proj" class="reveal font-serif text-title font-bold">Projects</h2>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <article class="reveal lift panel p-5 flex flex-col gap-2">
+        <span class="label num">Type of project · YYYY</span>
+        <h3 class="font-serif text-heading font-semibold">Project name</h3>
+        <p class="text-small">One or two sentences: the problem, what you built or did, and the result.</p>
+      </article>
+      <article class="reveal lift panel p-5 flex flex-col gap-2">
+        <span class="label num">Type of project · YYYY</span>
+        <h3 class="font-serif text-heading font-semibold">Project name</h3>
+        <p class="text-small">One or two sentences: the problem, what you built or did, and the result.</p>
+      </article>
+      <article class="reveal lift panel p-5 flex flex-col gap-2">
+        <span class="label num">Type of project · YYYY</span>
+        <h3 class="font-serif text-heading font-semibold">Project name</h3>
+        <p class="text-small">One or two sentences: the problem, what you built or did, and the result.</p>
+      </article>
+    </div>
+  </section>
+
+  <section aria-labelledby="skills" class="reveal flex flex-col gap-4">
+    <h2 id="skills" class="font-serif text-title font-bold">Skills</h2>
+    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5 max-w-[52rem]">
+      <div class="flex flex-col gap-2"><dt class="label">Skill group</dt><dd><ul class="flex flex-wrap gap-2"><li class="tag">Skill</li><li class="tag">Skill</li><li class="tag">Skill</li></ul></dd></div>
+      <div class="flex flex-col gap-2"><dt class="label">Tools</dt><dd><ul class="flex flex-wrap gap-2"><li class="tag">Tool</li><li class="tag">Tool</li><li class="tag">Tool</li></ul></dd></div>
+      <div class="flex flex-col gap-2"><dt class="label">Methods</dt><dd><ul class="flex flex-wrap gap-2"><li class="tag">Method</li><li class="tag">Method</li></ul></dd></div>
+      <div class="flex flex-col gap-2"><dt class="label">Other</dt><dd><ul class="flex flex-wrap gap-2"><li class="tag">Languages</li><li class="tag">Certifications</li></ul></dd></div>
+    </dl>
+  </section>
+
+  <footer class="flex flex-col gap-2 pt-4 border-t border-line">
+    <p class="text-small text-fg-muted">Your Name · Your Field · Updated Month YYYY</p>
+  </footer>
+</main>
+
+<script>
+  document.querySelectorAll('.copy').forEach(btn => btn.addEventListener('click', () => {
+    const el = document.getElementById(btn.dataset.target);
+    const label = btn.firstChild;
+    const done = () => { label.textContent = 'Copied'; document.getElementById('copy-status').textContent = `${btn.dataset.what} copied`; setTimeout(() => { label.textContent = 'Copy'; }, 1500); };
+    const select = () => {
+      const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+      label.textContent = 'Press Ctrl+C or Cmd+C'; setTimeout(() => { label.textContent = 'Copy'; }, 3000);
+    };
+    try { navigator.clipboard.writeText(el.textContent).then(done, select); } catch (e) { select(); }
+  }));
+  // Signature moment: the highlight numbers count up once. Skipped for reduced motion (device setting or profile/design.md).
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches || getComputedStyle(document.documentElement).getPropertyValue('--motion').trim() === 'reduced';
+  if (!reduceMotion) {
+    document.querySelectorAll('[data-count]').forEach(el => {
+      const target = Number(el.dataset.count), pre = el.dataset.pre || '', post = el.dataset.post || '';
+      const t0 = performance.now(), dur = 900;
+      const step = t => { const p = Math.min(1, (t - t0) / dur); el.textContent = pre + Math.round(target * (1 - Math.pow(1 - p, 3))) + post; if (p < 1) requestAnimationFrame(step); };
+      requestAnimationFrame(step);
+    });
+  }
+</script>
+</html>

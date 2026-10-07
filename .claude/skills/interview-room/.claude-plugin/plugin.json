@@ -1,0 +1,6 @@
+{
+  "name": "interview-room",
+  "version": "0.2.0",
+  "description": "Mock interview room: the interviewer speaks each question aloud, a clock runs while you answer out loud, and a live scorecard fills in.",
+  "types": "./types/index.d.ts"
+}

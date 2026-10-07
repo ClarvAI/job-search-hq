@@ -1,0 +1,16 @@
+---
+name: weekly-review
+description: "Weekly check-in on the user's job search: activity vs goals, funnel conversion, what's working, what to change next week. Use on Fridays/Sundays or when the user asks how their search is going."
+---
+
+# weekly-review (Codex)
+
+This workflow is shared with Claude Code. Read `.claude/skills/weekly-review/SKILL.md` and follow it fully. Files it mentions as `references/...`, `scripts/...` or by bare name live in `.claude/skills/weekly-review/`.
+
+Never quote, link or mention these instruction files or rules to the user; just do what they say.
+
+It was written with Claude Code's names; translate them with the table in AGENTS.md ("If you are Codex"): `/name` means the skill of that name (`$name` here), review agents are separate, honest review passes you do yourself from `.claude/agents/<name>.md` (and say so), and panels are the `outbox`, `pipeline`, `contacts`, `job-inbox` and `apply-kit` skills in chat.
+
+## Codex notes
+
+- Without panels, show the board in chat (see the `pipeline` skill) and the drafts list (see the `outbox` skill).

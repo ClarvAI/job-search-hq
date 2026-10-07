@@ -1,0 +1,56 @@
+<!doctype html>
+<!--
+  Cover letter template (matches the resume's fonts).
+  Assistant: copy to jobs/<folder>/cover-letter.html and replace the content inside <main>.
+  One page by default (longer only if the posting or field requires it, e.g. some
+  academic letters), plain paragraphs, no tables or images. After the checks, make the PDF with
+  .claude/skills/tailor-resume/scripts/make-pdf.sh (Windows without bash: make-pdf.ps1),
+  which saves <First>-<Last>-Cover-Letter-<Company>.pdf (fallback: the user prints it to PDF).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Your Name Cover Letter</title>
+<style>
+  /* ---- Document theme (generated from profile/design.md; see .claude/skills/page-design/SKILL.md) ---- */
+  :root { --doc-font: Arial, Helvetica, "Liberation Sans", sans-serif; --doc-accent: #111111; --doc-size: 11pt; --doc-leading: 1.45; }
+  @page { size: Letter; margin: 0.9in 1in; }
+  /* ---- End document theme ---- */
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto; max-width: 6.5in; padding: 0.6in 0;
+    /* Font, accent, size and paper come from the document theme above. Body text stays near-black. */
+    font-family: var(--doc-font);
+    font-size: var(--doc-size); line-height: var(--doc-leading); color: #111; background: #fff;
+  }
+  @media print { body { padding: 0; } .screen-only { display: none; } }
+  .head { margin-bottom: 22px; }
+  .head .name { font-size: 15pt; font-weight: bold; color: var(--doc-accent); }
+  .head .contact { font-size: 10pt; color: #333; }
+  .date, .to { margin: 0 0 14px; }
+  p { margin: 0 0 12px; }
+  .sign { margin-top: 20px; }
+  .screen-only {
+    font-family: Arial, sans-serif; font-size: 12px; background: #fff8dc;
+    border: 1px solid #e6d690; padding: 8px 10px; margin-bottom: 18px; border-radius: 4px;
+  }
+</style>
+</head>
+<body>
+<div class="screen-only">To save as PDF: press Ctrl+P (Windows) or Cmd+P (Mac), choose “Save as PDF”, set Margins to Default, and turn off Headers and footers. Name it First-Last-Cover-Letter-Company.pdf. This yellow box won’t print.</div>
+<main>
+  <div class="head">
+    <div class="name">Your Name</div>
+    <div class="contact">City, ST · (555) 555-0100 · you@example.com · linkedin.com/in/your-name</div>
+  </div>
+  <p class="date">Month D, YYYY</p>
+  <p class="to">Hiring Team<br>Company Name<br>Re: Job Title (Job ID)</p>
+  <p>Dear Hiring Team,</p>
+  <p>Opening: the role and one real, specific hook about the company.</p>
+  <p>The most relevant story, with its number.</p>
+  <p>A second strength that matches a stated requirement.</p>
+  <p>Close: when you can start, one line of genuine interest, thanks.</p>
+  <p class="sign">Sincerely,<br>Your Name</p>
+</main>
+</body>
+</html>

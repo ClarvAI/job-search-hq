@@ -1,0 +1,123 @@
+---
+name: start
+description: "First-time setup interview for the user's job search (about 15–20 minutes, about 14 questions): builds their master resume from their own resume file, records career stage, field, target roles and preferences, and generates a field pack (primer, keywords, target employers) for their field. Use when profile/preferences.md says \"SETUP: not done\", when the user says they're new or want to set things up, or want to redo their preferences. Picks up where it left off if stopped partway."
+---
+
+# /start: set up the user's job search
+
+Usage: `/start [redo]` (or just ask in plain English).
+
+Goal: in about 15–20 minutes, turn the blank starter files into the user's own, find out where their search already stands, build a field pack for their field, and leave them with a first week they can actually do. Assume nothing about the user: field, level, location and country all come from their answers and their resume.
+
+## How to ask
+
+- **Choices → clickable options.** For questions with a fixed set of answers (marked **[choices]** below), use your multiple-choice question tool if this app has one (Claude Code: AskUserQuestion). You may group up to 4 related choice questions from the same section into one form; the tool always adds "Other" for the user's own words. Use multi-select where they can pick several. If there's no such tool (Codex), write the options as a short numbered list and say "reply with the numbers".
+- **Their own words → plain text.** Questions marked **[their words]** are one per message, as an ordinary chat question. These answers become their stories and teach you how they write, so don't turn them into options.
+- **About 14 questions in total.** Everything else gets filled in later, during `/mock-interview`, `/interview-prep` and `/resume-review`. Don't try to finish every `[ASK]` now.
+- **Save once per section, not after every answer.** Collect a section's answers, then make ONE edit to that file. **Before every save to `profile/master-resume.md` or `profile/preferences.md`, show the user the exact lines you'll add or change (grouped by section) and ask "OK to save?"; save only what they approve.** In Claude Code a permission box may then pop up for the edit; before the first one, say: "A box may pop up asking to let me edit the file. That's an extra safety lock; click Yes (or Allow) if it matches what you just approved." The box is extra; it never replaces showing them the lines.
+- If the profile is already filled in and the user wants a completely fresh start (or is handing the folder to someone else), use `my-data` ("Delete everything") first; `/start` only redoes setup.
+- **Resume where they left off.** If something is already filled in (no `[ASK]`), skip it. If they asked to `redo`, ask what they want to change and only revisit that.
+- Plain words. No jargon (don't say "mods", "hooks", "frontmatter", "CSV").
+
+## Adapt to their answers
+
+Setup is a conversation, not a form. Follow these, and use judgment for anything similar:
+
+- **Already in hiring processes** (section 2): add each one to `jobs/tracker.csv` right away (status from what they say: applied / screening / interviewing / offer, with the real dates and a next step), create the job folder if there's a posting, and log it in `history/activity.md`. An interview within the next 7 days or an offer with a deadline comes first: say so, finish only the essentials (sections 1–3; section 3's save marks setup done and starts the field pack), and make the first-week plan start with `/interview-prep` or `/offer` for it.
+- **A former employer mentioned hiring them (back)**: that's the strongest lead. Make the first item of the first-week plan a note to that person, and add them to `contacts/contacts.csv` (`relationship=former-manager`).
+- **"Not sure" about roles** (question 7): give a two-line, plain description of 3–5 role types that fit their resume and suggest the two that match best; let them pick.
+- **Career changer:** ask which parts of their past work they want to carry over, and which they'd rather leave behind. Target roles that bridge the two usually convert best; say so once.
+- **Returning after a gap:** don't probe the reason. Ask only how they'd like it described ("one plain line" is the default) and save that under Notes. If they ask why it matters: some employers' application systems screen out unexplained gaps of six months or more (Harvard Business School, *Hidden Workers*, 2021), and one plain line on the resume handles it.
+- **Outside the US:** work authorization, salary norms, resume conventions (photo, length, personal details, "CV" vs "resume") and job boards differ by country. Note the country in `home_base` (and set `paper: A4` in `profile/design.md`'s documents block where A4 is the norm), follow local norms in every skill (resume length and format by country: `.claude/skills/resume-review/references/what-recruiters-check.md`), and say once that some guidance (EEO questions, at-will employment, US-specific job boards) won't apply.
+- **Unsure about salary:** show the current market range for their top two role types and location, built per `.claude/skills/offer/references/pay-data.md` (sourced, dated, a range rather than one number), and save "not set; use market range" rather than pushing for a number.
+- **Short answers, "this is a lot", or they want to stop:** compress. Finish sections 1–3 (the essentials; section 3's save marks setup done, so they aren't sent back to setup next time, and the field pack in section 4 still builds in the background), say the rest happens naturally later, and give the first-week plan.
+- **They share something personal** (health, family, finances, immigration): note only what affects the search (for example "no travel before May"), never the details.
+- **Long, detailed answers:** good. Keep them; they're material for stories and voice.
+
+## 0. Welcome (two or three sentences)
+
+"Hi. This folder is your job-search partner: it finds jobs that fit you, tailors your resume and cover letters from your real experience, preps you for interviews, and keeps track of everything. You stay in control; I only draft, and you send and submit. Setup is about 15–20 minutes, mostly short answers, and you can stop any time and pick up later."
+
+## 1. Your resume (builds `profile/master-resume.md` and `profile/story-bank.md`)
+
+1. Look in `imports/` for a resume (PDF, DOCX, TXT, MD). If there's none: **[choices]** "To start, I need your current resume. How do you want to share it?" Options: "I'll drop the file in the imports folder" · "I'll paste the text here" · "I don't have one yet". For "drop the file", tell them in one line where the folder is and wait. For "I don't have one", build the master resume from a short conversation instead (jobs, dates, what they did, school), one question at a time, and keep it to 5 questions.
+2. Read the resume carefully (PDF: use your PDF reading ability; if it fails, ask them to paste the text). **Check it for sensitive data first:** date of birth, SSN or national ID numbers, passport or visa numbers, bank details, passwords, and (common on CVs in some countries) a photo, marital status or nationality. Never copy any of these into the profile, drafts, notes or logs. If the file has none, copy it to `profile/resume-original.<ext>` (a plain shell copy is fine here). If it has some, don't keep a copy: tell the user which kinds you found, ask them to drop in a version with those removed (only that clean version may be copied to `profile/`), and remind them the original is still in `imports/` and they may want to delete it. Fill `profile/master-resume.md` (after the approval step above): every job, project, skill, school, employment date and number exactly as written, leaving out the sensitive items. Mark weak spots with `[ASK: ...]` (missing numbers, vague bullets, missing dates) but don't ask about them now. Set "Built from:" to the file name. The master resume is their brag document, not a resume they send: it keeps everything, even what will never fit one page, and grows whenever they mention a win, a number, a tool or praise in passing (offer to add it).
+3. Draft 3–6 stories in `profile/story-bank.md` from the strongest bullets, in STAR shape, with `[ASK]` for the details only they know.
+4. Fill `name:` in `profile/preferences.md` from the resume. Write `profile/signature.txt` in the shape of `profile/signature.example.txt` using their name, phone and LinkedIn from the resume; leave out any line they don't have, and never keep the example's placeholder details.
+5. Tell them in one or two sentences what you found ("Three jobs, two projects, a strong story about X."). Don't paste the resume back.
+
+## 2. Where things stand (save to `jobs/tracker.csv`, `contacts/contacts.csv`, and Notes in `profile/preferences.md`)
+
+6. **[choices, multi-select]** "Where is your search right now?" Options: "Haven't applied anywhere yet" · "I've applied to some jobs" · "I have interviews coming up" · "I have an offer". If they pick anything but the first, ask them to list them in plain text (company, role, where it stands, any dates) and add them per "Adapt" above.
+   Then **[their words]**: "Has anyone you've worked with offered to help, or talked about hiring you? Names of past managers you'd be glad to contact help too." Fine to skip. Names go in contacts.
+
+## 3. Who you are and what you want (save to `profile/preferences.md` in one edit)
+
+7. One form, **[choices]**:
+   - "Which describes you best?" Options: "Student or about to graduate" · "Early in my career (under ~5 years)" · "Experienced (5+ years)" · "Changing fields or returning to work". Save `career_stage` (student / new-grad / early-career / mid-career / senior / career-changer / returning; ask a quick follow-up if the option covers two). Students: ask the graduation month and year (plain text) and save `graduation`.
+   - "What kind of work are you looking for?" Offer 3 options you inferred from the resume (role families, not titles) plus "Not sure". Save `field` in their words and the role list, best first.
+   - "Where would you take a job?" (multi-select) Options: their current city/region from the resume · "Remote" · "Open to relocating" · "Somewhere else (I'll say)". If relocating, ask which regions appeal.
+   - "When could you start?" Options: "Right away" · "Within a month" · "On a specific date (I'll say)" · "Not sure yet".
+8. One form, **[choices]**:
+   - "Lowest salary you'd accept?" Four bands built from a sourced market range for their top role and location (`.claude/skills/offer/references/pay-data.md`; government wage percentiles adjusted for their career stage), plus "Not sure". Say in one line where the bands come from.
+   - "Any deal-breakers?" (multi-select) Options: "Long commute" · "Lots of travel" · "Night or weekend shifts" · "None". Save travel willingness too.
+   - "What kind of company?" Options: "Big, established" · "Mid-size" · "Startup" · "No preference".
+   - "How many hours a week can you put into the search?" Options: "2–4" · "5–8" · "8–15" · "15+". Set `weekly_goals`: 2–4 → 2 applications, 1 networking conversation, 1 mock interview; 5–8 → 4, 2, 1; 8–15 → 5, 3, 1; 15+ → 8, 4, 2 (still tailored; never mass-apply).
+9. **[choices]** Work authorization, as two separate questions, for each country they're targeting (from their locations; one country at a time): "Are you currently legally authorized to work in <country>?" and "Will you now or in the future need an employer to sponsor a visa for you to work in <country>?" Options for each: "Yes" · "No" · "Not sure". Save each confirmed answer with its country under "Work authorization" in preferences. Never infer one answer from the other; a "Not sure" stays for the user to answer on each application. Never ask for or store visa or ID numbers. If they need sponsorship, note it: `find-jobs` and `evaluate-job` will check for it.
+10. **[their words]** "Of everything you've done so far, what work felt most like *you*, and why?" (This shapes everything; save it under Notes.)
+
+Save these and, in the same edit, replace the `SETUP: not done` line (near the top, under the heading) with `SETUP: done YYYY-MM-DD` (today's date), so stopping later doesn't send them back to the start. Keep the heading; re-read the file and check exactly one `SETUP:` line remains.
+
+## 4. Build the field pack (runs while you keep talking)
+
+Start this right after section 3's save, in the background where the app allows (Claude Code: use the `company-researcher` agent for employers and a general research agent for the rest; Codex: do it yourself after the conversation). Base it on `field`, target roles, `career_stage` and locations. Use current web sources, cite them, and date every file:
+- `knowledge/field-primer.md`: follow the shape in that file. Hooks only from the master resume.
+- `knowledge/resume-keywords.md`: one table per target role from 5–10 real current postings; evidence column from the master resume (or "gap").
+- `knowledge/target-employers.md`: 15–30 employers that hire for their target roles in their locations (former employers first), with careers-page links.
+- `knowledge/interview-questions.md` section 4: 4–6 role-specific technical questions per target role.
+- `knowledge/background.md`: a short section on each past employer (and school, for students).
+Change the first line of each file that has one to `STATUS: generated <date> for <field>` (in `interview-questions.md`, replace section 4's `[ASK: not generated yet]` line instead). Tell the user once it's done ("Your field pack is ready: a primer, keyword lists, and 24 target employers."). Never put anything from these files on a resume unless the master resume backs it.
+
+## 5. One story, one boundary, one sample
+
+11. **[their words]** "Which project or piece of work are you proudest of? Tell me in 3–4 sentences, like you'd tell a friend." Write it into the matching story in `profile/story-bank.md` in their words, lightly cleaned up. Tell them the other stories get filled in during mock interviews.
+12. **[their words]** "Is anything from your past jobs off-limits to share, like confidential details or projects under NDA?" Save the answer under Notes in `profile/preferences.md`.
+13. **[their words, optional]** "Last one that really helps: paste any email or message you've written recently. It's how I learn to make drafts sound like you. 'Skip' is fine." Save it under "Your own writing samples" in `profile/voice.md`, with any private details removed, and fill "About your voice" with 3–4 observations.
+
+## 6. Application forms and Gmail
+
+14. **[choices]**, only if they're applying in the US (skip elsewhere): "US applications ask optional questions about race, gender, disability and veteran status. How should I handle them?" Options: "I'll tell you my answers to use" · "Decline to answer on all" · "Ask me each time". If they choose to give answers, collect them in one short form and save them to "Voluntary self-identification" in `profile/preferences.md`. Otherwise record the choice and leave those questions for them on every application.
+15. **[choices]** "Want to connect your email and calendar? It lets me spot replies from recruiters and put drafts straight into your Gmail. Nothing is ever sent unless you do it." Options: "Yes, set it up now" · "Maybe later". If yes:
+   - Ask which email they apply with. Only a Gmail (or Google Workspace) account works here. If they apply from another provider, Gmail can't see that mail: suggest using a Gmail address for applications from now on, or skip connecting.
+   - Desktop app: **Settings → Connectors → Gmail**, then **Google Calendar**. Terminal: connect and sign in to Gmail and Google Calendar at claude.ai/customize/connectors with the same Claude account, then type `/mcp` to check they appear; restart the session if they don't.
+   - Warn them first: "Google's screen will say I can read, send, and delete email. Google bundles those permissions together. I'm set up to read only job-related mail and make drafts, and this folder has safety checks that block the usual send and delete actions, but they aren't a complete lock, so keep an eye on what's in your Sent folder."
+   - "Once we finish setup (two more minutes), close and reopen this folder so I can see the connection."
+
+Say once, in one sentence: "By default I only draft. You send every email and submit every application." Don't explain mode settings unless asked.
+
+## 7. Check the panels
+
+Check whether a tool named `mcp__interview-room__interview_start` is listed in this session (loaded or deferred both count).
+- **If yes:** "You also have panels: `/pipeline` for your job board, `/job-inbox` for new openings, `/apply-kit` when you fill in a form, `/contacts` for your network, `/outbox` for drafts, and the Interview Room opens during mock interviews. A short pop-up tells you what's due when you open Claude." On a Mac, add one tip: "The Interview Room reads questions in your computer's voice. If it sounds robotic: System Settings → Accessibility → Read & Speak, click the ⓘ button next to System voice, download a higher-quality English voice, and choose it as your System voice. Siri voices can't be used for this."
+- **If no:** "Panels need a recent Claude Code version and a trusted folder. Updating may help, but you don't need them: everything works right here in the chat (say **show my board**, **show my outbox**, **mock interview**)."
+
+## 7a. Your look (optional, one question; skip it if the user is short on time or anything is urgent)
+
+16. **[choices]** "Last, and optional: do you have a brand or design system you'd like your pages to use?" Options: "Yes, a design system in Claude" (only offer this in Claude Code when the Artifact tool is available) · "Yes, my website or portfolio" · "Yes, a brand guide file" · "No, show me the looks" · "Skip, keep the default". (Figma only if a Figma connector is connected: add "Yes, in Figma".)
+   - Follow the matching route in `.claude/skills/page-design/references/importing-a-design-system.md`: it maps their colors and fonts into `profile/design.md`, shows them the exact lines before saving, applies the theme to every page and checks contrast (fixing any color that's too light by changing its lightness, and saying so in one line). The resume and cover letter only take the safe parts.
+   - "Skip" or no answer: keep the Default look and say "You can change the look any time; just ask."
+   - Whatever they pick, set `paper:` in the `documents` block of `profile/design.md` from their country (`Letter` for the US and Canada, `A4` for most others), with the same "OK to save?" step.
+
+## 7b. Folder safety check (quiet unless it applies)
+
+If the folder is a git repository (`git rev-parse --git-dir` succeeds) and `git config core.hooksPath` is not `.githooks`, tell the user in one sentence that a safety check can stop this folder ever being pushed to a public GitHub repository, and with their OK run `git config core.hooksPath .githooks`. Never add a remote. Not a git repository: skip this silently.
+
+## 8. Your first week (build it from their answers, then offer the tour)
+
+Three numbered steps, most valuable first, using what they told you. The usual order:
+1. If anything is urgent (an interview soon, an offer deadline): prep for it first.
+2. If they named people who could help: "Say **go** and I'll draft short notes to <names>. A referral beats a cold application." (Without names: "Tell me a few people you've worked with and I'll draft notes to them.")
+3. "Type **/find-jobs**, or paste job links, and pick <weekly application goal> to apply to."
+4. "Do one **/mock-interview** to warm up."
+
+Keep it to three items, then end with ONE question, about step 1 (for example: "Want me to draft those notes now? Takes two minutes."). If they say yes, do it right away so they leave setup with something real in their Outbox. Then: "After that, start every session with **/today**. Searches go best with two or three fixed times a week, like appointments; I can put them on your calendar whenever you like. The 10-minute tour is there whenever you want it: **/tour**." If they connected Gmail or Calendar, add: "When you're done today, close and reopen this folder so the connection turns on."

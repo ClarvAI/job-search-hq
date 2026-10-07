@@ -1,0 +1,25 @@
+---
+name: cover-letter
+description: "Write a short, specific, human-sounding cover letter for a job from the user's real experience. Use when the user asks for a cover letter or an application requires one."
+---
+
+# /cover-letter
+
+Usage: `/cover-letter <job folder or company + role>` (or just ask in plain English).
+
+Job: `$ARGUMENTS`.
+
+1. Read the job's `posting.md`, `fit.md`, `profile/master-resume.md`, `profile/story-bank.md`, `profile/voice.md`. **If optional:** write one for priority A/B, or when it answers a question the resume raises (career change, relocation, gap, later start, referral); for priority C with no real hook, suggest skipping it. Evidence: `references/cover-letter-evidence.md`.
+2. **Find one real, specific hook** about the company: a product or service line, what the team or site focuses on, a recent announcement, why that location. Use the `company-researcher` agent if `fit.md` lacks it. No hook found → ask the user ("Anything you like about this company?"). Never fake enthusiasm.
+   - Specific tailoring is what AI-written letters lose: once AI made tailored-looking text cheap, employers on a large freelance platform stopped paying more for applications closely tailored to the job post (Galdin & Silbert 2025). Echoing the posting's words isn't enough; every paragraph needs one detail only this user could write about this employer.
+3. **Structure (≤ 300 words, 3–4 short paragraphs):**
+   - Open with the role and the hook in plain words, with no throat-clearing (a referral's name goes in the first sentence). A "pain letter" opening only around a need the posting states.
+   - One paragraph: the single most relevant story with its number, from the master resume or story bank (e.g., "cut processing time 30%, saving $20K a year").
+   - One paragraph: the second strength that matches a stated requirement in the posting.
+   - Close: availability (only if timing matters, e.g. a future start date from preferences), one line of genuine interest, thanks. No "I believe I would be a great fit."
+   - **Country norms:** follow the norms of the country the job is in (from the posting, else `home_base`): e.g. Letter paper in the US/Canada, A4 elsewhere; some countries expect a longer or more formal letter. Outside the US, ask the user once if unsure.
+   - **Nothing hidden:** never add white, tiny or invisible text, keyword stuffing, or prompts aimed at screening AI. Recruiters reject on sight.
+4. Save the text as `jobs/<folder>/cover-letter.md`. If the user can't start right away, state availability as a plain fact ("available full-time from <month year>"); never apologize for timing.
+5. Run `truth-checker`, then `voice-editor`, on `cover-letter.md`. Fix what they flag; if anything changes after the truth-checker pass (including voice-editor's edits), re-check the changed sentences. (These checks are mandatory; for a priority C job, one combined truth-and-voice pass is fine.) Only then build `cover-letter.html` from `templates/cover-letter-template.html` with the final text (fill the date, company, role and job ID, and the paragraphs). Its font, name accent, spacing and default paper come from the `documents` block of `profile/design.md`, matching the resume; don't restyle it by hand (only `@page` `size:` may change for the job's country). There is no designed cover letter. If the letter changes later, rebuild the HTML and the PDF so the PDF always matches the checked text.
+6. **Make the PDF** (only from the checked text): `bash .claude/skills/tailor-resume/scripts/make-pdf.sh jobs/<folder>/cover-letter.html "<First Last>" "<Company>"` (Windows without bash: `powershell -NoProfile -ExecutionPolicy Bypass -File .claude\skills\tailor-resume\scripts\make-pdf.ps1 jobs\<folder>\cover-letter.html "<First Last>" "<Company>"`). `<First Last>` is `name:` from `profile/preferences.md` (else the master resume's name) and `<Company>` is the job's `company` exactly as in `jobs/tracker.csv`, so the Apply Kit finds the file. It saves `<First>-<Last>-Cover-Letter-<Company>.pdf` in the job folder, no header or footer, on the template's paper size, and reports `pages:` and `parse:`. More pages than the target (1, unless the posting or the country or academic norm calls for a longer letter) → tighten the letter (re-check changed sentences), rebuild, run again. `parse: check these: ...` → fix the HTML and run again. `no-browser` or `print-failed` → the user opens `cover-letter.html` → Print → Save as PDF (Margins: Default, Headers and footers: off) under that name. Cover letters always use the HTML template, even when `pdf_engine: rendercv`. If the application has a text box instead of an upload, the user pastes the checked text without the letter header.
+7. Show the user the letter, tell them where the PDF is, and ask them to open the PDF and look it over before sending it, and whether anything sounds unlike them. If they change wording, re-check it and make the PDF again.

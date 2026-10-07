@@ -1,0 +1,14 @@
+---
+name: thank-you
+description: "Debrief the user after a real interview and draft personalized thank-you notes to each interviewer. Use right after the user says they had an interview or asks for thank-you notes."
+---
+
+# /thank-you
+
+Usage: `/thank-you <job folder or company + role>` (or just ask in plain English).
+
+1. Debrief the user with quick questions (one at a time, skip what they volunteer): who they met (names, titles, emails if they have them); what each person talked about; one thing they connected with per person; questions they struggled with; next steps and timeline the employer gave; their gut feeling.
+2. Save `interviews/<YYYY-MM-DD>-<company>-debrief.md` with the user's answers and lessons (what to fix next time).
+3. Draft one thank-you per interviewer into `outbox/` (email, ≤ 120 words, sent within 24 hours): thank them, reference one specific thing from that conversation, connect it to one real thing the user did, and end with a specific forward-looking line (not "I'd love to join your team"). If the user fumbled a question with this person, add one or two sentences with a clearer answer built only from what they really know. No groveling, no re-pitching everything. Subject: "Thank you, <role> interview". Notes to people on the same panel must differ in more than the name; interviewers often compare them. If the user asks whether notes matter: a note rarely decides the outcome, but some interviewers notice when one is missing, so it's cheap insurance. Keep it short and sent the same day or the next morning. If the user has no email for someone, ask the recruiter to pass the note along (or send one combined note through the recruiter). A LinkedIn note is the last resort (`channel: linkedin`): a connection note on a free account is capped at **200 characters** (and free accounts get only a few personalized invites a month), or send a normal message if they're already connected. Also thank the recruiter who coordinated. For a one-way recorded interview there's no interviewer: send one short note to the recruiter, or skip it.
+4. Run `truth-checker`, then `voice-editor`. Tell the user the drafts are in `/outbox`.
+5. Tracker: `next_action=Wait for decision`, `next_action_date` = the date they said, +1 business day (or +7 business days if unknown). Add interviewers to `contacts/contacts.csv` (`relationship=hiring-manager`, `recruiter`, or `interviewer`; `status=talked`, `touches=0`); for someone already there, never lower their status (keep `referred`). Log the changes in `history/activity.md`. The thank-you notes don't change follow-up dates: the job row owns them.

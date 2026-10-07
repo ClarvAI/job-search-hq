@@ -1,0 +1,6 @@
+{
+  "name": "contacts-board",
+  "version": "0.1.0",
+  "description": "Your networking board: a /contacts pane to record messages, replies, conversations and referrals, and a note above the prompt when follow-ups are due.",
+  "types": "./types/index.d.ts"
+}

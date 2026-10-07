@@ -1,0 +1,6 @@
+{
+  "name": "job-inbox",
+  "version": "0.1.0",
+  "description": "Go through new job leads from /find-jobs: save, skip, or say why one isn't for you. The line above the prompt shows how many are waiting.",
+  "types": "./types/index.d.ts"
+}

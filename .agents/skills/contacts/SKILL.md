@@ -1,0 +1,43 @@
+---
+name: contacts
+description: "Show the user's networking board in chat (everyone in their contacts by status, with last contact, unanswered messages, and follow-ups due) and update it when they say what happened: sent a message, they replied, we talked, they referred me, set a follow-up. Use when the user says contacts, my network, who do I follow up with, or reports news about a person."
+---
+
+# Contacts (chat version)
+
+The chat version of the Claude Contacts panel (`/contacts`). `contacts/contacts.csv` is the only source of truth: read it fresh every time, and change only the rows of the people the user is talking about. Columns, statuses and the rules below come from `knowledge/job-search-playbook.md` ("Tracker"); if they ever disagree, the playbook wins.
+
+## Show the board
+
+Read `contacts/contacts.csv` (it may come from Excel: tolerate a byte-order mark, Windows line endings, quoted commas, and dates like `10/14/2026`; write dates back as `YYYY-MM-DD`). Excel's date order depends on the computer's region: if a slash date could be read either way (like `06/10/2026`), ask the user which they meant before relying on it or rewriting it. A blank `status` counts as `to-contact`. If it has only the header, say "No one here yet" and offer `network` (find people at a company) or `import-linkedin`.
+
+Group people by status in this order: To contact, Contacted (waiting), Replied, Talked, Referred me. Cold people: just a count, listed only if the user asks. One line per person:
+
+`Jane Doe · Globex · Project Manager (alum) · last contact Oct 1 (5 days ago) · 1 unanswered · follow up Oct 8`
+
+- Put anyone whose `next_followup` is today or earlier first, marked "follow-up due" (no emoji).
+- If the person's `job` is a job folder whose row in `jobs/tracker.csv` is `applied` or later, say "follow-up handled by your application" instead of a date: the job row owns it.
+- If `touches` is 2 and they never replied (status `contacted` or `to-contact`), say "2 messages, no reply: stop here" and suggest marking them cold.
+
+Under the board, one line of counts (e.g. "14 people · 2 follow-ups due · 3 cold").
+
+## Update it
+
+Change only that person's row. Get the date right ("I messaged her yesterday" means yesterday's date).
+
+| The user says | Change |
+|---|---|
+| "I sent X a message" (a date, default today) | `last_contact` = the date sent (keep the newer one if it's already later); `touches` + 1. `status` → `contacted` only if it was `to-contact` or blank; never move anyone back from `replied`, `talked` or `referred` (cold stays cold). `next_followup`: only for pure networking, i.e. no linked job or the linked job is not yet `applied`: 5 business days after the send date, or blank if `touches` is now 2 (stop here). If the linked job is `applied` or later, clear any `next_followup` on this person for that job (the job row owns it). Only if this message was an actual follow-up on the application, add 1 to the job's `followups` and set its `next_action_date` per the follow-up cadence; thank-you notes, scheduling replies and other messages don't count and don't replace an interview or offer next step. If an Outbox draft to this person matches, set it to sent and move it to `outbox/sent/`. |
+| "X replied" | `status` → `replied` if it was `to-contact`, `contacted` or `cold` (never lower `talked` or `referred`); `touches` → 0; clear `next_followup`. Offer to draft a reply into the Outbox (`network`). |
+| "We talked" / "I had coffee with X" | `status` → `talked` (unless already `referred`); `touches` → 0; clear `next_followup`. Then follow the `network` skill's "After a conversation": offer a thank-you note within 24 hours that mentions one specific thing they said, log what the user learned in `notes`, and ask "who else should I talk to?". |
+| "X referred me" | `status` → `referred`; `touches` → 0; clear `next_followup`. Put the person in the linked job row's `contact` column in `jobs/tracker.csv` and note the referral in that row's `notes` (if no job is linked, ask which job, then set the contact's `job` too). Offer a thank-you note, and remind the user to send an update when they hear back. |
+| "Draft something for X" | Run `network` (first message, reply, thank-you) or `follow-up` (a nudge) for that person; drafts go to the Outbox. Don't draft another nudge after 2 unanswered messages. |
+| "Follow up with X on <date>" / "in a week" | Set `next_followup`, unless the linked job is `applied` or later: then change that job's `next_action_date` (the `pipeline` skill) instead. |
+| "Mark X cold" / "give up on X" | `status` → `cold`; clear `next_followup`. |
+
+## Rules
+
+- Record what actually happened. A draft is not a sent message; only count a message once the user says it went out (or the Outbox panel or `sync-inbox` reports it).
+- Re-read `contacts/contacts.csv` right before each change and edit only that row with a targeted edit; never rewrite the file from an older copy (the other app may have changed it). If Excel has it open, ask the user to save and close it first.
+- Write only plain characters in the CSV (`-` not `–`, straight quotes), and follow the playbook's CSV rules ("Tracker"): quote any value with a comma, double quote or line break, doubling any `"` inside it; never start a cell with `=`, `+`, `-`, `@` or a tab (reword it instead).
+- After saving: re-read the row to confirm it saved, add one line to `history/activity.md` (date and time from the computer, which app, what changed; no private details), and tell the user in one sentence what changed and when the next follow-up is.

@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Interview Flashcards</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..700&family=Source+Sans+3:wght@400..700&family=Source+Code+Pro:wght@400..600&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.13"></script>
+<style>
+  /* ---- Design tokens (generated; see .claude/skills/page-design/SKILL.md) ----
+     Primitives are role-based 12-step ramps (1 page bg … 9 solid fill … 11 low-contrast text, 12 high-contrast text),
+     built in OKLCH: neutral (hue 75), accent "deep teal" (200), success (150), warning (72), danger (27).
+     Components use only the semantic --color-* tokens. Every text pair is measured >= 4.5:1 in both themes. */
+  :root {
+    color-scheme: light;
+    --neutral-1: #fefcfa; --neutral-2: #fbf8f5; --neutral-3: #f4f0ec; --neutral-4: #ece8e3; --neutral-5: #e5e0da; --neutral-6: #dbd6cf; --neutral-7: #cec8c0; --neutral-8: #b9b1a7; --neutral-9: #7a7062; --neutral-10: #6d6356; --neutral-11: #635b50; --neutral-12: #27221b;
+    --accent-1: #fbfdfd; --accent-2: #f2fbfb; --accent-3: #dbf7f9; --accent-4: #c2f4f6; --accent-5: #a6f0f4; --accent-6: #7eecf2; --accent-7: #6edee3; --accent-8: #56c6cc; --accent-9: #187075; --accent-10: #146266; --accent-11: #25676b; --accent-12: #182626;
+    --success-1: #fbfdfc; --success-2: #f3fbf5; --success-3: #dff9e3; --success-4: #c9f7d1; --success-5: #aff5bd; --success-6: #85f49f; --success-7: #6ee78e; --success-8: #56cf78; --success-9: #1a7d3d; --success-10: #166e35; --success-11: #256d3a; --success-12: #18271b;
+    --warning-1: #fdfdfc; --warning-2: #fbf8f5; --warning-3: #f9efe4; --warning-4: #f6e6d3; --warning-5: #f4ddc1; --warning-6: #f3d1a8; --warning-7: #f1bf82; --warning-8: #e5a44d; --warning-9: #d28e26; --warning-10: #c18222; --warning-11: #795420; --warning-12: #2a2116;
+    --danger-1: #fdfcfc; --danger-2: #fbf8f7; --danger-3: #f9eeed; --danger-4: #f6e4e2; --danger-5: #f5dad6; --danger-6: #f3cdc8; --danger-7: #f1bab3; --danger-8: #f0978d; --danger-9: #c01e20; --danger-10: #aa191b; --danger-11: #a32925; --danger-12: #351a17;
+    
+    --color-bg-page: var(--neutral-2); --color-bg-surface: var(--neutral-1); --color-bg-raised: var(--neutral-1); --color-bg-sunken: var(--neutral-3); --color-bg-hover: var(--neutral-4);
+    --color-text-primary: var(--neutral-12); --color-text-secondary: var(--neutral-11); --color-text-disabled: var(--neutral-9); --color-text-on-accent: #ffffff;
+    --color-border-subtle: var(--neutral-6); --color-border: var(--neutral-7); --color-border-strong: var(--neutral-8); --color-graphic-idle: var(--neutral-9);
+    --color-accent-subtle: var(--accent-3); --color-accent-subtle-hover: var(--accent-4); --color-accent-border: var(--accent-7); --color-accent-solid: var(--accent-9); --color-accent-solid-hover: var(--accent-10); --color-accent-text: var(--accent-11); --color-focus: var(--accent-9);
+    --color-success-subtle: var(--success-3); --color-success-solid: var(--success-9); --color-success-text: var(--success-11);
+    --color-warning-subtle: var(--warning-3); --color-warning-solid: var(--warning-9); --color-warning-text: var(--warning-11);
+    --color-danger-subtle: var(--danger-3); --color-danger-solid: var(--danger-9); --color-danger-text: var(--danger-11);
+    --shadow-surface: 0 0 0 1px oklch(0 0 0 / 0.06), 0 1px 2px -1px oklch(0 0 0 / 0.06), 0 2px 4px 0 oklch(0 0 0 / 0.04);
+    --shadow-raised: 0 0 0 1px oklch(0 0 0 / 0.07), 0 2px 4px -2px oklch(0 0 0 / 0.08), 0 16px 32px -16px oklch(0 0 0 / 0.22);
+    --radius-sm: 5px; --radius-md: 10px; --radius-lg: 18px;
+    --ease-out: cubic-bezier(0.2, 0, 0, 1);
+    --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+    --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+    --font-data: "Source Code Pro", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --spacing: 0.25rem; --motion: full; font-size: 100%;
+    --print-accent-text: #146266; --print-accent-subtle: #dbf7f9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --neutral-1: #0e0d0b; --neutral-2: #141210; --neutral-3: #1d1b17; --neutral-4: #25221d; --neutral-5: #2d2924; --neutral-6: #37332d; --neutral-7: #464139; --neutral-8: #5f584e; --neutral-9: #8a7e6f; --neutral-10: #7c7162; --neutral-11: #cbc1b4; --neutral-12: #f3ece1;
+    --accent-1: #0a0e0e; --accent-2: #0d1415; --accent-3: #111e1e; --accent-4: #152526; --accent-5: #192e2f; --accent-6: #1e383a; --accent-7: #26484a; --accent-8: #316264; --accent-9: #337f83; --accent-10: #2c7074; --accent-11: #6dd6db; --accent-12: #dbf2f3;
+    --success-1: #0a0e0b; --success-2: #0d150e; --success-3: #111f14; --success-4: #152719; --success-5: #19301e; --success-6: #1e3b25; --success-7: #264b2f; --success-8: #31663f; --success-9: #3a9554; --success-10: #34864b; --success-11: #6ddf8a; --success-12: #def4e1;
+    --warning-1: #0f0c09; --warning-2: #17120c; --warning-3: #22190f; --warning-4: #2b2013; --warning-5: #342717; --warning-6: #40301b; --warning-7: #523d23; --warning-8: #70532c; --warning-9: #db9d47; --warning-10: #ca9041; --warning-11: #eeb771; --warning-12: #f3ebe2;
+    --danger-1: #120b0a; --danger-2: #1d0e0c; --danger-3: #2c1210; --danger-4: #381714; --danger-5: #441b18; --danger-6: #54211d; --danger-7: #6c2a25; --danger-8: #933630; --danger-9: #dc403a; --danger-10: #c63933; --danger-11: #efb1a9; --danger-12: #f3eae9;
+    
+    --color-bg-page: var(--neutral-2); --color-bg-surface: var(--neutral-3); --color-bg-raised: var(--neutral-4); --color-bg-sunken: var(--neutral-1); --color-bg-hover: var(--neutral-5);
+    --color-text-primary: var(--neutral-12); --color-text-secondary: var(--neutral-11); --color-text-disabled: var(--neutral-9); --color-text-on-accent: #ffffff;
+    --color-border-subtle: var(--neutral-6); --color-border: var(--neutral-7); --color-border-strong: var(--neutral-8); --color-graphic-idle: var(--neutral-9);
+    --color-accent-subtle: var(--accent-3); --color-accent-subtle-hover: var(--accent-4); --color-accent-border: var(--accent-7); --color-accent-solid: var(--accent-9); --color-accent-solid-hover: var(--accent-10); --color-accent-text: var(--accent-11); --color-focus: var(--accent-11);
+    --color-success-subtle: var(--success-3); --color-success-solid: var(--success-9); --color-success-text: var(--success-11);
+    --color-warning-subtle: var(--warning-3); --color-warning-solid: var(--warning-9); --color-warning-text: var(--warning-11);
+    --color-danger-subtle: var(--danger-3); --color-danger-solid: var(--danger-9); --color-danger-text: var(--danger-11);
+    --shadow-surface: 0 0 0 1px oklch(1 0 0 / 0.08);
+    --shadow-raised: 0 0 0 1px oklch(1 0 0 / 0.12), 0 16px 32px -16px oklch(0 0 0 / 0.7);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --neutral-1: #0e0d0b; --neutral-2: #141210; --neutral-3: #1d1b17; --neutral-4: #25221d; --neutral-5: #2d2924; --neutral-6: #37332d; --neutral-7: #464139; --neutral-8: #5f584e; --neutral-9: #8a7e6f; --neutral-10: #7c7162; --neutral-11: #cbc1b4; --neutral-12: #f3ece1;
+    --accent-1: #0a0e0e; --accent-2: #0d1415; --accent-3: #111e1e; --accent-4: #152526; --accent-5: #192e2f; --accent-6: #1e383a; --accent-7: #26484a; --accent-8: #316264; --accent-9: #337f83; --accent-10: #2c7074; --accent-11: #6dd6db; --accent-12: #dbf2f3;
+    --success-1: #0a0e0b; --success-2: #0d150e; --success-3: #111f14; --success-4: #152719; --success-5: #19301e; --success-6: #1e3b25; --success-7: #264b2f; --success-8: #31663f; --success-9: #3a9554; --success-10: #34864b; --success-11: #6ddf8a; --success-12: #def4e1;
+    --warning-1: #0f0c09; --warning-2: #17120c; --warning-3: #22190f; --warning-4: #2b2013; --warning-5: #342717; --warning-6: #40301b; --warning-7: #523d23; --warning-8: #70532c; --warning-9: #db9d47; --warning-10: #ca9041; --warning-11: #eeb771; --warning-12: #f3ebe2;
+    --danger-1: #120b0a; --danger-2: #1d0e0c; --danger-3: #2c1210; --danger-4: #381714; --danger-5: #441b18; --danger-6: #54211d; --danger-7: #6c2a25; --danger-8: #933630; --danger-9: #dc403a; --danger-10: #c63933; --danger-11: #efb1a9; --danger-12: #f3eae9;
+    
+    --color-bg-page: var(--neutral-2); --color-bg-surface: var(--neutral-3); --color-bg-raised: var(--neutral-4); --color-bg-sunken: var(--neutral-1); --color-bg-hover: var(--neutral-5);
+    --color-text-primary: var(--neutral-12); --color-text-secondary: var(--neutral-11); --color-text-disabled: var(--neutral-9); --color-text-on-accent: #ffffff;
+    --color-border-subtle: var(--neutral-6); --color-border: var(--neutral-7); --color-border-strong: var(--neutral-8); --color-graphic-idle: var(--neutral-9);
+    --color-accent-subtle: var(--accent-3); --color-accent-subtle-hover: var(--accent-4); --color-accent-border: var(--accent-7); --color-accent-solid: var(--accent-9); --color-accent-solid-hover: var(--accent-10); --color-accent-text: var(--accent-11); --color-focus: var(--accent-11);
+    --color-success-subtle: var(--success-3); --color-success-solid: var(--success-9); --color-success-text: var(--success-11);
+    --color-warning-subtle: var(--warning-3); --color-warning-solid: var(--warning-9); --color-warning-text: var(--warning-11);
+    --color-danger-subtle: var(--danger-3); --color-danger-solid: var(--danger-9); --color-danger-text: var(--danger-11);
+    --shadow-surface: 0 0 0 1px oklch(1 0 0 / 0.08);
+    --shadow-raised: 0 0 0 1px oklch(1 0 0 / 0.12), 0 16px 32px -16px oklch(0 0 0 / 0.7);
+  }
+  /* ---- End design tokens ---- */
+
+  body { margin: 0; background: var(--color-bg-page); color: var(--color-text-primary); font-family: var(--font-body); font-size: 1rem; line-height: 1.55; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+  h1, h2, h3, h4 { font-family: var(--font-display); font-optical-sizing: auto; text-wrap: balance; margin: 0; }
+  p, li, dd { text-wrap: pretty; }
+  .num { font-variant-numeric: lining-nums tabular-nums; }
+  :focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+  @media (prefers-reduced-motion: no-preference) {
+    .btn { transition-property: scale, background-color, box-shadow, color; transition-duration: 150ms; transition-timing-function: ease-out; }
+    .btn:active:not(:disabled) { scale: 0.96; }
+  }
+  /* Concept: a deck of cue cards. The question card has an accent band and a big prompt; the back holds
+     the user's notes. Cards still to go peek out below as a neat stack. Tap or Space flips the card;
+     swipe right = Good, left = Again. */
+  .pile { position: relative; perspective: 1600px; }
+  .pile::before, .pile::after {
+    content: ""; position: absolute; inset: 0; border-radius: var(--radius-md); pointer-events: none;
+    background: var(--color-bg-surface); box-shadow: var(--shadow-surface);
+  }
+  .pile::before { transform: translateY(14px) scale(0.92); }
+  .pile::after { transform: translateY(7px) scale(0.96); }
+  .pile[data-left="0"]::before, .pile[data-left="0"]::after { display: none; }
+  .pile[data-left="1"]::before { display: none; }
+
+  .card { position: relative; z-index: 1; display: grid; transform-style: preserve-3d; touch-action: pan-y; cursor: grab; }
+  .card:active { cursor: grabbing; }
+  .face {
+    grid-area: 1 / 1; position: relative; display: flex; flex-direction: column; overflow: hidden;
+    min-height: 19rem; padding: 1.25rem 1.5rem 1.25rem; border-radius: var(--radius-md);
+    background-color: var(--color-bg-surface); box-shadow: var(--shadow-raised);
+    -webkit-backface-visibility: hidden; backface-visibility: hidden;
+  }
+  .face::before { content: ""; position: absolute; inset-inline: 0; top: 0; height: 0.375rem; background: var(--color-accent-solid); }
+  .face.back::before { background: var(--color-accent-border); }
+  @media (min-width: 40rem) { .face { min-height: 20rem; } }
+  .face .head { min-height: 2.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+  .face .qa { margin-top: 0.75rem; line-height: 1.6; }
+  .face h2.qa { line-height: 1.2; text-wrap: balance; }
+  .face.back { transform: rotateY(180deg); }
+  .card.flipped { transform: rotateY(180deg); }
+  .stamp {
+    position: absolute; top: 4.5rem; z-index: 2; padding: 0.25rem 0.85rem; border: 2px solid currentColor; border-radius: 999px;
+    background: var(--color-bg-surface); font-family: var(--font-data); font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; opacity: 0; pointer-events: none;
+  }
+  .stamp.got { inset-inline-end: 1.5rem; color: var(--color-success-text); }
+  .stamp.again { inset-inline-start: 1.5rem; color: var(--color-warning-text); }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .card { transition: transform 560ms var(--ease-out); }
+    .card.dragging { transition: none; }
+    .card.fly { transition: transform 320ms var(--ease-out), opacity 320ms var(--ease-out); }
+    .card.enter { animation: deal 460ms var(--ease-out); }
+    @keyframes deal { from { transform: translateY(7px) scale(0.96); } to { transform: none; } }
+    .tick { transition: background-color 200ms ease-out; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .card.flipped { transform: none; }
+    .face.back { transform: none; visibility: hidden; }
+    .card.flipped .face.front { visibility: hidden; }
+    .card.flipped .face.back { visibility: visible; }
+  }
+</style>
+<style type="text/tailwindcss">
+  @theme inline {
+    --color-page: var(--color-bg-page); --color-surface: var(--color-bg-surface); --color-raised: var(--color-bg-raised); --color-sunken: var(--color-bg-sunken); --color-hover: var(--color-bg-hover);
+    --color-fg: var(--color-text-primary); --color-fg-muted: var(--color-text-secondary); --color-fg-faint: var(--color-text-disabled); --color-on-accent: var(--color-text-on-accent);
+    --color-line-subtle: var(--color-border-subtle); --color-line: var(--color-border); --color-line-strong: var(--color-border-strong); --color-idle: var(--color-graphic-idle);
+    --color-accent: var(--color-accent-solid); --color-accent-hover: var(--color-accent-solid-hover); --color-accent-ink: var(--color-accent-text); --color-accent-wash: var(--color-accent-subtle); --color-accent-wash-hover: var(--color-accent-subtle-hover); --color-accent-edge: var(--color-accent-border); --color-ring: var(--color-focus);
+    --color-ok: var(--color-success-solid); --color-ok-ink: var(--color-success-text); --color-ok-wash: var(--color-success-subtle);
+    --color-warn: var(--color-warning-solid); --color-warn-ink: var(--color-warning-text); --color-warn-wash: var(--color-warning-subtle);
+    --color-bad: var(--color-danger-solid); --color-bad-ink: var(--color-danger-text); --color-bad-wash: var(--color-danger-subtle);
+    --font-serif: var(--font-display); --font-sans: var(--font-body); --font-mono: var(--font-data);
+    --text-display: clamp(2.5rem, 6.5vw, 4.25rem); --text-display--line-height: 1.02; --text-display--letter-spacing: -0.022em;
+    --text-title: clamp(1.75rem, 3.6vw, 2.25rem); --text-title--line-height: 1.1; --text-title--letter-spacing: -0.012em;
+    --text-heading: 1.375rem; --text-heading--line-height: 1.25;
+    --text-body: 1rem; --text-body--line-height: 1.55;
+    --text-small: 0.875rem; --text-small--line-height: 1.45;
+    --text-label: 0.75rem; --text-label--line-height: 1.3; --text-label--letter-spacing: 0.07em;
+  }
+  @layer components {
+    .label { @apply font-mono text-label uppercase font-medium text-fg-muted; }
+    .panel { @apply bg-surface rounded-(--radius-md) shadow-(--shadow-surface); }
+    .btn { @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-(--radius-md) bg-surface px-4 text-small font-semibold text-fg shadow-(--shadow-surface) hover:bg-hover cursor-pointer; }
+    .btn-primary { @apply bg-accent text-on-accent shadow-none hover:bg-accent-hover; }
+  }
+</style>
+
+<!-- The assistant regenerates this from profile/story-bank.md and knowledge/field-primer.md (and job-specific prep).
+     Write every "<" inside it as < (JSON.stringify(data).replace(/</g, '\\u003c')), so no text can end this block early. -->
+<script type="application/json" id="data">
+{
+  "generated": "2026-10-06",
+  "newPerDay": 10,
+  "decks": [
+    {
+      "id": "stories",
+      "name": "My stories",
+      "cards": [
+        {
+          "id": "tell-me-about-yourself",
+          "q": "Tell me about yourself.",
+          "a": "Example card. Ask your assistant to refresh your flashcards and this deck fills with your own stories.\nPresent: what you do now and one result you're proud of.\nPast: the experience that got you here.\nFuture: the kind of role you want next and why this one.\nKeep it to about 90 seconds.",
+          "tag": "Pitch"
+        },
+        {
+          "id": "solved-a-hard-problem",
+          "q": "Tell me about a time you solved a hard problem.",
+          "a": "Example card.\nS: The situation, in one sentence.\nT: What you were responsible for.\nA: What you did, step by step (say \"I\", not \"we\").\nR: The result, with a number if you have one, and what you learned.",
+          "tag": "Example"
+        },
+        {
+          "id": "disagreed-with-someone",
+          "q": "Tell me about a time you disagreed with someone at work.",
+          "a": "Example card.\nPick a real, low-drama disagreement.\nShow that you listened, used facts, and kept the relationship.\nEnd on the outcome and what you would do the same next time.",
+          "tag": "Example"
+        },
+        {
+          "id": "why-this-job",
+          "q": "Why do you want this job?",
+          "a": "Example card.\nOne specific thing about the company (a product, a team, a recent announcement).\nOne way the role matches what you have done.\nOne way it moves you toward where you want to go.",
+          "tag": "Example"
+        }
+      ]
+    },
+    {
+      "id": "technical",
+      "name": "Field basics",
+      "cards": [
+        {
+          "id": "questions-to-ask",
+          "q": "What questions should you ask the interviewer?",
+          "a": "Example card. Ask your assistant to build your field primer and this deck fills with technical questions for your field.\nGood ones: What does success look like in the first 90 days? What is the team working on right now? What do people who do well here have in common?",
+          "tag": "Example"
+        },
+        {
+          "id": "greatest-weakness",
+          "q": "What is your greatest weakness?",
+          "a": "Example card.\nName a real, non-critical weakness.\nSay what you are doing about it, with a concrete step.\nShow progress since you started working on it.",
+          "tag": "Example"
+        }
+      ]
+    }
+  ]
+}
+</script>
+
+<main id="main" class="mx-auto max-w-[46rem] px-4 sm:px-6 py-8 sm:py-12 flex flex-col gap-6">
+  <header class="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+    <div class="flex flex-col gap-1">
+      <span class="label">Practice out loud</span>
+      <h1 class="font-serif text-title font-semibold">Interview Flashcards</h1>
+    </div>
+    <div class="flex flex-wrap gap-2" id="tabs" role="group" aria-label="Decks"></div>
+  </header>
+
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div class="flex flex-wrap gap-2" role="group" aria-label="Which cards">
+      <button class="btn" id="mode-due" type="button">Due today <span class="font-mono text-label text-fg-muted num" id="due-n"></span></button>
+      <button class="btn" id="mode-all" type="button">All cards <span class="font-mono text-label text-fg-muted num" id="all-n"></span></button>
+    </div>
+  </div>
+
+  <div class="flex flex-col gap-2">
+    <div class="flex gap-1" id="ticks" aria-hidden="true"></div>
+    <p class="font-mono text-label text-fg-muted num" id="tally"></p>
+  </div>
+
+  <div class="pile" id="pile">
+    <div class="card" id="card">
+      <span class="stamp got" id="stamp-got" aria-hidden="true">Good</span>
+      <span class="stamp again" id="stamp-again" aria-hidden="true">Again</span>
+      <section class="face front" aria-label="Question">
+        <div class="head"><span class="label" id="tag"></span><span class="font-mono text-label text-fg-muted num" id="count"></span></div>
+        <h2 class="qa font-serif text-[clamp(1.375rem,3.2vw,1.875rem)] font-medium" id="q"></h2>
+        <p class="mt-auto text-small text-fg-muted">Say your answer out loud, then tap the card or press Space.</p>
+      </section>
+      <section class="face back" aria-label="Your notes">
+        <div class="head"><span class="label">Your notes</span><span class="font-mono text-label text-fg-muted truncate max-w-[60%]" id="q-small"></span></div>
+        <p class="qa whitespace-pre-line text-body max-w-[36rem]" id="a"></p>
+        <p class="mt-auto pt-2 text-small text-fg-muted">How did it go? Rate it below, or swipe right for Good and left for Again.</p>
+      </section>
+    </div>
+  </div>
+
+  <section class="panel flex flex-col items-start gap-3 p-6" id="done" aria-labelledby="done-title" hidden>
+    <h2 class="font-serif text-heading font-semibold" id="done-title">All caught up for today</h2>
+    <p class="text-body text-fg-muted max-w-[36rem]" id="done-text"></p>
+    <button class="btn btn-primary" id="done-all" type="button">Practice all cards</button>
+  </section>
+
+  <div class="flex flex-col gap-3" id="controls">
+    <div class="flex flex-wrap items-center gap-3">
+      <button class="btn btn-primary" id="flip" type="button">Show my notes</button>
+    </div>
+    <div class="flex flex-col gap-2" id="rate-wrap" hidden>
+      <p class="label" id="rate-label">How well did you know it?</p>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2" role="group" aria-labelledby="rate-label" id="rate">
+        <button class="btn flex-col gap-0.5 py-2 min-h-14" type="button" data-grade="1" aria-keyshortcuts="1"><span><kbd class="font-mono text-label text-fg-muted me-1.5">1</kbd>Again</span><span class="font-mono text-label text-fg-muted num" data-when></span></button>
+        <button class="btn flex-col gap-0.5 py-2 min-h-14" type="button" data-grade="2" aria-keyshortcuts="2"><span><kbd class="font-mono text-label text-fg-muted me-1.5">2</kbd>Hard</span><span class="font-mono text-label text-fg-muted num" data-when></span></button>
+        <button class="btn flex-col gap-0.5 py-2 min-h-14" type="button" data-grade="3" aria-keyshortcuts="3"><span><kbd class="font-mono text-label text-fg-muted me-1.5">3</kbd>Good</span><span class="font-mono text-label text-fg-muted num" data-when></span></button>
+        <button class="btn flex-col gap-0.5 py-2 min-h-14" type="button" data-grade="4" aria-keyshortcuts="4"><span><kbd class="font-mono text-label text-fg-muted me-1.5">4</kbd>Easy</span><span class="font-mono text-label text-fg-muted num" data-when></span></button>
+      </div>
+    </div>
+    <p class="font-mono text-label text-fg-muted num min-h-[1.3em]" id="hint"></p>
+  </div>
+
+  <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+    <div class="flex gap-3" id="nav"><button class="btn" id="prev" type="button">Previous card</button><button class="btn" id="next" type="button">Next card</button></div>
+    <div class="flex gap-3"><button class="btn" id="shuffle" type="button">Shuffle deck</button><button class="btn" id="clear" type="button">Reset progress…</button></div>
+  </div>
+  <div class="hidden flex-wrap items-center gap-3 rounded-(--radius-md) bg-accent-wash px-4 py-3 text-small" id="confirm-clear">
+    <span>Reset your review history for this deck? Every card goes back to new.</span>
+    <button class="btn" id="clear-yes" type="button">Reset progress</button>
+    <button class="btn" id="clear-no" type="button">Keep progress</button>
+  </div>
+
+  <p class="text-small text-fg-muted max-w-[36rem]">Aim for about two minutes per story: Situation, Task, Action, Result, and end on the result. After each card, rate how it went; cards you know come back less often, shaky ones sooner. A few new cards are added each day. Keyboard: Space flips, 1–4 rates (Again, Hard, Good, Easy), arrow keys move between cards. Progress is saved in this browser only.</p>
+  <p class="sr-only" role="status" id="status"></p>
+</main>
+
+<!-- Spaced repetition: FSRS scheduler from ts-fsrs (MIT, github.com/open-spaced-repetition/ts-fsrs). If it can't load (offline), a simple built-in schedule is used instead. -->
+<script src="https://cdn.jsdelivr.net/npm/ts-fsrs@5.4.2/dist/index.umd.js" integrity="sha384-i45WWZuHT8d0SsGTvLVWyTzhdBv5HC8FV4XO+Lh5VBFpzLoqhoqwKFxc+Vqa/1SA" crossorigin="anonymous"></script>
+<script>
+(function () {
+  const data = JSON.parse(document.getElementById('data').textContent);
+  const $ = id => document.getElementById(id);
+  const card = $('card');
+  // Reduced motion: the device setting, or "motion: reduced" in profile/design.md (the --motion token).
+  const reduceMq = matchMedia('(prefers-reduced-motion: reduce)');
+  const reduce = { get matches() { return reduceMq.matches || getComputedStyle(document.documentElement).getPropertyValue('--motion').trim() === 'reduced'; } };
+  const KEY = 'jsh-flashcards-srs', OLD_KEY = 'jsh-flashcards-marks';
+  const NEW_PER_DAY = Number.isFinite(data.newPerDay) ? Math.max(0, data.newPerDay) : 10;
+  const MIN = 60000, DAY = 86400000;
+  const GRADES = { 1: 'Again', 2: 'Hard', 3: 'Good', 4: 'Easy' };
+
+  // ---- Storage (every access guarded: the page works with storage blocked) ----
+  const load = k => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } };
+  let store = load(KEY);
+  if (!store || typeof store !== 'object' || !store.cards || typeof store.cards !== 'object') store = { v: 1, cards: {} };
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {} };
+
+  // ---- Stable card ids: data "id" if present, else a slug of the question ----
+  const slug = s => String(s).toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'card';
+  data.decks.forEach(d => {
+    const seen = {};
+    d.cards.forEach(c => { let cid = c.id ? String(c.id) : slug(c.q), n = 2; while (seen[cid]) cid = (c.id || slug(c.q)) + '-' + n++; seen[cid] = 1; c.id = cid; });
+  });
+  const keyOf = (d, c) => d.id + '/' + c.id;
+
+  // ---- Dates ----
+  const dayStart = t => new Date(t.getFullYear(), t.getMonth(), t.getDate());
+  const tomorrow = t => new Date(t.getFullYear(), t.getMonth(), t.getDate() + 1);
+  const ymd = t => t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0');
+  const dayDiff = (due, now) => Math.round((dayStart(due) - dayStart(now)) / DAY);
+  function rel(due, now) {
+    const d = dayDiff(due, now);
+    if (d <= 0) return 'later today';
+    if (d === 1) return 'tomorrow';
+    if (d < 45) return `in ${d} days`;
+    return `in about ${Math.round(d / 30)} months`;
+  }
+  function short(due, now) {
+    const d = dayDiff(due, now);
+    if (d <= 0) { const m = Math.max(1, Math.round((due - now) / MIN)); return m < 60 ? `${m} min` : 'later today'; }
+    if (d === 1) return 'tomorrow';
+    if (d < 45) return `${d} days`;
+    return `${Math.round(d / 30)} months`;
+  }
+  const dueMs = r => { const t = new Date(r && r.due).getTime(); return isNaN(t) ? 0 : t; };
+
+  // ---- Schedulers: FSRS (ts-fsrs) when loaded, else a small Leitner box schedule ----
+  let fsrs = null;
+  try { if (window.FSRS && typeof FSRS.fsrs === 'function') fsrs = FSRS.fsrs(FSRS.generatorParameters({ enable_fuzz: true })); } catch (e) { fsrs = null; }
+
+  const BOX_DAYS = [0, 1, 3, 7, 16, 35, 75];
+  const boxFor = days => { let b = 0; BOX_DAYS.forEach((v, i) => { if (days >= v) b = i; }); return b; };
+  function leitner(rec, now, base) {
+    const box = rec && Number.isFinite(rec.box) ? rec.box : (rec && rec.card ? boxFor(rec.card.scheduled_days || 0) : 0);
+    const make = (b, ms) => Object.assign({ s: 'leitner', box: b, due: new Date(now.getTime() + ms).toISOString() }, base);
+    const days = b => BOX_DAYS[Math.min(b, BOX_DAYS.length - 1)] * DAY;
+    return {
+      1: make(0, 1 * MIN),
+      2: box === 0 ? make(0, 10 * MIN) : make(box, Math.max(DAY, Math.round(days(box) * 0.6 / DAY) * DAY)),
+      3: box === 0 && !rec ? make(0, 10 * MIN) : make(Math.min(box + 1, 6), days(Math.min(box + 1, 6))),
+      4: make(Math.min(box + 2, 6), days(Math.min(box + 2, 6)))
+    };
+  }
+  // Returns the record each rating (1-4) would produce.
+  function preview(rec, now) {
+    const base = { first: (rec && rec.first) || ymd(now), reps: ((rec && rec.reps) || 0) + 1, last: now.toISOString() };
+    if (fsrs) {
+      try {
+        const c = rec && rec.card
+          ? Object.assign({}, rec.card, { due: new Date(rec.card.due), last_review: rec.card.last_review ? new Date(rec.card.last_review) : undefined })
+          : FSRS.createEmptyCard(now);
+        const out = {};
+        [1, 2, 3, 4].forEach(g => { const r = fsrs.next(c, now, g); out[g] = Object.assign({ s: 'fsrs', card: r.card, due: new Date(r.card.due).toISOString() }, base); });
+        return out;
+      } catch (e) { /* fall back below */ }
+    }
+    return leitner(rec, now, base);
+  }
+
+  // ---- One-time migration of the old Nailed it / Practice again marks ----
+  if (!store.migrated) {
+    const old = load(OLD_KEY), now = new Date();
+    if (old && typeof old === 'object') data.decks.forEach(d => d.cards.forEach(c => {
+      const m = old[d.id + ':' + c.q], k = keyOf(d, c);
+      if ((m !== 'got' && m !== 'again') || store.cards[k]) return;
+      const r = preview(null, now)[m === 'got' ? 4 : 1];
+      r.first = 'before';   // doesn't use up today's new cards
+      store.cards[k] = r;
+    }));
+    store.migrated = true; save();
+  }
+
+  // ---- Queue ----
+  function dueQueue(d, now) {
+    const end = tomorrow(now).getTime(), t = ymd(now), nowList = [], later = [], fresh = [];
+    let introduced = 0;
+    d.cards.forEach((c, i) => {
+      const r = store.cards[keyOf(d, c)];
+      if (!r) { fresh.push(i); return; }
+      if (r.first === t) introduced++;
+      const due = dueMs(r);
+      if (due < end) (due <= now.getTime() ? nowList : later).push([due, i]);
+    });
+    const by = (a, b) => a[0] - b[0], slots = Math.max(0, NEW_PER_DAY - introduced);
+    return { order: [...nowList.sort(by).map(x => x[1]), ...fresh.slice(0, slots).map(i => i), ...later.sort(by).map(x => x[1])], fresh: fresh.length };
+  }
+  function kind(d, c, now) {
+    const r = store.cards[keyOf(d, c)];
+    if (!r) return 'new';
+    return dueMs(r) < tomorrow(now).getTime() ? 'due' : 'learned';
+  }
+
+  let deck = data.decks[0], mode = 'due', order = [], pos = 0, flipped = false, pending = null;
+  function rebuild() {
+    order = mode === 'due' ? dueQueue(deck, new Date()).order : deck.cards.map((_, i) => i);
+    pos = 0;
+  }
+
+  data.decks.forEach(d => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'btn'; b.dataset.deck = d.id;
+    // Deck names come from the user's files: text only, never parsed as HTML.
+    b.append(document.createTextNode(String(d.name ?? '') + ' '));
+    const count = document.createElement('span');
+    count.className = 'font-mono text-label text-fg-muted num';
+    count.textContent = String(d.cards.length);
+    b.append(count);
+    b.onclick = () => { deck = d; rebuild(); $('hint').textContent = ''; show(true); b.focus(); };
+    $('tabs').append(b);
+  });
+
+  function setMode(m) { mode = m; rebuild(); $('hint').textContent = ''; show(true); }
+
+  function setFlipped(v) {
+    flipped = v;
+    card.classList.toggle('flipped', v);
+    $('flip').textContent = v ? 'Show the question' : 'Show my notes';
+    $('rate-wrap').hidden = !v;
+    pending = null;
+    if (v && order.length) {
+      const c = deck.cards[order[pos]], k = keyOf(deck, c), now = new Date();
+      pending = { k, out: preview(store.cards[k], now) };
+      $('rate').querySelectorAll('button').forEach(b => {
+        const g = +b.dataset.grade, due = new Date(pending.out[g].due);
+        b.querySelector('[data-when]').textContent = short(due, now);
+        b.setAttribute('aria-label', `${GRADES[g]}, next review ${rel(due, now)}`);
+      });
+    }
+  }
+
+  function doneText(q, now) {
+    const end = tomorrow(now).getTime();
+    let next = Infinity;
+    deck.cards.forEach(c => { const r = store.cards[keyOf(deck, c)]; if (r) { const t = dueMs(r); if (t >= end && t < next) next = t; } });
+    let s;
+    if (!deck.cards.length) s = 'This deck has no cards yet.';
+    else if (q.fresh > 0) s = `You’ve started today’s new cards. ${q.fresh} more ${q.fresh === 1 ? 'card starts' : 'cards start'} tomorrow.`;
+    else if (next < Infinity) s = `Your next review is ${rel(new Date(next), now)}.`;
+    else s = 'Nothing is due.';
+    return s + ' You can still practice every card now.';
+  }
+
+  function show(animate, msg) {
+    const now = new Date(), q = dueQueue(deck, now);
+    $('tabs').querySelectorAll('button').forEach(b => {
+      const on = b.dataset.deck === deck.id;
+      b.setAttribute('aria-pressed', on);
+      b.classList.toggle('bg-accent-wash', on); b.classList.toggle('text-accent-ink', on);
+    });
+    [['mode-due', 'due'], ['mode-all', 'all']].forEach(([bid, m]) => {
+      const on = mode === m, b = $(bid);
+      b.setAttribute('aria-pressed', on);
+      b.classList.toggle('bg-accent-wash', on); b.classList.toggle('text-accent-ink', on);
+    });
+    $('due-n').textContent = q.order.length; $('all-n').textContent = deck.cards.length;
+    if (pos >= order.length) pos = 0;
+
+    let due = 0, fresh = 0, learned = 0;
+    deck.cards.forEach(c => { const k = kind(deck, c, now); if (k === 'new') fresh++; else if (k === 'due') due++; else learned++; });
+    const summary = `${due} to review today · ${fresh} new · ${learned} learned`;
+
+    const empty = !order.length;
+    $('pile').hidden = empty; $('controls').hidden = empty; $('nav').hidden = empty; $('done').hidden = !empty;
+    $('shuffle').hidden = mode !== 'all' || empty;
+    if (empty) {
+      setFlipped(false);
+      $('ticks').innerHTML = ''; $('tally').textContent = summary;
+      $('done-text').textContent = doneText(q, now);
+      $('status').textContent = (msg ? msg + ' ' : '') + 'All caught up for today.';
+      return;
+    }
+
+    const c = deck.cards[order[pos]];
+    $('q').textContent = c.q; $('q-small').textContent = c.q; $('a').textContent = c.a;
+    $('tag').textContent = c.tag || deck.name; $('count').textContent = `${pos + 1} / ${order.length}`;
+    card.style.transform = ''; card.style.opacity = '';
+    setFlipped(false);
+    if (animate && !reduce.matches) { card.classList.remove('enter'); void card.offsetWidth; card.classList.add('enter'); }
+
+    $('ticks').innerHTML = order.map((ci, p) => {
+      const k = kind(deck, deck.cards[ci], now);
+      const cls = k === 'learned' ? 'bg-ok' : k === 'due' ? 'bg-transparent ring-2 ring-inset ring-warn' : 'bg-line';
+      return `<span class="tick h-2 flex-1 rounded-full ${cls} ${p === pos ? 'outline-2 outline-offset-2 outline-ring' : ''}"></span>`;
+    }).join('');
+    $('tally').textContent = `Card ${pos + 1} of ${order.length} · ${summary}`;
+    $('pile').dataset.left = String(Math.min(2, order.length - 1));
+    $('status').textContent = (msg ? msg + ' ' : '') + `Card ${pos + 1} of ${order.length}: ${c.q}`;
+  }
+
+  function go(step) { if (!order.length) return; pos = (pos + step + order.length) % order.length; show(true); }
+
+  function rate(g) {
+    if (!flipped || !order.length || !GRADES[g]) return;
+    const c = deck.cards[order[pos]], k = keyOf(deck, c), now = new Date();
+    const rec = (pending && pending.k === k ? pending.out : preview(store.cards[k], now))[g];
+    store.cards[k] = rec; save();
+    const hint = `Next review: ${rel(new Date(rec.due), now)}`;
+    $('hint').textContent = `${GRADES[g]} · ${hint}`;
+    const msg = `Rated ${GRADES[g]}. ${hint}.`;
+    const advance = () => {
+      if (mode === 'due') rebuild(); else pos = (pos + 1) % order.length;
+      show(true, msg);
+      ($('controls').hidden ? $('done-all') : $('flip')).focus();
+    };
+    if (reduce.matches) { advance(); return; }
+    const dir = g >= 3 ? 1 : -1;
+    card.classList.add('fly');
+    card.style.transform = `translateX(${dir * 120}%) rotate(${dir * 12}deg)` + (flipped ? ' rotateY(180deg)' : '');
+    card.style.opacity = '0';
+    setTimeout(() => { card.classList.remove('fly'); advance(); }, 300);
+  }
+
+  $('flip').onclick = () => { setFlipped(!flipped); if (flipped) $('status').textContent = 'Notes shown. Rate it 1 to 4.'; };
+  $('rate').querySelectorAll('button').forEach(b => { b.onclick = () => rate(+b.dataset.grade); });
+  $('mode-due').onclick = () => setMode('due');
+  $('mode-all').onclick = () => setMode('all');
+  $('done-all').onclick = () => { setMode('all'); $('flip').focus(); };
+  $('next').onclick = () => go(1);
+  $('prev').onclick = () => go(-1);
+  $('shuffle').onclick = () => {
+    for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+    pos = 0; show(true, 'Deck shuffled.');
+  };
+  $('clear').onclick = () => { $('confirm-clear').classList.replace('hidden', 'flex'); $('clear-no').focus(); };
+  $('clear-no').onclick = () => { $('confirm-clear').classList.replace('flex', 'hidden'); $('clear').focus(); };
+  $('clear-yes').onclick = () => {
+    deck.cards.forEach(c => delete store.cards[keyOf(deck, c)]); save();
+    $('confirm-clear').classList.replace('flex', 'hidden'); $('hint').textContent = '';
+    rebuild(); show(false, 'Progress reset.'); $('clear').focus();
+  };
+
+  let startX = 0, startY = 0, dx = 0, dragging = false, moved = false;
+  card.addEventListener('pointerdown', e => { startX = e.clientX; startY = e.clientY; dx = 0; moved = false; dragging = true; card.setPointerCapture(e.pointerId); });
+  card.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    dx = e.clientX - startX;
+    if (Math.abs(dx) > 6 && Math.abs(dx) > Math.abs(e.clientY - startY)) moved = true;
+    if (!moved || !flipped || reduce.matches) return;
+    card.classList.add('dragging');
+    card.style.transform = `translateX(${dx}px) rotate(${dx * 0.04}deg) rotateY(180deg)`;
+    $('stamp-got').style.opacity = Math.max(0, Math.min(1, dx / 120));
+    $('stamp-again').style.opacity = Math.max(0, Math.min(1, -dx / 120));
+  });
+  const end = () => {
+    if (!dragging) return;
+    dragging = false; card.classList.remove('dragging');
+    $('stamp-got').style.opacity = 0; $('stamp-again').style.opacity = 0;
+    if (!moved) { setFlipped(!flipped); return; }
+    if (flipped && Math.abs(dx) > 110) rate(dx > 0 ? 3 : 1);
+    else card.style.transform = '';
+  };
+  card.addEventListener('pointerup', end);
+  card.addEventListener('pointercancel', end);
+
+  document.addEventListener('keydown', e => {
+    if (e.target.closest('input, textarea, select, [contenteditable]')) return;
+    if (e.metaKey || e.ctrlKey || e.altKey || !order.length) return;
+    const onControl = e.target.closest('button, a');
+    if (e.key === ' ' && !onControl) { e.preventDefault(); $('flip').click(); }
+    if (flipped && /^[1-4]$/.test(e.key)) { e.preventDefault(); rate(+e.key); }
+    if (e.key === 'ArrowRight') go(1);
+    if (e.key === 'ArrowLeft') go(-1);
+  });
+
+  rebuild();
+  show(false);
+})();
+</script>
+</html>
