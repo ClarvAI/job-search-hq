@@ -51,6 +51,13 @@ Fixing a failing pair:
 
 Things the script can't measure (check the rendered page): text on gradients or images (measure the worst spot, or add a scrim), translucent overlays, `color-mix()` or opacity modifiers like `bg-accent/50` (never put text on those), and any hard-coded color outside the token block. When auditing a page, grep for stray hex/`rgb(`/`oklch(` literals, including SVG `fill`/`stroke`, and replace them with tokens.
 
+## Charts, tracks and the hero gradient (generated)
+
+- `--chart-1` … `--chart-5` are the only chart colors. The generator derives them from the accent (hue turned ±120°/±60°, same lightness and chroma, kept 15°+ from the status hues and out of the yellow/olive band, OKLCH hue 65–130, which reads as mustard or khaki at chart lightness) and darkens or lightens each until it is 3:1 on every surface in that theme; a near-gray accent gets an ordered lightness ramp of its own hue (chart 1 to 5 always lighter, or always darker). Status colors never encode a series, and a series never needs its color to be read: label it or print the number beside it.
+- `--chart-track` is the empty part of a bar or ring (1.5:1 on surface, so a zero still shows as an empty track, not nothing).
+- `--color-accent-gradient` is for one hero surface per page. Both stops are measured against the on-accent text; if a stop would fail, the generator falls back to the solid fill. Don't build other gradients by hand.
+- A brand import supplies the accent, neutral, fonts and radius only; charts, track, gradient, inset and overlay follow from those automatically.
+
 ## Smaller choices
 
 - Gradients: write `linear-gradient(in oklab, …)` for even brightness. Two far-apart hues in plain sRGB go gray in the middle; add a middle stop or use `in oklch` (vivid, may pass through unexpected hues). Big low-contrast gradients band; keep them small.

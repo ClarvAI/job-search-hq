@@ -40,7 +40,22 @@ Replace everything from the line starting `  /* ---- Design tokens` through the 
     --color-danger-subtle: var(--danger-3); --color-danger-solid: var(--danger-9); --color-danger-text: var(--danger-11);
     --shadow-surface: 0 0 0 1px oklch(0 0 0 / 0.06), 0 1px 2px -1px oklch(0 0 0 / 0.06), 0 2px 4px 0 oklch(0 0 0 / 0.04);
     --shadow-raised: 0 0 0 1px oklch(0 0 0 / 0.07), 0 2px 4px -2px oklch(0 0 0 / 0.08), 0 16px 32px -16px oklch(0 0 0 / 0.22);
+    --color-bg-inset: var(--neutral-3); --color-bg-overlay: #12121273;
+    --color-accent-gradient: linear-gradient(135deg, var(--accent-9), var(--accent-11));
+    --shadow-overlay: 0 0 0 1px oklch(0 0 0 / 0.08), 0 8px 16px -8px oklch(0 0 0 / 0.16), 0 24px 48px -12px oklch(0 0 0 / 0.28);
+    --chart-1: #105278; --chart-2: #73364a; --chart-3: #3c561d; --chart-4: #554076; --chart-5: #005a4f; --chart-track: var(--neutral-6);
+    --avatar-bg: var(--color-accent-subtle); --avatar-fg: var(--color-accent-text);
     --radius-sm: 4px; --radius-md: 8px; --radius-lg: 16px;
+    --radius-xl: 24px; --radius-full: 999px;
+    --space-1: calc(var(--spacing) * 1); --space-2: calc(var(--spacing) * 2); --space-3: calc(var(--spacing) * 3); --space-4: calc(var(--spacing) * 4); --space-5: calc(var(--spacing) * 6); --space-6: calc(var(--spacing) * 8); --space-7: calc(var(--spacing) * 10); --space-8: calc(var(--spacing) * 12); --space-9: calc(var(--spacing) * 16); --space-10: calc(var(--spacing) * 24);
+    --text-display: clamp(2.5rem, 6.5vw, 4.25rem); --text-display--line-height: 1.02; --text-display--letter-spacing: -0.022em;
+    --text-title: clamp(1.75rem, 3.6vw, 2.25rem); --text-title--line-height: 1.1; --text-title--letter-spacing: -0.012em;
+    --text-heading: 1.375rem; --text-heading--line-height: 1.25;
+    --text-subheading: 1.125rem; --text-subheading--line-height: 1.35;
+    --text-body: 1rem; --text-body--line-height: 1.55;
+    --text-small: 0.875rem; --text-small--line-height: 1.45;
+    --text-label: 0.75rem; --text-label--line-height: 1.3; --text-label--letter-spacing: 0.07em;
+    --measure: 38rem;
     --ease-out: cubic-bezier(0.2, 0, 0, 1);
     --font-display: "Lexend", "Segoe UI", system-ui, sans-serif;
     --font-body: "Lexend", "Segoe UI", system-ui, sans-serif;
@@ -66,6 +81,11 @@ Replace everything from the line starting `  /* ---- Design tokens` through the 
     --color-danger-subtle: var(--danger-3); --color-danger-solid: var(--danger-9); --color-danger-text: var(--danger-11);
     --shadow-surface: 0 0 0 1px oklch(1 0 0 / 0.08);
     --shadow-raised: 0 0 0 1px oklch(1 0 0 / 0.12), 0 16px 32px -16px oklch(0 0 0 / 0.7);
+    --color-bg-inset: var(--neutral-1); --color-bg-overlay: #0d0d0db3;
+    --color-accent-gradient: linear-gradient(135deg, var(--accent-9), var(--accent-10));
+    --shadow-overlay: 0 0 0 1px oklch(1 0 0 / 0.14), 0 24px 48px -12px oklch(0 0 0 / 0.8);
+    --chart-1: #31729c; --chart-2: #9e596e; --chart-3: #59763a; --chart-4: #77619c; --chart-5: #027a6b; --chart-track: var(--neutral-6);
+    --avatar-bg: var(--color-accent-subtle); --avatar-fg: var(--color-accent-text);
     }
   }
   :root[data-theme="dark"] {
@@ -85,6 +105,11 @@ Replace everything from the line starting `  /* ---- Design tokens` through the 
     --color-danger-subtle: var(--danger-3); --color-danger-solid: var(--danger-9); --color-danger-text: var(--danger-11);
     --shadow-surface: 0 0 0 1px oklch(1 0 0 / 0.08);
     --shadow-raised: 0 0 0 1px oklch(1 0 0 / 0.12), 0 16px 32px -16px oklch(0 0 0 / 0.7);
+    --color-bg-inset: var(--neutral-1); --color-bg-overlay: #0d0d0db3;
+    --color-accent-gradient: linear-gradient(135deg, var(--accent-9), var(--accent-10));
+    --shadow-overlay: 0 0 0 1px oklch(1 0 0 / 0.14), 0 24px 48px -12px oklch(0 0 0 / 0.8);
+    --chart-1: #31729c; --chart-2: #9e596e; --chart-3: #59763a; --chart-4: #77619c; --chart-5: #027a6b; --chart-track: var(--neutral-6);
+    --avatar-bg: var(--color-accent-subtle); --avatar-fg: var(--color-accent-text);
   }
   /* Motion: reduced (profile/design.md). Movement is off everywhere; color and fade changes stay. */
   *, ::before, ::after { animation: none !important; transition-property: color, background-color, border-color, outline-color, box-shadow, opacity !important; transition-delay: 0s !important; scroll-behavior: auto !important; }
@@ -154,3 +179,20 @@ and for the cover letter:
 
 - `@page` `size:` is `Letter` or `A4` (the documents block's `paper`).
 - `--doc-accent`: `#111111`, or a color from "Safe document accents" in `references/importing-a-design-system.md` (already measured on white). Without Node, never use another color here.
+
+## 5. Layouts and your own CSS (the same for every preset)
+
+A layout is one attribute: `data-layout` on the page's `<html lang="en" data-layout="...">` tag. The look (this preset) and the layout are independent. Without Node, after setting the key in `profile/design.md`, change that one attribute by hand in each file it applies to (pages in `pages/`, every `jobs/*/interview-brief.html`, and the user's copies in `profile/templates/`; copy a template there from `templates/` first if it isn't there yet, and never edit `templates/`). Use exactly one of the listed values; the resume and cover letter take the same value.
+
+| design.md key | Files | Values |
+|---|---|---|
+| `layout_dashboard` (design block) | `dashboard.html` | **overview** (default), board |
+| `layout_flashcards` (design block) | `flashcards.html` | **flip** (default), list |
+| `layout_brief` (design block) | `interview-brief.html` | **sheet** (default), detailed |
+| `layout_portfolio` (design block) | `portfolio.html` | **profile** (default), editorial, bento |
+| `layout_resume` (documents block) | `resume-template.html`, `cover-letter-template.html` | **classic** (default), modern, compact |
+| `layout_designed` (documents block) | `resume-designed-template.html` | **sidebar** (default), headline |
+
+A page made before layouts existed (its `<html>` tag has no `data-layout`) only has its one look; refresh it from `templates/blank/pages/` first (pages skill).
+
+The user's own CSS goes between `  /* ---- Custom ---- */` and `  /* ---- End custom ---- */` (the last lines of the page's first `<style>`); it may use `:root[data-layout="..."]` to target one layout and only the tokens above, never raw colors. Re-theming never touches it.

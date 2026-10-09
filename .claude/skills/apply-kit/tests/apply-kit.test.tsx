@@ -22,7 +22,7 @@ date_order: MDY
 - Locations: Austin, Dallas, NYC; open to relocating anywhere in the US
 - Salary floor: not set; use market range
 - Work authorization: Yes, authorized to work in the US; no sponsorship needed
-- Earliest start date: 2027-07-06
+- Earliest start date: 2026-11-02
 - Willing to travel for work: up to 25%
 
 ## Voluntary self-identification (application EEO questions)
@@ -56,7 +56,7 @@ const RESUME = `# Master Resume
 ## Education
 
 **University of Texas at Austin**, Austin, TX
-- BS Industrial Engineering (expected Jun 2027)
+- BA Communications (May 2018)
 - Minor in Business & Analytics
 `
 
@@ -137,7 +137,7 @@ for (const surface of ['terminal', 'desktop'] as const) {
     expect(drawn).toContain('Location: Round Rock, TX')
     expect(drawn).not.toContain('team size')
     expect(drawn).toContain('School: University of Texas at Austin')
-    expect(drawn).toContain('Dates: Expected Jun 2027')
+    expect(drawn).toContain('Dates: May 2018')
     expect(drawn).toContain('my internships were on the operations side')
     expect(drawn).toContain('What is your desired salary?')
     expect(drawn).toContain('Not drafted yet')

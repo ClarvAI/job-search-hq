@@ -13,4 +13,4 @@ It was written with Claude Code's names; translate them with the table in AGENTS
 
 ## Codex notes
 
-- The palette tools (`palette.mjs`, `tokens.mjs`) need Node. If it isn't installed, do what the Claude skill says: keep the current palette and tell the user colors can't be contrast-checked here. Font, layout and motion changes don't need Node; run a page-review pass after any change.
+- The palette tools (`palette.mjs`, `tokens.mjs`) need Node. If it isn't installed, do what the Claude skill says: keep the current palette and tell the user colors can't be contrast-checked here. Font, layout and motion changes don't need Node (a layout switch is the one `data-layout` attribute per file; see "Without Node"); run a page-review pass after any change.

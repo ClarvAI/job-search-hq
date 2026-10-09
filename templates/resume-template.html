@@ -4,91 +4,190 @@
   Assistant: if profile/templates/resume-template.html exists, start from that
   copy instead (it carries the user's look); never edit this file. Copy it to
   jobs/<folder>/resume.html and replace everything between the opening and
-  closing main tags. Set the lang attribute of the html element to the
-  resume's language (for example de). Keep: one column, standard headings,
-  real text (no images, tables or icons), one page by default (two where the
-  job's country or the user's seniority expects it; see tailor-resume).
-  After the checks, make the PDF with
+  closing main tags, keeping the markup pattern below. Set the lang attribute
+  of the html element to the resume's language (for example de); leave
+  data-layout alone (page-design sets it from layout_resume in profile/design.md:
+  classic, modern or compact; all three read the same markup).
+  Markup pattern (every layout styles these classes; nothing else is needed):
+    header.masthead: h1 (the name), then p.contact with items separated by
+      <span class="sep"> | </span> (real characters, so the text reads cleanly).
+    One section element per heading, its h2 holding only the plain heading text
+      (standard words: Education, Experience, Projects, Skills). The education
+      section has class "edu" (the compact layout fits each school on one line).
+    .entry per job, school or project: p.line rows, each a left span then
+      <span class="end"> (location or dates, set right; it stays after the left
+      text in the PDF's text). First row: <span class="org">; second row (class
+      "line role"): role or degree, then dates. Then a ul of bullets or a p.
+    Skills: p.skill lines, "<strong>Label:</strong> a, b, c".
+  Keep: one column, standard headings, real text (no images, tables or icons),
+  one page by default (two where the job's country or the user's seniority
+  expects it; see tailor-resume). After the checks, make the PDF with
   .claude/skills/tailor-resume/scripts/make-pdf.sh (Windows without bash: make-pdf.ps1);
   paper size comes from @page below.
   Fallback: the user opens it in a browser and uses Print -> Save as PDF
   (Margins: Default, Headers and footers: off).
 -->
-<html lang="en">
+<html lang="en" data-layout="classic">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Your Name Resume</title>
 <style>
   /* ---- Document theme (generated from profile/design.md; see .claude/skills/page-design/SKILL.md) ---- */
   :root { --doc-font: Arial, Helvetica, "Liberation Sans", sans-serif; --doc-accent: #111111; --doc-size: 10.5pt; --doc-leading: 1.2; }
   @page { size: Letter; margin: 0.5in 0.6in; }
   /* ---- End document theme ---- */
+
+  /* Structure never changes with the theme: one column, real text, standard headings.
+     Body text is always near-black (#111); the accent colors only the name and the
+     section headings or rules. Sizes are in pt so print matches the screen. */
   * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
   body {
-    margin: 0 auto; max-width: 7.3in; padding: 0.4in 0;
-    /* Font, accent, size and paper come from the document theme above (ATS-safe choices only).
-       Arial, the default, is on every Mac and PC, so the one-page fit is predictable.
-       Body text is always near-black; the accent colors only the name and the section rules. */
-    font-family: var(--doc-font);
-    font-size: var(--doc-size); line-height: var(--doc-leading); color: #111; background: #fff;
+    margin: 0; color: #111; background: #fff;
+    font-family: var(--doc-font); font-size: var(--doc-size); line-height: var(--doc-leading);
+    font-kerning: normal; text-rendering: optimizeLegibility;
   }
-  @media print { body { padding: 0; } .screen-only { display: none; } }
-  h1 { font-size: 18pt; margin: 0; text-align: center; letter-spacing: 0; color: var(--doc-accent); }
-  .contact { text-align: center; margin: 2px 0 6px; font-size: 10pt; }
-  .contact a { color: #111; text-decoration: none; }
+  main { display: block; }
+  h1, h2, p, ul { margin: 0; }
+  a { color: inherit; text-decoration: none; }
+
+  /* Masthead */
+  .masthead { margin-bottom: 0.6em; }
+  .masthead h1 { font-size: 20pt; line-height: 1.1; font-weight: 700; letter-spacing: -0.01em; color: var(--doc-accent); }
+  .contact { margin-top: 0.3em; font-size: 0.95em; overflow-wrap: break-word; }
+  /* Contact items never split (a phone number or URL stays whole); lines wrap only at the separators. */
+  .contact { white-space: nowrap; }
+  .contact .sep { white-space: pre-wrap; }
+
+  /* Sections and entries */
   h2 {
-    font-size: 11pt; text-transform: uppercase; letter-spacing: 0.6px;
-    border-bottom: 1px solid var(--doc-accent); margin: 9px 0 4px; padding-bottom: 1px;
+    font-size: 10.5pt; line-height: 1.2; font-weight: 700; color: #111;
+    text-transform: uppercase; letter-spacing: 0.07em;
+    margin: 0.95em 0 0.35em; padding-bottom: 0.15em; border-bottom: 0.75pt solid var(--doc-accent);
+    break-after: avoid;
   }
-  .row { display: flex; justify-content: space-between; gap: 12px; }
-  .row .left { font-weight: bold; }
-  .row .right { white-space: nowrap; }
-  .sub { display: flex; justify-content: space-between; gap: 12px; font-style: italic; }
-  .sub span:last-child { white-space: nowrap; }
-  ul { margin: 2px 0 5px 0; padding-left: 16px; }
-  li { margin: 0 0 1.5px 0; }
-  p { margin: 2px 0; }
-  .entry { margin-bottom: 4px; }
+  section:first-of-type h2 { margin-top: 0.35em; }
+  .entry { break-inside: avoid; }
+  .entry + .entry { margin-top: 0.5em; }
+  .line { display: flex; justify-content: space-between; align-items: baseline; gap: 1em; }
+  .line > span:first-child { min-width: 0; }
+  .org { font-weight: 700; }
+  .end { flex: none; white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums lining-nums; }
+  .entry > p:not(.line) { margin-top: 0.1em; }
+  ul { margin-top: 0.15em; padding-left: 1.15em; }
+  li { padding-left: 0.15em; text-wrap: pretty; }
+  li + li { margin-top: 0.12em; }
+  .skill { padding-left: 1em; text-indent: -1em; text-wrap: pretty; }
+  .skill + .skill { margin-top: 0.12em; }
+  .skill strong { font-weight: 700; }
+
+  /* Layout: modern. Accent name and headings, sentence-case headings, no rules. */
+  :root[data-layout="modern"] .masthead h1 { font-size: 22pt; letter-spacing: -0.015em; }
+  :root[data-layout="modern"] .masthead { margin-bottom: 0.4em; }
+  :root[data-layout="modern"] h2 {
+    font-size: 11pt; color: var(--doc-accent); text-transform: none; letter-spacing: 0;
+    border-bottom: 0; padding-bottom: 0; margin: 1.05em 0 0.3em;
+  }
+  :root[data-layout="modern"] section:first-of-type h2 { margin-top: 0.6em; }
+  :root[data-layout="modern"] .role > span:first-child { font-weight: 400; }
+  :root[data-layout="modern"] .entry + .entry { margin-top: 0.55em; }
+
+  /* Layout: compact. Tighter type and rhythm (never under 10pt), headings inline with a
+     short rule, contact beside the name, each school on one line. */
+  :root[data-layout="compact"] body { font-size: max(10pt, calc(var(--doc-size) - 0.5pt)); }
+  :root[data-layout="compact"] .masthead {
+    display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline;
+    column-gap: 1.5em; row-gap: 0.15em; margin-bottom: 0.2em;
+    padding-bottom: 0.35em; border-bottom: 0.75pt solid var(--doc-accent);
+  }
+  :root[data-layout="compact"] .masthead h1 { font-size: 18pt; }
+  :root[data-layout="compact"] .contact { margin-top: 0; text-align: right; }
+  :root[data-layout="compact"] h2 {
+    display: flex; align-items: center; gap: 0.6em;
+    font-size: 10pt; letter-spacing: 0.08em; border-bottom: 0; padding-bottom: 0; margin: 0.75em 0 0.25em;
+  }
+  :root[data-layout="compact"] h2::after { content: ""; flex: 0 0 2.2em; border-top: 0.75pt solid var(--doc-accent); }
+  :root[data-layout="compact"] section:first-of-type h2 { margin-top: 0.5em; }
+  :root[data-layout="compact"] .entry + .entry { margin-top: 0.35em; }
+  :root[data-layout="compact"] ul { margin-top: 0.08em; }
+  :root[data-layout="compact"] li + li { margin-top: 0.05em; }
+  :root[data-layout="compact"] .skill + .skill { margin-top: 0.05em; }
+  :root[data-layout="compact"] .edu .entry { display: flex; flex-wrap: wrap; align-items: baseline; }
+  :root[data-layout="compact"] .edu .line { display: contents; }
+  :root[data-layout="compact"] .edu .line:first-child .end,
+  :root[data-layout="compact"] .edu .role > span:first-child { margin-left: 0.55em; padding-left: 0.55em; border-left: 0.5pt solid #111; text-align: left; }
+  :root[data-layout="compact"] .edu .role .end { margin-left: auto; padding-left: 1em; }
+  :root[data-layout="compact"] .edu .entry > :not(.line) { flex: 0 0 100%; }
+
+  /* Screen only: show the page as a sheet of paper. Print uses @page above. */
+  @media screen {
+    html { background: color-mix(in srgb, #111 7%, #fff); }
+    body { max-width: 8.5in; margin: 24px auto; padding: 0.55in 0.6in; box-shadow: 0 1px 3px color-mix(in srgb, #111 18%, transparent), 0 8px 24px color-mix(in srgb, #111 8%, transparent); }
+    @media (max-width: 8.6in) { body { margin: 0; box-shadow: none; padding: 16px; } }
+  }
+  @media print { body { margin: 0; padding: 0; } .screen-only { display: none; } }
   .screen-only {
-    font-family: Arial, sans-serif; font-size: 12px; background: #fff8dc;
-    border: 1px solid #e6d690; padding: 8px 10px; margin-bottom: 14px; border-radius: 4px;
+    margin: 0 0 18px; padding: 8px 12px; border-radius: 6px;
+    font: 12px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; color: #111;
+    background: color-mix(in srgb, #111 4%, #fff); border: 1px solid color-mix(in srgb, #111 16%, #fff);
   }
+  /* ---- Custom ---- */
+  /* ---- End custom ---- */
 </style>
 </head>
 <body>
-<div class="screen-only">To save as PDF: press Ctrl+P (Windows) or Cmd+P (Mac), choose “Save as PDF”, set Margins to Default, and turn off Headers and footers. If it runs onto a second page, ask your assistant to trim it. This yellow box won’t print.</div>
+<div class="screen-only">To save as PDF: press Ctrl+P (Windows) or Cmd+P (Mac), choose “Save as PDF”, set Margins to Default, and turn off Headers and footers. If it runs onto a second page, ask your assistant to trim it. This box won’t print.</div>
 <main>
-  <h1>Your Name</h1>
-  <p class="contact">City, ST | (555) 555-0100 | you@example.com | <a href="https://www.linkedin.com/in/your-name">linkedin.com/in/your-name</a></p>
+  <header class="masthead">
+    <h1>Your Name</h1>
+    <p class="contact">City, ST<span class="sep"> | </span>(555) 555-0100<span class="sep"> | </span>you@example.com<span class="sep"> | </span><a href="https://www.linkedin.com/in/your-name">linkedin.com/in/your-name</a></p>
+  </header>
 
-  <h2>Education</h2>
-  <div class="entry">
-    <div class="row"><span class="left">School Name</span><span class="right">City, ST</span></div>
-    <div class="sub"><span>Degree, Major; Minor (if any)</span><span>Month YYYY</span></div>
-    <p>Honors, awards, or relevant coursework (optional)</p>
-  </div>
+  <section class="edu">
+    <h2>Education</h2>
+    <div class="entry">
+      <p class="line"><span class="org">School Name</span><span class="end">City, ST</span></p>
+      <p class="line role"><span>Degree, Major; Minor (if any)</span><span class="end">Month YYYY</span></p>
+      <p>Honors, awards, or relevant coursework (optional)</p>
+    </div>
+  </section>
 
-  <h2>Experience</h2>
-  <div class="entry">
-    <div class="row"><span class="left">Company</span><span class="right">City, ST</span></div>
-    <div class="sub"><span>Role</span><span>Mon YYYY – Mon YYYY</span></div>
-    <ul>
-      <li>Bullet from master resume, reordered and reworded for this job.</li>
-    </ul>
-  </div>
+  <section>
+    <h2>Experience</h2>
+    <div class="entry">
+      <p class="line"><span class="org">Company</span><span class="end">City, ST</span></p>
+      <p class="line role"><span>Role</span><span class="end">Mon YYYY – Mon YYYY</span></p>
+      <ul>
+        <li>Bullet from the master resume, reordered and reworded for this job.</li>
+        <li>Action verb, what you did, and the result with its number.</li>
+      </ul>
+    </div>
+    <div class="entry">
+      <p class="line"><span class="org">Company</span><span class="end">City, ST</span></p>
+      <p class="line role"><span>Role</span><span class="end">Mon YYYY – Mon YYYY</span></p>
+      <ul>
+        <li>Bullet.</li>
+      </ul>
+    </div>
+  </section>
 
-  <h2>Projects</h2>
-  <div class="entry">
-    <div class="row"><span class="left">Project Name</span><span class="right">Mon YYYY – Mon YYYY</span></div>
-    <ul>
-      <li>Bullet.</li>
-    </ul>
-  </div>
+  <section>
+    <h2>Projects</h2>
+    <div class="entry">
+      <p class="line"><span class="org">Project Name</span><span class="end">Mon YYYY – Mon YYYY</span></p>
+      <ul>
+        <li>Bullet.</li>
+      </ul>
+    </div>
+  </section>
 
-  <h2>Skills</h2>
-  <p><strong>Technical:</strong> Tool, tool, tool, software, software</p>
-  <p><strong>Methods:</strong> Method, method, method</p>
-  <p><strong>Certifications:</strong> Certification name (issuer)</p>
+  <section>
+    <h2>Skills</h2>
+    <p class="skill"><strong>Technical:</strong> Tool, tool, tool, software, software</p>
+    <p class="skill"><strong>Methods:</strong> Method, method, method</p>
+    <p class="skill"><strong>Certifications:</strong> Certification name (issuer)</p>
+  </section>
 </main>
 </body>
 </html>

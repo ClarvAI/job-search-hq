@@ -4,6 +4,7 @@ All recipes assume the tokens in SKILL.md and sit inside `@media (prefers-reduce
 
 ## Rules before any recipe
 
+- **One signature moment per page, the same in every layout:** dashboard counters count up and funnel bars grow; flashcards flip and deal; the brief's pitch teleprompter; the portfolio hero fades up and its highlight counters count. Everything else is a color or opacity change of 150ms or less. Confetti only for an accepted offer. Nothing starts below opacity 0.4.
 - **Budget by frequency.** Things the user does constantly (hover a row, flip through cards, switch a tab) get instant feedback or ≤ 150ms on opacity/color/scale. Expressive motion is for rare moments: first view, a win, an empty state.
 - **Transitions for interaction, keyframes for one-shot sequences.** A transition can reverse mid-flight when the user changes their mind; a keyframe animation restarts or snaps.
 - **Exits are quieter than entrances:** ~150ms vs ~300ms, a small fixed move (about −12px), never the full height. If the motion adds nothing (frequent action, reduced motion), just remove the element.

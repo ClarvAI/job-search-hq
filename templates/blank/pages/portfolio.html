@@ -1,8 +1,13 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-layout="profile">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Your Name, Your Role</title>
+<title>Your Name, Product Marketing</title>
+<meta name="description" content="Example portfolio. Product marketer who turns customer research into positioning, launches and pricing that move revenue.">
+<meta property="og:type" content="profile">
+<meta property="og:title" content="Your Name, Product Marketing">
+<meta property="og:description" content="Example portfolio. Product marketer who turns customer research into positioning, launches and pricing that move revenue.">
+<meta name="twitter:card" content="summary">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..700&family=Source+Sans+3:wght@400..700&family=Source+Code+Pro:wght@400..600&display=swap">
@@ -29,7 +34,22 @@
     --color-danger-subtle: var(--danger-3); --color-danger-solid: var(--danger-9); --color-danger-text: var(--danger-11);
     --shadow-surface: 0 0 0 1px oklch(0 0 0 / 0.06), 0 1px 2px -1px oklch(0 0 0 / 0.06), 0 2px 4px 0 oklch(0 0 0 / 0.04);
     --shadow-raised: 0 0 0 1px oklch(0 0 0 / 0.07), 0 2px 4px -2px oklch(0 0 0 / 0.08), 0 16px 32px -16px oklch(0 0 0 / 0.22);
+    --color-bg-inset: var(--neutral-3); --color-bg-overlay: #27221b73;
+    --color-accent-gradient: linear-gradient(135deg, var(--accent-9), var(--accent-11));
+    --shadow-overlay: 0 0 0 1px oklch(0 0 0 / 0.08), 0 8px 16px -8px oklch(0 0 0 / 0.16), 0 24px 48px -12px oklch(0 0 0 / 0.28);
+    --chart-1: #187075; --chart-2: #77547e; --chart-3: #855734; --chart-4: #496390; --chart-5: #4f6d3e; --chart-track: var(--neutral-7);
+    --avatar-bg: var(--color-accent-subtle); --avatar-fg: var(--color-accent-text);
     --radius-sm: 5px; --radius-md: 10px; --radius-lg: 18px;
+    --radius-xl: 26px; --radius-full: 999px;
+    --space-1: calc(var(--spacing) * 1); --space-2: calc(var(--spacing) * 2); --space-3: calc(var(--spacing) * 3); --space-4: calc(var(--spacing) * 4); --space-5: calc(var(--spacing) * 6); --space-6: calc(var(--spacing) * 8); --space-7: calc(var(--spacing) * 10); --space-8: calc(var(--spacing) * 12); --space-9: calc(var(--spacing) * 16); --space-10: calc(var(--spacing) * 24);
+    --text-display: clamp(2.5rem, 6.5vw, 4.25rem); --text-display--line-height: 1.02; --text-display--letter-spacing: -0.022em;
+    --text-title: clamp(1.75rem, 3.6vw, 2.25rem); --text-title--line-height: 1.1; --text-title--letter-spacing: -0.012em;
+    --text-heading: 1.375rem; --text-heading--line-height: 1.25;
+    --text-subheading: 1.125rem; --text-subheading--line-height: 1.35;
+    --text-body: 1rem; --text-body--line-height: 1.55;
+    --text-small: 0.875rem; --text-small--line-height: 1.45;
+    --text-label: 0.75rem; --text-label--line-height: 1.3; --text-label--letter-spacing: 0.07em;
+    --measure: 38rem;
     --ease-out: cubic-bezier(0.2, 0, 0, 1);
     --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
     --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
@@ -55,6 +75,11 @@
     --color-danger-subtle: var(--danger-3); --color-danger-solid: var(--danger-9); --color-danger-text: var(--danger-11);
     --shadow-surface: 0 0 0 1px oklch(1 0 0 / 0.08);
     --shadow-raised: 0 0 0 1px oklch(1 0 0 / 0.12), 0 16px 32px -16px oklch(0 0 0 / 0.7);
+    --color-bg-inset: var(--neutral-1); --color-bg-overlay: #0e0d0bb3;
+    --color-accent-gradient: linear-gradient(135deg, var(--accent-8), var(--accent-10));
+    --shadow-overlay: 0 0 0 1px oklch(1 0 0 / 0.14), 0 24px 48px -12px oklch(0 0 0 / 0.8);
+    --chart-1: #337f83; --chart-2: #85648d; --chart-3: #936646; --chart-4: #58739d; --chart-5: #607c4f; --chart-track: var(--neutral-7);
+    --avatar-bg: var(--color-accent-subtle); --avatar-fg: var(--color-accent-text);
     }
   }
   :root[data-theme="dark"] {
@@ -74,39 +99,382 @@
     --color-danger-subtle: var(--danger-3); --color-danger-solid: var(--danger-9); --color-danger-text: var(--danger-11);
     --shadow-surface: 0 0 0 1px oklch(1 0 0 / 0.08);
     --shadow-raised: 0 0 0 1px oklch(1 0 0 / 0.12), 0 16px 32px -16px oklch(0 0 0 / 0.7);
+    --color-bg-inset: var(--neutral-1); --color-bg-overlay: #0e0d0bb3;
+    --color-accent-gradient: linear-gradient(135deg, var(--accent-8), var(--accent-10));
+    --shadow-overlay: 0 0 0 1px oklch(1 0 0 / 0.14), 0 24px 48px -12px oklch(0 0 0 / 0.8);
+    --chart-1: #337f83; --chart-2: #85648d; --chart-3: #936646; --chart-4: #58739d; --chart-5: #607c4f; --chart-track: var(--neutral-7);
+    --avatar-bg: var(--color-accent-subtle); --avatar-fg: var(--color-accent-text);
   }
   /* ---- End design tokens ---- */
 
-  body { margin: 0; background: var(--color-bg-page); color: var(--color-text-primary); font-family: var(--font-body); font-size: 1rem; line-height: 1.55; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+  /* Layer order first, so Tailwind's reset (base) never beats this page's components when the script loads. */
+  @layer theme, base, components, utilities;
+
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+  body { margin: 0; background: var(--color-bg-page); color: var(--color-text-primary); font-family: var(--font-body); font-size: var(--text-body); line-height: var(--text-body--line-height); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
   h1, h2, h3, h4 { font-family: var(--font-display); font-optical-sizing: auto; text-wrap: balance; margin: 0; }
-  p, li, dd { text-wrap: pretty; }
-  .num { font-variant-numeric: lining-nums tabular-nums; }
+  p, li, dd, blockquote { text-wrap: pretty; }
   :focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
   .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
   /* Hidden stays hidden even when the styling script can't load (offline). */
   [hidden] { display: none !important; }
-  @media (prefers-reduced-motion: no-preference) {
-    .btn { transition-property: scale, background-color, box-shadow, color; transition-duration: 150ms; transition-timing-function: ease-out; }
-    .btn:active:not(:disabled) { scale: 0.96; }
-  }
-  /* Concept: a personal profile page. A hero card (name, one-line headline, about, how to reach you),
-     a row of highlight tiles with the numbers from the resume, then experience as a stack of role cards
-     with their dates as chips, projects, and skills as tags. Only facts from profile/master-resume.md. */
-  .hero { position: relative; overflow: hidden; }
-  .hero::before { content: ""; position: absolute; inset-block: 0; inset-inline-start: 0; width: 0.375rem; background: var(--color-accent-solid); }
-  .chip { display: inline-flex; align-items: center; gap: 0.375rem; white-space: nowrap; border-radius: 999px; padding: 0.125rem 0.625rem; background: var(--color-accent-subtle); color: var(--color-accent-text); font-family: var(--font-data); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.02em; }
-  .tag { display: inline-flex; border-radius: 999px; padding: 0.125rem 0.625rem; background: var(--color-bg-sunken); font-size: 0.875rem; }
 
-  @media (prefers-reduced-motion: no-preference) {
-    .lift { transition: box-shadow 150ms ease-out, translate 150ms ease-out; }
-    @media (hover: hover) { .lift:hover { box-shadow: var(--shadow-raised); translate: 0 -2px; } }
-  }
-  @supports (animation-timeline: view()) {
-    @media (prefers-reduced-motion: no-preference) {
-      .reveal { animation: rise linear both; animation-timeline: view(); animation-range: entry 0% entry 65%; animation-duration: 1ms; }
-      @keyframes rise { from { opacity: 0.4; translate: 0 1rem; } to { opacity: 1; translate: 0 0; } }
+  /* Concept: a public one-pager someone is proud to send a recruiter. One semantic structure (hero, contact,
+     highlights, experience, projects, skills, education, testimonials) restyled by data-layout on <html>:
+     profile (default; also used when the attribute is missing), editorial, bento. Base rules below ARE the
+     profile layout; editorial and bento override them. Resume-level facts only (profile/master-resume.md). */
+  @layer components {
+    .pf, .pf *, .pf *::before, .pf *::after { box-sizing: border-box; }
+    .pf :where(p, ul, ol, dl, dd, figure, blockquote) { margin: 0; }
+    .pf :where(ul, ol) { list-style: none; padding: 0; }
+    .pf :where(img) { display: block; max-width: 100%; height: auto; }
+    .pf :where(a) { color: var(--color-accent-text); text-decoration-line: underline; text-underline-offset: 0.2em; text-decoration-thickness: from-font; text-decoration-skip-ink: auto; }
+    .icon { width: 1.25em; height: 1.25em; flex: none; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+
+    /* Type roles */
+    .eyebrow { font-family: var(--font-data); font-size: var(--text-label); line-height: var(--text-label--line-height); letter-spacing: var(--text-label--letter-spacing); text-transform: uppercase; font-weight: 600; color: var(--color-text-secondary); }
+    .meta { font-size: var(--text-small); line-height: var(--text-small--line-height); color: var(--color-text-secondary); }
+    .num { font-variant-numeric: lining-nums tabular-nums; }
+
+    /* Frame: 12 columns at >= 64rem, one column below; sections span the full width unless a layout says otherwise. */
+    .pf { max-width: 64rem; margin-inline: auto; padding: var(--space-5) 1rem var(--space-9); display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-7); }
+    @media (min-width: 40rem) { .pf { padding: var(--space-7) 1.5rem var(--space-9); gap: var(--space-8); } }
+    @media (min-width: 64rem) { .pf { padding-inline: 2rem; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--space-5); } .pf > * { grid-column: 1 / -1; } }
+
+    /* Example callout (removed once the page holds the user's real content) */
+    .pf-note { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); background: var(--color-accent-subtle); font-size: var(--text-small); line-height: var(--text-small--line-height); }
+    .pf-note .icon { color: var(--color-accent-text); margin-top: 0.1em; }
+    .pf-note strong { font-weight: 700; }
+
+    /* Chips */
+    .chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+    .chip { display: inline-flex; align-items: center; gap: 0.375rem; max-width: 100%; padding: 0.3125rem 0.75rem; border-radius: var(--radius-full); background: var(--color-bg-inset); color: var(--color-text-primary); font-size: var(--text-small); line-height: 1.3; font-weight: 600; }
+    .chip .icon { width: 1rem; height: 1rem; color: var(--color-text-secondary); }
+    .chip-accent { background: var(--color-accent-subtle); color: var(--color-accent-text); }
+    .chip-accent .icon { color: currentColor; }
+
+    /* Buttons: one primary per view */
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); min-height: 2.75rem; padding: 0 1.125rem; border: 0; border-radius: var(--radius-md); background: var(--color-bg-surface); color: var(--color-text-primary); box-shadow: var(--shadow-surface); font: inherit; font-size: var(--text-small); font-weight: 600; line-height: 1.2; text-decoration: none; white-space: nowrap; cursor: pointer; }
+    .btn:hover { background: var(--color-bg-hover); }
+    .btn .icon { width: 1.125rem; height: 1.125rem; }
+    .btn-primary { background: var(--color-accent-solid); color: var(--color-text-on-accent); box-shadow: none; }
+    .btn-primary:hover { background: var(--color-accent-solid-hover); }
+    .btn-ghost { min-height: 2.5rem; padding: 0 0.625rem; background: transparent; box-shadow: none; color: var(--color-accent-text); }
+    .btn-ghost .icon { width: 1rem; height: 1rem; }
+    .copy { width: 2.5rem; padding: 0; color: var(--color-text-secondary); }
+    .copy:hover { color: var(--color-accent-text); }
+    .pf-copy-status:empty { display: none; }
+
+    /* Avatar: initials, or an optional photo on top */
+    .pf-avatar { position: relative; display: grid; place-items: center; flex: none; width: 5.5rem; height: 5.5rem; overflow: hidden; border-radius: var(--radius-full); background: var(--avatar-bg); color: var(--avatar-fg); font-family: var(--font-display); font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1; }
+    .pf-avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; outline: 1px solid color-mix(in oklch, var(--color-text-primary) 10%, transparent); outline-offset: -1px; }
+
+    /* ---------- Hero + contact (profile: one card with an accent band) ---------- */
+    .pf-top { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); overflow: hidden; border-radius: var(--radius-xl); background: var(--color-bg-surface); box-shadow: var(--shadow-surface); }
+    .pf-top::before { content: ""; display: block; height: 5.5rem; background: var(--color-accent-gradient); }
+    .pf-hero { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-4); padding: 0 var(--space-5) var(--space-5); }
+    .pf-hero .pf-avatar { margin-top: -2.75rem; box-shadow: 0 0 0 4px var(--color-bg-surface); }
+    .pf-name { font-size: var(--text-display); line-height: var(--text-display--line-height); letter-spacing: var(--text-display--letter-spacing); font-weight: 700; }
+    .pf-headline { max-width: 40rem; font-family: var(--font-display); font-size: var(--text-heading); line-height: 1.3; color: var(--color-text-secondary); }
+    .pf-summary { max-width: var(--measure); }
+    .pf-contact { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-5); border-top: 1px solid var(--color-border-subtle); }
+    .pf-contact-title { font-size: var(--text-subheading); line-height: var(--text-subheading--line-height); font-weight: 600; }
+    .pf-contact-body { display: flex; flex-direction: column; gap: var(--space-4); }
+    .pf-contact-note { font-size: var(--text-small); line-height: var(--text-small--line-height); color: var(--color-text-secondary); max-width: 24rem; margin-top: calc(var(--space-2) * -1); }
+    .pf-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+    .pf-reach { display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--text-small); }
+    .pf-reach li { display: flex; align-items: center; column-gap: var(--space-2); min-height: 2.5rem; }
+    .pf-reach li > a { min-width: 0; }
+    .pf-reach li > .icon { width: 1.125rem; height: 1.125rem; color: var(--color-text-secondary); }
+    .pf-reach a { overflow-wrap: anywhere; }
+    @media (min-width: 48rem) {
+      .pf-top { grid-template-columns: minmax(0, 1fr) 17.5rem; }
+      .pf-top::before { grid-column: 1 / -1; height: 7.5rem; }
+      .pf-hero { padding: 0 var(--space-7) var(--space-7); }
+      .pf-hero .pf-avatar { margin-top: -3.25rem; width: 6.5rem; height: 6.5rem; font-size: 2.375rem; }
+      .pf-contact { margin-block: var(--space-6) var(--space-7); padding: 0 var(--space-6); border-top: 0; border-inline-start: 1px solid var(--color-border-subtle); }
+      .pf-actions { flex-direction: column; }
     }
+
+    /* ---------- Section heads ---------- */
+    .pf-section-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-1) var(--space-4); margin-bottom: var(--space-4); }
+    .pf-h2 { font-size: var(--text-title); line-height: var(--text-title--line-height); letter-spacing: var(--text-title--letter-spacing); font-weight: 700; }
+    .pf-card { padding: var(--space-5); border-radius: var(--radius-md); background: var(--color-bg-surface); box-shadow: var(--shadow-surface); }
+    @media (min-width: 40rem) { .pf-card { padding: var(--space-6); } }
+
+    /* ---------- Highlights ---------- */
+    .pf-stats { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+    .pf-stat { flex: 1 1 9.5rem; display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-4) var(--space-5) var(--space-5); border-radius: var(--radius-md); background: var(--color-bg-surface); box-shadow: var(--shadow-surface); }
+    .pf-stat dt { font-size: var(--text-small); line-height: var(--text-small--line-height); font-weight: 600; }
+    .pf-stat-value { order: -1; font-family: var(--font-display); font-size: var(--text-title); line-height: 1.05; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
+    .pf-unit { font-size: 0.6em; margin-inline-start: 0.06em; color: var(--color-text-secondary); font-weight: 600; }
+    .pf-stat-note { font-size: var(--text-small); line-height: var(--text-small--line-height); color: var(--color-text-secondary); }
+    .pf-stat:first-child { flex: 2 1 15rem; background: var(--color-accent-subtle); box-shadow: none; }
+    .pf-stat:first-child .pf-stat-value { font-size: var(--text-display); color: var(--color-accent-text); }
+    .pf-stat:first-child .pf-unit { color: inherit; }
+
+    /* ---------- Experience (profile: dated timeline) ---------- */
+    .pf-roles { display: grid; }
+    .pf-role { display: grid; gap: var(--space-2); }
+    .pf-role + .pf-role { margin-top: var(--space-6); }
+    .pf-when { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); font-size: var(--text-small); line-height: var(--text-small--line-height); font-weight: 600; color: var(--color-text-secondary); font-variant-numeric: lining-nums tabular-nums; }
+    .pf-current .pf-when::after { content: "Current"; display: inline-flex; padding: 0.0625rem 0.5rem; border-radius: var(--radius-full); background: var(--color-accent-subtle); color: var(--color-accent-text); font-size: var(--text-label); font-weight: 700; letter-spacing: 0.02em; }
+    .pf-role-body { position: relative; display: grid; gap: var(--space-2); padding-inline-start: var(--space-5); border-inline-start: 1px solid var(--color-border-subtle); }
+    .pf-role-body::before { content: ""; position: absolute; inset-inline-start: -6px; top: 0.4rem; width: 11px; height: 11px; border-radius: var(--radius-full); background: var(--color-bg-surface); box-shadow: inset 0 0 0 2px var(--color-graphic-idle); }
+    .pf-current .pf-role-body::before { background: var(--color-accent-solid); box-shadow: 0 0 0 4px var(--color-accent-subtle); }
+    .pf-role-title { font-size: var(--text-heading); line-height: var(--text-heading--line-height); font-weight: 600; }
+    .pf-org { color: var(--color-accent-text); }
+    .pf-bullets { display: grid; gap: var(--space-2); max-width: var(--measure); margin-top: var(--space-1); }
+    .pf-bullets li { position: relative; padding-inline-start: 1.125rem; }
+    .pf-bullets li::before { content: ""; position: absolute; inset-inline-start: 0.25rem; top: 0.66em; width: 5px; height: 5px; border-radius: var(--radius-full); background: var(--color-graphic-idle); }
+    @media (min-width: 40rem) {
+      .pf-role { grid-template-columns: 9.5rem minmax(0, 1fr); column-gap: var(--space-5); }
+      .pf-role + .pf-role { margin-top: 0; }
+      .pf-when { flex-direction: column; align-items: flex-start; padding-top: 0.2rem; }
+      .pf-role:not(:last-child) .pf-role-body { padding-bottom: var(--space-7); }
+    }
+
+    /* ---------- Projects ---------- */
+    .pf-projects { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr)); }
+    .pf-project { display: flex; flex-direction: column; height: 100%; overflow: hidden; border-radius: var(--radius-md); background: var(--color-bg-surface); box-shadow: var(--shadow-surface); }
+    .pf-cover, .pf-shot { aspect-ratio: 16 / 9; width: 100%; }
+    @media (max-width: 39.99rem) { .pf-cover { aspect-ratio: 3 / 1; } }
+    .pf-cover { display: grid; place-items: center; background-color: var(--color-accent-subtle); color: var(--color-accent-text); background-image: radial-gradient(color-mix(in oklch, var(--color-accent-border) 70%, transparent) 1.1px, transparent 1.6px); background-size: 14px 14px; }
+    .pf-projects > li:nth-child(3n+2) .pf-cover { background-image: repeating-linear-gradient(135deg, color-mix(in oklch, var(--color-accent-border) 45%, transparent) 0 1px, transparent 1px 10px); background-size: auto; }
+    .pf-projects > li:nth-child(3n) .pf-cover { background-image: linear-gradient(color-mix(in oklch, var(--color-accent-border) 45%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in oklch, var(--color-accent-border) 45%, transparent) 1px, transparent 1px); background-size: 18px 18px; }
+    .pf-cover .icon { width: 3.5rem; height: 3.5rem; padding: 0.75rem; border-radius: var(--radius-full); background: var(--color-bg-surface); stroke-width: 1.5; box-shadow: var(--shadow-surface); }
+    .pf-shot { object-fit: cover; outline: 1px solid color-mix(in oklch, var(--color-text-primary) 10%, transparent); outline-offset: -1px; }
+    .pf-project-body { display: flex; flex: 1; flex-direction: column; gap: var(--space-2); padding: var(--space-4) var(--space-5) var(--space-5); }
+    .pf-project h3 { font-size: var(--text-subheading); line-height: var(--text-subheading--line-height); font-weight: 600; }
+    .pf-project p:not(.eyebrow) { font-size: var(--text-small); line-height: var(--text-small--line-height); }
+    .pf-project-link { display: inline-flex; align-items: center; gap: var(--space-1); margin-top: auto; padding-top: var(--space-2); min-height: 2.5rem; font-size: var(--text-small); font-weight: 600; }
+    .pf-project-link .icon { width: 1rem; height: 1rem; }
+
+    /* ---------- Skills + education ---------- */
+    @media (min-width: 64rem) { .pf-skills-sec { grid-column: span 7; } .pf-edu-sec { grid-column: span 5; } }
+    .pf-skills { display: grid; gap: var(--space-5); }
+    .pf-skills dt { margin-bottom: var(--space-2); font-size: var(--text-small); font-weight: 600; color: var(--color-text-secondary); }
+    .pf-tags { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+    .pf-tags li { padding: 0.25rem 0.75rem; border-radius: var(--radius-full); background: var(--color-bg-inset); font-size: var(--text-small); line-height: 1.4; }
+    .pf-schools { display: grid; gap: var(--space-5); }
+    .pf-school { display: grid; gap: var(--space-1); }
+    .pf-school h3 { font-size: var(--text-subheading); line-height: var(--text-subheading--line-height); font-weight: 600; }
+    .pf-school .pf-school-note { margin-top: var(--space-1); font-size: var(--text-small); line-height: var(--text-small--line-height); }
+
+    /* ---------- Testimonials (only with the person's permission) ---------- */
+    .pf-quotes { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); }
+    .pf-quote { display: flex; flex-direction: column; gap: var(--space-3); }
+    .pf-quote blockquote { font-family: var(--font-display); font-size: var(--text-subheading); line-height: 1.45; }
+    .pf-quote figcaption { font-size: var(--text-small); color: var(--color-text-secondary); }
+    .pf-quote figcaption strong { color: var(--color-text-primary); font-weight: 600; }
+
+    /* ---------- Footer ---------- */
+    .pf-foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-2) var(--space-5); padding-top: var(--space-5); border-top: 1px solid var(--color-border-subtle); }
+
+    /* ======================= Editorial: no cards, label | content rows ======================= */
+    :root[data-layout="editorial"] .pf { max-width: 60rem; row-gap: 0; }
+    :root[data-layout="editorial"] .pf-note { margin-bottom: var(--space-6); }
+    :root[data-layout="editorial"] .pf-top { overflow: visible; border-radius: 0; background: none; box-shadow: none; }
+    :root[data-layout="editorial"] .pf-top::before { display: none; }
+    :root[data-layout="editorial"] .pf-hero { gap: var(--space-5); padding: var(--space-4) 0 var(--space-8); }
+    :root[data-layout="editorial"] .pf-hero .pf-avatar { margin-top: 0; width: 3.5rem; height: 3.5rem; font-size: 1.25rem; box-shadow: none; }
+    :root[data-layout="editorial"] .pf-name { font-size: clamp(2.75rem, 8vw, 5.25rem); letter-spacing: -0.03em; }
+    :root[data-layout="editorial"] .pf-headline { max-width: 44rem; font-size: clamp(1.25rem, 2.4vw, 1.625rem); line-height: 1.3; color: var(--color-text-primary); font-weight: 400; }
+    :root[data-layout="editorial"] .pf-summary { color: var(--color-text-secondary); }
+    :root[data-layout="editorial"] .pf-facts { column-gap: var(--space-5); }
+    :root[data-layout="editorial"] .chip { padding: 0; background: none; color: var(--color-text-secondary); font-weight: 400; }
+    :root[data-layout="editorial"] .pf-top > .pf-contact,
+    :root[data-layout="editorial"] .pf > section { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-3); margin: 0; padding: var(--space-6) 0; border: 0; border-top: 1px solid var(--color-border-subtle); }
+    :root[data-layout="editorial"] .pf-section-head { display: block; margin: 0; }
+    :root[data-layout="editorial"] .pf-section-head > p { margin-top: var(--space-1); }
+    :root[data-layout="editorial"] .pf-h2,
+    :root[data-layout="editorial"] .pf-contact-note { margin-top: 0; }
+    :root[data-layout="editorial"] .pf-contact-title { font-family: var(--font-body); font-size: var(--text-small); line-height: var(--text-small--line-height); letter-spacing: 0; font-weight: 600; color: var(--color-text-secondary); }
+    :root[data-layout="editorial"] .pf-card { padding: 0; border-radius: 0; background: none; box-shadow: none; }
+    :root[data-layout="editorial"] .pf-actions { flex-direction: row; align-items: center; gap: var(--space-2) var(--space-5); }
+    :root[data-layout="editorial"] .pf-actions .btn:not(.btn-primary) { min-height: 2.75rem; padding: 0; background: none; box-shadow: none; color: var(--color-accent-text); text-decoration: underline; text-underline-offset: 0.2em; text-decoration-thickness: from-font; }
+    :root[data-layout="editorial"] .pf-reach { flex-direction: row; flex-wrap: wrap; column-gap: var(--space-5); }
+    :root[data-layout="editorial"] .pf-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr)); gap: var(--space-5); }
+    :root[data-layout="editorial"] .pf-stat,
+    :root[data-layout="editorial"] .pf-stat:first-child { padding: var(--space-3) 0 0; border-radius: 0; background: none; box-shadow: none; border-top: 2px solid var(--color-text-primary); }
+    :root[data-layout="editorial"] .pf-stat-value,
+    :root[data-layout="editorial"] .pf-stat:first-child .pf-stat-value { font-size: var(--text-title); color: var(--color-text-primary); }
+    :root[data-layout="editorial"] .pf-stat:first-child .pf-unit { color: var(--color-text-secondary); }
+    :root[data-layout="editorial"] .pf-role-body { padding-inline-start: 0; border: 0; }
+    :root[data-layout="editorial"] .pf-role-body::before { display: none; }
+    :root[data-layout="editorial"] .pf-role:not(:last-child) .pf-role-body { padding-bottom: 0; }
+    :root[data-layout="editorial"] .pf-role + .pf-role { margin-top: var(--space-6); }
+    :root[data-layout="editorial"] .pf-when { font-weight: 400; }
+    :root[data-layout="editorial"] .pf-role-title { font-size: var(--text-subheading); line-height: var(--text-subheading--line-height); }
+    :root[data-layout="editorial"] .pf-projects { grid-template-columns: minmax(0, 1fr); gap: var(--space-6); counter-reset: pf-proj; }
+    :root[data-layout="editorial"] .pf-projects > li { counter-increment: pf-proj; }
+    :root[data-layout="editorial"] .pf-project { display: grid; grid-template-columns: 2.75rem minmax(0, 1fr); overflow: visible; border-radius: 0; background: none; box-shadow: none; }
+    :root[data-layout="editorial"] .pf-project::before { content: counter(pf-proj, decimal-leading-zero); grid-row: 1 / span 2; font-family: var(--font-display); font-size: var(--text-subheading); line-height: var(--text-subheading--line-height); font-weight: 600; color: var(--color-accent-text); font-variant-numeric: lining-nums tabular-nums; }
+    :root[data-layout="editorial"] .pf-cover { display: none; }
+    :root[data-layout="editorial"] .pf-shot { grid-column: 2; max-width: 24rem; margin-bottom: var(--space-3); border-radius: var(--radius-sm); }
+    :root[data-layout="editorial"] .pf-project-body { grid-column: 2; padding: 0; }
+    :root[data-layout="editorial"] .pf-project-link { margin-top: 0; }
+    :root[data-layout="editorial"] .pf-project p:not(.eyebrow) { font-size: var(--text-body); line-height: var(--text-body--line-height); max-width: var(--measure); }
+    :root[data-layout="editorial"] .pf-skills { gap: var(--space-3); }
+    :root[data-layout="editorial"] .pf-skills > div { display: grid; gap: var(--space-1); }
+    :root[data-layout="editorial"] .pf-skills dt { margin: 0; color: var(--color-text-primary); }
+    :root[data-layout="editorial"] .pf-tags { display: block; }
+    :root[data-layout="editorial"] .pf-tags li { display: inline; padding: 0; background: none; font-size: var(--text-body); }
+    :root[data-layout="editorial"] .pf-tags li:not(:last-child)::after { content: ", "; }
+    :root[data-layout="editorial"] .pf-foot { border-top-color: var(--color-border-subtle); }
+    @media (min-width: 48rem) {
+      :root[data-layout="editorial"] .pf-top > .pf-contact,
+      :root[data-layout="editorial"] .pf > section { grid-template-columns: 10rem minmax(0, 1fr); column-gap: var(--space-6); }
+      :root[data-layout="editorial"] .pf-top > .pf-contact > *,
+      :root[data-layout="editorial"] .pf > section > * { grid-column: 2; }
+      :root[data-layout="editorial"] .pf-top > .pf-contact > :first-child,
+      :root[data-layout="editorial"] .pf > section > .pf-section-head { grid-column: 1; grid-row: 1; }
+      :root[data-layout="editorial"] .pf-top { grid-template-columns: minmax(0, 1fr); }
+      :root[data-layout="editorial"] .pf-hero .pf-avatar { width: 4rem; height: 4rem; font-size: 1.375rem; }
+      :root[data-layout="editorial"] .pf-role { grid-template-columns: 8.5rem minmax(0, 1fr); }
+      :root[data-layout="editorial"] .pf-when { padding-top: 0.15rem; }
+      :root[data-layout="editorial"] .pf-skills > div { grid-template-columns: 8.5rem minmax(0, 1fr); column-gap: var(--space-5); }
+    }
+    @media (min-width: 64rem) { :root[data-layout="editorial"] .pf-skills-sec, :root[data-layout="editorial"] .pf-edu-sec { grid-column: 1 / -1; } }
+
+    /* ======================= Bento: a grid of tiles ======================= */
+    :root[data-layout="bento"] .pf { max-width: 72rem; gap: var(--space-4); }
+    :root[data-layout="bento"] .pf-top { display: contents; }
+    :root[data-layout="bento"] .pf-top::before { display: none; }
+    :root[data-layout="bento"] .pf-hero,
+    :root[data-layout="bento"] .pf-contact,
+    :root[data-layout="bento"] .pf-stat,
+    :root[data-layout="bento"] .pf-role,
+    :root[data-layout="bento"] .pf-project,
+    :root[data-layout="bento"] .pf-skills-sec,
+    :root[data-layout="bento"] .pf-edu-sec,
+    :root[data-layout="bento"] .pf-quote { border-radius: var(--radius-xl); background: var(--color-bg-surface); box-shadow: var(--shadow-surface); }
+    :root[data-layout="bento"] .pf-hero { padding: var(--space-6); gap: var(--space-4); }
+    :root[data-layout="bento"] .pf-hero .pf-avatar { margin-top: 0; width: 4.5rem; height: 4.5rem; font-size: 1.625rem; box-shadow: none; }
+    :root[data-layout="bento"] .pf-name { font-size: clamp(2.25rem, 5vw, 3.5rem); }
+    :root[data-layout="bento"] .pf-contact { justify-content: space-between; margin: 0; padding: var(--space-6); border: 0; background: var(--color-accent-gradient); color: var(--color-text-on-accent); }
+    :root[data-layout="bento"] .pf-contact-title { font-size: var(--text-title); line-height: var(--text-title--line-height); letter-spacing: var(--text-title--letter-spacing); font-weight: 700; }
+    :root[data-layout="bento"] .pf-contact :focus-visible { outline-color: var(--color-text-on-accent); }
+    :root[data-layout="bento"] .pf-contact .btn-primary { background: var(--color-bg-surface); color: var(--color-accent-text); }
+    :root[data-layout="bento"] .pf-contact .btn-primary:hover { background: var(--color-accent-subtle); }
+    :root[data-layout="bento"] .pf-contact .btn:not(.btn-primary) { background: transparent; color: var(--color-text-on-accent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--color-text-on-accent) 60%, transparent); }
+    :root[data-layout="bento"] .pf-contact .btn:not(.btn-primary):hover { background: color-mix(in oklch, var(--color-text-on-accent) 14%, transparent); }
+    :root[data-layout="bento"] .pf-contact a:not(.btn),
+    :root[data-layout="bento"] .pf-contact .btn-ghost,
+    :root[data-layout="bento"] .pf-reach li > .icon { color: var(--color-text-on-accent); }
+    :root[data-layout="bento"] .pf-actions { flex-direction: column; }
+    /* Bento contact tile: title and availability on top, where to reach you under them, the buttons at the foot. */
+    :root[data-layout="bento"] .pf-contact { justify-content: flex-start; }
+    :root[data-layout="bento"] .pf-contact-note { margin-top: 0; font-size: var(--text-body); line-height: var(--text-body--line-height); color: var(--color-text-on-accent); }
+    :root[data-layout="bento"] .pf-contact-body { flex: 1; }
+    :root[data-layout="bento"] .pf-reach { order: -1; padding-block: var(--space-2); border-block: 1px solid color-mix(in oklch, var(--color-text-on-accent) 28%, transparent); }
+    :root[data-layout="bento"] .pf-actions { margin-top: auto; }
+    :root[data-layout="bento"] .pf-section-head { margin-bottom: var(--space-3); padding-inline: var(--space-1); }
+    :root[data-layout="bento"] .pf-h2 { font-size: var(--text-heading); line-height: var(--text-heading--line-height); letter-spacing: 0; }
+    :root[data-layout="bento"] .pf-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); gap: var(--space-4); }
+    :root[data-layout="bento"] .pf-stat { padding: var(--space-5) var(--space-5) var(--space-6); }
+    :root[data-layout="bento"] .pf-stat:first-child { background: var(--color-accent-subtle); box-shadow: none; }
+    :root[data-layout="bento"] .pf-stat:first-child .pf-stat-value { font-size: var(--text-title); }
+    :root[data-layout="bento"] .pf-stat-value { font-size: var(--text-title); }
+    :root[data-layout="bento"] .pf-roles.pf-card { padding: 0; border-radius: 0; background: none; box-shadow: none; }
+    :root[data-layout="bento"] .pf-contact .meta { color: var(--color-text-on-accent); }
+    :root[data-layout="bento"] .pf-roles { grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: var(--space-4); }
+    :root[data-layout="bento"] .pf-role { grid-template-columns: minmax(0, 1fr); align-content: start; gap: var(--space-3); margin: 0; padding: var(--space-6); }
+    :root[data-layout="bento"] .pf-when { flex-direction: row; align-items: center; padding: 0; }
+    :root[data-layout="bento"] .pf-role-body,
+    :root[data-layout="bento"] .pf-role:not(:last-child) .pf-role-body { padding: 0; border: 0; }
+    :root[data-layout="bento"] .pf-role-body::before { display: none; }
+    :root[data-layout="bento"] .pf-current { background: var(--color-bg-raised); }
+    :root[data-layout="bento"] .pf-cover { margin: var(--space-2) var(--space-2) 0; width: auto; border-radius: calc(var(--radius-xl) - var(--space-2)); }
+    :root[data-layout="bento"] .pf-shot { margin: var(--space-2) var(--space-2) 0; width: calc(100% - 2 * var(--space-2)); border-radius: calc(var(--radius-xl) - var(--space-2)); }
+    :root[data-layout="bento"] .pf-skills-sec,
+    :root[data-layout="bento"] .pf-edu-sec { padding: var(--space-6); }
+    :root[data-layout="bento"] .pf-skills-sec .pf-section-head,
+    :root[data-layout="bento"] .pf-edu-sec .pf-section-head { padding: 0; }
+    :root[data-layout="bento"] .pf-skills-sec .pf-card,
+    :root[data-layout="bento"] .pf-edu-sec .pf-card { padding: 0; background: none; box-shadow: none; }
+    :root[data-layout="bento"] .pf-quote { padding: var(--space-6); }
+    @media (min-width: 48rem) {
+      :root[data-layout="bento"] .pf { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+      :root[data-layout="bento"] .pf > *, :root[data-layout="bento"] .pf-top > * { grid-column: 1 / -1; }
+      :root[data-layout="bento"] .pf-hero { grid-column: span 7; }
+      :root[data-layout="bento"] .pf-top > .pf-contact { grid-column: span 5; }
+      :root[data-layout="bento"] .pf > .pf-skills-sec,
+      :root[data-layout="bento"] .pf > .pf-edu-sec { grid-column: span 6; }
+      :root[data-layout="bento"] .pf-section-head { margin-top: var(--space-4); }
+      :root[data-layout="bento"] .pf-skills-sec .pf-section-head, :root[data-layout="bento"] .pf-edu-sec .pf-section-head { margin-top: 0; }
+    }
+    @media (min-width: 64rem) {
+      :root[data-layout="bento"] .pf-hero { grid-column: span 8; padding: var(--space-7); }
+      :root[data-layout="bento"] .pf-top > .pf-contact { grid-column: span 4; padding: var(--space-7) var(--space-6); }
+    }
+
+    /* ---------- Motion: one signature moment (hero rises in, highlight numbers count up) ---------- */
+    @media (prefers-reduced-motion: no-preference) {
+      .btn { transition-property: scale, background-color, box-shadow, color; transition-duration: 150ms; transition-timing-function: ease-out; }
+      .btn:active { scale: 0.96; }
+      .pf-hero > *, .pf-contact { animation: pf-rise 560ms var(--ease-out) both; }
+      .pf-hero > :nth-child(2) { animation-delay: 60ms; } .pf-hero > :nth-child(3) { animation-delay: 120ms; }
+      .pf-hero > :nth-child(n+4) { animation-delay: 180ms; } .pf-contact { animation-delay: 220ms; }
+      @keyframes pf-rise { from { opacity: 0.4; translate: 0 0.75rem; } }
+      .pf-project { transition-property: box-shadow, translate; transition-duration: 150ms; transition-timing-function: ease-out; }
+      @media (hover: hover) { .pf-project:hover { box-shadow: var(--shadow-raised); translate: 0 -2px; } }
+    }
+    @supports (animation-timeline: view()) {
+      @media (prefers-reduced-motion: no-preference) {
+        .pf > section { animation: pf-rise linear both; animation-timeline: view(); animation-range: entry 0% entry 55%; animation-duration: 1ms; }
+      }
+    }
+
   }
+
+  /* ---------- Print (outside the layer so it beats the dark token rules): plain header, two columns, no gradients or shadows, light colors ---------- */
+  @media print {
+    @page { margin: 0.5in; }
+    html:root, html:root[data-theme], html:root:not([data-theme="light"]) {
+      color-scheme: light; font-size: 10pt;
+      --color-bg-page: #ffffff; --color-bg-surface: #ffffff; --color-bg-raised: #ffffff; --color-bg-inset: #f2f4f7; --color-bg-sunken: #f2f4f7;
+      --color-text-primary: #111111; --color-text-secondary: #3d434a; --color-border-subtle: #c9ced5; --color-graphic-idle: #6b7178;
+      --color-accent-text: var(--print-accent-text); --color-accent-solid: var(--print-accent-text); --color-accent-subtle: var(--print-accent-subtle);
+      --avatar-bg: var(--print-accent-subtle); --avatar-fg: var(--print-accent-text); --color-accent-gradient: none; --color-text-on-accent: #111111;
+      --shadow-surface: none; --shadow-raised: none;
+    }
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .pf, :root[data-layout] .pf { max-width: none; padding: 0; gap: 1.25rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .pf > *, :root[data-layout] .pf > *, :root[data-layout] .pf-top > * { grid-column: 1 / -1; }
+    .pf > .pf-skills-sec, .pf > .pf-edu-sec, :root[data-layout] .pf > .pf-skills-sec, :root[data-layout] .pf > .pf-edu-sec { grid-column: span 1; }
+    [data-example], .copy, .pf-actions, .pf-cover, .pf-top::before { display: none !important; }
+    .pf-top, :root[data-layout] .pf-top { display: grid; grid-template-columns: minmax(0, 1fr); overflow: visible; border-radius: 0; box-shadow: none; }
+    .pf-hero, .pf-contact, :root[data-layout] .pf-hero, :root[data-layout] .pf-contact { padding: 0; margin: 0; border: 0; border-radius: 0; background: none; box-shadow: none; color: var(--color-text-primary); }
+    .pf-hero { gap: 0.5rem; }
+    .pf-hero .pf-avatar { display: none; }
+    .pf-name, :root[data-layout] .pf-name { font-size: 2.25rem; }
+    .pf-contact { padding-top: 0.5rem; }
+    .pf-contact-title, .pf-contact-note { display: none; }
+    .pf-reach, :root[data-layout] .pf-reach { flex-direction: row; flex-wrap: wrap; gap: 0 1.25rem; }
+    .pf-reach li { min-height: 0; }
+    :root[data-layout] .pf-contact a:not(.btn), :root[data-layout] .pf-reach li > .icon { color: var(--color-accent-text); }
+    .pf-stats, :root[data-layout] .pf-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.75rem; }
+    .pf-stat, .pf-stat:first-child, :root[data-layout] .pf-stat { padding: 0.5rem 0.75rem; border: 1px solid var(--color-border-subtle); border-radius: var(--radius-md); background: none; }
+    .pf-stat-value, .pf-stat:first-child .pf-stat-value, :root[data-layout] .pf-stat-value { font-size: 1.75rem; }
+    .pf-card, .pf-project, .pf-role, .pf-skills-sec, .pf-edu-sec, .pf-quote { break-inside: avoid; }
+    :root[data-layout] .pf-role, :root[data-layout] .pf-project, :root[data-layout] .pf-skills-sec, :root[data-layout] .pf-edu-sec, :root[data-layout] .pf-quote { padding: 0; border-radius: 0; background: none; }
+    .pf-card { padding: 0; }
+    .pf-projects, :root[data-layout] .pf-projects { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+    .pf-project-body { padding: 0; }
+    .pf-project-link[href^="http"]::after { content: " (" attr(href) ")"; font-weight: 400; overflow-wrap: anywhere; }
+    .pf-section-head { margin-bottom: 0.5rem; break-after: avoid; }
+    [data-section="projects"] { break-inside: avoid; }
+    .pf-h2, :root[data-layout] .pf-h2 { font-size: 1.25rem; }
+    .pf > section { animation: none !important; }
+    :root[data-layout="editorial"] .pf-top > .pf-contact, :root[data-layout="editorial"] .pf > section { grid-template-columns: minmax(0, 1fr); padding-block: 0.75rem 0; }
+    :root[data-layout="editorial"] .pf-top > .pf-contact > *, :root[data-layout="editorial"] .pf > section > * { grid-column: 1; grid-row: auto; }
+    :root[data-layout="editorial"] .pf-hero { padding: 0 0 0.75rem; }
+    :root[data-layout="editorial"] .pf-stat { border-top-width: 1px; }
+    :root[data-layout="editorial"] .pf-projects { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+  /* ---- Custom ---- */
+  /* ---- End custom ---- */
 </style>
 <style type="text/tailwindcss">
   @theme inline {
@@ -118,142 +486,253 @@
     --color-warn: var(--color-warning-solid); --color-warn-ink: var(--color-warning-text); --color-warn-wash: var(--color-warning-subtle);
     --color-bad: var(--color-danger-solid); --color-bad-ink: var(--color-danger-text); --color-bad-wash: var(--color-danger-subtle);
     --font-serif: var(--font-display); --font-sans: var(--font-body); --font-mono: var(--font-data);
-    --text-display: clamp(2.5rem, 6.5vw, 4.25rem); --text-display--line-height: 1.02; --text-display--letter-spacing: -0.022em;
-    --text-title: clamp(1.75rem, 3.6vw, 2.25rem); --text-title--line-height: 1.1; --text-title--letter-spacing: -0.012em;
-    --text-heading: 1.375rem; --text-heading--line-height: 1.25;
-    --text-body: 1rem; --text-body--line-height: 1.55;
-    --text-small: 0.875rem; --text-small--line-height: 1.45;
-    --text-label: 0.75rem; --text-label--line-height: 1.3; --text-label--letter-spacing: 0.07em;
-  }
-  @layer components {
-    .label { @apply font-mono text-label uppercase font-medium text-fg-muted; }
-    .panel { @apply bg-surface rounded-(--radius-md) shadow-(--shadow-surface); }
-    .btn { @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-(--radius-md) bg-surface px-4 text-small font-semibold text-fg shadow-(--shadow-surface) hover:bg-hover cursor-pointer; }
-    .btn-primary { @apply bg-accent text-on-accent shadow-none hover:bg-accent-hover; }
+    --text-display: var(--text-display); --text-display--line-height: var(--text-display--line-height); --text-display--letter-spacing: var(--text-display--letter-spacing);
+    --text-title: var(--text-title); --text-title--line-height: var(--text-title--line-height); --text-title--letter-spacing: var(--text-title--letter-spacing);
+    --text-heading: var(--text-heading); --text-heading--line-height: var(--text-heading--line-height);
+    --text-subheading: var(--text-subheading); --text-subheading--line-height: var(--text-subheading--line-height);
+    --text-body: var(--text-body); --text-body--line-height: var(--text-body--line-height);
+    --text-small: var(--text-small); --text-small--line-height: var(--text-small--line-height);
+    --text-label: var(--text-label); --text-label--line-height: var(--text-label--line-height); --text-label--letter-spacing: var(--text-label--letter-spacing);
+    --color-inset: var(--color-bg-inset); --color-avatar: var(--avatar-bg); --color-avatar-ink: var(--avatar-fg);
+    --radius-xl: var(--radius-xl); --radius-full: var(--radius-full);
   }
 </style>
 
-<main id="main" class="mx-auto max-w-[64rem] px-4 sm:px-8 py-8 sm:py-12 flex flex-col gap-12 sm:gap-16">
+<!-- How this page is edited (the pages skill changes text in place; keep every class, data-section and id).
+     Facts come only from profile/master-resume.md: resume-level, public, nothing under NDA. In text, write < > & as &lt; &gt; &amp;.
+     Links: https: or mailto: only. Images: a file published next to the page or the user's own https image; never a tracking or
+     third-party hotlink. Every image needs alt text.
+     - <head>: <title>, meta description, og:title, og:description (title = "Name, field"; description = the headline sentence).
+       og:image is optional: add <meta property="og:image" content="https://..."> only for an image the user owns.
+     - [data-example]: delete these elements once the page holds the user's real content.
+     - hero: .pf-monogram (initials; the script also derives them from the h1), h1.pf-name, p.pf-headline (the user approves it),
+       ul.pf-facts (location, availability, open to), p.pf-summary. Photo: uncomment img[data-photo], set src and alt.
+     - contact: the email appears in two places (Email me button href and #email); LinkedIn in two places. Resume button [data-resume]:
+       set href to the user's PDF and remove hidden. Phone [data-phone] stays hidden unless the user says to show it.
+     - highlights: 3 to 5 div.pf-stat. dt = what the number is; dd.pf-stat-value = .pf-count (the number, with any sign or $)
+       + optional .pf-unit (%, K, x); dd.pf-stat-note = where and when. The first one is featured, so put the strongest first.
+     - experience: one li.pf-role per job, newest first; add class pf-current to a job that is still going.
+     - projects: one li per project. Keep .pf-cover (pattern + icon) or swap it for <img class="pf-shot" src alt width height loading="lazy">.
+       a.pf-project-link is optional.
+     - skills: one div per group (dt + ul.pf-tags). education: one li.pf-school per school.
+     - testimonials: only quotes the person gave permission to share; then remove hidden from the section.
+     - footer: name and the "Updated" month. -->
+<svg hidden xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3.5 7.5 8.5 6 8.5-6"/></symbol>
+  <symbol id="i-in" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3.5"/><path d="M8 10.5V17M8 7.25v.01M12 17v-6.5M12 13.5a2.5 2.5 0 0 1 5 0V17"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"/></symbol>
+  <symbol id="i-map-pin" viewBox="0 0 24 24"><path d="M12 21s-6.5-5.4-6.5-11a6.5 6.5 0 0 1 13 0c0 5.6-6.5 11-6.5 11Z"/><circle cx="12" cy="10" r="2.25"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M7 17 17 7M8.5 7H17v8.5"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-briefcase" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M3 12.5h18"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 12.5 9 5 9-5M3 16.5l9 5 9-5"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.25"/></symbol>
+  <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="m12 3 1.9 5.2a2 2 0 0 0 1.2 1.2L20.5 11.5l-5.4 1.9a2 2 0 0 0-1.2 1.2L12 20l-1.9-5.4a2 2 0 0 0-1.2-1.2L3.5 11.5l5.4-2.1a2 2 0 0 0 1.2-1.2Z"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.2a6.5 6.5 0 0 1 3.5 5.8"/></symbol>
+  <symbol id="i-cap" viewBox="0 0 24 24"><path d="m2.5 9 9.5-5 9.5 5-9.5 5-9.5-5Z"/><path d="M6.5 11.2V16c0 1.5 2.5 3 5.5 3s5.5-1.5 5.5-3v-4.8M21.5 9v5"/></symbol>
+</svg>
 
-  <header class="hero panel p-6 sm:p-10 flex flex-col gap-8">
-    <div class="flex flex-col gap-3 max-w-[42rem]">
-      <span class="label">Your Field · City, ST</span>
-      <h1 class="font-serif text-display font-bold">Your Name</h1>
-      <p class="font-serif text-heading text-fg-muted">One sentence, in your words, about the work you do best.</p>
+<main id="main" class="pf">
+
+  <p class="pf-note" data-example><svg class="icon" aria-hidden="true"><use href="#i-sparkle"/></svg><span><strong>Example page.</strong> Everything here is sample text. Your assistant fills it in from your master resume, and you approve every line before anyone sees it.</span></p>
+
+  <header class="pf-top">
+    <div class="pf-hero" data-section="hero">
+      <div class="pf-avatar">
+        <span class="pf-monogram" aria-hidden="true">YN</span>
+        <!-- <img data-photo src="photo.jpg" alt="Your Name" width="208" height="208"> -->
+      </div>
+      <h1 class="pf-name">Your Name</h1>
+      <p class="pf-headline">Product marketer who turns customer research into positioning, launches and pricing that move revenue.</p>
+      <ul class="chips pf-facts" aria-label="Quick facts">
+        <li class="chip"><svg class="icon" aria-hidden="true"><use href="#i-map-pin"/></svg>Denver, CO</li>
+        <li class="chip chip-accent"><svg class="icon" aria-hidden="true"><use href="#i-sparkle"/></svg>Open to new roles</li>
+        <li class="chip"><svg class="icon" aria-hidden="true"><use href="#i-briefcase"/></svg>Open to remote or Denver hybrid</li>
+      </ul>
+      <p class="pf-summary">Seven years in B2B SaaS product marketing, most recently leading launches and pricing work at Northwind Software. I start with customer interviews, write the positioning everyone else builds on, and measure what changed after launch. Looking for a senior or lead product marketing role.</p>
     </div>
-    <div class="grid grid-cols-1 md:grid-cols-[1fr_17rem] gap-8">
-      <section aria-labelledby="about" class="flex flex-col gap-2 max-w-[40rem]">
-        <h2 id="about" class="font-serif text-heading font-semibold">About</h2>
-        <p class="text-body">Example summary. Two or three sentences on your experience, the kind of work you have done, and the role you are looking for next. Your assistant fills this from your master resume once setup is done; you approve the wording before you share it.</p>
-        <p class="text-small text-fg-muted">Available: your earliest start date.</p>
-      </section>
-      <section aria-labelledby="contact" class="flex flex-col gap-3">
-        <h2 id="contact" class="font-serif text-heading font-semibold">Get in touch</h2>
-        <div class="flex flex-col gap-2 text-small">
-          <span class="flex flex-wrap items-center gap-x-2"><a id="email" class="font-mono text-accent-ink underline underline-offset-3 [overflow-wrap:anywhere]" href="mailto:you@example.com">you@example.com</a><button type="button" class="copy text-label font-semibold text-accent-ink underline underline-offset-3 min-h-6 px-1 cursor-pointer" data-target="email" data-what="Email">Copy<span class="sr-only"> email</span></button></span>
-          <span class="flex flex-wrap items-center gap-x-2"><a id="phone" class="font-mono text-accent-ink underline underline-offset-3 num" href="tel:+15555550100">(555) 555-0100</a><button type="button" class="copy text-label font-semibold text-accent-ink underline underline-offset-3 min-h-6 px-1 cursor-pointer" data-target="phone" data-what="Phone number">Copy<span class="sr-only"> phone number</span></button></span>
-          <a class="font-mono text-accent-ink underline underline-offset-3 [overflow-wrap:anywhere]" href="https://www.linkedin.com/in/your-name" target="_blank" rel="noopener">linkedin.com/in/your-name</a>
+
+    <section class="pf-contact" data-section="contact" aria-labelledby="contact-h">
+      <h2 id="contact-h" class="pf-contact-title">Get in touch</h2>
+      <p class="pf-contact-note">Open to senior and lead product marketing roles, in Denver or remote.</p>
+      <div class="pf-contact-body">
+        <div class="pf-actions">
+          <a class="btn btn-primary" href="mailto:you@example.com"><svg class="icon" aria-hidden="true"><use href="#i-mail"/></svg>Email me</a>
+          <a class="btn" href="https://www.linkedin.com/in/your-name" target="_blank" rel="noopener"><svg class="icon" aria-hidden="true"><use href="#i-in"/></svg>LinkedIn<span class="sr-only"> (opens in a new tab)</span></a>
+          <a class="btn" href="Your-Name-Resume.pdf" data-resume hidden><svg class="icon" aria-hidden="true"><use href="#i-download"/></svg>Resume (PDF)</a>
         </div>
-        <p class="sr-only" role="status" id="copy-status"></p>
-      </section>
-    </div>
+        <ul class="pf-reach">
+          <li><svg class="icon" aria-hidden="true"><use href="#i-mail"/></svg><a id="email" href="mailto:you@example.com">you@example.com</a><button type="button" class="btn btn-ghost copy" data-target="email" data-what="Email address"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span class="sr-only copy-label">Copy email address</span></button></li>
+          <li data-phone hidden><svg class="icon" aria-hidden="true"><use href="#i-users"/></svg><a id="phone" class="num" href="tel:+15555550100">(555) 555-0100</a><button type="button" class="btn btn-ghost copy" data-target="phone" data-what="Phone number"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span class="sr-only copy-label">Copy phone number</span></button></li>
+          <li><svg class="icon" aria-hidden="true"><use href="#i-in"/></svg><a href="https://www.linkedin.com/in/your-name" target="_blank" rel="noopener">linkedin.com/in/your-name</a></li>
+        </ul>
+        <p class="meta pf-copy-status" role="status" id="copy-status"></p>
+      </div>
+    </section>
   </header>
 
-  <section class="reveal flex flex-col gap-4" aria-labelledby="highlights">
-    <div class="flex flex-wrap items-baseline justify-between gap-2">
-      <h2 id="highlights" class="font-serif text-title font-bold">Highlights</h2>
-      <p class="text-small text-fg-muted">Example numbers. Your assistant replaces these with results stated on your resume.</p>
+  <section data-section="highlights" aria-labelledby="highlights-h">
+    <div class="pf-section-head">
+      <h2 id="highlights-h" class="pf-h2">Highlights</h2>
+      <p class="meta" data-example>Sample numbers. Yours come from results stated on your resume.</p>
     </div>
-    <dl class="grid grid-cols-2 md:grid-cols-5 gap-3">
-      <div class="panel p-4 flex flex-col-reverse justify-end gap-2"><dt class="text-small text-fg-muted">example result, first project</dt><dd class="font-serif text-[2.25rem] leading-none font-bold text-accent-ink num" data-count="30" data-pre="−" data-post="%">−30%</dd></div>
-      <div class="panel p-4 flex flex-col-reverse justify-end gap-2"><dt class="text-small text-fg-muted">example savings or revenue</dt><dd class="font-serif text-[2.25rem] leading-none font-bold text-accent-ink num" data-count="10" data-pre="$" data-post="K">$10K</dd></div>
-      <div class="panel p-4 flex flex-col-reverse justify-end gap-2"><dt class="text-small text-fg-muted">example improvement</dt><dd class="font-serif text-[2.25rem] leading-none font-bold text-accent-ink num" data-count="20" data-pre="+" data-post="%">+20%</dd></div>
-      <div class="panel p-4 flex flex-col-reverse justify-end gap-2"><dt class="text-small text-fg-muted">example time saved</dt><dd class="font-serif text-[2.25rem] leading-none font-bold text-accent-ink num" data-count="25" data-pre="−" data-post="%">−25%</dd></div>
-      <div class="panel p-4 flex flex-col-reverse justify-end gap-2 col-span-2 md:col-span-1"><dt class="text-small text-fg-muted">example people or sites served</dt><dd class="font-serif text-[2.25rem] leading-none font-bold text-accent-ink num" data-count="12" data-pre="" data-post="">12</dd></div>
+    <dl class="pf-stats">
+      <div class="pf-stat"><dt>trial-to-paid conversion after the pricing page redesign</dt><dd class="pf-stat-value"><span class="pf-count">+38</span><span class="pf-unit">%</span></dd><dd class="pf-stat-note">Northwind Software, 2024</dd></div>
+      <div class="pf-stat"><dt>pipeline influenced by launch campaigns</dt><dd class="pf-stat-value"><span class="pf-count">$1.2</span><span class="pf-unit">M</span></dd><dd class="pf-stat-note">Northwind Software, 2023</dd></div>
+      <div class="pf-stat"><dt>major product launches led</dt><dd class="pf-stat-value"><span class="pf-count">3</span></dd><dd class="pf-stat-note">Northwind Software, 2022–2025</dd></div>
+      <div class="pf-stat"><dt>people in the cross-team launch program I ran</dt><dd class="pf-stat-value"><span class="pf-count">12</span></dd><dd class="pf-stat-note">Globex Analytics, 2021</dd></div>
     </dl>
   </section>
 
-  <section aria-labelledby="exp" class="flex flex-col gap-4">
-    <h2 id="exp" class="reveal font-serif text-title font-bold">Experience</h2>
-    <ol class="flex flex-col gap-4">
-      <li class="reveal panel p-5 sm:p-6 flex flex-col gap-2">
-        <div class="flex flex-wrap items-center gap-2"><span class="chip num">Month YYYY – Present</span><span class="text-small text-fg-muted">City, ST</span></div>
-        <h3 class="font-serif text-heading font-semibold">Role Title, <span class="text-accent-ink">Company</span></h3>
-        <p class="text-small text-fg-muted">One line on what the company does.</p>
-        <ul class="mt-1 flex flex-col gap-2 list-disc ps-5 marker:text-fg-faint max-w-[44rem]">
-          <li>Action verb, what you did, and the result with a number.</li>
-          <li>Action verb, what you did, and the result with a number.</li>
-          <li>Action verb, what you did, and the result with a number.</li>
-        </ul>
+  <section data-section="experience" aria-labelledby="experience-h">
+    <div class="pf-section-head"><h2 id="experience-h" class="pf-h2">Experience</h2></div>
+    <ol class="pf-roles pf-card">
+      <li class="pf-role pf-current">
+        <p class="pf-when"><span>2022 – Present</span></p>
+        <div class="pf-role-body">
+          <h3 class="pf-role-title">Senior Product Marketing Manager <span class="pf-org">at Northwind Software</span></h3>
+          <p class="meta">Denver, CO · B2B analytics platform for mid-size retailers</p>
+          <ul class="pf-bullets">
+            <li>Led positioning and launch for three major releases, from customer interviews to sales enablement and post-launch review.</li>
+            <li>Redesigned the pricing page with product and design after 30 customer interviews; trial-to-paid conversion rose 38%.</li>
+            <li>Built the launch campaigns behind $1.2M in influenced pipeline in one year.</li>
+          </ul>
+        </div>
       </li>
-      <li class="reveal panel p-5 sm:p-6 flex flex-col gap-2">
-        <div class="flex flex-wrap items-center gap-2"><span class="chip num">Month YYYY – Month YYYY</span><span class="text-small text-fg-muted">City, ST</span></div>
-        <h3 class="font-serif text-heading font-semibold">Role Title, <span class="text-accent-ink">Company</span></h3>
-        <p class="text-small text-fg-muted">One line on what the company does.</p>
-        <ul class="mt-1 flex flex-col gap-2 list-disc ps-5 marker:text-fg-faint max-w-[44rem]">
-          <li>Action verb, what you did, and the result with a number.</li>
-          <li>Action verb, what you did, and the result with a number.</li>
-        </ul>
+      <li class="pf-role">
+        <p class="pf-when"><span>2018 – 2022</span></p>
+        <div class="pf-role-body">
+          <h3 class="pf-role-title">Product Marketing Manager <span class="pf-org">at Globex Analytics</span></h3>
+          <p class="meta">Remote · Reporting software for finance teams</p>
+          <ul class="pf-bullets">
+            <li>Ran a 12-person cross-team launch program across product, sales, support and marketing.</li>
+            <li>Wrote the messaging framework and battlecards the sales team used for every competitive deal.</li>
+          </ul>
+        </div>
       </li>
     </ol>
   </section>
 
-  <section aria-labelledby="proj" class="flex flex-col gap-4">
-    <h2 id="proj" class="reveal font-serif text-title font-bold">Projects</h2>
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      <article class="reveal lift panel p-5 flex flex-col gap-2">
-        <span class="label num">Type of project · YYYY</span>
-        <h3 class="font-serif text-heading font-semibold">Project name</h3>
-        <p class="text-small">One or two sentences: the problem, what you built or did, and the result.</p>
-      </article>
-      <article class="reveal lift panel p-5 flex flex-col gap-2">
-        <span class="label num">Type of project · YYYY</span>
-        <h3 class="font-serif text-heading font-semibold">Project name</h3>
-        <p class="text-small">One or two sentences: the problem, what you built or did, and the result.</p>
-      </article>
-      <article class="reveal lift panel p-5 flex flex-col gap-2">
-        <span class="label num">Type of project · YYYY</span>
-        <h3 class="font-serif text-heading font-semibold">Project name</h3>
-        <p class="text-small">One or two sentences: the problem, what you built or did, and the result.</p>
-      </article>
-    </div>
+  <section data-section="projects" aria-labelledby="projects-h">
+    <div class="pf-section-head"><h2 id="projects-h" class="pf-h2">Selected work</h2></div>
+    <ul class="pf-projects">
+      <li>
+        <article class="pf-project">
+          <div class="pf-cover" aria-hidden="true"><svg class="icon"><use href="#i-target"/></svg></div>
+          <div class="pf-project-body">
+            <p class="eyebrow">Pricing · 2024</p>
+            <h3>Pricing page redesign</h3>
+            <p>Interviewed 30 customers about how they buy, simplified three plans into two, and rewrote the page around the jobs buyers named.</p>
+          </div>
+        </article>
+      </li>
+      <li>
+        <article class="pf-project">
+          <div class="pf-cover" aria-hidden="true"><svg class="icon"><use href="#i-layers"/></svg></div>
+          <div class="pf-project-body">
+            <p class="eyebrow">Process · 2023</p>
+            <h3>Launch playbook</h3>
+            <p>A shared checklist, timeline and tiering model for launches, now used by every product team at Northwind.</p>
+          </div>
+        </article>
+      </li>
+      <li>
+        <article class="pf-project">
+          <div class="pf-cover" aria-hidden="true"><svg class="icon"><use href="#i-users"/></svg></div>
+          <div class="pf-project-body">
+            <p class="eyebrow">Research · 2022</p>
+            <h3>Customer research program</h3>
+            <p>Monthly interviews and a win-loss review that feed positioning, roadmap and sales training.</p>
+          </div>
+        </article>
+      </li>
+    </ul>
   </section>
 
-  <section aria-labelledby="skills" class="reveal flex flex-col gap-4">
-    <h2 id="skills" class="font-serif text-title font-bold">Skills</h2>
-    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5 max-w-[52rem]">
-      <div class="flex flex-col gap-2"><dt class="label">Skill group</dt><dd><ul class="flex flex-wrap gap-2"><li class="tag">Skill</li><li class="tag">Skill</li><li class="tag">Skill</li></ul></dd></div>
-      <div class="flex flex-col gap-2"><dt class="label">Tools</dt><dd><ul class="flex flex-wrap gap-2"><li class="tag">Tool</li><li class="tag">Tool</li><li class="tag">Tool</li></ul></dd></div>
-      <div class="flex flex-col gap-2"><dt class="label">Methods</dt><dd><ul class="flex flex-wrap gap-2"><li class="tag">Method</li><li class="tag">Method</li></ul></dd></div>
-      <div class="flex flex-col gap-2"><dt class="label">Other</dt><dd><ul class="flex flex-wrap gap-2"><li class="tag">Languages</li><li class="tag">Certifications</li></ul></dd></div>
+  <section class="pf-skills-sec" data-section="skills" aria-labelledby="skills-h">
+    <div class="pf-section-head"><h2 id="skills-h" class="pf-h2">Skills</h2></div>
+    <dl class="pf-skills pf-card">
+      <div><dt>Strategy</dt><dd><ul class="pf-tags"><li>Positioning</li><li>Messaging</li><li>Pricing research</li><li>Launch planning</li></ul></dd></div>
+      <div><dt>Research</dt><dd><ul class="pf-tags"><li>Customer interviews</li><li>Win-loss analysis</li><li>Competitive intelligence</li></ul></dd></div>
+      <div><dt>Tools</dt><dd><ul class="pf-tags"><li>HubSpot</li><li>Amplitude</li><li>SQL basics</li></ul></dd></div>
     </dl>
   </section>
 
-  <footer class="flex flex-col gap-2 pt-4 border-t border-line">
-    <p class="text-small text-fg-muted">Your Name · Your Field · Updated Month YYYY</p>
+  <section class="pf-edu-sec" data-section="education" aria-labelledby="education-h">
+    <div class="pf-section-head"><h2 id="education-h" class="pf-h2">Education</h2></div>
+    <ol class="pf-schools pf-card">
+      <li class="pf-school">
+        <h3>BA, Communications</h3>
+        <p>Example State University</p>
+        <p class="meta">Minor in Business</p>
+        <p class="pf-school-note">Coursework: research methods, persuasion, data storytelling.</p>
+      </li>
+    </ol>
+  </section>
+
+  <section data-section="testimonials" aria-labelledby="testimonials-h" hidden>
+    <div class="pf-section-head"><h2 id="testimonials-h" class="pf-h2">What people say</h2></div>
+    <ul class="pf-quotes">
+      <li><figure class="pf-quote pf-card"><blockquote>A short quote someone gave permission to share.</blockquote><figcaption><strong>Their Name</strong>, their title and company</figcaption></figure></li>
+    </ul>
+  </section>
+
+  <footer class="pf-foot meta">
+    <p>Your Name · Product marketing</p>
+    <p>Updated October 2026</p>
   </footer>
 </main>
 
 <script>
-  document.querySelectorAll('.copy').forEach(btn => btn.addEventListener('click', () => {
-    const el = document.getElementById(btn.dataset.target);
-    const label = btn.firstChild;
-    const done = () => { label.textContent = 'Copied'; document.getElementById('copy-status').textContent = `${btn.dataset.what} copied`; setTimeout(() => { label.textContent = 'Copy'; }, 1500); };
-    const select = () => {
-      const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r);
-      label.textContent = 'Press Ctrl+C or Cmd+C'; setTimeout(() => { label.textContent = 'Copy'; }, 3000);
-    };
-    try { navigator.clipboard.writeText(el.textContent).then(done, select); } catch (e) { select(); }
-  }));
-  // Signature moment: the highlight numbers count up once. Skipped for reduced motion (device setting or profile/design.md).
-  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches || getComputedStyle(document.documentElement).getPropertyValue('--motion').trim() === 'reduced';
-  if (!reduceMotion) {
-    document.querySelectorAll('[data-count]').forEach(el => {
-      const target = Number(el.dataset.count), pre = el.dataset.pre || '', post = el.dataset.post || '';
-      const t0 = performance.now(), dur = 900;
-      const step = t => { const p = Math.min(1, (t - t0) / dur); el.textContent = pre + Math.round(target * (1 - Math.pow(1 - p, 3))) + post; if (p < 1) requestAnimationFrame(step); };
-      requestAnimationFrame(step);
+  (() => {
+    const root = document.documentElement;
+    // Initials follow the name, so the monogram can't drift out of date.
+    const name = document.querySelector('.pf-name'), mono = document.querySelector('.pf-monogram');
+    if (name && mono) {
+      const words = name.textContent.trim().split(/\s+/).filter(Boolean);
+      const ini = (words[0] || '').charAt(0) + (words.length > 1 ? words[words.length - 1].charAt(0) : '');
+      if (ini) mono.textContent = ini.toUpperCase();
+    }
+    // A photo or project image that fails to load hides itself (the initials or pattern show instead).
+    document.querySelectorAll('img[data-photo], img.pf-shot').forEach(img => {
+      const hide = () => { img.hidden = true; };
+      if (img.complete && img.naturalWidth === 0) hide(); else img.addEventListener('error', hide);
     });
-  }
+    // Copy buttons
+    const status = document.getElementById('copy-status');
+    document.querySelectorAll('.copy').forEach(btn => btn.addEventListener('click', () => {
+      const el = document.getElementById(btn.dataset.target), use = btn.querySelector('use');
+      const done = () => {
+        use.setAttribute('href', '#i-check'); status.textContent = `${btn.dataset.what} copied`;
+        setTimeout(() => { use.setAttribute('href', '#i-copy'); status.textContent = ''; }, 2000);
+      };
+      const select = () => {
+        const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+        status.textContent = 'Selected. Press Ctrl+C or Cmd+C to copy.';
+      };
+      try { navigator.clipboard.writeText(el.textContent.trim()).then(done, select); } catch (e) { select(); }
+    }));
+    // Signature moment: highlight numbers count up once when they come into view, from 40% to the value already in the markup.
+    // Skipped for reduced motion (device setting or profile/design.md).
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches || getComputedStyle(root).getPropertyValue('--motion').trim() === 'reduced';
+    if (reduce || !('IntersectionObserver' in window)) return;
+    const run = el => {
+      const final = el.textContent, m = final.match(/^(\D*?)(\d[\d,]*(?:\.\d+)?)(.*)$/);
+      if (!m) return;
+      const [, pre, digits, post] = m, target = parseFloat(digits.replace(/,/g, '')), dec = (digits.split('.')[1] || '').length;
+      const fmt = v => pre + v.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec, useGrouping: digits.includes(',') }) + post;
+      const t0 = performance.now();
+      const step = t => {
+        const p = Math.min(1, (t - t0) / 900), e = 1 - Math.pow(1 - p, 3);
+        el.textContent = p < 1 ? fmt(target * (0.4 + 0.6 * e)) : final;
+        if (p < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    };
+    const io = new IntersectionObserver(entries => entries.forEach(en => { if (en.isIntersecting) { io.unobserve(en.target); run(en.target); } }), { threshold: 0.6 });
+    document.querySelectorAll('.pf-count').forEach(el => io.observe(el));
+  })();
 </script>
 </html>

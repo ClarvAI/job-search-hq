@@ -102,7 +102,67 @@ export function buildRamps(spec = DEFAULT_SPEC) {
       danger: mk('danger'),
     };
   }
+  // Not ramps: derived colors the pages also need (chart series, chart track, accent gradient stops).
+  // Kept outside R.light / R.dark so code that walks the ramps never sees them.
+  Object.defineProperty(R, 'extra', { value: { light: extras(R.light, s, false), dark: extras(R.dark, s, true) }, enumerable: false });
   return R;
+}
+
+// OKLCH hues that turn mustard/olive at chart lightness (about L 0.5); chart series 2-5 skip them.
+const MUDDY = [65, 130];
+const hueDist = (a, b) => { const d = Math.abs(((a - b) % 360) + 360) % 360; return Math.min(d, 360 - d); };
+// Surfaces a chart mark may sit on in each theme (surface, page, raised/inset).
+export const chartGrounds = (n, dark) => (dark ? [n[2], n[1], n[3], n[0]] : [n[0], n[1], n[2]]);
+
+// Chart series, chart track and gradient stops for one theme, all measured.
+//  - chart 1 is the accent's solid fill; charts 2-5 turn its hue by 120, -120, 60, -60 (or 180) degrees at the same
+//    lightness and chroma (clipped to sRGB), each nudged until it is 15+ degrees from every status hue, 25+ degrees
+//    from the other series and outside the yellow/olive band (MUDDY: at chart lightness those hues read as mustard or
+//    khaki), then darkened (light theme) or lightened (dark theme) until it is 3:1 or more against every surface it can
+//    sit on. A near-gray accent (the Minimal look) gets an ordered ramp of its own hue instead: chart 1 is the accent,
+//    charts 2-5 step evenly away from it (lighter or darker, whichever side has more room above 3:1), never alternating.
+//  - the chart track is the first neutral step (4 and up) at 1.5:1 or more against the surface and page, so empty
+//    tracks still show.
+//  - gradient stops: light accent 9 -> 11, dark accent 8 -> 10, each falling back to the solid fill (or its hover)
+//    when the text-on-accent color wouldn't reach 4.5:1 on it.
+function extras(T, s, dark) {
+  const n = T.neutral, a = T.accent;
+  const grounds = chartGrounds(n, dark);
+  const passes = (c, min) => grounds.every(g => wcag(c, g) >= min);
+  const fit = (L, C, h) => { // move lightness away from the surface until 3:1
+    let x = hex(L, C, h), guard = 0;
+    while (!passes(x, 3) && guard++ < 90) { L += dark ? 0.01 : -0.01; x = hex(L, C, h); }
+    return x;
+  };
+  const [L0, C0, h0] = hexToOklch(a[8]);
+  const status = [s.hues.success, s.hues.warning, s.hues.danger];
+  const chart = [passes(a[8], 3) ? a[8] : fit(L0, C0, h0)];
+  if (C0 < 0.04) {
+    // Monochrome: spread lightness over the range that still reaches 3:1 on the surfaces.
+    let lo = dark ? 0.4 : 0.22, hi = dark ? 0.95 : 0.75;
+    if (dark) { while (lo < 0.95 && !passes(hex(lo, C0, h0), 3)) lo += 0.01; } else { while (hi > 0.22 && !passes(hex(hi, C0, h0), 3)) hi -= 0.01; }
+    // One direction only, so the series read as an ordered sequence (chart 1 -> 5 always lighter, or always darker).
+    const end = hi - L0 >= L0 - lo ? hi : lo;
+    for (const i of [1, 2, 3, 4]) chart.push(fit(L0 + ((end - L0) * i) / 4, C0, h0));
+    while (chart.length < 5) chart.push(chart[chart.length - 1]);
+  } else {
+    const used = [h0];
+    for (const off of [120, -120, 60, -60, 180]) {
+      if (chart.length >= 5) break;
+      const want = (((h0 + off) % 360) + 360) % 360;
+      for (let d = 0; d <= 90; d++) {
+        const cand = [want + d, want - d].map(h => ((h % 360) + 360) % 360).find(h => !(h >= MUDDY[0] && h <= MUDDY[1]) && status.every(x => hueDist(h, x) >= 15) && used.every(x => hueDist(h, x) >= 25));
+        if (cand != null) { used.push(cand); chart.push(fit(L0, C0, cand)); break; }
+      }
+    }
+    while (chart.length < 5) chart.push(fit(L0 + (dark ? 0.12 : -0.12) * (chart.length - 2), C0, h0));
+  }
+  let track = 3;
+  while (track < 8 && !(wcag(n[track], grounds[0]) >= 1.5 && wcag(n[track], grounds[1]) >= 1.5)) track++;
+  const on = (s.onAccent || {})[dark ? 'dark' : 'light'] || '#ffffff';
+  const okOn = i => wcag(on, a[i]) >= 4.5;
+  const gradient = dark ? [okOn(7) ? 7 : 8, okOn(9) ? 9 : 8] : [8, okOn(10) ? 10 : 9];
+  return { chart, track, gradient, onAccent: on };
 }
 
 // Semantic pairs that the pages render (foreground on background), with the surfaces each theme really uses.
@@ -133,6 +193,18 @@ export function measure(R, { high = false } = {}) {
       const w = wcag(fg, bg), lc = Math.abs(apca(fg, bg));
       const wOk = w >= min - 1e-9, lOk = lc >= lcMin;
       rows.push({ theme: k, label, fg, bg, w, lc, ok: kind === 'ui' ? wOk : wOk && lOk, note: kind === 'ui' && wOk && !lOk, kind, ramp: rampName, step });
+    }
+    // Derived colors (charts, chart track, accent gradient): WCAG only (graphics 3:1, track 1.4:1, text on the gradient 4.5:1).
+    const x = R.extra && R.extra[k];
+    if (!x) continue;
+    const n = R[k].neutral, a = R[k].accent, surface = k === 'dark' ? n[2] : n[0];
+    const extra = [];
+    x.chart.forEach((c, i) => chartGrounds(n, k === 'dark').forEach((g, j) => extra.push([`chart-${i + 1} vs ${['surface', 'page', k === 'dark' ? 'raised' : 'inset', 'inset'][j]} [UI 3:1]`, c, g, 3])));
+    extra.push(['chart-track vs surface [UI 1.4:1]', n[x.track], surface, 1.4]);
+    x.gradient.forEach((i, j) => extra.push([`on-accent on accent-gradient ${j ? 'end' : 'start'}`, x.onAccent, a[i], 4.5]));
+    for (const [label, fg, bg, min] of extra) {
+      const w = wcag(fg, bg), lc = Math.abs(apca(fg, bg));
+      rows.push({ theme: k, label, fg, bg, w, lc, ok: w >= min - 1e-9, note: false, kind: 'derived', ramp: 'derived', step: -1 });
     }
   }
   return rows;

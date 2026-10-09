@@ -22,8 +22,9 @@ step "skill parity + blank files" bash "$HERE/check-parity.sh"
 step "product manifest up to date" bash "$HERE/../build-manifest.sh" --check
 if command -v node >/dev/null 2>&1; then
   step "blank pages on the Default theme" node "$HERE/../../.claude/skills/page-design/scripts/apply-theme.mjs" --check-blank
+  step "theme engine fixtures (tokens, layouts, custom region)" bash "$HERE/theme-fixtures.sh"
 else
-  echo; echo "######## blank-pages theme check skipped (no node)"
+  echo; echo "######## blank-pages theme check and theme fixtures skipped (no node)"
 fi
 step "guard fixtures (bash)" bash "$HERE/guard-fixtures.sh" --impl sh
 step "my-data smoke (bash)" bash "$HERE/mydata-smoke.sh" --impl sh

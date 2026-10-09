@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-layout="overview">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Job Search Dashboard</title>
@@ -29,7 +29,22 @@
     --color-danger-subtle: var(--danger-3); --color-danger-solid: var(--danger-9); --color-danger-text: var(--danger-11);
     --shadow-surface: 0 0 0 1px oklch(0 0 0 / 0.06), 0 1px 2px -1px oklch(0 0 0 / 0.06), 0 2px 4px 0 oklch(0 0 0 / 0.04);
     --shadow-raised: 0 0 0 1px oklch(0 0 0 / 0.07), 0 2px 4px -2px oklch(0 0 0 / 0.08), 0 16px 32px -16px oklch(0 0 0 / 0.22);
+    --color-bg-inset: var(--neutral-3); --color-bg-overlay: #27221b73;
+    --color-accent-gradient: linear-gradient(135deg, var(--accent-9), var(--accent-11));
+    --shadow-overlay: 0 0 0 1px oklch(0 0 0 / 0.08), 0 8px 16px -8px oklch(0 0 0 / 0.16), 0 24px 48px -12px oklch(0 0 0 / 0.28);
+    --chart-1: #187075; --chart-2: #77547e; --chart-3: #855734; --chart-4: #496390; --chart-5: #4f6d3e; --chart-track: var(--neutral-7);
+    --avatar-bg: var(--color-accent-subtle); --avatar-fg: var(--color-accent-text);
     --radius-sm: 5px; --radius-md: 10px; --radius-lg: 18px;
+    --radius-xl: 26px; --radius-full: 999px;
+    --space-1: calc(var(--spacing) * 1); --space-2: calc(var(--spacing) * 2); --space-3: calc(var(--spacing) * 3); --space-4: calc(var(--spacing) * 4); --space-5: calc(var(--spacing) * 6); --space-6: calc(var(--spacing) * 8); --space-7: calc(var(--spacing) * 10); --space-8: calc(var(--spacing) * 12); --space-9: calc(var(--spacing) * 16); --space-10: calc(var(--spacing) * 24);
+    --text-display: clamp(2.5rem, 6.5vw, 4.25rem); --text-display--line-height: 1.02; --text-display--letter-spacing: -0.022em;
+    --text-title: clamp(1.75rem, 3.6vw, 2.25rem); --text-title--line-height: 1.1; --text-title--letter-spacing: -0.012em;
+    --text-heading: 1.375rem; --text-heading--line-height: 1.25;
+    --text-subheading: 1.125rem; --text-subheading--line-height: 1.35;
+    --text-body: 1rem; --text-body--line-height: 1.55;
+    --text-small: 0.875rem; --text-small--line-height: 1.45;
+    --text-label: 0.75rem; --text-label--line-height: 1.3; --text-label--letter-spacing: 0.07em;
+    --measure: 38rem;
     --ease-out: cubic-bezier(0.2, 0, 0, 1);
     --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
     --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
@@ -55,6 +70,11 @@
     --color-danger-subtle: var(--danger-3); --color-danger-solid: var(--danger-9); --color-danger-text: var(--danger-11);
     --shadow-surface: 0 0 0 1px oklch(1 0 0 / 0.08);
     --shadow-raised: 0 0 0 1px oklch(1 0 0 / 0.12), 0 16px 32px -16px oklch(0 0 0 / 0.7);
+    --color-bg-inset: var(--neutral-1); --color-bg-overlay: #0e0d0bb3;
+    --color-accent-gradient: linear-gradient(135deg, var(--accent-8), var(--accent-10));
+    --shadow-overlay: 0 0 0 1px oklch(1 0 0 / 0.14), 0 24px 48px -12px oklch(0 0 0 / 0.8);
+    --chart-1: #337f83; --chart-2: #85648d; --chart-3: #936646; --chart-4: #58739d; --chart-5: #607c4f; --chart-track: var(--neutral-7);
+    --avatar-bg: var(--color-accent-subtle); --avatar-fg: var(--color-accent-text);
     }
   }
   :root[data-theme="dark"] {
@@ -74,10 +94,15 @@
     --color-danger-subtle: var(--danger-3); --color-danger-solid: var(--danger-9); --color-danger-text: var(--danger-11);
     --shadow-surface: 0 0 0 1px oklch(1 0 0 / 0.08);
     --shadow-raised: 0 0 0 1px oklch(1 0 0 / 0.12), 0 16px 32px -16px oklch(0 0 0 / 0.7);
+    --color-bg-inset: var(--neutral-1); --color-bg-overlay: #0e0d0bb3;
+    --color-accent-gradient: linear-gradient(135deg, var(--accent-8), var(--accent-10));
+    --shadow-overlay: 0 0 0 1px oklch(1 0 0 / 0.14), 0 24px 48px -12px oklch(0 0 0 / 0.8);
+    --chart-1: #337f83; --chart-2: #85648d; --chart-3: #936646; --chart-4: #58739d; --chart-5: #607c4f; --chart-track: var(--neutral-7);
+    --avatar-bg: var(--color-accent-subtle); --avatar-fg: var(--color-accent-text);
   }
   /* ---- End design tokens ---- */
 
-  body { margin: 0; background: var(--color-bg-page); color: var(--color-text-primary); font-family: var(--font-body); font-size: 1rem; line-height: 1.55; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+  body { margin: 0; background: var(--color-bg-page); color: var(--color-text-primary); font-family: var(--font-body); font-size: var(--text-body); line-height: var(--text-body--line-height); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
   h1, h2, h3, h4 { font-family: var(--font-display); font-optical-sizing: auto; text-wrap: balance; margin: 0; }
   p, li, dd { text-wrap: pretty; }
   .num { font-variant-numeric: lining-nums tabular-nums; }
@@ -85,25 +110,23 @@
   .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
   /* Hidden stays hidden even when the styling script can't load (offline). */
   [hidden] { display: none !important; }
+  /* Motion: one signature moment (counters, bars and rings fill in). Everything starts visible. */
   @media (prefers-reduced-motion: no-preference) {
     .btn { transition-property: scale, background-color, box-shadow, color; transition-duration: 150ms; transition-timing-function: ease-out; }
     .btn:active:not(:disabled) { scale: 0.96; }
-  }
-  /* Concept: a weekly game plan. Four score tiles, the funnel as a row of progress pills, this week's
-     goals, what's due next, and the board by stage. Data lives in the JSON block. */
-  .tile { position: relative; overflow: hidden; }
-  .tile::before { content: ""; position: absolute; inset-inline: 0; top: 0; height: 0.25rem; background: var(--color-accent-solid); }
-  .seg { display: inline-flex; gap: 3px; }
-  .seg i { display: block; width: 0.5rem; height: 0.5rem; border-radius: 999px; background: var(--color-border); }
-  .seg i.on { background: var(--color-accent-solid); }
-  @media (prefers-reduced-motion: no-preference) {
     .grow-in { transition: width 900ms var(--ease-out); }
     @starting-style { .grow-in { width: 0 !important; } }
-    .deal { transition: opacity 380ms var(--ease-out), translate 380ms var(--ease-out); transition-delay: calc(var(--i, 0) * 40ms); }
+    .ring-fill { transition: stroke-dasharray 1000ms var(--ease-out); }
+    @starting-style { .ring-fill { stroke-dasharray: 0 100 !important; } }
+    .draw { stroke-dasharray: 1; stroke-dashoffset: 0; transition: stroke-dashoffset 1100ms var(--ease-out); }
+    @starting-style { .draw { stroke-dashoffset: 1; } }
+    .deal { transition: opacity 380ms var(--ease-out), translate 380ms var(--ease-out); transition-delay: calc(var(--i, 0) * 45ms); }
     @starting-style { .deal { opacity: 0.45; translate: 0 6px; } }
     .lift { transition: box-shadow 150ms ease-out, translate 150ms ease-out; }
     @media (hover: hover) { .lift:hover { box-shadow: var(--shadow-raised); translate: 0 -2px; } }
   }
+  /* ---- Custom ---- */
+  /* ---- End custom ---- */
 </style>
 <style type="text/tailwindcss">
   @theme inline {
@@ -115,24 +138,285 @@
     --color-warn: var(--color-warning-solid); --color-warn-ink: var(--color-warning-text); --color-warn-wash: var(--color-warning-subtle);
     --color-bad: var(--color-danger-solid); --color-bad-ink: var(--color-danger-text); --color-bad-wash: var(--color-danger-subtle);
     --font-serif: var(--font-display); --font-sans: var(--font-body); --font-mono: var(--font-data);
-    --text-display: clamp(2.5rem, 6.5vw, 4.25rem); --text-display--line-height: 1.02; --text-display--letter-spacing: -0.022em;
-    --text-title: clamp(1.75rem, 3.6vw, 2.25rem); --text-title--line-height: 1.1; --text-title--letter-spacing: -0.012em;
-    --text-heading: 1.375rem; --text-heading--line-height: 1.25;
-    --text-body: 1rem; --text-body--line-height: 1.55;
-    --text-small: 0.875rem; --text-small--line-height: 1.45;
-    --text-label: 0.75rem; --text-label--line-height: 1.3; --text-label--letter-spacing: 0.07em;
+    --text-display: var(--text-display); --text-display--line-height: var(--text-display--line-height); --text-display--letter-spacing: var(--text-display--letter-spacing);
+    --text-title: var(--text-title); --text-title--line-height: var(--text-title--line-height); --text-title--letter-spacing: var(--text-title--letter-spacing);
+    --text-heading: var(--text-heading); --text-heading--line-height: var(--text-heading--line-height);
+    --text-subheading: var(--text-subheading); --text-subheading--line-height: var(--text-subheading--line-height);
+    --text-body: var(--text-body); --text-body--line-height: var(--text-body--line-height);
+    --text-small: var(--text-small); --text-small--line-height: var(--text-small--line-height);
+    --text-label: var(--text-label); --text-label--line-height: var(--text-label--line-height); --text-label--letter-spacing: var(--text-label--letter-spacing);
+    --color-inset: var(--color-bg-inset); --color-overlay: var(--color-bg-overlay);
+    --color-chart-1: var(--chart-1); --color-chart-2: var(--chart-2); --color-chart-3: var(--chart-3); --color-chart-4: var(--chart-4); --color-chart-5: var(--chart-5); --color-track: var(--chart-track);
+    --color-avatar: var(--avatar-bg); --color-avatar-ink: var(--avatar-fg);
+    --radius-xl: var(--radius-xl); --radius-full: var(--radius-full);
   }
   @layer components {
-    .label { @apply font-mono text-label uppercase font-medium text-fg-muted; }
-    .panel { @apply bg-surface rounded-(--radius-md) shadow-(--shadow-surface); }
-    .btn { @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-(--radius-md) bg-surface px-4 text-small font-semibold text-fg shadow-(--shadow-surface) hover:bg-hover cursor-pointer; }
-    .btn-primary { @apply bg-accent text-on-accent shadow-none hover:bg-accent-hover; }
+    /* Type */
+    .eyebrow { font-family: var(--font-data); font-size: var(--text-label); line-height: var(--text-label--line-height); letter-spacing: var(--text-label--letter-spacing); text-transform: uppercase; font-weight: 500; color: var(--color-text-secondary); }
+    .meta { font-size: var(--text-small); line-height: var(--text-small--line-height); color: var(--color-text-secondary); }
+    .type-title { font-size: var(--text-title); line-height: var(--text-title--line-height); letter-spacing: var(--text-title--letter-spacing); font-weight: 650; }
+    .type-heading { font-size: var(--text-heading); line-height: var(--text-heading--line-height); font-weight: 600; }
+    .type-sub { font-family: var(--font-display); font-size: var(--text-subheading); line-height: var(--text-subheading--line-height); font-weight: 600; }
+    .big-num { font-family: var(--font-display); font-weight: 650; font-size: calc(var(--text-title) * 1.2); line-height: 1; letter-spacing: -0.015em; font-variant-numeric: lining-nums tabular-nums; }
+    .big-num .unit { font-size: 0.6em; font-weight: 600; color: var(--color-text-secondary); margin-inline-start: 0.08em; }
+
+    /* Icons and small pieces */
+    .icon { width: 1.25rem; height: 1.25rem; flex: none; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+    .ibadge { display: inline-grid; place-items: center; flex: none; width: 2.25rem; height: 2.25rem; border-radius: var(--radius-full); background: var(--color-accent-subtle); color: var(--color-accent-text); }
+    .ibadge .icon { width: 1.125rem; height: 1.125rem; }
+    .chip { display: inline-flex; align-items: center; gap: 0.3rem; min-height: 1.5rem; padding: 0.125rem 0.625rem; border-radius: var(--radius-full); font-size: var(--text-label); line-height: 1.2; font-weight: 600; white-space: nowrap; background: var(--color-bg-inset); color: var(--color-text-secondary); }
+    .chip .icon { width: 0.875rem; height: 0.875rem; stroke-width: 2; }
+    .chip-accent { background: var(--color-accent-subtle); color: var(--color-accent-text); }
+    .chip-success { background: var(--color-success-subtle); color: var(--color-success-text); }
+    .chip-warning { background: var(--color-warning-subtle); color: var(--color-warning-text); }
+    .chip-danger { background: var(--color-danger-subtle); color: var(--color-danger-text); }
+    .chip-sample { background: transparent; color: var(--color-text-secondary); box-shadow: inset 0 0 0 1px var(--color-border-strong); }
+    .avatar { display: inline-grid; place-items: center; flex: none; width: 2.5rem; height: 2.5rem; border-radius: var(--radius-full); background: var(--avatar-bg); color: var(--avatar-fg); font-family: var(--font-display); font-weight: 650; font-size: var(--text-small); letter-spacing: 0.02em; }
+    .dot { display: inline-block; flex: none; width: 0.625rem; height: 0.625rem; border-radius: var(--radius-full); background: var(--c, var(--chart-1)); }
+    .seg { display: inline-flex; gap: 3px; }
+    .seg i { display: block; width: 0.875rem; height: 0.375rem; border-radius: var(--radius-full); background: var(--chart-track); }
+    .seg i.on { background: var(--chart-1); }
+    .btn { display: inline-flex; min-height: 2.5rem; align-items: center; justify-content: center; gap: 0.5rem; border-radius: var(--radius-md); background: var(--color-bg-surface); padding-inline: 1rem; font-size: var(--text-small); font-weight: 600; color: var(--color-text-primary); box-shadow: var(--shadow-surface); cursor: pointer; }
+    .btn:hover { background: var(--color-bg-hover); }
+
+    /* Surfaces */
+    .shell { max-width: 76rem; margin-inline: auto; padding: var(--space-6) 16px var(--space-8); display: flex; flex-direction: column; gap: var(--space-5); }
+    .panel { background: var(--color-bg-surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-surface); padding: var(--space-4); min-width: 0; }
+    .sec-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-4); flex-wrap: wrap; }
+    .sec-head > div { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+    .callout { display: flex; gap: var(--space-3); align-items: flex-start; border-radius: var(--radius-md); background: var(--color-accent-subtle); padding: var(--space-3) var(--space-4); font-size: var(--text-small); }
+    .callout .icon { color: var(--color-accent-text); margin-top: 0.1rem; }
+
+    /* Header */
+    .dash-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--space-3) var(--space-6); }
+    .dash-head .chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+    /* Celebration (accepted offer) */
+    .celebrate { position: relative; overflow: hidden; display: grid; gap: var(--space-4); align-items: center; border-radius: var(--radius-xl); background: var(--color-success-subtle); padding: var(--space-5); box-shadow: var(--shadow-surface); }
+    .celebrate .ibadge { width: 3rem; height: 3rem; background: var(--color-success-solid); color: var(--color-text-on-accent); }
+    .celebrate .ibadge .icon { width: 1.5rem; height: 1.5rem; }
+
+    /* Today hero */
+    .hero { position: relative; overflow: hidden; isolation: isolate; display: grid; gap: var(--space-5); border-radius: var(--radius-xl); background: var(--color-accent-gradient); color: var(--color-text-on-accent); padding: var(--space-5); box-shadow: var(--shadow-raised); }
+    .hero .eyebrow { color: var(--color-text-on-accent); }
+    .hero .lede { font-size: var(--text-body); max-width: var(--measure); }
+    .hero-art { position: absolute; inset-block-start: -5rem; inset-inline-end: -4rem; width: 22rem; height: 22rem; z-index: -1; stroke: var(--color-text-on-accent); fill: none; opacity: 0.16; }
+    .hero-intro { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+    .hero-title { font-size: var(--text-title); line-height: var(--text-title--line-height); letter-spacing: var(--text-title--letter-spacing); font-weight: 650; }
+    .suggest { display: flex; gap: var(--space-3); align-items: flex-start; margin-top: auto; border-radius: var(--radius-lg); padding: var(--space-3) var(--space-4); background: color-mix(in oklch, var(--color-text-on-accent) 14%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--color-text-on-accent) 22%, transparent); }
+    .suggest .icon { margin-top: 0.15rem; }
+    .suggest strong { font-weight: 650; }
+    .ask { display: block; font-size: var(--text-small); margin-top: 0.15rem; }
+    .ask q { font-weight: 600; }
+    .hero-list { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+    .hero-item { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.25rem var(--space-3); align-items: center; border-radius: var(--radius-lg); background: var(--color-bg-surface); color: var(--color-text-primary); padding: var(--space-3) var(--space-4); box-shadow: var(--shadow-surface); }
+    .hero-item .what, .hero-item .who { display: block; } .hero-item .what { font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+    .hero-item .who { overflow-wrap: anywhere; }
+    .hero-item .when { grid-column: 2; justify-self: start; }
+    .hero-empty { border-radius: var(--radius-lg); padding: var(--space-4); background: color-mix(in oklch, var(--color-text-on-accent) 14%, transparent); }
+    .steps { display: flex; flex-direction: column; gap: var(--space-2); counter-reset: step; }
+    .steps li { display: grid; grid-template-columns: 2rem minmax(0, 1fr); gap: var(--space-3); align-items: start; border-radius: var(--radius-lg); background: var(--color-bg-surface); color: var(--color-text-primary); padding: var(--space-3) var(--space-4); box-shadow: var(--shadow-surface); }
+    .steps li::before { counter-increment: step; content: counter(step); display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: var(--radius-full); background: var(--color-accent-subtle); color: var(--color-accent-text); font-family: var(--font-display); font-weight: 650; }
+    .steps b { display: block; font-weight: 600; line-height: 1.3; }
+    .prompt { display: inline-block; margin-top: 0.35rem; font-family: var(--font-data); font-size: var(--text-label); line-height: 1.5; background: var(--color-bg-inset); border-radius: var(--radius-sm); padding: 0.125rem 0.5rem; box-shadow: inset 0 0 0 1px var(--color-border-subtle); overflow-wrap: anywhere; }
+
+    /* KPI tiles */
+    .area-kpis { container-type: inline-size; }
+    .kpi-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+    .tile { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; border-radius: var(--radius-lg); background: var(--color-bg-surface); box-shadow: var(--shadow-surface); padding: var(--space-4); }
+    .tile-top { display: flex; align-items: center; gap: var(--space-2); }
+    .tile .ibadge { width: 2rem; height: 2rem; }
+    .tile .ibadge .icon { width: 1rem; height: 1rem; }
+    .tile .ctx { font-size: var(--text-small); line-height: 1.35; color: var(--color-text-secondary); }
+    .trend { display: inline-flex; align-items: center; gap: 0.2rem; font-weight: 600; color: var(--color-text-primary); }
+    .viz { margin-top: auto; padding-top: var(--space-1); }
+    .spark { display: block; width: 100%; height: 2.5rem; overflow: visible; }
+    .spark .line { fill: none; stroke: var(--chart-1); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+    .spark .area { fill: var(--chart-1); opacity: 0.12; }
+    .bar { height: 0.5rem; border-radius: var(--radius-full); background: var(--color-bg-inset); box-shadow: inset 0 0 0 1px var(--color-border-subtle); overflow: hidden; }
+    .bar > i { display: block; height: 100%; border-radius: inherit; background: var(--c, var(--chart-1)); }
+    .tracker { display: flex; gap: 3px; height: 1.25rem; }
+    .tracker i { flex: 1; border-radius: var(--radius-sm); background: var(--color-bg-inset); box-shadow: inset 0 0 0 1px var(--color-border-subtle); }
+    .tracker i.on { background: var(--c, var(--chart-2)); box-shadow: none; }
+
+    /* Funnel */
+    .funnel { display: flex; flex-direction: column; }
+    .frow { display: grid; grid-template-columns: 6.25rem minmax(0, 1fr) 2.25rem; align-items: center; gap: var(--space-3); min-height: 2rem; }
+    .frow .lbl { font-size: var(--text-small); font-weight: 600; }
+    .frow .val { font-family: var(--font-display); font-weight: 650; text-align: end; font-variant-numeric: lining-nums tabular-nums; }
+    .fbar { height: 1rem; border-radius: var(--radius-full); background: var(--color-bg-inset); overflow: hidden; }
+    .fbar > i { display: block; height: 100%; min-width: 0.375rem; border-radius: inherit; background: var(--c, var(--chart-1)); }
+    .fbar > i.zero { min-width: 0; }
+    .fconv { display: flex; align-items: center; gap: 0.3rem; padding-inline-start: calc(6.25rem + var(--space-3)); font-size: var(--text-label); line-height: 1.2; color: var(--color-text-secondary); min-height: 1.25rem; }
+    .fconv .icon { width: 0.75rem; height: 0.75rem; rotate: 90deg; stroke-width: 2.25; }
+    .fsum { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-4); }
+
+    /* Week goals */
+    .goals { display: flex; flex-direction: column; gap: var(--space-3); }
+    .goal { display: grid; grid-template-columns: 3.5rem minmax(0, 1fr); gap: var(--space-3); align-items: center; }
+    .goal-ring { position: relative; width: 3.5rem; height: 3.5rem; }
+    .goal-ring svg { width: 100%; height: 100%; rotate: -90deg; }
+    .goal-ring circle { fill: none; stroke-width: 4.5; }
+    .goal-ring .trk { stroke: var(--color-bg-inset); stroke-width: 6; }
+    .area-week { display: flex; flex-direction: column; }
+    .wk { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0.25rem; margin-top: auto; padding-top: var(--space-5); }
+    .wk span { display: flex; flex-direction: column; align-items: center; gap: 0.375rem; font-size: var(--text-label); line-height: 1.2; color: var(--color-text-secondary); }
+    .wk i { display: block; width: 100%; height: 0.375rem; border-radius: var(--radius-full); background: var(--color-bg-inset); box-shadow: inset 0 0 0 1px var(--color-border-subtle); }
+    .wk .past i { background: var(--chart-track); box-shadow: none; }
+    .wk .now i { background: var(--chart-1); box-shadow: none; }
+    .wk .now { color: var(--color-text-primary); font-weight: 650; }
+    .goal-ring .val { stroke: var(--ring, var(--chart-1)); stroke-linecap: round; }
+    .goal-ring b { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--font-display); font-weight: 650; font-size: var(--text-small); font-variant-numeric: lining-nums tabular-nums; }
+    .goal .name { font-weight: 600; line-height: 1.3; }
+    .goal .line2 { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem var(--space-2); margin-top: 0.2rem; }
+
+    /* Pipeline */
+    .stages { display: grid; gap: var(--space-3); grid-template-columns: minmax(0, 1fr); }
+    .stage { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; border-radius: var(--radius-lg); background: var(--color-bg-sunken); padding: var(--space-2); }
+    .stage-head { display: flex; align-items: center; gap: var(--space-2); min-height: 2.5rem; padding: 0 var(--space-2); border-radius: var(--radius-md); list-style: none; }
+    summary.stage-head { cursor: pointer; }
+    summary.stage-head::-webkit-details-marker { display: none; }
+    .stage-head h3 { font-family: var(--font-body); font-size: var(--text-small); font-weight: 650; flex: 1; min-width: 0; }
+    .stage-head .chev { width: 1rem; height: 1rem; color: var(--color-text-secondary); transition: rotate 150ms ease-out; }
+    details[open] > summary .chev { rotate: 90deg; }
+    .stage ul { display: flex; flex-direction: column; gap: var(--space-2); }
+    .stage .empty { padding: 0 var(--space-2) var(--space-2); font-size: var(--text-small); color: var(--color-text-secondary); }
+    .stage .more { padding: 0 var(--space-2) var(--space-1); font-size: var(--text-small); color: var(--color-text-secondary); }
+    .job { position: relative; display: flex; flex-direction: column; gap: 0.375rem; min-width: 0; border-radius: var(--radius-md); background: var(--color-bg-surface); box-shadow: var(--shadow-surface); padding: var(--space-3); }
+    .job .top { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-2); }
+    .job h4 { font-family: var(--font-body); font-size: var(--text-body); font-weight: 650; line-height: 1.3; min-width: 0; overflow-wrap: anywhere; }
+    .job .role { font-size: var(--text-small); line-height: 1.35; overflow-wrap: anywhere; }
+    .job .row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); flex-wrap: wrap; }
+    .job .loc { display: inline-flex; align-items: center; gap: 0.25rem; min-width: 0; font-size: var(--text-small); color: var(--color-text-secondary); }
+    .job .loc .icon { width: 0.875rem; height: 0.875rem; }
+    .job .next { display: flex; gap: 0.375rem; align-items: flex-start; font-size: var(--text-small); line-height: 1.35; padding-top: 0.375rem; border-top: 1px solid var(--color-border-subtle); }
+    .job .next .icon { width: 0.875rem; height: 0.875rem; margin-top: 0.15rem; color: var(--color-accent-text); }
+    .job a { color: var(--color-accent-text); text-decoration: underline; text-underline-offset: 2px; }
+    .job.closed { background: transparent; box-shadow: inset 0 0 0 1px var(--color-border); }
+    .prio { display: inline-grid; place-items: center; min-width: 1.5rem; height: 1.5rem; padding-inline: 0.375rem; border-radius: var(--radius-sm); background: var(--color-bg-inset); font-family: var(--font-data); font-size: var(--text-label); font-weight: 600; color: var(--color-text-secondary); }
+    .board-rail { position: relative; display: flex; gap: var(--space-3); overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; padding-bottom: var(--space-2); border-radius: var(--radius-lg); }
+    .board-rail .stage { flex: 0 0 calc(100% - 2.5rem); scroll-snap-align: start; }
+
+    /* Timeline (due list, activity) */
+    .tl-group + .tl-group { margin-top: var(--space-3); }
+    .tl-group h3 { margin-bottom: var(--space-1); }
+    .tl { display: flex; flex-direction: column; }
+    .tl > li { position: relative; display: grid; grid-template-columns: 1.75rem minmax(0, 1fr); gap: 0.25rem var(--space-3); padding-block: var(--space-2); min-height: 2.75rem; }
+    .tl > li::before { content: ""; position: absolute; inset-inline-start: calc(0.875rem - 1px); top: 0; bottom: 0; width: 2px; background: var(--color-border-subtle); }
+    .tl > li:first-child::before { top: 1.25rem; }
+    .tl > li:last-child::before { bottom: calc(100% - 1.25rem); }
+    .tl > li:only-child::before { display: none; }
+    .node { position: relative; z-index: 1; display: grid; place-items: center; width: 1.75rem; height: 1.75rem; border-radius: var(--radius-full); background: var(--color-bg-inset); color: var(--color-text-secondary); box-shadow: 0 0 0 3px var(--color-bg-surface); }
+    .node .icon { width: 0.875rem; height: 0.875rem; stroke-width: 2; }
+    .node.u-danger { background: var(--color-danger-subtle); color: var(--color-danger-text); }
+    .node.u-warning { background: var(--color-warning-subtle); color: var(--color-warning-text); }
+    .node.u-accent { background: var(--color-accent-subtle); color: var(--color-accent-text); }
+    .node.small { width: 0.75rem; height: 0.75rem; margin: 0.45rem 0.5rem; background: var(--color-bg-surface); box-shadow: 0 0 0 2px var(--chart-1), 0 0 0 5px var(--color-bg-surface); }
+    .tl .body { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.25rem var(--space-3); min-width: 0; }
+    .tl .txt { min-width: 0; flex: 1 1 12rem; }
+    .tl .what { display: block; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; }
+    .tl .who { display: block; overflow-wrap: anywhere; }
+    .tl .when { display: flex; align-items: center; gap: var(--space-2); flex: none; }
+    .tl.activity > li { min-height: 0; padding-block: 0.375rem; }
+    .tl.activity .txt { font-size: var(--text-small); }
+
+    /* People */
+    .people > li { display: grid; grid-template-columns: 2.5rem minmax(0, 1fr); gap: 0.25rem var(--space-3); align-items: center; padding-block: var(--space-3); }
+    .people > li + li { border-top: 1px solid var(--color-border-subtle); }
+    .people .name { font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+    .people .body { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.25rem var(--space-3); min-width: 0; }
+    .people .txt { min-width: 0; flex: 1 1 10rem; }
+
+    /* Sample (preview) styling: dashed outlines, ghost bars; text stays full contrast */
+    .is-sample .tile, .is-sample .job, .is-sample.panel { background: transparent; box-shadow: none; outline: 1.5px dashed var(--color-border-strong); outline-offset: -1.5px; }
+    .is-sample .stage { background: transparent; outline: 1.5px dashed var(--color-border); outline-offset: -1.5px; }
+    .is-sample .fbar > i, .is-sample .bar > i, .is-sample .tracker i.on { background: var(--chart-track); }
+    .is-sample .spark .line { stroke: var(--chart-track); }
+    .is-sample .spark .area { fill: var(--chart-track); }
+    .is-sample .seg i.on { background: var(--color-graphic-idle); }
+    .is-sample .node { box-shadow: 0 0 0 3px var(--color-bg-page); }
+    .is-sample .node.small { box-shadow: 0 0 0 2px var(--chart-track), 0 0 0 5px var(--color-bg-page); background: var(--color-bg-page); }
+
+    .foot { font-size: var(--text-small); color: var(--color-text-secondary); }
+  }
+
+  /* ---- Layout grid ---- */
+  .dash-grid { display: grid; gap: var(--space-4); grid-template-columns: minmax(0, 1fr); grid-template-areas: "today" "kpis" "week" "funnel" "board" "due" "side"; }
+  .area-today { grid-area: today; } .area-kpis { grid-area: kpis; } .area-funnel { grid-area: funnel; } .area-week { grid-area: week; }
+  .area-board { grid-area: board; min-width: 0; } .area-due { grid-area: due; } .area-side { grid-area: side; display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
+  @container (min-width: 44rem) { .kpi-row { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-4); } }
+  @media (min-width: 40rem) {
+    .shell { padding: var(--space-7) 24px var(--space-8); }
+    .panel { padding: var(--space-5); }
+    .tile { padding: var(--space-4) var(--space-5) var(--space-5); }
+    .dash-grid { gap: var(--space-5); grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: "today today" "kpis kpis" "funnel week" "board board" "due side"; }
+    .area-side { gap: var(--space-5); }
+    .stages { grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); }
+    .stages .stage-head .chev { display: none; }
+    .hero { padding: var(--space-6); }
+    .celebrate { grid-template-columns: auto minmax(0, 1fr) auto; padding: var(--space-6); }
+    .board-rail .stage { flex: 0 0 16rem; }
+  }
+  @media (min-width: 52rem) { .hero { grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: var(--space-6); } }
+  @media (min-width: 64rem) {
+    .shell { padding-inline: 32px; gap: var(--space-6); }
+    .dash-grid { gap: var(--space-6); grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
+    .area-side { gap: var(--space-6); }
+  }
+
+  /* Board layout: kanban first, slim KPI strip, due list as a right rail (top sheet on phones). */
+  :root[data-layout="board"] .shell { max-width: 92rem; }
+  :root[data-layout="board"] .area-today, :root[data-layout="board"] .area-funnel { display: none; }
+  :root[data-layout="board"] .dash-grid { grid-template-areas: "kpis" "due" "board" "week" "side"; }
+  :root[data-layout="board"] .tile { padding: var(--space-3) var(--space-4); }
+  :root[data-layout="board"] .tile .big-num { font-size: var(--text-title); }
+  :root[data-layout="board"] .tile .viz { display: none; }
+  /* Board, brand-new user: the same three-step "add your first job" card, compact, above everything. */
+  :root[data-layout="board"][data-first-run] .area-today { display: grid; gap: var(--space-4); padding: var(--space-4) var(--space-5); }
+  :root[data-layout="board"][data-first-run] .area-today .hero-title { font-size: var(--text-heading); line-height: var(--text-heading--line-height, 1.25); }
+  :root[data-layout="board"][data-first-run] .area-today .suggest { display: none; }
+  :root[data-layout="board"][data-first-run] .area-today .hero-intro { gap: var(--space-1); }
+  :root[data-layout="board"][data-first-run] .area-today .steps li { padding: var(--space-2) var(--space-3); }
+  :root[data-layout="board"][data-first-run] .dash-grid { grid-template-areas: "today" "kpis" "due" "board" "week" "side"; }
+  @media (min-width: 40rem) {
+    :root[data-layout="board"] .dash-grid { grid-template-areas: "kpis kpis" "board board" "due week" "due side"; }
+    :root[data-layout="board"][data-first-run] .dash-grid { grid-template-areas: "today today" "kpis kpis" "board board" "due week" "due side"; }
+    :root[data-layout="board"][data-first-run] .area-today .steps { flex-direction: row; }
+    :root[data-layout="board"][data-first-run] .area-today .steps li { flex: 1 1 0; min-width: 0; }
+  }
+  @media (min-width: 64rem) {
+    :root[data-layout="board"] .dash-grid { grid-template-columns: minmax(0, 1fr) 20rem; grid-template-rows: auto auto auto auto 1fr; grid-template-areas: "kpis kpis" "board due" "board week" "board side" "board ."; }
+    :root[data-layout="board"][data-first-run] .dash-grid { grid-template-rows: auto auto auto auto auto 1fr; grid-template-areas: "today today" "kpis kpis" "board due" "board week" "board side" "board ."; }
+    :root[data-layout="board"][data-first-run] .area-today { grid-template-columns: minmax(0, 1fr) minmax(0, 2.4fr); align-items: center; gap: var(--space-6); }
+    :root[data-layout="board"] .area-board { align-self: stretch; display: flex; flex-direction: column; }
+    :root[data-layout="board"] #board { flex: 1; display: flex; flex-direction: column; } :root[data-layout="board"] .board-rail { flex: 1; }
+    :root[data-layout="board"] .board-rail .stage { flex: 1 0 11.25rem; }
+    :root[data-layout="board"] .area-due .tl .when { flex-basis: 100%; }
+  }
+
+  /* Print: the KPIs and the due list, in light colors, no shadows. */
+  @page { margin: 0.5in; }
+  @media print {
+    html:root, html:root[data-theme], html:root:not([data-theme="light"]) { color-scheme: light; --color-bg-page: Canvas; --color-bg-surface: Canvas; --color-bg-inset: Canvas; --color-text-primary: CanvasText; --color-text-secondary: CanvasText; --color-accent-text: var(--print-accent-text); --color-accent-subtle: var(--print-accent-subtle); font-size: 90%; }
+    body { background: Canvas; color: CanvasText; }
+    .area-today, .area-funnel, .area-week, .area-board, .area-side, .callout, #again-confetti, .viz { display: none !important; }
+    .shell { max-width: none; padding: 0; gap: 1rem; }
+    .dash-grid { display: block; }
+    .dash-grid > * + * { margin-top: 1rem; }
+    .kpi-row { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .tile, .panel, .celebrate { box-shadow: none !important; outline: 1px solid CanvasText !important; outline-offset: 0 !important; background: Canvas !important; break-inside: avoid; }
+    .chip, .node, .ibadge { background: Canvas !important; color: CanvasText !important; box-shadow: inset 0 0 0 1px CanvasText !important; }
+    .tl > li { break-inside: avoid; }
   }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.js" integrity="sha384-/Ko/tqVwPYurnBe+Mj8WWw+39WmyOZn/kU+neqXn4hRxGI575k07mB/hIekAT51+" crossorigin="anonymous"></script>
 
-<!-- The assistant regenerates this block from jobs/tracker.csv, contacts/contacts.csv, interviews/ and profile/preferences.md.
-     Write every "<" inside it as \u003c (JSON.stringify(data).replace(/</g, '\\u003c')), so no text can end this block early. -->
+<!-- The assistant regenerates this block from jobs/tracker.csv, contacts/contacts.csv, interviews/, history/activity.md and profile/preferences.md.
+     Write every "<" inside it as \u003c (JSON.stringify(data).replace(/</g, '\\u003c')), so no text can end this block early.
+     Required: example, generated, owner, goals, week, jobs[], contacts[] (fields as in the pages skill).
+     Optional (the page works without them): week.start (YYYY-MM-DD, first day of the goal week); history: [{week, applications, conversations, mocks}]
+     (past weeks, oldest first, up to 8; drives the sparklines); streak (days in a row with activity); activity: [{date, text}] (recent moves,
+     newest first, up to 6); jobs[].applied (date applied); jobs[].url (https link to the posting). -->
 <script type="application/json" id="data">
 {
   "example": true,
@@ -145,82 +429,217 @@
 }
 </script>
 
-<main id="main" class="mx-auto max-w-[76rem] px-4 sm:px-6 py-8 sm:py-10 flex flex-col gap-8">
+<svg xmlns="http://www.w3.org/2000/svg" hidden>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.3 4.6a2 2 0 0 1 3.4 0l7.3 12.6a2 2 0 0 1-1.7 3H4.7a2 2 0 0 1-1.7-3z"/><path d="M12 9.5v4M12 16.8v.01"/></symbol>
+  <symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-briefcase" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M8.5 7V5.5A1.5 1.5 0 0 1 10 4h4a1.5 1.5 0 0 1 1.5 1.5V7M3 12.5h18"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M20.5 3.5L10 14M20.5 3.5l-6.5 17-4-6.5-6.5-4z"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.6a3.5 3.5 0 0 1 0 6.8M18.5 14.5a6.5 6.5 0 0 1 3 5.5"/></symbol>
+  <symbol id="i-message" viewBox="0 0 24 24"><path d="M20 15.5a2 2 0 0 1-2 2H8l-4.5 3.5V6a2 2 0 0 1 2-2H18a2 2 0 0 1 2 2z"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></symbol>
+  <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 21c-3.9 0-6.5-2.6-6.5-6.2 0-3.4 2.3-5.3 3.6-7.5.5 1.6 1.4 2.6 2.4 3 .2-3.2 1.6-5.6 3.6-7.3.3 2.8 1.6 4.6 2.8 6.3 1 1.4 1.6 3 1.6 5 0 3.9-2.7 6.7-7.5 6.7z"/></symbol>
+  <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M11 3.5c.6 4.2 2.3 6 6.5 6.5-4.2.6-5.9 2.3-6.5 6.5-.6-4.2-2.3-5.9-6.5-6.5 4.2-.5 5.9-2.3 6.5-6.5z"/><path d="M18.5 15v5M16 17.5h5"/></symbol>
+  <symbol id="i-map-pin" viewBox="0 0 24 24"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.5"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 3.5l9 4.5-9 4.5-9-4.5zM3 12.5l9 4.5 9-4.5M3 16.5l9 4.5 9-4.5"/></symbol>
+</svg>
 
-  <header class="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
+<main id="main" class="shell">
+
+  <header class="dash-head">
     <div class="flex flex-col gap-1 min-w-0">
-      <span class="label" id="owner">Dashboard</span>
-      <h1 class="font-serif text-title font-semibold">Your job search</h1>
+      <p class="eyebrow" id="owner">Dashboard</p>
+      <h1 class="type-title">Your job search</h1>
+      <p class="meta">Updated <span id="asof" class="num">–</span><span id="weekday"></span></p>
     </div>
-    <p class="font-mono text-label text-fg-muted uppercase num">Data as of <span id="asof" class="text-fg">–</span></p>
+    <div class="chips" id="head-chips"></div>
   </header>
 
-  <section id="hired" class="panel overflow-hidden" aria-live="polite" hidden>
-    <div class="flex flex-wrap items-center justify-between gap-4 bg-ok-wash p-6">
-      <div class="flex flex-col gap-1">
-        <span class="label text-ok-ink">Offer accepted</span>
-        <h2 class="font-serif text-title font-semibold" id="hired-title">You got the job.</h2>
-        <p class="text-small text-fg-muted" id="hired-note">Ask your assistant to wrap up your search: thank-you notes, withdrawals, and your career log.</p>
-      </div>
-      <button type="button" class="btn" id="again-confetti">Celebrate again</button>
+  <section id="hired" class="celebrate" aria-live="polite" hidden>
+    <span class="ibadge"><svg class="icon" aria-hidden="true"><use href="#i-sparkle"/></svg></span>
+    <div class="flex flex-col gap-1 min-w-0">
+      <p class="eyebrow" style="color: var(--color-success-text)">Offer accepted</p>
+      <h2 class="type-title" id="hired-title">You got the job.</h2>
+      <p class="meta" id="hired-note">Ask your assistant to wrap up your search: thank-you notes, withdrawals, and your career log.</p>
     </div>
+    <button type="button" class="btn" id="again-confetti"><svg class="icon" aria-hidden="true"><use href="#i-sparkle"/></svg>Celebrate again</button>
   </section>
 
-  <p id="example-note" hidden class="text-small rounded-(--radius-md) bg-accent-wash px-4 py-2.5">Nothing tracked yet. Ask your assistant to add a job, then to “refresh my dashboard” to fill this from your tracker.</p>
+  <p id="example-note" class="callout" hidden><svg class="icon" aria-hidden="true"><use href="#i-sparkle"/></svg><span id="example-text">Nothing tracked yet. Ask your assistant to add a job, then to “refresh my dashboard” to fill this from your tracker.</span></p>
 
-  <section aria-label="Summary" class="grid grid-cols-2 sm:grid-cols-4 gap-4" id="kpis"></section>
+  <noscript><p class="callout">Turn on JavaScript to see your dashboard.</p></noscript>
 
-  <div class="grid grid-cols-1 lg:grid-cols-[1.35fr_1fr] gap-6">
-    <section class="panel p-6 flex flex-col gap-5 min-w-0">
-      <div class="flex items-baseline justify-between gap-3"><h2 class="font-serif text-heading font-semibold">Funnel</h2><span class="label">All time</span></div>
-      <div id="funnel" class="flex flex-col gap-2.5"></div>
+  <div class="dash-grid">
+    <section id="today" class="hero area-today" aria-labelledby="today-title">
+      <svg class="hero-art" viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="96" stroke-width="1.5"/><circle cx="100" cy="100" r="72" stroke-width="1.5"/><circle cx="100" cy="100" r="48" stroke-width="1.5"/><circle cx="100" cy="100" r="24" stroke-width="1.5"/></svg>
+      <div class="hero-intro">
+        <p class="eyebrow" id="today-eyebrow">Today</p>
+        <h2 class="hero-title" id="today-title">Today</h2>
+        <p class="lede" id="today-lede"></p>
+        <div class="suggest" id="suggest" hidden></div>
+      </div>
+      <div id="today-list" class="hero-list"></div>
     </section>
-    <section class="panel p-6 flex flex-col gap-5 min-w-0">
-      <div class="flex items-baseline justify-between gap-3"><h2 class="font-serif text-heading font-semibold">This week</h2><span class="label">Against goals</span></div>
-      <div id="week" class="flex flex-col gap-5"></div>
+
+    <section class="area-kpis" aria-labelledby="kpi-title">
+      <h2 class="sr-only" id="kpi-title">Summary</h2>
+      <div id="kpis" class="kpi-row"></div>
     </section>
+
+    <section class="panel area-funnel" aria-labelledby="funnel-title">
+      <div class="sec-head"><div><h2 class="type-sub" id="funnel-title">Funnel</h2><span data-sample-slot></span></div><span class="meta">All time</span></div>
+      <div id="funnel" class="funnel"></div>
+      <div id="funnel-sum" class="fsum"></div>
+    </section>
+
+    <section class="panel area-week" aria-labelledby="week-title">
+      <div class="sec-head"><h2 class="type-sub" id="week-title">This week</h2><span class="meta" id="week-day"></span></div>
+      <div id="week" class="goals"></div>
+      <div id="week-strip" class="wk"></div>
+    </section>
+
+    <section class="area-board" aria-labelledby="board-title">
+      <div class="sec-head">
+        <div><h2 class="type-heading" id="board-title">Pipeline</h2><span data-sample-slot></span></div>
+        <span class="meta" id="board-count"></span>
+      </div>
+      <div id="board"></div>
+      <p class="meta" style="margin-top: var(--space-3)">A snapshot of your tracker. To move a job, use your board (/pipeline in Claude) or tell your assistant what happened, then ask it to refresh this page.</p>
+    </section>
+
+    <section class="panel area-due" aria-labelledby="due-title">
+      <div class="sec-head"><div><h2 class="type-sub" id="due-title">Coming up</h2><span data-sample-slot></span></div><span class="meta">Next steps and deadlines</span></div>
+      <div id="due"></div>
+    </section>
+
+    <div class="area-side">
+      <section class="panel" id="people-panel" aria-labelledby="people-title">
+        <div class="sec-head"><div><h2 class="type-sub" id="people-title">People to follow up with</h2><span data-sample-slot></span></div></div>
+        <ul id="people" class="people"></ul>
+      </section>
+      <section class="panel" id="activity-panel" aria-labelledby="activity-title">
+        <div class="sec-head"><div><h2 class="type-sub" id="activity-title">Recent activity</h2><span data-sample-slot></span></div></div>
+        <ol id="activity" class="tl activity"></ol>
+      </section>
+    </div>
   </div>
 
-  <section class="panel p-6 flex flex-col gap-3 min-w-0">
-    <div class="flex items-baseline justify-between gap-3"><h2 class="font-serif text-heading font-semibold">Due now and next</h2><span class="label">By date</span></div>
-    <ol id="due" class="flex flex-col"></ol>
-  </section>
-
-  <section class="flex flex-col gap-4 min-w-0">
-    <div class="flex flex-wrap items-baseline justify-between gap-3"><h2 class="font-serif text-heading font-semibold">Board</h2><span class="label">By stage</span></div>
-    <p class="text-small text-fg-muted -mt-2">A snapshot of your tracker. To move a job or change its next step, use your board (/pipeline in Claude) or just tell your assistant what happened, then ask it to refresh this page.</p>
-    <div class="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-3">
-      <div id="board" class="grid grid-flow-col auto-cols-[minmax(13rem,1fr)] gap-4"></div>
-    </div>
-  </section>
-
-  <footer class="font-mono text-label text-fg-muted uppercase">Rebuilt by your assistant from your files · Ask it to change colors or fonts</footer>
+  <footer class="foot">Rebuilt by your assistant from your files. Ask it to refresh this page, or to change its colors, fonts or layout.</footer>
 </main>
 
 <script>
 (function () {
   const data = JSON.parse(document.getElementById('data').textContent);
-  const today = data.generated;
+  const root = document.documentElement;
+  const layout = root.dataset.layout === 'board' ? 'board' : 'overview';
   // Reduced motion: the device setting, or "motion: reduced" in profile/design.md (the --motion token).
-  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches || getComputedStyle(document.documentElement).getPropertyValue('--motion').trim() === 'reduced';
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches || getComputedStyle(root).getPropertyValue('--motion').trim() === 'reduced';
   const $ = id => document.getElementById(id);
-  const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const fmt = d => { if (!d) return ''; const [y, m, day] = d.split('-').map(Number); return new Date(y, m - 1, day).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); };
 
+  // ---- Safe DOM helpers: data only ever goes in as text. ----
+  const h = (tag, props, ...kids) => {
+    const el = document.createElement(tag);
+    for (const [k, v] of Object.entries(props || {})) {
+      if (v == null || v === false) continue;
+      if (k === 'class') el.className = v; else if (k === 'text') el.textContent = v; else el.setAttribute(k, v === true ? '' : String(v));
+    }
+    for (const c of kids.flat()) if (c != null && c !== false) el.append(c instanceof Node ? c : document.createTextNode(String(c)));
+    return el;
+  };
+  const NS = 'http://www.w3.org/2000/svg';
+  const sv = (tag, attrs) => { const el = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs || {})) el.setAttribute(k, String(v)); return el; };
+  const icon = (name, cls) => { const s = sv('svg', { class: 'icon' + (cls ? ' ' + cls : ''), 'aria-hidden': 'true', focusable: 'false' }); s.append(sv('use', { href: '#i-' + name })); return s; };
+  const chip = (text, tone, ic) => h('span', { class: 'chip' + (tone ? ' chip-' + tone : '') }, ic ? icon(ic) : null, text);
+  const num = v => Math.max(0, Math.round(Number(v) || 0));
+  const plural = (n, one, many) => `${n} ${n === 1 ? one : (many || one + 's')}`;
+  const safeUrl = u => { try { const x = new URL(String(u)); return x.protocol === 'https:' ? x.href : ''; } catch (e) { return ''; } };
+
+  // ---- Dates (all YYYY-MM-DD, local) ----
+  const isDate = s => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
+  const parse = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+  const iso = dt => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+  const today = isDate(data.generated) ? data.generated : iso(new Date());
+  const add = (s, n) => { const d = parse(s); d.setDate(d.getDate() + n); return iso(d); };
+  const diff = (a, b) => Math.round((parse(a) - parse(b)) / 864e5);
+  const fmt = s => isDate(s) ? parse(s).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
+  const fmtDay = s => parse(s).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+
+  // ---- Brand-new user: show a labelled sample so the page looks like what it will become. ----
+  const sample = !!data.example && !(Array.isArray(data.jobs) && data.jobs.length);
+  const d = n => add(today, n);
+  const SAMPLE = {
+    jobs: [
+      { company: 'Acme Cloud', role: 'Senior Product Marketing Manager', status: 'interviewing', fit: 5, priority: 'A', next: 'Prepare for the panel interview', due: d(1), location: 'Denver, CO (hybrid)', applied: d(-18) },
+      { company: 'Hooli', role: 'Product Marketing Manager', status: 'screening', fit: 4, priority: 'A', next: 'Send a thank-you note to the recruiter', due: d(0), location: 'Remote', applied: d(-12) },
+      { company: 'Initech', role: 'Group Product Marketing Manager', status: 'applied', fit: 4, priority: 'B', next: 'Follow up with the hiring manager', due: d(4), location: 'Boulder, CO', applied: d(-6) },
+      { company: 'Umbrella Health Tech', role: 'Product Marketing Lead', status: 'offer', fit: 4, priority: 'A', next: 'Compare the offer with the Acme timeline', due: d(3), deadline: d(7), location: 'Remote', applied: d(-30) },
+      { company: 'Vandelay Data', role: 'Product Marketing Manager', status: 'interested', fit: 4, priority: 'B', next: 'Tailor your resume', due: d(2), deadline: d(5), location: 'Denver, CO' }
+    ],
+    contacts: [
+      { name: 'Jane Doe', company: 'Acme Cloud', next: 'Thank her for the referral', due: d(2) },
+      { name: 'Sam Lee', company: 'Hooli', next: 'Confirm the next interview time', due: d(5) }
+    ],
+    history: [1, 2, 1, 3, 2, 4, 3].map((a, i) => ({ week: d(-7 * (7 - i)), applications: a })),
+    week: { applications: 3, conversations: 2, mocks: 0 },
+    activity: [
+      { date: d(-1), text: 'Phone screen with Hooli' },
+      { date: d(-2), text: 'Offer from Umbrella Health Tech' },
+      { date: d(-4), text: 'Coffee chat with Jane Doe (Acme Cloud)' },
+      { date: d(-6), text: 'Applied to Initech, Group Product Marketing Manager' }
+    ],
+    streak: 4
+  };
+  const src = sample ? SAMPLE : data;
+  if (sample) root.setAttribute('data-first-run', '');
+  const jobs = (Array.isArray(src.jobs) ? src.jobs : []).filter(j => j && typeof j === 'object');
+  const contacts = (Array.isArray(src.contacts) ? src.contacts : []).filter(c => c && typeof c === 'object');
+  const goals = data.goals || {}, week = data.week || {};
+  const kWeek = sample ? SAMPLE.week : week;
+  const history = (Array.isArray(src.history) ? src.history : []).filter(x => x && isDate(x.week)).sort((a, b) => a.week.localeCompare(b.week)).slice(-8);
+  const streak = num(src.streak);
+
+  const markSample = el => {
+    if (!sample || !el) return;
+    el.classList.add('is-sample');
+    const slot = el.querySelector('[data-sample-slot]');
+    if (slot && !slot.childNodes.length) slot.append(chip('Sample', 'sample'));
+  };
+
+  // ---- Header ----
   $('asof').textContent = fmt(today) + ', ' + today.slice(0, 4);
-  if (data.example) $('example-note').hidden = false;
   if (data.owner) $('owner').textContent = data.owner + ' · dashboard';
+  const chips = $('head-chips');
+  if (streak > 0) chips.append(chip(`${streak}-day streak`, 'accent', 'flame'));
+  if (isDate(week.start)) chips.append(chip(`Week of ${fmt(week.start)}`, '', 'calendar'));
+  if (data.example) {
+    $('example-note').hidden = false;
+    $('example-text').textContent = sample
+      ? 'This is a preview filled with sample jobs (marked Sample). It switches to your own the first time your assistant adds a job and refreshes this page.'
+      : 'Example data. Ask your assistant to “refresh my dashboard” to fill this from your tracker.';
+  }
 
-  const jobs = data.jobs || [];
+  // ---- Status math (same meaning as before) ----
+  const n = s => jobs.filter(j => s.includes(j.status)).length;
+  const applied = n(['applied', 'screening', 'interviewing', 'offer', 'accepted', 'rejected', 'ghosted', 'withdrawn']);
+  const heard = jobs.filter(j => j.interviewed || j.heard || ['screening', 'interviewing', 'offer', 'accepted'].includes(j.status)).length;
+  const interviewed = jobs.filter(j => j.interviewed || ['interviewing', 'offer', 'accepted'].includes(j.status)).length;
+  const offers = n(['offer', 'accepted']);
+  const rate = applied ? Math.round((heard / applied) * 100) : 0;
+  const lined = n(['interested']);
+  const talking = n(['screening', 'interviewing']);
 
-  // Easter egg: an accepted offer gets a banner and a one-time burst of confetti (skipped with reduced motion).
+  // ---- Accepted offer: celebration banner and a one-time burst of confetti (skipped with reduced motion). ----
   const won = jobs.find(j => j.status === 'accepted');
-  if (won) {
+  if (won && !sample) {
     $('hired').hidden = false;
     $('hired-title').textContent = `You got the job at ${won.company}.`;
-    $('hired-note').textContent = `${won.role}. Ask your assistant to wrap up your search: thank-you notes, withdrawals, and your career log.`;
-    const css = getComputedStyle(document.documentElement);
-    const colors = ['--accent-9', '--success-9', '--warning-9', '--accent-7', '--danger-8'].map(v => css.getPropertyValue(v).trim()).filter(Boolean);
+    $('hired-note').textContent = `${won.role || ''}${won.role ? '. ' : ''}Ask your assistant to wrap up your search: thank-you notes, withdrawals, and your career log.`;
+    $('today').hidden = true;
+    const css = getComputedStyle(root);
+    const colors = ['--chart-1', '--chart-2', '--chart-3', '--chart-4', '--chart-5', '--success-9'].map(v => css.getPropertyValue(v).trim()).filter(Boolean);
     const burst = () => {
       if (reduce || typeof confetti !== 'function') return;
       const base = { colors, disableForReducedMotion: true, ticks: 260, scalar: 1.05 };
@@ -228,87 +647,274 @@
       setTimeout(() => confetti({ ...base, particleCount: 70, angle: 60, spread: 60, origin: { x: 0, y: 0.7 } }), 220);
       setTimeout(() => confetti({ ...base, particleCount: 70, angle: 120, spread: 60, origin: { x: 1, y: 0.7 } }), 380);
     };
-    const KEY = 'jsh-confetti-' + (won.company + won.role).toLowerCase();
+    const KEY = 'jsh-confetti-' + (String(won.company) + String(won.role)).toLowerCase();
     let seen = false;
     try { seen = localStorage.getItem(KEY) === '1'; localStorage.setItem(KEY, '1'); } catch (e) {}
     if (!seen) setTimeout(burst, 450);
     $('again-confetti').onclick = burst;
     if (reduce) $('again-confetti').hidden = true;
   }
-  const n = s => jobs.filter(j => s.includes(j.status)).length;
-  const applied = n(['applied', 'screening', 'interviewing', 'offer', 'accepted', 'rejected', 'ghosted', 'withdrawn']);
-  const heard = jobs.filter(j => j.interviewed || j.heard || ['screening', 'interviewing', 'offer', 'accepted'].includes(j.status)).length;
-  const interviewed = jobs.filter(j => j.interviewed || ['interviewing', 'offer', 'accepted'].includes(j.status)).length;
-  const offers = n(['offer', 'accepted']);
-  const rate = applied ? Math.round((heard / applied) * 100) : 0;
 
-  const kpi = (label, value, note) => `<div class="tile panel p-5 pt-6 flex flex-col gap-1.5"><span class="label">${label}</span><span class="font-serif text-[2.75rem] leading-none font-bold text-accent-ink num" data-count="${value}">${value}</span><span class="text-small text-fg-muted">${note}</span></div>`;
-  $('kpis').innerHTML = [
-    kpi('Applied', applied, `${n(['interested'])} more lined up`),
-    kpi('Heard back', heard, `${rate}% response rate`),
-    kpi('Interviewed', interviewed, interviewed ? 'Prep: ask for interview prep' : 'The first one is the hardest'),
-    kpi('Offers', offers, offers ? 'Compare: ask for help with the offer' : 'Keep going'),
-  ].join('');
+  // ---- Due items: next steps, deadlines, follow-ups ----
+  const open = ['interested', 'applied', 'screening', 'interviewing', 'offer'];
+  const stIcon = { interested: 'briefcase', applied: 'send', screening: 'users', interviewing: 'users', offer: 'sparkle' };
+  const items = jobs.filter(j => open.includes(j.status) && isDate(j.due)).map(j => ({ who: [j.company, j.role].filter(Boolean).join(' · '), what: j.next || 'Next step', due: j.due, ic: stIcon[j.status] || 'briefcase' }))
+    .concat(jobs.filter(j => (j.status === 'interested' || j.status === 'offer') && isDate(j.deadline) && j.deadline >= today).map(j => ({ who: [j.company, j.role].filter(Boolean).join(' · '), what: j.status === 'offer' ? 'Answer the offer' : 'Application deadline', due: j.deadline, ic: 'calendar', kind: 'deadline' })))
+    .concat(contacts.filter(c => isDate(c.due)).map(c => ({ who: [c.name, c.company].filter(Boolean).join(' · '), what: c.next || 'Follow up', due: c.due, ic: 'message', kind: 'contact' })))
+    .sort((a, b) => a.due.localeCompare(b.due) || (a.kind === 'deadline' ? -1 : 1));
+  const urgency = it => {
+    const dd = diff(it.due, today);
+    if (it.kind === 'deadline') return dd <= 3 ? { tone: 'warning', ic: 'calendar', word: dd === 0 ? 'Deadline today' : dd === 1 ? 'Deadline tomorrow' : `Deadline in ${dd} days` } : { tone: '', ic: 'calendar', word: `Deadline ${fmt(it.due)}` };
+    if (dd < 0) return { tone: 'danger', ic: 'alert', word: dd === -1 ? '1 day late' : `${-dd} days late`, late: true };
+    if (dd === 0) return { tone: 'warning', ic: 'clock', word: 'Today', now: true };
+    if (dd === 1) return { tone: 'accent', ic: 'clock', word: 'Tomorrow' };
+    if (dd <= 7) return { tone: 'accent', ic: 'clock', word: `In ${dd} days` };
+    return { tone: '', ic: 'calendar', word: fmt(it.due) };
+  };
+  const overdue = items.filter(it => it.kind !== 'deadline' && it.due < today).length;
+  const dueToday = items.filter(it => it.due === today).length;
 
+  // ---- Today hero ----
+  $('today-eyebrow').textContent = 'Today · ' + fmtDay(today);
+  const list = $('today-list');
+  const suggestBox = $('suggest');
+  const showSuggest = (title, ask) => {
+    suggestBox.hidden = false;
+    suggestBox.replaceChildren(icon('sparkle'), h('div', {}, h('strong', { text: 'Suggested move: ' }), title, h('span', { class: 'ask' }, 'Ask your assistant: ', h('q', { text: ask }))));
+  };
+  if (sample) {
+    $('today-title').textContent = 'Let’s add your first job';
+    $('today-lede').textContent = 'This page turns your tracker into a daily game plan: what’s due, how your week is going, and where every application stands.';
+    showSuggest('Paste a job link into the chat with your assistant.', 'Add this job: (paste the link)');
+    list.append(h('ol', { class: 'steps', 'aria-label': 'Three steps to start' },
+      h('li', {}, h('div', {}, h('b', { text: 'Add a job you like' }), h('span', { class: 'meta', text: 'Your assistant saves the posting, checks the fit and sets a next step.' }))),
+      h('li', {}, h('div', {}, h('b', { text: 'Refresh this page' }), h('span', { class: 'meta' }, 'Then say ', h('span', { class: 'prompt', text: 'refresh my dashboard' })))),
+      h('li', {}, h('div', {}, h('b', { text: 'Check in each morning' }), h('span', { class: 'meta', text: 'The top of this page shows what needs you today.' })))));
+  } else {
+    const nNow = overdue + dueToday;
+    $('today-title').textContent = nNow ? `${nNow === 1 ? 'One thing needs' : nNow + ' things need'} you today` : items.length ? 'You’re clear for today' : 'Nothing scheduled yet';
+    $('today-lede').textContent = nNow
+      ? [overdue ? plural(overdue, 'item') + ' overdue' : '', dueToday ? plural(dueToday, 'item') + ' due today' : ''].filter(Boolean).join(', ') + '. Start at the top.'
+      : items.length ? `Next up: ${items[0].what}, ${urgency(items[0]).word.toLowerCase()}.` : 'Add a job or a follow-up date and it will show up here.';
+    // One suggested move, picked from the state of the search.
+    const by = (a, b) => (num(b.fit) - num(a.fit)) || String(a.priority || 'Z').localeCompare(String(b.priority || 'Z'));
+    const offerJob = jobs.find(j => j.status === 'offer');
+    const intJob = jobs.find(j => j.status === 'interviewing');
+    const pick = jobs.filter(j => j.status === 'interested').sort(by)[0];
+    const reach = jobs.filter(j => ['applied', 'screening'].includes(j.status)).sort(by)[0];
+    if (overdue) showSuggest('Clear the overdue item first; a short, late follow-up still beats none.', `Help me with: ${items.find(it => it.due < today && it.kind !== 'deadline').what}`);
+    else if (offerJob) showSuggest(`Look over your offer from ${offerJob.company} before you answer.`, `Help me evaluate the ${offerJob.company} offer`);
+    else if (intJob && num(week.mocks) < num(goals.mocks || 1)) showSuggest(`Practice out loud for ${intJob.company}.`, `Run a mock interview for ${intJob.company}`);
+    else if (pick && num(week.applications) < num(goals.applications)) showSuggest(`Tailor an application for ${pick.company}, your best open fit.`, `Tailor my resume for the ${pick.company} role`);
+    else if (num(week.conversations) < num(goals.conversations)) showSuggest('Start one new conversation this week.', reach ? `Who should I contact at ${reach.company}?` : 'Who should I reach out to this week?');
+    else showSuggest('Line up the next few roles.', 'Find new jobs that fit me');
+    const top = items.slice(0, 3);
+    if (top.length) top.forEach((it, i) => {
+      const u = urgency(it);
+      list.append(h('div', { class: 'hero-item deal', style: `--i:${i}` },
+        h('span', { class: 'node u-' + (u.tone || 'none') }, icon(it.ic)),
+        h('div', { class: 'min-w-0' }, h('span', { class: 'what', text: it.what }), h('span', { class: 'who meta', text: it.who })),
+        h('span', { class: 'when' }, chip(u.word, u.tone, u.ic))));
+    });
+    else list.append(h('p', { class: 'hero-empty', text: 'No dates yet. When your assistant sets a next step or a follow-up, it lands here.' }));
+  }
+
+  // ---- KPI tiles ----
+  const spark = values => {
+    const W = 100, H = 40, max = Math.max(1, ...values), step = values.length > 1 ? W / (values.length - 1) : W;
+    const pts = values.map((v, i) => [i * step, H - 3 - (v / max) * (H - 8)]);
+    const line = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+    const s = sv('svg', { class: 'spark', viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: 'none', 'aria-hidden': 'true' });
+    s.append(sv('path', { class: 'area', d: `${line} L${W} ${H} L0 ${H} Z` }), sv('path', { class: 'line draw', d: line, pathLength: 1 }));
+    return s;
+  };
+  const barViz = (pct, c) => h('div', { class: 'bar', 'aria-hidden': 'true' }, h('i', { class: 'grow-in', style: `width:${Math.max(0, Math.min(100, pct))}%${c ? ';--c:var(' + c + ')' : ''}` }));
+  const tracker = (total, on, c) => { const t = Math.min(12, total); const box = h('div', { class: 'tracker', 'aria-hidden': 'true' }); for (let i = 0; i < Math.max(t, 1); i++) box.append(h('i', { class: i < Math.min(on, t) ? 'on' : '', style: c ? `--c:var(${c})` : null })); return box; };
+  const tile = (o) => h('div', { class: 'tile' },
+    h('div', { class: 'tile-top' }, h('span', { class: 'ibadge' }, icon(o.ic)), h('span', { class: 'eyebrow', text: o.label })),
+    h('span', { class: 'big-num' }, h('span', { 'data-count': o.value, text: o.value }), o.unit ? h('span', { class: 'unit', text: o.unit }) : null),
+    h('span', { class: 'ctx' }, o.ctx),
+    o.viz ? h('div', { class: 'viz' }, o.viz) : null);
+
+  const appsSeries = history.map(x => num(x.applications)).concat(num(kWeek.applications));
+  const last = history.length ? num(history[history.length - 1].applications) : null;
+  const delta = last == null ? null : num(kWeek.applications) - last;
+  const appsCtx = [h('span', { class: 'trend' }, `+${num(kWeek.applications)}`), ' this week'];
+  if (delta != null && delta !== 0) appsCtx.push(`, ${Math.abs(delta)} ${delta > 0 ? 'more' : 'fewer'} than last week`);
+  const tiles = [
+    tile({ ic: 'send', label: 'Applied', value: applied, ctx: applied || sample ? appsCtx : [lined ? `${plural(lined, 'job')} lined up to apply` : 'Your first application shows here'],
+      viz: appsSeries.length > 2 ? spark(appsSeries) : barViz(num(goals.applications) ? (num(kWeek.applications) / num(goals.applications)) * 100 : 0) }),
+    tile({ ic: 'message', label: 'Heard back', value: rate, unit: '%', ctx: applied ? `${heard} of ${applied} replied or moved forward` : 'Response rate, once you apply', viz: barViz(rate, '--chart-2') }),
+    tile({ ic: 'users', label: 'Interviews', value: interviewed, ctx: talking ? `${plural(talking, 'conversation')} in progress` : interviewed ? 'Ask your assistant for interview prep' : 'The first one is the hardest', viz: tracker(applied, interviewed, '--chart-4') }),
+    tile({ ic: 'target', label: 'Offers', value: offers, ctx: offers ? 'Ask your assistant to compare offers' : interviewed ? 'Every interview gets you closer' : 'Keep going', viz: tracker(Math.max(interviewed, 1), offers, '--chart-5') })
+  ];
+  $('kpis').replaceChildren(...tiles);
+  const kpiSr = h('p', { class: 'sr-only', text: `${sample ? 'Sample figures. ' : ''}Applied ${applied}, ${num(kWeek.applications)} this week${appsSeries.length > 2 ? ' (weekly: ' + appsSeries.join(', ') + ')' : ''}. Heard back ${rate} percent. Interviews ${interviewed}. Offers ${offers}.` });
+  $('kpis').after(kpiSr);
+  if (sample) { const sec = $('kpis').parentElement; sec.classList.add('is-sample'); const tag = h('div', { class: 'sec-head', style: 'margin-bottom: var(--space-3)' }, h('div', {}, h('span', { class: 'eyebrow', text: 'At a glance' }), chip('Sample', 'sample'))); sec.prepend(tag); }
+
+  // Count-up (final values are already in the markup).
   if (!reduce) document.querySelectorAll('[data-count]').forEach(el => {
     const target = Number(el.dataset.count); if (!target) return;
-    const t0 = performance.now(), dur = 700;
+    const t0 = performance.now(), dur = 800;
     const step = t => { const p = Math.min(1, (t - t0) / dur); el.textContent = Math.round(target * (1 - Math.pow(1 - p, 3))); if (p < 1) requestAnimationFrame(step); };
     requestAnimationFrame(step);
   });
 
-  const stages = [['Tracked', jobs.length], ['Applied', applied], ['Heard back', heard], ['Interviewed', interviewed], ['Offer', offers]];
-  const max = Math.max(1, stages[0][1]);
-  $('funnel').innerHTML = stages.map(([label, v]) => `
-    <div class="grid grid-cols-[6.5rem_1fr_2rem] items-center gap-4">
-      <span class="text-small">${label}</span>
-      <div class="h-4 rounded-full bg-accent-wash overflow-hidden" aria-hidden="true"><div class="grow-in h-full bg-accent rounded-full" style="width:${(v / max) * 100}%"></div></div>
-      <span class="font-mono text-small num text-end">${v}</span>
-    </div>`).join('');
-
-  const goals = data.goals || {}, week = data.week || {};
-  const meter = (label, value, goal) => {
-    // Counts from the data block are drawn as numbers only.
-    const v = Number(value) || 0, g = Number(goal) || 0;
-    const pct = g ? Math.min(100, (v / g) * 100) : 0;
-    const state = v >= g ? ['bg-ok', 'text-ok-ink', 'Goal met'] : pct >= 50 ? ['bg-accent', 'text-accent-ink', 'On track'] : ['bg-warn', 'text-warn-ink', 'Behind'];
-    return `<div class="flex flex-col gap-2"><div class="flex items-baseline justify-between gap-3 text-small"><span>${label}</span><span class="font-mono num">${v} / ${g} <span class="${state[1]} font-semibold">· ${state[2]}</span></span></div>
-      <div class="h-2 rounded-full bg-sunken overflow-hidden" aria-hidden="true"><div class="grow-in h-full rounded-full ${state[0]}" style="width:${pct}%"></div></div></div>`;
+  // ---- Funnel with stage-to-stage conversion ----
+  // One series, one hue: every bar is --chart-1, mixed toward the track behind it in steps (Tracked lightest, Offer
+  // full strength). The lightest step is measured at run time so each bar stays 3:1 or more on the track and the panel.
+  const hexRgb = x => { const m = /^#([0-9a-f]{6})$/i.exec(String(x).trim()); return m ? [0, 2, 4].map(i => parseInt(m[1].slice(i, i + 2), 16)) : null; };
+  const relLum = c => { const [r, g, b] = c.map(v => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+  const ratio = (a, b) => { const [x, y] = [relLum(a), relLum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+  const funnelShades = () => {
+    const css = getComputedStyle(root), c1 = hexRgb(css.getPropertyValue('--chart-1'));
+    const grounds = ['--color-bg-inset', '--color-bg-surface'].map(v => hexRgb(css.getPropertyValue(v)));
+    if (!c1 || grounds.some(g => !g)) return [1, 1, 1, 1, 1].map(() => 'var(--chart-1)');
+    const mix = t => c1.map((v, i) => Math.round(grounds[0][i] + (v - grounds[0][i]) * t));
+    let lo = 1; for (let t = 1; t >= 0.4; t -= 0.02) { const m = mix(t); if (grounds.every(g => ratio(m, g) >= 3.05)) lo = t; else break; }
+    return [0, 1, 2, 3, 4].map(i => { const m = mix(lo + ((1 - lo) * i) / 4); return '#' + m.map(v => v.toString(16).padStart(2, '0')).join(''); });
   };
-  $('week').innerHTML = meter('Tailored applications', week.applications || 0, goals.applications || 0)
-    + meter('Networking conversations', week.conversations || 0, goals.conversations || 0)
-    + meter('Mock interviews', week.mocks || 0, goals.mocks || 0);
+  const stages = [['Tracked', jobs.length], ['Applied', applied], ['Heard back', heard], ['Interviewed', interviewed], ['Offer', offers]];
+  const fmax = Math.max(1, stages[0][1]);
+  const fun = $('funnel');
+  stages.forEach(([label, v], i) => {
+    if (i) {
+      const prev = stages[i - 1][1];
+      fun.append(h('div', { class: 'fconv' }, prev ? [icon('arrow-right'), `${Math.round((v / prev) * 100)}% moved on`] : ''));
+    }
+    const w = (v / fmax) * 100;
+    fun.append(h('div', { class: 'frow' }, h('span', { class: 'lbl', text: label }),
+      h('div', { class: 'fbar', 'aria-hidden': 'true' }, h('i', { class: 'grow-in' + (v ? '' : ' zero'), style: `width:${w}%` })),
+      h('span', { class: 'val', text: v })));
+  });
+  const paintFunnel = () => { const sh = funnelShades(); fun.querySelectorAll('.fbar > i').forEach((el, i) => el.style.setProperty('--c', sh[i])); };
+  paintFunnel();
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', paintFunnel);
+  $('funnel-sum').append(chip(`${rate}% response rate`, rate ? 'accent' : '', 'message'), chip(`${applied ? Math.round((interviewed / applied) * 100) : 0}% reach an interview`, '', 'users'));
+  markSample(document.querySelector('.area-funnel'));
 
-  const open = ['interested', 'applied', 'screening', 'interviewing', 'offer'];
-  const items = jobs.filter(j => open.includes(j.status) && j.due).map(j => ({ who: `${j.company} · ${j.role}`, what: j.next, due: j.due }))
-    .concat(jobs.filter(j => (j.status === 'interested' || j.status === 'offer') && j.deadline && j.deadline >= today).map(j => ({ who: `${j.company} · ${j.role}`, what: j.status === 'offer' ? 'Answer the offer by' : 'Application deadline', due: j.deadline, kind: 'deadline' })))
-    .concat((data.contacts || []).filter(c => c.due).map(c => ({ who: `${c.name} · ${c.company}`, what: c.next, due: c.due })))
-    .sort((a, b) => a.due.localeCompare(b.due)).slice(0, 8);
-  $('due').innerHTML = items.length ? items.map((it, i) => {
-    const late = it.due < today, now = it.due === today;
-    const chip = it.kind === 'deadline' ? ['Deadline', 'bg-warn-wash text-warn-ink'] : late ? ['Overdue', 'bg-bad-wash text-bad-ink'] : now ? ['Today', 'bg-warn-wash text-warn-ink'] : ['Upcoming', 'bg-sunken text-fg-muted'];
-    return `<li class="deal py-3 grid grid-cols-[5.5rem_1fr] sm:grid-cols-[5.5rem_1fr_auto] items-start gap-x-4 gap-y-1 ${i ? 'border-t border-line-subtle' : ''}" style="--i:${i}">
-      <span class="justify-self-start rounded-full px-2.5 py-0.5 font-mono text-label font-semibold uppercase ${chip[1]}">${chip[0]}</span>
-      <span class="min-w-0"><span class="block font-semibold [overflow-wrap:anywhere]">${esc(it.what)}</span><span class="block text-small text-fg-muted [overflow-wrap:anywhere]">${esc(it.who)}</span></span>
-      <span class="col-start-2 sm:col-start-auto font-mono text-small num text-fg-muted">${fmt(it.due)}</span></li>`;
-  }).join('') : '<li class="py-3 text-fg-muted text-small">Nothing due. Ask your assistant to find jobs, or practice a mock interview.</li>';
+  // ---- This week: goal rings. Neutral until the week is half over; never scold a new week. ----
+  const dayOfWeek = isDate(week.start) ? Math.min(7, Math.max(1, diff(today, week.start) + 1)) : ((parse(today).getDay() + 6) % 7) + 1;
+  $('week-day').textContent = `Day ${dayOfWeek} of 7`;
+  const wkStart = add(today, 1 - dayOfWeek);
+  $('week-strip').setAttribute('aria-hidden', 'true');
+  for (let i = 0; i < 7; i++) {
+    const day = add(wkStart, i);
+    $('week-strip').append(h('span', { class: i + 1 < dayOfWeek ? 'past' : i + 1 === dayOfWeek ? 'now' : '' }, h('i'), parse(day).toLocaleDateString(undefined, { weekday: 'narrow' })));
+  }
+  const goal = (label, value, target, ic) => {
+    const v = num(value), g = num(target);
+    const pct = g ? Math.min(100, (v / g) * 100) : 0;
+    let st;
+    if (!g) st = { word: 'No goal set', tone: '', ring: '--chart-track' };
+    else if (v >= g) st = { word: 'Goal met', tone: 'success', ic: 'check', ring: '--color-success-solid' };
+    else if (sample || dayOfWeek < 4) st = v ? { word: 'Under way', tone: 'accent', ring: '--chart-1' } : { word: 'Not started', tone: '', ring: '--chart-1' };
+    else if (v >= g * dayOfWeek / 7) st = { word: 'On track', tone: 'accent', ic: 'check', ring: '--chart-1' };
+    else st = { word: 'Behind pace', tone: 'warning', ic: 'alert', ring: '--color-warning-text' };
+    const ringSvg = sv('svg', { viewBox: '0 0 44 44', 'aria-hidden': 'true' });
+    ringSvg.append(sv('circle', { class: 'trk', cx: 22, cy: 22, r: 18, pathLength: 100 }), sv('circle', { class: 'val ring-fill', cx: 22, cy: 22, r: 18, pathLength: 100, 'stroke-dasharray': `${pct} 100`, style: `--ring:var(${st.ring})${pct ? '' : ';display:none'}` }));
+    const left = g > v ? `${g - v} to go` : g ? `${v} done` : '';
+    return h('div', { class: 'goal' },
+      h('div', { class: 'goal-ring' }, ringSvg, h('b', { 'aria-hidden': 'true', text: g ? `${v}/${g}` : v })),
+      h('div', { class: 'min-w-0' }, h('div', { class: 'name', text: label }),
+        h('div', { class: 'line2' }, chip(st.word, st.tone, st.ic), h('span', { class: 'meta', text: g ? `${v} of ${g}${left ? ' · ' + left : ''}` : `${v} so far` }))));
+  };
+  $('week').replaceChildren(
+    goal('Tailored applications', week.applications, goals.applications),
+    goal('Networking conversations', week.conversations, goals.conversations),
+    goal('Mock interviews', week.mocks, goals.mocks));
 
-  const columns = [['To apply', ['interested']], ['Applied', ['applied']], ['Talking', ['screening', 'interviewing']], ['Offer', ['offer', 'accepted']], ['Closed', ['rejected', 'withdrawn', 'skipped', 'ghosted']]];
-  const seg = fit => { const f = Math.max(0, Math.min(5, Math.round(Number(fit) || 0))); return `<span class="seg" aria-hidden="true">${[1, 2, 3, 4, 5].map(k => `<i class="${k <= f ? 'on' : ''}"></i>`).join('')}</span><span class="sr-only">Fit ${f} of 5</span>`; };
+  // ---- Pipeline board ----
+  const columns = [['To apply', ['interested'], '--chart-1'], ['Applied', ['applied'], '--chart-2'], ['Talking', ['screening', 'interviewing'], '--chart-3'], ['Offer', ['offer', 'accepted'], '--chart-4'], ['Closed', ['rejected', 'withdrawn', 'skipped', 'ghosted'], '--color-graphic-idle']];
+  const emptyText = { 'To apply': 'Nothing lined up. Ask your assistant to find jobs.', Applied: 'Applications you send land here.', Talking: 'Screens and interviews show up here.', Offer: 'Offers land here.', Closed: 'Nothing closed yet.' };
+  const seg = fit => { const f = Math.max(0, Math.min(5, num(fit))); return [h('span', { class: 'seg', 'aria-hidden': 'true' }, [1, 2, 3, 4, 5].map(k => h('i', { class: k <= f ? 'on' : '' }))), h('span', { class: 'sr-only', text: `Fit ${f} of 5` })]; };
+  const full = layout === 'board';
   let k = 0;
-  $('board').innerHTML = columns.map(([title, st]) => {
-    const list = jobs.filter(j => st.includes(j.status));
-    const closed = st[0] === 'rejected';
-    return `<section class="flex flex-col gap-3 min-w-0 rounded-(--radius-lg) bg-sunken p-2" aria-label="${title}">
-      <div class="flex items-center justify-between px-2 pt-1"><h3 class="font-sans label">${title}</h3><span class="font-mono text-label num text-fg-muted">${list.length}</span></div>
-      <ul class="flex flex-col gap-2">${list.map(j => `<li class="deal" style="--i:${k++}"><article class="lift p-3.5 flex flex-col gap-2 rounded-(--radius-md) ${closed ? 'bg-transparent shadow-[inset_0_0_0_1px_var(--color-border)]' : 'bg-surface shadow-(--shadow-surface)'}">
-        <div class="flex items-start justify-between gap-2"><h4 class="font-sans font-semibold leading-snug min-w-0">${esc(j.company)}</h4>
-        ${j.priority ? `<span class="rounded-full bg-sunken px-2 font-mono text-label font-semibold" title="Priority ${esc(j.priority)}">${esc(j.priority)}</span>` : ''}</div>
-        <p class="text-small leading-snug">${esc(j.role)}${closed ? ` <span class="text-fg-muted">(${esc(j.status)})</span>` : ''}</p>
-        <div class="flex items-center justify-between gap-2 text-small text-fg-muted"><span>${esc(j.location || '')}</span>${seg(j.fit)}</div>
-      </article></li>`).join('') || `<li class="px-2 pb-2 text-small text-fg-muted">${title === 'To apply' ? 'Nothing lined up. Ask your assistant to find jobs.' : 'None yet'}</li>`}</ul>
-    </section>`;
-  }).join('');
+  const card = (j, closed) => {
+    const top = h('div', { class: 'top' }, h('h4', { text: j.company || 'Company' }), j.priority ? h('span', { class: 'prio', title: `Priority ${j.priority}` }, h('span', { 'aria-hidden': 'true', text: j.priority }), h('span', { class: 'sr-only', text: `Priority ${j.priority}` })) : null);
+    const role = h('p', { class: 'role' }, j.role || '', closed ? h('span', { class: 'meta', text: ` (${j.status})` }) : null);
+    const row = h('div', { class: 'row' }, j.location ? h('span', { class: 'loc' }, icon('map-pin'), h('span', { text: j.location })) : h('span'), seg(j.fit));
+    const art = h('article', { class: 'job lift' + (closed ? ' closed' : '') }, top, role, row);
+    if (!closed && isDate(j.due) && (full || diff(j.due, today) <= 3)) {
+      const u = urgency({ due: j.due });
+      if (full && j.next) art.append(h('div', { class: 'next' }, icon('arrow-right'), h('span', { text: j.next })));
+      art.append(h('div', {}, chip(u.word, u.tone, u.ic)));
+    }
+    const url = full ? safeUrl(j.url) : '';
+    if (url) art.append(h('a', { href: url, target: '_blank', rel: 'noopener noreferrer', class: 'meta' }, 'Open posting', h('span', { class: 'sr-only', text: ` for ${j.company || ''}` })));
+    return h('li', { class: 'deal', style: `--i:${k++}` }, art);
+  };
+  const sortJobs = arr => arr.slice().sort((a, b) => (isDate(a.due) ? a.due : '9999').localeCompare(isDate(b.due) ? b.due : '9999') || num(b.fit) - num(a.fit));
+  const board = $('board');
+  const openCount = jobs.filter(j => open.includes(j.status)).length;
+  $('board-count').textContent = `${plural(openCount, 'open job')} · ${jobs.length} tracked`;
+  const stageEls = columns.map(([title, st, c]) => {
+    const all = sortJobs(jobs.filter(j => st.includes(j.status)));
+    const closed = title === 'Closed';
+    const shown = full ? all : all.slice(0, 3);
+    const head = [h('span', { class: 'dot', style: `--c:var(${c})`, 'aria-hidden': 'true' }), h('h3', { text: title }), chip(String(all.length), '')];
+    const ul = h('ul', {}, shown.map(j => card(j, closed)));
+    const body = [all.length ? ul : h('p', { class: 'empty', text: emptyText[title] }), all.length > shown.length ? h('p', { class: 'more', text: `+ ${all.length - shown.length} more` }) : null];
+    if (full) return h('section', { class: 'stage', 'aria-label': `${title}, ${plural(all.length, 'job')}` }, h('div', { class: 'stage-head' }, head), body);
+    return h('details', { class: 'stage', 'data-count': null }, h('summary', { class: 'stage-head' }, head, icon('arrow-right', 'chev')), body);
+  });
+  if (full) {
+    board.append(h('div', { class: 'board-rail', role: 'region', tabindex: '0', 'aria-label': 'Pipeline columns (scrolls sideways)' }, stageEls));
+  } else {
+    board.append(h('div', { class: 'stages' }, stageEls));
+    // Desktop: every stage open. Phone: an accordion with the first busy stage open.
+    const wide = matchMedia('(min-width: 40rem)');
+    const firstBusy = stageEls.findIndex((el, i) => jobs.some(j => columns[i][1].includes(j.status)));
+    const sync = () => stageEls.forEach((el, i) => { el.open = wide.matches || i === Math.max(0, firstBusy); });
+    sync();
+    wide.addEventListener('change', sync);
+    if (matchMedia('print').addEventListener) matchMedia('print').addEventListener('change', sync);
+  }
+  markSample(document.querySelector('.area-board'));
+
+  // ---- Coming up: a timeline grouped by urgency ----
+  const due = $('due');
+  if (items.length) {
+    const groups = [['Overdue', it => it.kind !== 'deadline' && it.due < today], ['Today', it => it.due === today], ['Next 7 days', it => it.due > today && diff(it.due, today) <= 7], ['Later', it => diff(it.due, today) > 7]];
+    let shownN = 0, i = 0;
+    for (const [name, test] of groups) {
+      const g = items.filter(test).slice(0, Math.max(0, (full ? 6 : 10) - shownN));
+      if (!g.length) continue;
+      shownN += g.length;
+      due.append(h('div', { class: 'tl-group' }, h('h3', { class: 'eyebrow', text: `${name} · ${g.length}` }),
+        h('ol', { class: 'tl' }, g.map(it => {
+          const u = urgency(it);
+          return h('li', { class: 'deal', style: `--i:${i++}` }, h('span', { class: 'node u-' + (u.tone || 'none') }, icon(it.ic)),
+            h('div', { class: 'body' }, h('span', { class: 'txt' }, h('span', { class: 'what', text: it.what }), h('span', { class: 'who meta', text: it.who })),
+              h('span', { class: 'when' }, chip(u.word, u.tone, u.ic))));
+        }))));
+    }
+    if (items.length > shownN) due.append(h('p', { class: 'meta', style: 'margin-top: var(--space-2)', text: `+ ${items.length - shownN} more in your tracker` }));
+  } else {
+    due.append(h('p', { class: 'meta', text: 'Nothing due. Ask your assistant to find jobs, or to run a mock interview.' }));
+  }
+  markSample(document.querySelector('.area-due'));
+
+  // ---- People to follow up with ----
+  const initials = s => String(s || '?').trim().split(/\s+/).slice(0, 2).map(w => w.charAt(0).toUpperCase()).join('') || '?';
+  const ppl = contacts.slice().sort((a, b) => (isDate(a.due) ? a.due : '9999').localeCompare(isDate(b.due) ? b.due : '9999')).slice(0, 5);
+  if (ppl.length) $('people').append(...ppl.map(c => {
+    const u = isDate(c.due) ? urgency({ due: c.due }) : null;
+    return h('li', {}, h('span', { class: 'avatar', 'aria-hidden': 'true', text: initials(c.name) }),
+      h('div', { class: 'body' }, h('div', { class: 'txt' }, h('div', { class: 'name', text: c.name || 'Contact' }), h('div', { class: 'meta', text: [c.company, c.next].filter(Boolean).join(' · ') })), u ? chip(u.word, u.tone, u.ic) : null));
+  }));
+  else $('people').append(h('li', { style: 'grid-template-columns: 1fr' }, h('p', { class: 'meta', text: 'No follow-ups due. Ask your assistant who to reach out to at a company you like.' })));
+  markSample($('people-panel'));
+
+  // ---- Recent activity (optional data; falls back to application dates) ----
+  let acts = (Array.isArray(src.activity) ? src.activity : []).filter(a => a && isDate(a.date) && a.text);
+  if (!acts.length) acts = jobs.filter(j => isDate(j.applied)).map(j => ({ date: j.applied, text: `Applied to ${[j.company, j.role].filter(Boolean).join(', ')}` }));
+  acts = acts.sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6);
+  if (acts.length) $('activity').append(...acts.map(a => h('li', {}, h('span', { class: 'node small', 'aria-hidden': 'true' }),
+    h('div', { class: 'body' }, h('span', { class: 'txt', text: a.text }), h('span', { class: 'meta num', text: diff(today, a.date) === 0 ? 'Today' : diff(today, a.date) === 1 ? 'Yesterday' : fmt(a.date) })))));
+  else $('activity').append(h('li', { style: 'grid-template-columns: 1fr' }, h('p', { class: 'meta', text: 'Your recent moves show up here: applications, chats and interviews.' })));
+  markSample($('activity-panel'));
 })();
 </script>
 </html>

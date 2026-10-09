@@ -38,6 +38,39 @@ export const FONTS_LINK_RE = /<link rel="stylesheet" href="(?:https:\/\/fonts\.g
 
 const pct = n => `${Math.round(n * 1000) / 1000}%`
 
+// Theme-dependent extras (both themes): wells, the dialog dim, the one hero gradient, the overlay shadow,
+// chart series and track (measured in palette.mjs), and the monogram colors.
+function extraTokens(R, dark) {
+  const k = dark ? 'dark' : 'light', x = R.extra[k], n = R[k].neutral
+  const [g1, g2] = x.gradient
+  return [
+    `--color-bg-inset: var(--neutral-${dark ? 1 : 3}); --color-bg-overlay: ${dark ? n[0] + 'b3' : n[11] + '73'};`,
+    `--color-accent-gradient: linear-gradient(135deg, var(--accent-${g1 + 1}), var(--accent-${g2 + 1}));`,
+    `--shadow-overlay: ${dark ? '0 0 0 1px oklch(1 0 0 / 0.14), 0 24px 48px -12px oklch(0 0 0 / 0.8)' : '0 0 0 1px oklch(0 0 0 / 0.08), 0 8px 16px -8px oklch(0 0 0 / 0.16), 0 24px 48px -12px oklch(0 0 0 / 0.28)'};`,
+    `${x.chart.map((c, i) => `--chart-${i + 1}: ${c};`).join(' ')} --chart-track: var(--neutral-${x.track + 1});`,
+    `--avatar-bg: var(--color-accent-subtle); --avatar-fg: var(--color-accent-text);`,
+  ].join('\n    ')
+}
+// Theme-independent scale: radii beyond md, spacing steps for plain CSS, the type scale, reading width.
+const TYPE = [
+  ['display', 'clamp(2.5rem, 6.5vw, 4.25rem)', '1.02', '-0.022em'],
+  ['title', 'clamp(1.75rem, 3.6vw, 2.25rem)', '1.1', '-0.012em'],
+  ['heading', '1.375rem', '1.25'],
+  ['subheading', '1.125rem', '1.35'],
+  ['body', '1rem', '1.55'],
+  ['small', '0.875rem', '1.45'],
+  ['label', '0.75rem', '1.3', '0.07em'],
+]
+function scaleTokens(lg) {
+  const steps = [1, 2, 3, 4, 6, 8, 10, 12, 16, 24]
+  return [
+    `--radius-xl: ${lg ? lg + 8 : 0}px; --radius-full: 999px;`,
+    steps.map((m, i) => `--space-${i + 1}: calc(var(--spacing) * ${m});`).join(' '),
+    ...TYPE.map(([name, size, lh, ls]) => `--text-${name}: ${size}; --text-${name}--line-height: ${lh};${ls ? ` --text-${name}--letter-spacing: ${ls};` : ''}`),
+    '--measure: 38rem;',
+  ].join('\n    ')
+}
+
 export function tokenBlock(theme, R = buildRamps(theme.spec)) {
   const on = theme.spec.onAccent || { light: '#ffffff', dark: '#ffffff' }
   const prim = t => Object.entries(R[t]).map(([name, steps]) => steps.map((v, i) => `--${name}-${i + 1}: ${v};`).join(' ')).join('\n    ')
@@ -50,7 +83,8 @@ export function tokenBlock(theme, R = buildRamps(theme.spec)) {
     --color-warning-subtle: var(--warning-3); --color-warning-solid: var(--warning-9); --color-warning-text: var(--warning-11);
     --color-danger-subtle: var(--danger-3); --color-danger-solid: var(--danger-9); --color-danger-text: var(--danger-11);
     --shadow-surface: ${dark ? '0 0 0 1px oklch(1 0 0 / 0.08)' : '0 0 0 1px oklch(0 0 0 / 0.06), 0 1px 2px -1px oklch(0 0 0 / 0.06), 0 2px 4px 0 oklch(0 0 0 / 0.04)'};
-    --shadow-raised: ${dark ? '0 0 0 1px oklch(1 0 0 / 0.12), 0 16px 32px -16px oklch(0 0 0 / 0.7)' : '0 0 0 1px oklch(0 0 0 / 0.07), 0 2px 4px -2px oklch(0 0 0 / 0.08), 0 16px 32px -16px oklch(0 0 0 / 0.22)'};`
+    --shadow-raised: ${dark ? '0 0 0 1px oklch(1 0 0 / 0.12), 0 16px 32px -16px oklch(0 0 0 / 0.7)' : '0 0 0 1px oklch(0 0 0 / 0.07), 0 2px 4px -2px oklch(0 0 0 / 0.08), 0 16px 32px -16px oklch(0 0 0 / 0.22)'};
+    ${extraTokens(R, dark)}`
   const h = theme.spec.hues, r = Math.round
   const md = theme.radius, sm = Math.round(md / 2), lg = md ? md + 8 : 0
   const high = theme.spec.contrast === 'high'
@@ -66,6 +100,7 @@ export function tokenBlock(theme, R = buildRamps(theme.spec)) {
     ${prim('light')}
     ${sem(false)}
     --radius-sm: ${sm}px; --radius-md: ${md}px; --radius-lg: ${lg}px;
+    ${scaleTokens(lg)}
     --ease-out: cubic-bezier(0.2, 0, 0, 1);
     --font-display: ${fontStack(theme.fonts.heading, 'heading')};
     --font-body: ${fontStack(theme.fonts.body, 'body')};

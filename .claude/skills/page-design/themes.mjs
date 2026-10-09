@@ -98,6 +98,25 @@ export const PRESETS = {
   },
 }
 export const PRESET_NAMES = Object.keys(PRESETS)
+
+// ---- Layouts ------------------------------------------------------------------------------------
+// One file per page; the layout is the data-layout attribute on its <html> tag. First value = default.
+// key: [block in design.md, values, the files it applies to (basename; briefs also live in jobs/*/)]
+export const LAYOUTS = {
+  layout_dashboard: { block: 'design', values: ['overview', 'board'], files: ['dashboard.html'], page: 'dashboard' },
+  layout_flashcards: { block: 'design', values: ['flip', 'list'], files: ['flashcards.html'], page: 'flashcards' },
+  layout_brief: { block: 'design', values: ['sheet', 'detailed'], files: ['interview-brief.html'], page: 'brief' },
+  layout_portfolio: { block: 'design', values: ['profile', 'editorial', 'bento'], files: ['portfolio.html'], page: 'portfolio' },
+  layout_resume: { block: 'documents', values: ['classic', 'modern', 'compact'], files: ['resume-template.html', 'cover-letter-template.html'], page: 'resume' },
+  layout_designed: { block: 'documents', values: ['sidebar', 'headline'], files: ['resume-designed-template.html'], page: 'designed' },
+}
+export const DEFAULT_LAYOUTS = Object.fromEntries(Object.entries(LAYOUTS).map(([k, v]) => [k, v.values[0]]))
+// The layout value for a file (by its name), or null when the file has no layouts.
+export function layoutFor(layouts, fileName) {
+  const base = String(fileName).split(/[\\/]/).pop()
+  const key = Object.keys(LAYOUTS).find(k => LAYOUTS[k].files.includes(base))
+  return key ? (layouts || DEFAULT_LAYOUTS)[key] : null
+}
 export const DENSITY = { compact: 0.225, comfortable: 0.25, spacious: 0.28 }
 export const DOC_DENSITY = {
   resume: { compact: ['10pt', '1.2', '0.45in 0.55in'], standard: ['10.5pt', '1.2', '0.5in 0.6in'], roomy: ['11pt', '1.25', '0.6in 0.7in'] },
@@ -134,6 +153,15 @@ export function resolveTheme(parsed = {}, { preset: forcePreset } = {}) {
   const baseName = isBrand ? String(d.based_on || 'default').toLowerCase().replace(/\s+/g, '-') : presetName
   if (!PRESETS[baseName]) { errors.push(`unknown preset "${isBrand ? d.based_on : d.preset}" (use ${PRESET_NAMES.join(', ')} or brand)`); return { errors } }
   const P = PRESETS[baseName]
+  // Layouts are not part of the look: a forced preset keeps them.
+  const layouts = { ...DEFAULT_LAYOUTS }
+  for (const [k, L] of Object.entries(LAYOUTS)) {
+    const v = (L.block === 'design' ? d : docsIn)[k]
+    if (v == null) continue
+    const want = String(v).toLowerCase().trim()
+    if (L.values.includes(want)) layouts[k] = want
+    else errors.push(`${k} "${v}" should be ${L.values.slice(0, -1).join(', ')} or ${L.values[L.values.length - 1]}`)
+  }
   const custom = isBrand || (!forcePreset && ['accent', 'accent_dark', 'neutral', 'font_heading', 'font_body', 'font_mono', 'base_size', 'density', 'radius', 'motion'].some(k => d[k]))
   const spec = JSON.parse(JSON.stringify({ ...P.spec, onAccent: { light: '#ffffff', dark: '#ffffff' } }))
   if (forcePreset) Object.keys(d).forEach(k => { if (k !== 'preset' && k !== 'source') delete d[k] })
@@ -243,7 +271,7 @@ export function resolveTheme(parsed = {}, { preset: forcePreset } = {}) {
   return {
     errors, notes, preset: custom ? 'brand' : baseName, base: baseName, label: custom ? `Your own (based on ${P.label})` : P.label,
     accentName: custom && d.accent ? '' : P.accentName, source: d.source || 'preset',
-    spec, fonts, baseSize, density, radius, motion, docs,
+    spec, fonts, baseSize, density, radius, motion, docs, layouts,
   }
 }
 
@@ -265,7 +293,10 @@ export function fixContrast(spec0) {
     const rows = measure(R, { high }).map(r => (r.label.startsWith('on-accent') && spec.onAccent[r.theme] !== '#ffffff') ? recheck(r, spec.onAccent[r.theme]) : r)
     fails = rows.filter(r => !r.ok)
     if (!fails.length || ++guard > 120) break
-    const f = fails[0], ti = f.theme === 'light' ? 0 : 1, sign = f.theme === 'light' ? -1 : 1
+    // Derived colors (charts, track) are measured as they are built; only the text on the gradient can be fixed here.
+    const fixable = fails.filter(r => r.ramp !== 'derived' || r.label.startsWith('on-accent'))
+    if (!fixable.length) break
+    const f = fixable[0], ti = f.theme === 'light' ? 0 : 1, sign = f.theme === 'light' ? -1 : 1
     if (f.label.startsWith('on-accent')) {
       const darkText = spec.onAccent[f.theme] !== '#ffffff'
       spec.solid.accent[ti] = round3(spec.solid.accent[ti] + (darkText ? 0.01 : -0.01))

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-layout="flip">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Interview Flashcards</title>
@@ -29,7 +29,22 @@
     --color-danger-subtle: var(--danger-3); --color-danger-solid: var(--danger-9); --color-danger-text: var(--danger-11);
     --shadow-surface: 0 0 0 1px oklch(0 0 0 / 0.06), 0 1px 2px -1px oklch(0 0 0 / 0.06), 0 2px 4px 0 oklch(0 0 0 / 0.04);
     --shadow-raised: 0 0 0 1px oklch(0 0 0 / 0.07), 0 2px 4px -2px oklch(0 0 0 / 0.08), 0 16px 32px -16px oklch(0 0 0 / 0.22);
+    --color-bg-inset: var(--neutral-3); --color-bg-overlay: #27221b73;
+    --color-accent-gradient: linear-gradient(135deg, var(--accent-9), var(--accent-11));
+    --shadow-overlay: 0 0 0 1px oklch(0 0 0 / 0.08), 0 8px 16px -8px oklch(0 0 0 / 0.16), 0 24px 48px -12px oklch(0 0 0 / 0.28);
+    --chart-1: #187075; --chart-2: #77547e; --chart-3: #855734; --chart-4: #496390; --chart-5: #4f6d3e; --chart-track: var(--neutral-7);
+    --avatar-bg: var(--color-accent-subtle); --avatar-fg: var(--color-accent-text);
     --radius-sm: 5px; --radius-md: 10px; --radius-lg: 18px;
+    --radius-xl: 26px; --radius-full: 999px;
+    --space-1: calc(var(--spacing) * 1); --space-2: calc(var(--spacing) * 2); --space-3: calc(var(--spacing) * 3); --space-4: calc(var(--spacing) * 4); --space-5: calc(var(--spacing) * 6); --space-6: calc(var(--spacing) * 8); --space-7: calc(var(--spacing) * 10); --space-8: calc(var(--spacing) * 12); --space-9: calc(var(--spacing) * 16); --space-10: calc(var(--spacing) * 24);
+    --text-display: clamp(2.5rem, 6.5vw, 4.25rem); --text-display--line-height: 1.02; --text-display--letter-spacing: -0.022em;
+    --text-title: clamp(1.75rem, 3.6vw, 2.25rem); --text-title--line-height: 1.1; --text-title--letter-spacing: -0.012em;
+    --text-heading: 1.375rem; --text-heading--line-height: 1.25;
+    --text-subheading: 1.125rem; --text-subheading--line-height: 1.35;
+    --text-body: 1rem; --text-body--line-height: 1.55;
+    --text-small: 0.875rem; --text-small--line-height: 1.45;
+    --text-label: 0.75rem; --text-label--line-height: 1.3; --text-label--letter-spacing: 0.07em;
+    --measure: 38rem;
     --ease-out: cubic-bezier(0.2, 0, 0, 1);
     --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
     --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
@@ -55,6 +70,11 @@
     --color-danger-subtle: var(--danger-3); --color-danger-solid: var(--danger-9); --color-danger-text: var(--danger-11);
     --shadow-surface: 0 0 0 1px oklch(1 0 0 / 0.08);
     --shadow-raised: 0 0 0 1px oklch(1 0 0 / 0.12), 0 16px 32px -16px oklch(0 0 0 / 0.7);
+    --color-bg-inset: var(--neutral-1); --color-bg-overlay: #0e0d0bb3;
+    --color-accent-gradient: linear-gradient(135deg, var(--accent-8), var(--accent-10));
+    --shadow-overlay: 0 0 0 1px oklch(1 0 0 / 0.14), 0 24px 48px -12px oklch(0 0 0 / 0.8);
+    --chart-1: #337f83; --chart-2: #85648d; --chart-3: #936646; --chart-4: #58739d; --chart-5: #607c4f; --chart-track: var(--neutral-7);
+    --avatar-bg: var(--color-accent-subtle); --avatar-fg: var(--color-accent-text);
     }
   }
   :root[data-theme="dark"] {
@@ -74,10 +94,19 @@
     --color-danger-subtle: var(--danger-3); --color-danger-solid: var(--danger-9); --color-danger-text: var(--danger-11);
     --shadow-surface: 0 0 0 1px oklch(1 0 0 / 0.08);
     --shadow-raised: 0 0 0 1px oklch(1 0 0 / 0.12), 0 16px 32px -16px oklch(0 0 0 / 0.7);
+    --color-bg-inset: var(--neutral-1); --color-bg-overlay: #0e0d0bb3;
+    --color-accent-gradient: linear-gradient(135deg, var(--accent-8), var(--accent-10));
+    --shadow-overlay: 0 0 0 1px oklch(1 0 0 / 0.14), 0 24px 48px -12px oklch(0 0 0 / 0.8);
+    --chart-1: #337f83; --chart-2: #85648d; --chart-3: #936646; --chart-4: #58739d; --chart-5: #607c4f; --chart-track: var(--neutral-7);
+    --avatar-bg: var(--color-accent-subtle); --avatar-fg: var(--color-accent-text);
   }
   /* ---- End design tokens ---- */
 
-  body { margin: 0; background: var(--color-bg-page); color: var(--color-text-primary); font-family: var(--font-body); font-size: 1rem; line-height: 1.55; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+  /* Layer order matches Tailwind's, so these components sit above its reset and below its utilities,
+     and still apply when the Tailwind script can't load (offline). */
+  @layer theme, base, components, utilities;
+
+  body { margin: 0; background: var(--color-bg-page); color: var(--color-text-primary); font-family: var(--font-body); font-size: var(--text-body); line-height: var(--text-body--line-height); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
   h1, h2, h3, h4 { font-family: var(--font-display); font-optical-sizing: auto; text-wrap: balance; margin: 0; }
   p, li, dd { text-wrap: pretty; }
   .num { font-variant-numeric: lining-nums tabular-nums; }
@@ -85,54 +114,212 @@
   .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
   /* Hidden stays hidden even when the styling script can't load (offline). */
   [hidden] { display: none !important; }
-  @media (prefers-reduced-motion: no-preference) {
-    .btn { transition-property: scale, background-color, box-shadow, color; transition-duration: 150ms; transition-timing-function: ease-out; }
-    .btn:active:not(:disabled) { scale: 0.96; }
-  }
-  /* Concept: a deck of cue cards. The question card has an accent band and a big prompt; the back holds
-     the user's notes. Cards still to go peek out below as a neat stack. Tap or Space flips the card;
-     swipe right = Good, left = Again. */
-  .pile { position: relative; perspective: 1600px; }
-  .pile::before, .pile::after {
-    content: ""; position: absolute; inset: 0; border-radius: var(--radius-md); pointer-events: none;
-    background: var(--color-bg-surface); box-shadow: var(--shadow-surface);
-  }
-  .pile::before { transform: translateY(14px) scale(0.92); }
-  .pile::after { transform: translateY(7px) scale(0.96); }
-  .pile[data-left="0"]::before, .pile[data-left="0"]::after { display: none; }
-  .pile[data-left="1"]::before { display: none; }
 
-  .card { position: relative; z-index: 1; display: grid; transform-style: preserve-3d; touch-action: pan-y; cursor: grab; }
-  .card:active { cursor: grabbing; }
-  .face {
-    grid-area: 1 / 1; position: relative; display: flex; flex-direction: column; overflow: hidden;
-    min-height: 19rem; padding: 1.25rem 1.5rem 1.25rem; border-radius: var(--radius-md);
-    background-color: var(--color-bg-surface); box-shadow: var(--shadow-raised);
-    -webkit-backface-visibility: hidden; backface-visibility: hidden;
+  /* Concept: a deck of cue cards. One calm card at a time, prompt in the middle, the rest of the deck
+     peeking below. Tap or Space flips it to the user's notes; rate how it went and the next card is dealt.
+     Layouts (data-layout on <html>): "flip" (one card at a time) and "list" (a study sheet of the whole deck). */
+  @layer components {
+    .sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+    .icon { width: 1.25em; height: 1.25em; flex: none; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+    .wrap { box-sizing: border-box; width: 100%; max-width: 44rem; margin-inline: auto; padding: var(--space-6) 16px var(--space-9); display: flex; flex-direction: column; gap: var(--space-5); }
+    @media (min-width: 40rem) { .wrap { padding-inline: 24px; padding-top: var(--space-8); } }
+
+    .eyebrow { margin: 0; font-family: var(--font-data); font-size: var(--text-label); line-height: var(--text-label--line-height); letter-spacing: var(--text-label--letter-spacing); text-transform: uppercase; font-weight: 500; color: var(--color-accent-text); }
+    .meta { margin: 0; font-size: var(--text-small); line-height: var(--text-small--line-height); color: var(--color-text-secondary); }
+    .title { font-size: var(--text-title); line-height: var(--text-title--line-height); letter-spacing: var(--text-title--letter-spacing); font-weight: 650; }
+
+    /* Buttons */
+    .btn { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); min-height: 2.5rem; padding: 0 var(--space-4); border: 0; border-radius: var(--radius-md); background: var(--color-bg-surface); color: var(--color-text-primary); box-shadow: var(--shadow-surface); font: 600 var(--text-small)/1.2 var(--font-body); text-decoration: none; cursor: pointer; }
+    .btn:hover { background: var(--color-bg-hover); }
+    .btn-primary { background: var(--color-accent-solid); color: var(--color-text-on-accent); box-shadow: none; }
+    .btn-primary:hover { background: var(--color-accent-solid-hover); }
+    .btn-ghost { background: transparent; box-shadow: none; color: var(--color-text-secondary); }
+    .btn-ghost:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+    .btn-lg { min-height: 3rem; padding: 0 var(--space-5); font-size: var(--text-body); border-radius: var(--radius-lg); }
+
+    /* Chips (never clickable) */
+    .chip { display: inline-flex; align-items: center; gap: 0.375rem; min-height: 1.5rem; padding: 0.125rem 0.625rem; border-radius: var(--radius-full); font-size: var(--text-small); line-height: 1.2; font-weight: 600; white-space: nowrap; background: var(--color-bg-sunken); color: var(--color-text-secondary); }
+    .chip .icon { width: 0.875rem; height: 0.875rem; stroke-width: 2; }
+    .chip-accent { background: var(--color-accent-subtle); color: var(--color-accent-text); }
+    .chip-success { background: var(--color-success-subtle); color: var(--color-success-text); }
+    .chip-warning { background: var(--color-warning-subtle); color: var(--color-warning-text); }
+
+    kbd { display: inline-flex; align-items: center; justify-content: center; min-width: 1.375rem; height: 1.375rem; padding: 0 0.3rem; box-sizing: border-box; border: 1px solid var(--color-border-subtle); border-bottom-width: 2px; border-radius: var(--radius-sm); background: var(--color-bg-inset); color: var(--color-text-secondary); font: 500 var(--text-label)/1 var(--font-data); }
+
+    /* Header */
+    .top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--space-3) var(--space-5); }
+    .top > div { display: flex; flex-direction: column; gap: var(--space-1); }
+    .streak { display: inline-flex; align-items: center; gap: var(--space-2); margin: 0; padding: 0.375rem 0.875rem 0.375rem 0.625rem; border-radius: var(--radius-full); background: var(--color-bg-surface); box-shadow: var(--shadow-surface); font-size: var(--text-small); font-weight: 600; }
+    .streak .icon { color: var(--color-accent-text); }
+    .streak[data-on="false"] { color: var(--color-text-secondary); font-weight: 500; }
+
+    /* Segmented controls: decks (tabs) and which cards (toggle) */
+    .controls-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); }
+    .seg { display: inline-flex; flex-wrap: wrap; gap: 0.25rem; padding: 0.25rem; border-radius: var(--radius-md); background: var(--color-bg-inset); box-shadow: inset 0 0 0 1px var(--color-border-subtle); }
+    .seg button { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 2.25rem; padding: 0 0.875rem; border: 0; border-radius: calc(var(--radius-md) - 0.25rem); background: transparent; color: var(--color-text-secondary); font: 600 var(--text-small)/1.2 var(--font-body); cursor: pointer; }
+    .seg button:hover { color: var(--color-text-primary); }
+    .seg button[aria-selected="true"], .seg button[aria-pressed="true"] { background: var(--color-bg-surface); color: var(--color-text-primary); box-shadow: var(--shadow-surface), inset 0 -2px 0 var(--color-accent-solid); }
+    .seg .count { font-family: var(--font-data); font-size: var(--text-label); font-weight: 500; color: var(--color-text-secondary); }
+    @media (max-width: 30rem) {
+      .controls-row > .seg { display: flex; width: 100%; box-sizing: border-box; }
+      .controls-row > .seg button { flex: 1 1 auto; justify-content: center; }
+    }
+    .deck-desc { margin-top: calc(var(--space-2) * -1); }
+
+    /* Today's progress */
+    .session { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: var(--space-3) var(--space-4); padding: var(--space-4) var(--space-5); border-radius: var(--radius-lg); background: var(--color-bg-surface); box-shadow: var(--shadow-surface); }
+    .ring-wrap { position: relative; display: grid; place-items: center; width: 3.25rem; height: 3.25rem; }
+    .p-ring { position: absolute; inset: 0; width: 100%; height: 100%; display: block; rotate: -90deg; }
+    .ring-label { position: relative; font: 600 var(--text-small)/1 var(--font-data); color: var(--color-text-primary); }
+    .p-ring circle { fill: none; stroke-width: 5; }
+    .p-ring .arc-track { stroke: var(--chart-track); }
+    .p-ring .arc { stroke: var(--chart-1); stroke-linecap: round; }
+    .session-text { display: flex; flex-direction: column; gap: 0.125rem; min-width: 0; }
+    .session-title { margin: 0; font-family: var(--font-display); font-size: var(--text-subheading); line-height: var(--text-subheading--line-height); font-weight: 600; }
+    .mix { grid-column: 1 / -1; display: flex; flex-direction: column; gap: var(--space-2); }
+    .bar { display: flex; gap: 2px; height: 0.5rem; border-radius: var(--radius-full); overflow: hidden; background: var(--chart-track); }
+    .bar span { display: block; height: 100%; }
+    .seg-learned, .dot-learned { background: var(--chart-1); }
+    .seg-due, .dot-due { background: var(--chart-2); }
+    .seg-new, .dot-new { background: var(--chart-track); }
+    .legend { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); margin: 0; padding: 0; list-style: none; }
+    .legend li { display: inline-flex; align-items: center; gap: 0.375rem; }
+    .legend .dot { width: 0.625rem; height: 0.625rem; border-radius: var(--radius-full); }
+    .legend .dot-new { box-shadow: inset 0 0 0 1.5px var(--color-graphic-idle); background: transparent; }
+    @media (min-width: 40rem) {
+      .session { grid-template-columns: auto minmax(0, 14rem) 1fr; }
+      .mix { grid-column: auto; }
+    }
+
+    /* The card stage */
+    .study { display: flex; flex-direction: column; gap: var(--space-5); }
+    .stage { display: flex; flex-direction: column; }
+    .pile { position: relative; perspective: 1600px; margin-bottom: 14px; }
+    .pile::before, .pile::after { content: ""; position: absolute; inset: 0; border-radius: var(--radius-xl); pointer-events: none; background: var(--color-bg-surface); box-shadow: var(--shadow-surface); }
+    .pile::before { transform: translateY(14px) scale(0.92); }
+    .pile::after { transform: translateY(7px) scale(0.96); }
+    .pile[data-left="0"]::before, .pile[data-left="0"]::after { display: none; }
+    .pile[data-left="1"]::before { display: none; }
+
+    .card { position: relative; z-index: 1; display: grid; transform-style: preserve-3d; touch-action: pan-y; cursor: grab; user-select: none; -webkit-user-select: none; }
+    .card:active { cursor: grabbing; }
+    .face { grid-area: 1 / 1; position: relative; box-sizing: border-box; display: flex; flex-direction: column; gap: var(--space-4); min-height: clamp(18rem, 50vh, 27rem); padding: var(--space-5); border-radius: var(--radius-xl); background: var(--color-bg-raised); box-shadow: var(--shadow-raised); -webkit-backface-visibility: hidden; backface-visibility: hidden; }
+    @media (min-width: 40rem) { .face { padding: var(--space-6) var(--space-7); } }
+    .face-top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); min-height: 1.75rem; }
+    .face-mid { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: var(--space-4); }
+    .prompt { font-size: clamp(1.5rem, 1.1rem + 2vw, 2.5rem); line-height: 1.15; letter-spacing: -0.012em; font-weight: 600; max-width: 30ch; }
+    .cue { display: flex; gap: var(--space-2); align-items: flex-start; margin: 0; max-width: var(--measure); color: var(--color-accent-text); font-size: var(--text-body); }
+    .cue .icon { margin-top: 0.15em; }
+    .face-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
+    .face.back { transform: rotateY(180deg); }
+    .face.back .face-mid { justify-content: flex-start; }
+    .back-q { max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .card.flipped { transform: rotateY(180deg); }
+
+    .notes { display: flex; flex-direction: column; gap: var(--space-3); max-width: var(--measure); user-select: text; -webkit-user-select: text; }
+    .notes p { margin: 0; font-size: var(--text-body); line-height: 1.55; }
+    .notes p.has-key { display: grid; grid-template-columns: 1.75rem 1fr; gap: var(--space-3); align-items: baseline; }
+    .note-key { display: inline-flex; align-items: center; justify-content: center; min-width: 1.75rem; height: 1.75rem; border-radius: var(--radius-full); background: var(--color-accent-subtle); color: var(--color-accent-text); font: 600 var(--text-small)/1 var(--font-data); }
+    .note-label { font-weight: 700; color: var(--color-text-primary); }
+    .notes p.lead { font-size: var(--text-subheading); line-height: var(--text-subheading--line-height); font-weight: 600; font-family: var(--font-display); }
+
+    .stamp { position: absolute; top: var(--space-9); z-index: 2; padding: 0.25rem 0.85rem; border: 2px solid currentColor; border-radius: var(--radius-full); background: var(--color-bg-surface); font: 600 var(--text-small)/1.3 var(--font-data); letter-spacing: 0.06em; text-transform: uppercase; opacity: 0; pointer-events: none; }
+    .stamp.got { inset-inline-end: var(--space-5); color: var(--color-success-text); }
+    .stamp.again { inset-inline-start: var(--space-5); color: var(--color-warning-text); }
+
+    /* All caught up */
+    .done { box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: var(--space-4); min-height: clamp(18rem, 50vh, 27rem); padding: var(--space-7) var(--space-5); border-radius: var(--radius-xl); background: var(--color-bg-raised); box-shadow: var(--shadow-raised); }
+    .done-badge { display: grid; place-items: center; width: 4rem; height: 4rem; border-radius: var(--radius-full); background: var(--color-accent-subtle); color: var(--color-accent-text); }
+    .done-badge .icon { width: 2rem; height: 2rem; stroke-width: 2; }
+    .done h2 { font-size: var(--text-heading); line-height: var(--text-heading--line-height); font-weight: 650; }
+    .done p { margin: 0; max-width: 30rem; color: var(--color-text-secondary); }
+    .stats { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-3); margin: 0; padding: 0; }
+    .stats div { min-width: 7rem; padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); background: var(--color-bg-inset); }
+    .stats dt { font-size: var(--text-small); color: var(--color-text-secondary); }
+    .stats dd { margin: 0; font-family: var(--font-display); font-size: var(--text-heading); line-height: 1.2; font-weight: 650; }
+
+    /* Controls under the card */
+    .controls { display: flex; flex-direction: column; gap: var(--space-4); }
+    .flip-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--space-3); }
+    .flip-row #flip { min-width: min(100%, 16rem); }
+    .rate-wrap { display: flex; flex-direction: column; gap: var(--space-2); }
+    .rate-q { margin: 0; text-align: center; font-weight: 600; }
+    .rate { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+    @media (min-width: 30rem) { .rate { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+    .rate button { box-sizing: border-box; display: grid; grid-template-columns: auto 1fr; grid-template-areas: "k l" "k w"; align-items: center; column-gap: var(--space-2); min-height: 3.5rem; padding: var(--space-2) var(--space-3); border: 0; border-radius: var(--radius-md); background: var(--color-bg-surface); box-shadow: var(--shadow-surface); color: var(--color-text-primary); text-align: start; font: 600 var(--text-body)/1.2 var(--font-body); cursor: pointer; }
+    .rate button:hover { background: var(--color-bg-hover); }
+    .rate button kbd { grid-area: k; }
+    .rate button .r-label { grid-area: l; }
+    .rate button .r-when { grid-area: w; font-weight: 400; font-size: var(--text-small); color: var(--color-text-secondary); }
+    .rate button[data-grade="3"] { background: var(--color-accent-subtle); box-shadow: inset 0 0 0 1px var(--color-accent-border); }
+    .rate button[data-grade="3"]:hover { background: var(--color-accent-subtle-hover); }
+    .feedback { min-height: 1.45em; text-align: center; }
+
+    .nav-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); }
+    .nav-row > div { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+    .keys { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); }
+    .keys span { display: inline-flex; align-items: center; gap: 0.25rem; }
+    .touch-only { display: none; }
+    @media (max-width: 40rem), (hover: none) and (pointer: coarse) { .keys { display: none; } .touch-only { display: block; } }
+
+    /* Study sheet (list layout) */
+    .sheet { display: flex; flex-direction: column; gap: var(--space-3); }
+    .sheet-tools { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+    .sheet-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--space-2); }
+    .sheet-item { border-radius: var(--radius-lg); background: var(--color-bg-surface); box-shadow: var(--shadow-surface); }
+    .sheet-item summary { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: var(--space-2) var(--space-3); min-height: 2.75rem; padding: var(--space-3) var(--space-4); border-radius: var(--radius-lg); list-style: none; cursor: pointer; }
+    .sheet-item summary::-webkit-details-marker { display: none; }
+    .sheet-item summary:hover { background: var(--color-bg-hover); }
+    .sheet-n { display: grid; place-items: center; width: 1.75rem; height: 1.75rem; border-radius: var(--radius-full); background: var(--color-bg-inset); color: var(--color-text-secondary); font: 500 var(--text-small)/1 var(--font-data); }
+    .sheet-q { display: flex; flex-direction: column; gap: 0.125rem; min-width: 0; }
+    .sheet-q strong { font-family: var(--font-display); font-size: var(--text-subheading); line-height: var(--text-subheading--line-height); font-weight: 600; }
+    .sheet-side { display: flex; align-items: center; gap: var(--space-2); }
+    .chev { color: var(--color-text-secondary); }
+    details[open] > summary { border-end-start-radius: 0; border-end-end-radius: 0; }
+    .sheet .rate button { grid-template-columns: 1fr; grid-template-areas: "l" "w"; }
+    .sheet .rate kbd { display: none; }
+    details[open] > summary .chev { rotate: 180deg; }
+    .sheet-body { display: flex; flex-direction: column; gap: var(--space-4); padding: 0 var(--space-4) var(--space-4) calc(var(--space-4) + 1.75rem + var(--space-3)); }
+    .sheet-body .rate { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    @media (min-width: 36rem) { .sheet-body .rate { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+    .sheet-body .rate button { min-height: 3rem; }
+    @media (max-width: 30rem) {
+      .sheet-item summary { grid-template-columns: auto 1fr; }
+      .sheet-side { grid-column: 2; }
+      .sheet-body { padding-inline-start: var(--space-4); }
+    }
+    .sheet-result { margin: 0; }
+
+    /* Help and reset */
+    .foot { display: flex; flex-direction: column; gap: var(--space-3); padding-top: var(--space-4); border-top: 1px solid var(--color-border-subtle); }
+    .help summary { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 2.5rem; font-weight: 600; cursor: pointer; color: var(--color-text-secondary); list-style: none; }
+    .help summary::-webkit-details-marker { display: none; }
+    .help summary:hover { color: var(--color-text-primary); }
+    .help ul { margin: var(--space-2) 0 0; padding-inline-start: 1.25rem; display: flex; flex-direction: column; gap: var(--space-2); max-width: var(--measure); color: var(--color-text-secondary); }
+    .foot-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); }
+    .confirm { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); background: var(--color-warning-subtle); color: var(--color-text-primary); }
+    .confirm span { flex: 1 1 16rem; }
+
+    .print-sheet { display: none; }
+
+    /* Layout switch */
+    :root[data-layout="list"] .stage, :root[data-layout="list"] #controls, :root[data-layout="list"] #nav-row { display: none !important; }
+    :root:not([data-layout="list"]) .sheet { display: none !important; }
   }
-  .face::before { content: ""; position: absolute; inset-inline: 0; top: 0; height: 0.375rem; background: var(--color-accent-solid); }
-  .face.back::before { background: var(--color-accent-border); }
-  @media (min-width: 40rem) { .face { min-height: 20rem; } }
-  .face .head { min-height: 2.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-  .face .qa { margin-top: 0.75rem; line-height: 1.6; }
-  .face h2.qa { line-height: 1.2; text-wrap: balance; }
-  .face.back { transform: rotateY(180deg); }
-  .card.flipped { transform: rotateY(180deg); }
-  .stamp {
-    position: absolute; top: 4.5rem; z-index: 2; padding: 0.25rem 0.85rem; border: 2px solid currentColor; border-radius: 999px;
-    background: var(--color-bg-surface); font-family: var(--font-data); font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.06em;
-    text-transform: uppercase; opacity: 0; pointer-events: none;
-  }
-  .stamp.got { inset-inline-end: 1.5rem; color: var(--color-success-text); }
-  .stamp.again { inset-inline-start: 1.5rem; color: var(--color-warning-text); }
 
   @media (prefers-reduced-motion: no-preference) {
+    .btn, .seg button, .rate button { transition-property: scale, background-color, box-shadow, color; transition-duration: 150ms; transition-timing-function: ease-out; }
+    .btn:active:not(:disabled), .rate button:active, .seg button:active { scale: 0.96; }
     .card { transition: transform 560ms var(--ease-out); }
     .card.dragging { transition: none; }
     .card.fly { transition: transform 320ms var(--ease-out), opacity 320ms var(--ease-out); }
     .card.enter { animation: deal 460ms var(--ease-out); }
     @keyframes deal { from { transform: translateY(7px) scale(0.96); } to { transform: none; } }
-    .tick { transition: background-color 200ms ease-out; }
+    .p-ring .arc { transition: stroke-dashoffset 600ms var(--ease-out); }
+    .bar span { transition: width 400ms var(--ease-out); }
+    .chev { transition: rotate 150ms ease-out; }
+    .done { animation: pop 420ms var(--ease-out); }
+    @keyframes pop { from { opacity: 0.5; scale: 0.97; } to { opacity: 1; scale: 1; } }
   }
   @media (prefers-reduced-motion: reduce) {
     .card.flipped { transform: none; }
@@ -140,6 +327,26 @@
     .card.flipped .face.front { visibility: hidden; }
     .card.flipped .face.back { visibility: visible; }
   }
+
+  /* Print: every card as a question-and-notes list, light colors, no controls. */
+  @media print {
+    @page { margin: 0.6in; }
+    html:root, html:root[data-theme], html:root:not([data-theme="light"]) {
+      color-scheme: light; font-size: 10pt;
+      --color-bg-page: #ffffff; --color-bg-surface: #ffffff; --color-text-primary: #111111; --color-text-secondary: #3d434a; --color-accent-text: var(--print-accent-text); --color-accent-subtle: var(--print-accent-subtle); --color-border-subtle: #c9ced5;
+    }
+    .wrap { max-width: none; padding: 0; gap: 1rem; }
+    .wrap > *:not(.top):not(.print-sheet) { display: none !important; }
+    .streak { display: none !important; }
+    .print-sheet { display: flex !important; flex-direction: column; gap: 1rem; }
+    .print-sheet h2 { font-size: 1.25rem; padding-bottom: 0.25rem; border-bottom: 1px solid var(--color-border-subtle); }
+    .print-sheet ol { margin: 0; list-style: decimal; padding-inline-start: 1.5rem; display: flex; flex-direction: column; gap: 0.6rem; }
+    .print-sheet li { break-inside: avoid; }
+    .print-sheet .pq { font-weight: 700; margin: 0 0 0.15rem; }
+    .print-sheet .pa { margin: 0; white-space: pre-line; color: var(--color-text-secondary); }
+  }
+  /* ---- Custom ---- */
+  /* ---- End custom ---- */
 </style>
 <style type="text/tailwindcss">
   @theme inline {
@@ -151,24 +358,24 @@
     --color-warn: var(--color-warning-solid); --color-warn-ink: var(--color-warning-text); --color-warn-wash: var(--color-warning-subtle);
     --color-bad: var(--color-danger-solid); --color-bad-ink: var(--color-danger-text); --color-bad-wash: var(--color-danger-subtle);
     --font-serif: var(--font-display); --font-sans: var(--font-body); --font-mono: var(--font-data);
-    --text-display: clamp(2.5rem, 6.5vw, 4.25rem); --text-display--line-height: 1.02; --text-display--letter-spacing: -0.022em;
-    --text-title: clamp(1.75rem, 3.6vw, 2.25rem); --text-title--line-height: 1.1; --text-title--letter-spacing: -0.012em;
-    --text-heading: 1.375rem; --text-heading--line-height: 1.25;
-    --text-body: 1rem; --text-body--line-height: 1.55;
-    --text-small: 0.875rem; --text-small--line-height: 1.45;
-    --text-label: 0.75rem; --text-label--line-height: 1.3; --text-label--letter-spacing: 0.07em;
-  }
-  @layer components {
-    .label { @apply font-mono text-label uppercase font-medium text-fg-muted; }
-    .panel { @apply bg-surface rounded-(--radius-md) shadow-(--shadow-surface); }
-    .btn { @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-(--radius-md) bg-surface px-4 text-small font-semibold text-fg shadow-(--shadow-surface) hover:bg-hover cursor-pointer; }
-    .btn-primary { @apply bg-accent text-on-accent shadow-none hover:bg-accent-hover; }
+    --text-display: var(--text-display); --text-display--line-height: var(--text-display--line-height); --text-display--letter-spacing: var(--text-display--letter-spacing);
+    --text-title: var(--text-title); --text-title--line-height: var(--text-title--line-height); --text-title--letter-spacing: var(--text-title--letter-spacing);
+    --text-heading: var(--text-heading); --text-heading--line-height: var(--text-heading--line-height);
+    --text-subheading: var(--text-subheading); --text-subheading--line-height: var(--text-subheading--line-height);
+    --text-body: var(--text-body); --text-body--line-height: var(--text-body--line-height);
+    --text-small: var(--text-small); --text-small--line-height: var(--text-small--line-height);
+    --text-label: var(--text-label); --text-label--line-height: var(--text-label--line-height); --text-label--letter-spacing: var(--text-label--letter-spacing);
+    --color-inset: var(--color-bg-inset); --color-overlay: var(--color-bg-overlay);
+    --color-chart-1: var(--chart-1); --color-chart-2: var(--chart-2); --color-chart-3: var(--chart-3); --color-chart-4: var(--chart-4); --color-chart-5: var(--chart-5); --color-track: var(--chart-track);
+    --color-avatar: var(--avatar-bg); --color-avatar-ink: var(--avatar-fg);
+    --radius-xl: var(--radius-xl); --radius-full: var(--radius-full);
   }
 </style>
 
 <!-- The assistant regenerates this from profile/story-bank.md and knowledge/field/field-primer.md (and job-specific prep):
      one card per story. Example cards have ids starting "example-"; the user's own cards never reuse those ids,
-     so practice on an example card never carries over to a real one.
+     so practice on an example card never carries over to a real one. Optional per card: "hint" (a one-line cue
+     shown on request). Optional per deck: "description" (one line under the deck switcher).
      Write every "<" inside it as \u003c (JSON.stringify(data).replace(/</g, '\\u003c')), so no text can end this block early. -->
 <script type="application/json" id="data">
 {
@@ -178,48 +385,51 @@
     {
       "id": "stories",
       "name": "My stories",
+      "description": "Example deck. Your assistant fills it with your own stories from your story bank.",
       "cards": [
         {
           "id": "example-tell-me-about-yourself",
           "q": "Tell me about yourself.",
-          "a": "Example card. Ask your assistant to refresh your flashcards and this deck fills with your own stories.\nPresent: what you do now and one result you're proud of.\nPast: the experience that got you here.\nFuture: the kind of role you want next and why this one.\nKeep it to about 90 seconds.",
-          "tag": "Pitch"
+          "a": "Example card. Ask your assistant to refresh your flashcards and this deck fills with your own stories.\nNow: product marketing lead for a B2B analytics product; one launch result you're proud of.\nBefore: how analyst work taught you to back messaging with data.\nNext: why a senior PMM role at a cloud company is the natural next step.\nKeep it to about 90 seconds.",
+          "tag": "Pitch",
+          "hint": "Now, before, next. One result in the first 20 seconds."
         },
         {
-          "id": "example-solved-a-hard-problem",
-          "q": "Tell me about a time you solved a hard problem.",
-          "a": "Example card.\nS: The situation, in one sentence.\nT: What you were responsible for.\nA: What you did, step by step (say \"I\", not \"we\").\nR: The result, with a number if you have one, and what you learned.",
-          "tag": "Example"
+          "id": "example-launch-that-slipped",
+          "q": "Tell me about a launch that slipped.",
+          "a": "Example card.\nS: A major release moved three weeks late, two weeks before launch.\nT: Keep sales and early customers on board without overpromising.\nA: Rebuilt the launch plan in phases, briefed sales on the new date first, and turned the delay into a beta story.\nR: Say the result with a number (pipeline kept, customers retained) and what you would plan for next time.",
+          "tag": "Behavioral"
         },
         {
-          "id": "example-disagreed-with-someone",
-          "q": "Tell me about a time you disagreed with someone at work.",
-          "a": "Example card.\nPick a real, low-drama disagreement.\nShow that you listened, used facts, and kept the relationship.\nEnd on the outcome and what you would do the same next time.",
-          "tag": "Example"
+          "id": "example-pricing-test",
+          "q": "Tell me about a pricing or packaging test you ran.",
+          "a": "Example card.\nS: Trial users weren't converting to the paid tier.\nT: Find out whether packaging, not price, was the problem.\nA: Set up a clean test with finance and product, picked one success metric up front, and agreed when to stop.\nR: The result and the decision it led to, in one sentence.",
+          "tag": "Behavioral"
         },
         {
-          "id": "example-why-this-job",
-          "q": "Why do you want this job?",
-          "a": "Example card.\nOne specific thing about the company (a product, a team, a recent announcement).\nOne way the role matches what you have done.\nOne way it moves you toward where you want to go.",
-          "tag": "Example"
+          "id": "example-cross-team-conflict",
+          "q": "Tell me about a disagreement with another team.",
+          "a": "Example card.\nS: Product and sales wanted different launch messages for the same feature.\nT: Land one message both teams would use.\nA: Brought win/loss notes and customer quotes, ran a short working session, and tested both versions.\nR: The message you shipped, how it did, and how the relationship held up.",
+          "tag": "Behavioral"
         }
       ]
     },
     {
       "id": "technical",
       "name": "Field basics",
+      "description": "Example deck. Your assistant fills it from the field primer for your line of work.",
       "cards": [
         {
-          "id": "example-questions-to-ask",
-          "q": "What questions should you ask the interviewer?",
-          "a": "Example card. Ask your assistant to build your field primer and this deck fills with technical questions for your field.\nGood ones: What does success look like in the first 90 days? What is the team working on right now? What do people who do well here have in common?",
-          "tag": "Example"
+          "id": "example-positioning-vs-messaging",
+          "q": "What's the difference between positioning and messaging?",
+          "a": "Example card. Ask your assistant to build your field primer and this deck fills with questions for your field.\nPositioning: the strategic choice of who it's for, what it's compared with, and why it wins.\nMessaging: the words that bring that positioning to life for each audience.\nGive one example from a product you've marketed.",
+          "tag": "Field basics"
         },
         {
-          "id": "example-greatest-weakness",
-          "q": "What is your greatest weakness?",
-          "a": "Example card.\nName a real, non-critical weakness.\nSay what you are doing about it, with a concrete step.\nShow progress since you started working on it.",
-          "tag": "Example"
+          "id": "example-win-loss-analysis",
+          "q": "How would you run a win/loss analysis?",
+          "a": "Example card.\nPick recent deals, both won and lost, and talk to buyers within weeks of the decision.\nAsk why they chose, what nearly changed their mind, and who else they looked at.\nLook for patterns, share them with sales and product, and track what changes.",
+          "tag": "Field basics"
         }
       ]
     }
@@ -227,77 +437,138 @@
 }
 </script>
 
-<main id="main" class="mx-auto max-w-[46rem] px-4 sm:px-6 py-8 sm:py-12 flex flex-col gap-6">
-  <header class="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-    <div class="flex flex-col gap-1">
-      <span class="label">Practice out loud</span>
-      <h1 class="font-serif text-title font-semibold">Interview Flashcards</h1>
+<svg class="sprite" aria-hidden="true" focusable="false">
+  <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 3c.8 3.4 5 5.6 5 10.2a5 5 0 0 1-10 0c0-2.3 1.2-3.8 2.5-4.8.3 1.7 1 2.7 2 3.2C11 9 11.2 6 12 3z"/></symbol>
+  <symbol id="i-rotate" viewBox="0 0 24 24"><path d="M3.5 12a8.5 8.5 0 0 1 14.6-5.9L20.5 8.5M20.5 3.5v5h-5M20.5 12a8.5 8.5 0 0 1-14.6 5.9L3.5 15.5M3.5 20.5v-5h5"/></symbol>
+  <symbol id="i-shuffle" viewBox="0 0 24 24"><path d="M3 7h3c3.5 0 5.5 10 9 10h5M17.5 14l3 3-3 3M3 17h3c1.4 0 2.5-1.6 3.4-3.6M13.6 10.6C14.5 8.6 15.6 7 17 7h3.5M17.5 4l3 3-3 3"/></symbol>
+  <symbol id="i-arrow-left" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></symbol>
+  <symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M11 3.5l1.7 4.8L17.5 10l-4.8 1.7L11 16.5l-1.7-4.8L4.5 10l4.8-1.7zM18.5 15v5M16 17.5h5"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 3.5l8.5 4.5-8.5 4.5L3.5 8zM3.5 12.5l8.5 4.5 8.5-4.5M3.5 16.5l8.5 4.5 8.5-4.5"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M6 9.5l6 6 6-6"/></symbol>
+  <symbol id="i-reset" viewBox="0 0 24 24"><path d="M3.5 12a8.5 8.5 0 1 0 2.8-6.3L3.5 8.5M3.5 3.5v5h5"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.6a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .8-1 1.5v.4M12 16.8v.2"/></symbol>
+</svg>
+
+<main id="main" class="wrap">
+  <header class="top">
+    <div>
+      <p class="eyebrow">Practice out loud</p>
+      <h1 class="title">Interview Flashcards</h1>
     </div>
-    <div class="flex flex-wrap gap-2" id="tabs" role="group" aria-label="Decks"></div>
+    <p class="streak" id="streak" data-on="false"><svg class="icon" aria-hidden="true"><use href="#i-flame"/></svg><span id="streak-text">Start a streak today</span></p>
   </header>
 
-  <div class="flex flex-wrap items-center justify-between gap-3">
-    <div class="flex flex-wrap gap-2" role="group" aria-label="Which cards">
-      <button class="btn" id="mode-due" type="button">Due today <span class="font-mono text-label text-fg-muted num" id="due-n"></span></button>
-      <button class="btn" id="mode-all" type="button">All cards <span class="font-mono text-label text-fg-muted num" id="all-n"></span></button>
+  <div class="controls-row">
+    <div class="seg" id="tabs" role="tablist" aria-label="Decks"></div>
+    <div class="seg" role="group" aria-label="Which cards">
+      <button id="mode-due" type="button">Due today <span class="count num" id="due-n"></span></button>
+      <button id="mode-all" type="button">All cards <span class="count num" id="all-n"></span></button>
     </div>
   </div>
+  <p class="meta deck-desc" id="deck-desc" hidden></p>
 
-  <div class="flex flex-col gap-2">
-    <div class="flex gap-1" id="ticks" aria-hidden="true"></div>
-    <p class="font-mono text-label text-fg-muted num" id="tally"></p>
-  </div>
-
-  <div class="pile" id="pile">
-    <div class="card" id="card">
-      <span class="stamp got" id="stamp-got" aria-hidden="true">Good</span>
-      <span class="stamp again" id="stamp-again" aria-hidden="true">Again</span>
-      <section class="face front" aria-label="Question">
-        <div class="head"><span class="label" id="tag"></span><span class="font-mono text-label text-fg-muted num" id="count"></span></div>
-        <h2 class="qa font-serif text-[clamp(1.375rem,3.2vw,1.875rem)] font-medium" id="q"></h2>
-        <p class="mt-auto text-small text-fg-muted">Say your answer out loud, then tap the card or press Space.</p>
-      </section>
-      <section class="face back" aria-label="Your notes" inert aria-hidden="true">
-        <div class="head"><span class="label">Your notes</span><span class="font-mono text-label text-fg-muted truncate max-w-[60%]" id="q-small"></span></div>
-        <p class="qa whitespace-pre-line text-body max-w-[36rem]" id="a"></p>
-        <p class="mt-auto pt-2 text-small text-fg-muted">How did it go? Rate it below, or swipe right for Good and left for Again.</p>
-      </section>
-    </div>
-  </div>
-
-  <section class="panel flex flex-col items-start gap-3 p-6" id="done" aria-labelledby="done-title" hidden>
-    <h2 class="font-serif text-heading font-semibold" id="done-title">All caught up for today</h2>
-    <p class="text-body text-fg-muted max-w-[36rem]" id="done-text"></p>
-    <button class="btn btn-primary" id="done-all" type="button">Practice all cards</button>
-  </section>
-
-  <div class="flex flex-col gap-3" id="controls">
-    <div class="flex flex-wrap items-center gap-3">
-      <button class="btn btn-primary" id="flip" type="button">Show my notes</button>
-    </div>
-    <div class="flex flex-col gap-2" id="rate-wrap" hidden>
-      <p class="label" id="rate-label">How well did you know it?</p>
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2" role="group" aria-labelledby="rate-label" id="rate">
-        <button class="btn flex-col gap-0.5 py-2 min-h-14" type="button" data-grade="1" aria-keyshortcuts="1"><span><kbd class="font-mono text-label text-fg-muted me-1.5">1</kbd>Again</span><span class="font-mono text-label text-fg-muted num" data-when></span></button>
-        <button class="btn flex-col gap-0.5 py-2 min-h-14" type="button" data-grade="2" aria-keyshortcuts="2"><span><kbd class="font-mono text-label text-fg-muted me-1.5">2</kbd>Hard</span><span class="font-mono text-label text-fg-muted num" data-when></span></button>
-        <button class="btn flex-col gap-0.5 py-2 min-h-14" type="button" data-grade="3" aria-keyshortcuts="3"><span><kbd class="font-mono text-label text-fg-muted me-1.5">3</kbd>Good</span><span class="font-mono text-label text-fg-muted num" data-when></span></button>
-        <button class="btn flex-col gap-0.5 py-2 min-h-14" type="button" data-grade="4" aria-keyshortcuts="4"><span><kbd class="font-mono text-label text-fg-muted me-1.5">4</kbd>Easy</span><span class="font-mono text-label text-fg-muted num" data-when></span></button>
+  <div id="study" role="tabpanel" class="study">
+    <section class="session" aria-labelledby="today-title">
+      <span class="ring-wrap" aria-hidden="true"><svg class="p-ring" viewBox="0 0 52 52"><circle class="arc-track" cx="26" cy="26" r="21"/><circle class="arc" id="ring-fill" cx="26" cy="26" r="21" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100"/></svg><span class="ring-label num" id="ring-label">0</span></span>
+      <div class="session-text">
+        <h2 class="session-title" id="today-title">Today</h2>
+        <p class="meta num" id="tally"></p>
       </div>
+      <div class="mix">
+        <div class="bar" id="ticks" aria-hidden="true"></div>
+        <ul class="legend meta num" id="legend" aria-label="This deck"></ul>
+      </div>
+    </section>
+
+    <div class="stage">
+      <div class="pile" id="pile">
+        <div class="card" id="card">
+          <span class="stamp got" id="stamp-got" aria-hidden="true">Good</span>
+          <span class="stamp again" id="stamp-again" aria-hidden="true">Again</span>
+          <section class="face front" aria-label="Question">
+            <div class="face-top"><span class="chip chip-accent" id="tag"></span><span class="meta num" id="count"></span></div>
+            <div class="face-mid">
+              <h2 class="prompt" id="q"></h2>
+              <p class="cue" id="cue" hidden><svg class="icon" aria-hidden="true"><use href="#i-sparkle"/></svg><span id="cue-text"></span></p>
+            </div>
+            <div class="face-foot"><p class="meta">Say your answer out loud first, then flip the card.</p></div>
+          </section>
+          <section class="face back" aria-label="Your notes" inert aria-hidden="true">
+            <div class="face-top"><span class="eyebrow">Your notes</span><span class="meta back-q" id="q-small"></span></div>
+            <div class="face-mid"><div class="notes" id="a"></div></div>
+            <div class="face-foot"><p class="meta">How did it go? Rate it below.</p></div>
+          </section>
+        </div>
+      </div>
+
+      <section class="done" id="done" aria-labelledby="done-title" hidden>
+        <span class="done-badge" aria-hidden="true"><svg class="icon"><use href="#i-check"/></svg></span>
+        <h2 id="done-title">All caught up for today</h2>
+        <p id="done-text"></p>
+        <dl class="stats num" id="done-stats"></dl>
+        <button class="btn btn-primary btn-lg" id="done-all" type="button"><svg class="icon" aria-hidden="true"><use href="#i-layers"/></svg>Practice all cards</button>
+      </section>
     </div>
-    <p class="font-mono text-label text-fg-muted num min-h-[1.3em]" id="hint"></p>
+
+    <div class="controls" id="controls">
+      <div class="rate-wrap" id="rate-wrap" hidden>
+        <p class="rate-q" id="rate-label">How well did you know it?</p>
+        <div class="rate" role="group" aria-labelledby="rate-label" id="rate">
+          <button type="button" data-grade="1" aria-keyshortcuts="1"><kbd aria-hidden="true">1</kbd><span class="r-label">Again</span><span class="sr-only">, next review in</span><span class="r-when num" data-when></span></button>
+          <button type="button" data-grade="2" aria-keyshortcuts="2"><kbd aria-hidden="true">2</kbd><span class="r-label">Hard</span><span class="sr-only">, next review in</span><span class="r-when num" data-when></span></button>
+          <button type="button" data-grade="3" aria-keyshortcuts="3"><kbd aria-hidden="true">3</kbd><span class="r-label">Good</span><span class="sr-only">, next review in</span><span class="r-when num" data-when></span></button>
+          <button type="button" data-grade="4" aria-keyshortcuts="4"><kbd aria-hidden="true">4</kbd><span class="r-label">Easy</span><span class="sr-only">, next review in</span><span class="r-when num" data-when></span></button>
+        </div>
+      </div>
+      <div class="flip-row">
+        <button class="btn btn-primary btn-lg" id="flip" type="button"><svg class="icon" aria-hidden="true"><use href="#i-rotate"/></svg><span id="flip-label">Show my notes</span></button>
+        <button class="btn btn-ghost" id="show-cue" type="button" hidden><svg class="icon" aria-hidden="true"><use href="#i-sparkle"/></svg>Show a hint</button>
+      </div>
+      <p class="meta feedback num" id="hint"></p>
+    </div>
+
+    <div class="nav-row" id="nav-row">
+      <div id="nav">
+        <button class="btn" id="prev" type="button"><svg class="icon" aria-hidden="true"><use href="#i-arrow-left"/></svg>Previous</button>
+        <button class="btn" id="next" type="button">Next<svg class="icon" aria-hidden="true"><use href="#i-arrow-right"/></svg></button>
+        <button class="btn btn-ghost" id="shuffle" type="button"><svg class="icon" aria-hidden="true"><use href="#i-shuffle"/></svg>Shuffle</button>
+      </div>
+      <p class="meta keys" id="keys"><span><kbd>Space</kbd> flip</span><span><kbd>1</kbd>–<kbd>4</kbd> rate</span><span><kbd>←</kbd><kbd>→</kbd> move</span></p>
+      <p class="meta touch-only">Tap the card to flip it. Swipe right for Good, left for Again.</p>
+    </div>
+
+    <section class="sheet" id="sheet" aria-label="Study sheet">
+      <div class="sheet-tools">
+        <p class="meta num" id="sheet-count"></p>
+        <button class="btn btn-ghost" id="expand-all" type="button" aria-pressed="false">Open all notes</button>
+      </div>
+      <ol class="sheet-list" id="sheet-list"></ol>
+    </section>
   </div>
 
-  <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
-    <div class="flex gap-3" id="nav"><button class="btn" id="prev" type="button">Previous card</button><button class="btn" id="next" type="button">Next card</button></div>
-    <div class="flex gap-3"><button class="btn" id="shuffle" type="button">Shuffle deck</button><button class="btn" id="clear" type="button">Reset progress…</button></div>
-  </div>
-  <div hidden class="flex flex-wrap items-center gap-3 rounded-(--radius-md) bg-accent-wash px-4 py-3 text-small" id="confirm-clear">
-    <span>Reset your review history for this deck? Every card goes back to new.</span>
-    <button class="btn" id="clear-yes" type="button">Reset progress</button>
-    <button class="btn" id="clear-no" type="button">Keep progress</button>
-  </div>
+  <footer class="foot">
+    <div class="foot-row">
+      <details class="help">
+        <summary><svg class="icon" aria-hidden="true"><use href="#i-help"/></svg>How this works</summary>
+        <ul>
+          <li>Answer out loud before you look. Aim for about two minutes per story: situation, task, action, result, and end on the result.</li>
+          <li>Rate each card honestly. Cards you know come back less often; shaky ones come back sooner. A few new cards join each day.</li>
+          <li>Progress is saved in this browser only, so your phone and laptop keep separate progress.</li>
+        </ul>
+      </details>
+      <button class="btn btn-ghost" id="clear" type="button"><svg class="icon" aria-hidden="true"><use href="#i-reset"/></svg>Reset progress…</button>
+    </div>
+    <div hidden class="confirm" id="confirm-clear">
+      <span>Reset your review history for this deck? Every card goes back to new.</span>
+      <button class="btn" id="clear-yes" type="button">Reset progress</button>
+      <button class="btn" id="clear-no" type="button">Keep progress</button>
+    </div>
+  </footer>
 
-  <p class="text-small text-fg-muted max-w-[36rem]">Aim for about two minutes per story: Situation, Task, Action, Result, and end on the result. After each card, rate how it went; cards you know come back less often, shaky ones sooner. A few new cards are added each day. Keyboard: Space flips, 1–4 rates (Again, Hard, Good, Easy), arrow keys move between cards. Progress is saved in this browser only.</p>
+  <section class="print-sheet" id="print-sheet" aria-hidden="true"></section>
   <p class="sr-only" role="status" id="status"></p>
 </main>
 
@@ -308,6 +579,7 @@
   const data = JSON.parse(document.getElementById('data').textContent);
   const $ = id => document.getElementById(id);
   const card = $('card');
+  const LIST = document.documentElement.dataset.layout === 'list';
   // Reduced motion: the device setting, or "motion: reduced" in profile/design.md (the --motion token).
   const reduceMq = matchMedia('(prefers-reduced-motion: reduce)');
   const reduce = { get matches() { return reduceMq.matches || getComputedStyle(document.documentElement).getPropertyValue('--motion').trim() === 'reduced'; } };
@@ -315,15 +587,23 @@
   const NEW_PER_DAY = Number.isFinite(data.newPerDay) ? Math.max(0, data.newPerDay) : 10;
   const MIN = 60000, DAY = 86400000;
   const GRADES = { 1: 'Again', 2: 'Hard', 3: 'Good', 4: 'Easy' };
+  data.decks = Array.isArray(data.decks) ? data.decks.filter(d => d && Array.isArray(d.cards)) : [];
+  if (!data.decks.length) data.decks = [{ id: 'empty', name: 'My stories', cards: [] }];
+
+  // Small DOM helpers. Text from the data block only ever goes in as text.
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = String(text); return e; };
+  const NS = 'http://www.w3.org/2000/svg';
+  const icon = name => { const s = document.createElementNS(NS, 'svg'); s.setAttribute('class', 'icon'); s.setAttribute('aria-hidden', 'true'); const u = document.createElementNS(NS, 'use'); u.setAttribute('href', '#i-' + name); s.append(u); return s; };
 
   // ---- Storage (every access guarded: the page works with storage blocked) ----
   const load = k => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } };
   let store = load(KEY);
   if (!store || typeof store !== 'object' || !store.cards || typeof store.cards !== 'object') store = { v: 1, cards: {} };
+  if (!store.days || typeof store.days !== 'object') store.days = {};   // reviews per day, for the streak
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {} };
 
   // ---- Stable card ids: data "id" if present, else a slug of the question ----
-  const slug = s => String(s).toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'card';
+  const slug = s => String(s).toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'card';
   data.decks.forEach(d => {
     const seen = {};
     d.cards.forEach(c => { let cid = c.id ? String(c.id) : slug(c.q), n = 2; while (seen[cid]) cid = (c.id || slug(c.q)) + '-' + n++; seen[cid] = 1; c.id = cid; });
@@ -397,6 +677,21 @@
     store.migrated = true; save();
   }
 
+  // ---- Streak: days in a row with at least one review ----
+  function logReview(now) {
+    const t = ymd(now);
+    store.days[t] = (store.days[t] || 0) + 1;
+    const keys = Object.keys(store.days).sort();
+    while (keys.length > 400) delete store.days[keys.shift()];
+  }
+  function streak(now) {
+    const d = dayStart(now), today = !!store.days[ymd(d)];
+    if (!today) d.setDate(d.getDate() - 1);
+    let n = 0;
+    while (store.days[ymd(d)]) { n++; d.setDate(d.getDate() - 1); }
+    return { n, today };
+  }
+
   // ---- Queue ----
   function dueQueue(d, now) {
     const end = tomorrow(now).getTime(), t = ymd(now), nowList = [], later = [], fresh = [];
@@ -416,27 +711,53 @@
     if (!r) return 'new';
     return dueMs(r) < tomorrow(now).getTime() ? 'due' : 'learned';
   }
+  const reviewedToday = (d, now) => d.cards.filter(c => { const r = store.cards[keyOf(d, c)]; return r && r.last && ymd(new Date(r.last)) === ymd(now); }).length;
 
-  let deck = data.decks[0], mode = 'due', order = [], pos = 0, flipped = false, pending = null;
+  let deck = data.decks[0], mode = LIST ? 'all' : 'due', order = [], pos = 0, flipped = false, pending = null, cueShown = false;
   function rebuild() {
     order = mode === 'due' ? dueQueue(deck, new Date()).order : deck.cards.map((_, i) => i);
     pos = 0;
   }
 
-  data.decks.forEach(d => {
-    const b = document.createElement('button');
-    b.type = 'button'; b.className = 'btn'; b.dataset.deck = d.id;
+  // ---- Deck tabs (role="tablist": arrow keys move between decks) ----
+  const tabs = data.decks.map((d, i) => {
+    const b = el('button');
+    b.type = 'button'; b.id = 'tab-' + i; b.dataset.deck = d.id;
+    b.setAttribute('role', 'tab'); b.setAttribute('aria-controls', 'study');
     // Deck names come from the user's files: text only, never parsed as HTML.
-    b.append(document.createTextNode(String(d.name ?? '') + ' '));
-    const count = document.createElement('span');
-    count.className = 'font-mono text-label text-fg-muted num';
-    count.textContent = String(d.cards.length);
-    b.append(count);
-    b.onclick = () => { deck = d; rebuild(); $('hint').textContent = ''; show(true); b.focus(); };
+    b.append(document.createTextNode(String(d.name ?? '') + ' '), el('span', 'count num', d.cards.length));
+    b.onclick = () => selectDeck(i);
     $('tabs').append(b);
+    return b;
+  });
+  function selectDeck(i, focus) {
+    deck = data.decks[i]; rebuild(); $('hint').textContent = ''; show(true);
+    if (focus) tabs[i].focus();
+  }
+  $('tabs').addEventListener('keydown', e => {
+    const i = tabs.indexOf(document.activeElement);
+    if (i < 0) return;
+    const to = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }[e.key];
+    if (to === undefined) return;
+    e.preventDefault(); e.stopPropagation();
+    selectDeck((to + tabs.length) % tabs.length, true);
   });
 
   function setMode(m) { mode = m; rebuild(); $('hint').textContent = ''; show(true); }
+
+  // Notes: one paragraph per line. "S: ..." lines (STAR) get the letter as a round marker;
+  // short "Label: ..." lines get the label in bold.
+  function renderNotes(target, text) {
+    target.replaceChildren();
+    String(text ?? '').split('\n').forEach(line => {
+      if (!line.trim()) return;
+      const p = el('p'), m = /^([A-Z][A-Za-z]*(?: [A-Za-z]+)?):\s+(.+)$/.exec(line);
+      if (m && m[1].length === 1) { p.className = 'has-key'; p.append(el('span', 'note-key', m[1]), el('span', '', m[2])); }
+      else if (m && m[1].length <= 14) { p.append(el('strong', 'note-label', m[1] + ':'), document.createTextNode(' ' + m[2])); }
+      else p.textContent = line;
+      target.append(p);
+    });
+  }
 
   function setFlipped(v) {
     flipped = v;
@@ -445,78 +766,189 @@
     const front = card.querySelector('.face.front'), back = card.querySelector('.face.back');
     front.inert = v; back.inert = !v;
     front.setAttribute('aria-hidden', String(v)); back.setAttribute('aria-hidden', String(!v));
-    $('flip').textContent = v ? 'Show the question' : 'Show my notes';
+    $('flip-label').textContent = v ? 'Show the question' : 'Show my notes';
+    $('flip').classList.toggle('btn-primary', !v);
     $('rate-wrap').hidden = !v;
+    $('show-cue').hidden = v || cueShown || !(order.length && deck.cards[order[pos]].hint);
     pending = null;
     if (v && order.length) {
       const c = deck.cards[order[pos]], k = keyOf(deck, c), now = new Date();
       pending = { k, out: preview(store.cards[k], now) };
-      $('rate').querySelectorAll('button').forEach(b => {
-        const g = +b.dataset.grade, due = new Date(pending.out[g].due);
-        b.querySelector('[data-when]').textContent = short(due, now);
-        b.setAttribute('aria-label', `${GRADES[g]}, next review ${rel(due, now)}`);
-      });
+      fillRate($('rate'), pending.out, now);
     }
   }
+  function fillRate(group, out, now) {
+    group.querySelectorAll('button').forEach(b => {
+      const g = +b.dataset.grade, due = new Date(out[g].due);
+      b.querySelector('[data-when]').textContent = short(due, now);
+    });
+  }
 
-  function doneText(q, now) {
+  function nextReview(now) {
     const end = tomorrow(now).getTime();
     let next = Infinity;
     deck.cards.forEach(c => { const r = store.cards[keyOf(deck, c)]; if (r) { const t = dueMs(r); if (t >= end && t < next) next = t; } });
+    return next;
+  }
+  function doneText(q, now) {
+    const next = nextReview(now);
     let s;
-    if (!deck.cards.length) s = 'This deck has no cards yet.';
-    else if (q.fresh > 0) s = `You’ve started today’s new cards. ${q.fresh} more ${q.fresh === 1 ? 'card starts' : 'cards start'} tomorrow.`;
+    if (!deck.cards.length) return 'This deck has no cards yet. Ask your assistant to refresh your flashcards.';
+    if (q.fresh > 0) s = `You’ve started today’s new cards. ${q.fresh} more ${q.fresh === 1 ? 'card starts' : 'cards start'} tomorrow.`;
     else if (next < Infinity) s = `Your next review is ${rel(new Date(next), now)}.`;
     else s = 'Nothing is due.';
     return s + ' You can still practice every card now.';
   }
 
-  function show(animate, msg) {
-    const now = new Date(), q = dueQueue(deck, now);
-    $('tabs').querySelectorAll('button').forEach(b => {
-      const on = b.dataset.deck === deck.id;
-      b.setAttribute('aria-pressed', on);
-      b.classList.toggle('bg-accent-wash', on); b.classList.toggle('text-accent-ink', on);
-    });
-    [['mode-due', 'due'], ['mode-all', 'all']].forEach(([bid, m]) => {
-      const on = mode === m, b = $(bid);
-      b.setAttribute('aria-pressed', on);
-      b.classList.toggle('bg-accent-wash', on); b.classList.toggle('text-accent-ink', on);
-    });
-    $('due-n').textContent = q.order.length; $('all-n').textContent = deck.cards.length;
-    if (pos >= order.length) pos = 0;
+  function renderStreak(now) {
+    const s = streak(now);
+    $('streak').dataset.on = String(s.n > 0);
+    $('streak-text').textContent = s.n === 0 ? 'Start a streak today'
+      : s.today ? `${s.n}-day streak` : `${s.n}-day streak · keep it going today`;
+  }
 
+  function renderSession(now, q) {
     let due = 0, fresh = 0, learned = 0;
     deck.cards.forEach(c => { const k = kind(deck, c, now); if (k === 'new') fresh++; else if (k === 'due') due++; else learned++; });
-    const summary = `${due} to review today · ${fresh} new · ${learned} learned`;
+    // A card rated today that comes back later today counts as done, not as another card to go.
+    const t = ymd(now), seenToday = ci => { const r = store.cards[keyOf(deck, deck.cards[ci])]; return !!(r && r.last && ymd(new Date(r.last)) === t); };
+    const done = reviewedToday(deck, now), left = q.order.filter(ci => !seenToday(ci)).length, again = q.order.length - left, total = done + left;
+    const pct = total ? Math.round(done / total * 100) : 100;
+    $('ring-fill').setAttribute('stroke-dashoffset', String(100 - pct));
+    $('ring-fill').style.visibility = pct ? '' : 'hidden';
+    $('ring-label').textContent = total ? `${done}/${total}` : '0';
+    $('today-title').textContent = left === 0 && !again ? (done ? `Done for today: ${done} ${done === 1 ? 'card' : 'cards'}` : 'Nothing due today')
+      : done ? `${done} of ${total} done today` : !left ? 'Nothing due today' : `${left} ${left === 1 ? 'card' : 'cards'} for today`;
+    const mins = Math.max(1, Math.round(left * 2));
+    const back = again ? ` · ${again} coming back later today` : '';
+    $('tally').textContent = left ? `${left} to go · about ${mins} ${mins === 1 ? 'minute' : 'minutes'} out loud${back}` : again ? `${again} ${again === 1 ? 'card comes' : 'cards come'} back for another try later today.` : 'Come back tomorrow, or practice any card now.';
+    const n = deck.cards.length || 1, bar = $('ticks');
+    bar.replaceChildren();
+    [['learned', learned], ['due', due], ['new', fresh]].forEach(([k, v]) => {
+      if (!v) return;
+      const s = el('span', 'seg-' + k); s.style.width = (v / n * 100) + '%'; bar.append(s);
+    });
+    const lg = $('legend'); lg.replaceChildren();
+    [['learned', learned, 'learned'], ['due', due, 'due today'], ['new', fresh, 'new']].forEach(([k, v, label]) => {
+      const li = el('li'); li.append(el('span', 'dot dot-' + k), document.createTextNode(`${v} ${label}`)); lg.append(li);
+    });
+    return { due, fresh, learned };
+  }
+
+  function show(animate, msg) {
+    const now = new Date(), q = dueQueue(deck, now);
+    tabs.forEach(b => {
+      const on = b.dataset.deck === deck.id;
+      b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1;
+      if (on) $('study').setAttribute('aria-labelledby', b.id);
+    });
+    [['mode-due', 'due'], ['mode-all', 'all']].forEach(([bid, m]) => $(bid).setAttribute('aria-pressed', String(mode === m)));
+    $('due-n').textContent = q.order.length; $('all-n').textContent = deck.cards.length;
+    $('deck-desc').hidden = !deck.description; $('deck-desc').textContent = deck.description || '';
+    if (pos >= order.length) pos = 0;
+    renderStreak(now);
+    const counts = renderSession(now, q);
+    if (LIST) { renderSheet(now, msg); return; }
 
     const empty = !order.length;
-    $('pile').hidden = empty; $('controls').hidden = empty; $('nav').hidden = empty; $('done').hidden = !empty;
+    $('pile').hidden = empty; $('controls').hidden = empty; $('nav-row').hidden = empty; $('done').hidden = !empty;
     $('shuffle').hidden = mode !== 'all' || empty;
     if (empty) {
       setFlipped(false);
-      $('ticks').innerHTML = ''; $('tally').textContent = summary;
+      $('done-title').textContent = deck.cards.length ? 'All caught up for today' : 'No cards in this deck yet';
       $('done-text').textContent = doneText(q, now);
+      const st = streak(now), next = nextReview(now), stats = $('done-stats');
+      stats.replaceChildren();
+      [['Reviewed today', String(reviewedToday(deck, now))], ['Streak', `${st.n} ${st.n === 1 ? 'day' : 'days'}`], ['Next review', next < Infinity ? rel(new Date(next), now) : (counts.fresh ? 'tomorrow' : '—')]]
+        .forEach(([k, v]) => { const dv = el('div'); dv.append(el('dt', '', k), el('dd', '', v)); stats.append(dv); });
+      $('done-all').hidden = !deck.cards.length;
       $('status').textContent = (msg ? msg + ' ' : '') + 'All caught up for today.';
       return;
     }
 
     const c = deck.cards[order[pos]];
-    $('q').textContent = c.q; $('q-small').textContent = c.q; $('a').textContent = c.a;
-    $('tag').textContent = c.tag || deck.name; $('count').textContent = `${pos + 1} / ${order.length}`;
+    cueShown = false;
+    $('q').textContent = c.q; $('q-small').textContent = c.q; renderNotes($('a'), c.a);
+    $('cue-text').textContent = c.hint || ''; $('cue').hidden = true;
+    $('tag').replaceChildren(icon('layers'), document.createTextNode(c.tag || deck.name || 'Card'));
+    $('count').textContent = `${pos + 1} of ${order.length}`;
     card.style.transform = ''; card.style.opacity = '';
     setFlipped(false);
     if (animate && !reduce.matches) { card.classList.remove('enter'); void card.offsetWidth; card.classList.add('enter'); }
-
-    $('ticks').innerHTML = order.map((ci, p) => {
-      const k = kind(deck, deck.cards[ci], now);
-      const cls = k === 'learned' ? 'bg-ok' : k === 'due' ? 'bg-transparent ring-2 ring-inset ring-warn' : 'bg-line';
-      return `<span class="tick h-2 flex-1 rounded-full ${cls} ${p === pos ? 'outline-2 outline-offset-2 outline-ring' : ''}"></span>`;
-    }).join('');
-    $('tally').textContent = `Card ${pos + 1} of ${order.length} · ${summary}`;
     $('pile').dataset.left = String(Math.min(2, order.length - 1));
     $('status').textContent = (msg ? msg + ' ' : '') + `Card ${pos + 1} of ${order.length}: ${c.q}`;
   }
+
+  // ---- Study sheet (list layout) ----
+  function stateChip(d, c, now) {
+    const r = store.cards[keyOf(d, c)], k = kind(d, c, now);
+    if (k === 'new') { const s = el('span', 'chip', 'New'); s.prepend(icon('sparkle')); return s; }
+    if (k === 'due') { const s = el('span', 'chip chip-accent', 'Due today'); s.prepend(icon('clock')); return s; }
+    const s = el('span', 'chip chip-success', 'Next ' + rel(new Date(dueMs(r)), now)); s.prepend(icon('check')); return s;
+  }
+  function renderSheet(now, msg) {
+    const list = $('sheet-list'); list.replaceChildren();
+    $('sheet-count').textContent = `${order.length} ${order.length === 1 ? 'card' : 'cards'} · ${mode === 'due' ? 'due today' : 'whole deck'}`;
+    $('expand-all').setAttribute('aria-pressed', 'false'); $('expand-all').textContent = 'Open all notes';
+    if (!order.length) {
+      const li = el('li', 'sheet-item'), box = el('div', 'done');
+      const badge = el('span', 'done-badge'); badge.setAttribute('aria-hidden', 'true'); badge.append(icon('check'));
+      box.append(badge, el('h2', '', deck.cards.length ? 'All caught up for today' : 'No cards in this deck yet'), el('p', '', doneText(dueQueue(deck, now), now)));
+      li.append(box); list.append(li);
+    }
+    order.forEach((ci, n) => {
+      const c = deck.cards[ci], k = keyOf(deck, c);
+      const li = el('li', 'sheet-item'), det = el('details'), sum = el('summary');
+      const qw = el('span', 'sheet-q'); qw.append(el('strong', '', c.q));
+      if (c.tag) qw.append(el('span', 'meta', c.tag));
+      const side = el('span', 'sheet-side'); side.append(stateChip(deck, c, now), icon('chevron'));
+      side.lastChild.classList.add('chev');
+      sum.append(el('span', 'sheet-n num', n + 1), qw, side);
+      const body = el('div', 'sheet-body'), notes = el('div', 'notes');
+      renderNotes(notes, c.a);
+      body.append(notes);
+      if (c.hint) { const cue = el('p', 'cue'); cue.append(icon('sparkle'), el('span', '', c.hint)); body.prepend(cue); }
+      const group = el('div', 'rate'); group.setAttribute('role', 'group'); group.setAttribute('aria-label', 'Rate: ' + c.q);
+      [1, 2, 3, 4].forEach(g => {
+        const b = el('button'); b.type = 'button'; b.dataset.grade = g;
+        const when = el('span', 'r-when num'), kb = el('kbd', '', g); when.setAttribute('data-when', ''); kb.setAttribute('aria-hidden', 'true');
+        b.append(kb, el('span', 'r-label', GRADES[g]), el('span', 'sr-only', ', next review in'), when);
+        b.onclick = () => {
+          const t = new Date(), rec = preview(store.cards[k], t)[g];
+          store.cards[k] = rec; logReview(t); save();
+          side.firstChild.replaceWith(stateChip(deck, c, t));
+          result.textContent = `Rated ${GRADES[g]}. Next review ${rel(new Date(rec.due), t)}.`;
+          fillRate(group, preview(rec, t), t);
+          renderSession(t, dueQueue(deck, t)); renderStreak(t);
+          $('status').textContent = result.textContent;
+        };
+        group.append(b);
+      });
+      const result = el('p', 'meta sheet-result num');
+      body.append(group, result);
+      det.addEventListener('toggle', () => { if (det.open) fillRate(group, preview(store.cards[k], new Date()), new Date()); });
+      det.append(sum, body); li.append(det); list.append(li);
+    });
+    if (msg) $('status').textContent = msg;
+  }
+  $('expand-all').onclick = () => {
+    const open = $('expand-all').getAttribute('aria-pressed') !== 'true';
+    $('sheet-list').querySelectorAll('details').forEach(d => { d.open = open; });
+    $('expand-all').setAttribute('aria-pressed', String(open));
+    $('expand-all').textContent = open ? 'Close all notes' : 'Open all notes';
+  };
+
+  // ---- Print: every deck as a question-and-notes list ----
+  (function buildPrint() {
+    const ps = $('print-sheet');
+    data.decks.forEach(d => {
+      if (!d.cards.length) return;
+      const sec = el('section'), ol = el('ol');
+      sec.append(el('h2', '', d.name || 'Cards'));
+      d.cards.forEach(c => { const li = el('li'); li.append(el('p', 'pq', c.q), el('p', 'pa', c.a)); ol.append(li); });
+      sec.append(ol); ps.append(sec);
+    });
+  })();
 
   function go(step) { if (!order.length) return; pos = (pos + step + order.length) % order.length; show(true); }
 
@@ -524,8 +956,8 @@
     if (!flipped || !order.length || !GRADES[g]) return;
     const c = deck.cards[order[pos]], k = keyOf(deck, c), now = new Date();
     const rec = (pending && pending.k === k ? pending.out : preview(store.cards[k], now))[g];
-    store.cards[k] = rec; save();
-    const hint = `Next review: ${rel(new Date(rec.due), now)}`;
+    store.cards[k] = rec; logReview(now); save();
+    const hint = `Next review ${rel(new Date(rec.due), now)}`;
     $('hint').textContent = `${GRADES[g]} · ${hint}`;
     const msg = `Rated ${GRADES[g]}. ${hint}.`;
     const advance = () => {
@@ -542,6 +974,7 @@
   }
 
   $('flip').onclick = () => { setFlipped(!flipped); if (flipped) $('status').textContent = 'Notes shown. Rate it 1 to 4.'; };
+  $('show-cue').onclick = () => { cueShown = true; $('cue').hidden = false; $('show-cue').hidden = true; $('status').textContent = 'Hint: ' + $('cue-text').textContent; $('flip').focus(); };
   $('rate').querySelectorAll('button').forEach(b => { b.onclick = () => rate(+b.dataset.grade); });
   $('mode-due').onclick = () => setMode('due');
   $('mode-all').onclick = () => setMode('all');
@@ -584,7 +1017,8 @@
   card.addEventListener('pointercancel', end);
 
   document.addEventListener('keydown', e => {
-    if (e.target.closest('input, textarea, select, [contenteditable]')) return;
+    if (LIST) return;
+    if (e.target.closest('input, textarea, select, [contenteditable], [role="tablist"], summary')) return;
     if (e.metaKey || e.ctrlKey || e.altKey || !order.length) return;
     const onControl = e.target.closest('button, a');
     if (e.key === ' ' && !onControl) { e.preventDefault(); $('flip').click(); }

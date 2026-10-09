@@ -16,7 +16,7 @@ SKILL.md has the type table and tokens. This file is the reasoning and the numbe
 - **Wrapping:** `text-wrap: balance` on headings; `pretty` on short descriptions; neither on long paragraphs. `overflow-wrap: anywhere` on emails, URLs, job IDs. `white-space: nowrap` on badges and chips. Never `text-align: justify`.
 - **Numbers that change** (counts, timers, dates in columns) get tabular figures so the layout doesn't jitter.
 - **Truncation** (`truncate`, `line-clamp`) only when the full value stays reachable (expand, title, detail view). On print there is no hover, so print templates never truncate.
-- **Write copy in normal case**, style case with `text-transform` (`.label` does this).
+- **Write copy in normal case**, style case with `text-transform` (`.eyebrow` does this). Mono uppercase is for section kickers only (one `.eyebrow` per section); dates, places and counts are `.meta` (body font, small, secondary color, sentence case), so the page doesn't read as all metadata.
 - **Smart punctuation** in rendered text: curly quotes (straight only in code), en dash for ranges (2025–2027), one ellipsis character (…), minus sign (−) for negatives, `&nbsp;` to keep "6 months" or "Jun 2027" together.
 - **Links:** `text-underline-position: from-font; text-decoration-thickness: from-font; text-decoration-skip-ink: auto`. A dotted underline means "more info here" (abbreviations). Only the underline color animates reliably.
 - `-webkit-font-smoothing: antialiased` once on the root, not per element. Keep text selectable; `user-select: none` only on drag surfaces (the flashcard swipe).
@@ -34,13 +34,15 @@ SKILL.md has the type table and tokens. This file is the reasoning and the numbe
 - **Units:** `rem` for font sizes, text widths, breakpoints, spacing that should scale with text; `px` for borders, hairlines, focus ring width/offset, shadow details.
 - **Never park a key action where it can be clipped** (the bottom of a fixed-height panel); keep it in normal flow or a sticky bar with padding.
 - **Reflow:** works at 320px wide and at 200% zoom with only vertical scrolling. Tables and boards scroll inside their own `overflow-x: auto` box.
+- **Grid and containers:** 76rem max (dashboard), 64rem (portfolio, brief), 44rem (flashcards); gutters 16 / 24 / 32px at phone / 40rem / 64rem; 12 columns from 64rem, 6 from 40rem, one below. Rhythm on the 4px base: 12–16px inside a card, 16–24px between cards, 40–64px between sections (32px on a phone).
+- **Layouts** (`data-layout` on `<html>`): each layout restyles the same markup and data; DOM order is the reading order in every one (a bento grid places tiles visually only), and every layout must pass every check here on its own. Scope layout CSS as `:root[data-layout="bento"] .x`; never fork the markup per layout unless the render script must.
 
 ## Surfaces and small polish
 
 - **Concentric radii:** outer = inner + padding (16 = 8 + 8). Past ~24px of padding the layers are separate surfaces; choose radii independently.
 - **Shadow vs border:** cards, buttons, raised panels use the layered `--shadow-surface` ring (it adapts to any background). Dividers, table lines and form-field outlines stay real borders.
-- **Images** (none today; if a photo or figure is ever added) get `outline: 1px solid oklch(0 0 0 / 0.1)` in light, `oklch(1 0 0 / 0.1)` in dark, `outline-offset: -1px`. Pure black/white at 10%, never a tinted gray or the accent.
-- **Icons:** inline SVG with `stroke="currentColor"` so one icon serves every state; stroke 1.5px beside regular text, 2px beside semibold. Size ~1–1.25em next to text. Outline icon = default, filled = active. Check legibility at 16px. One icon style per page.
+- **Images** (the portfolio's optional photo and project shots) get `outline: 1px solid oklch(0 0 0 / 0.1)` in light, `oklch(1 0 0 / 0.1)` in dark, `outline-offset: -1px`. Pure black/white at 10%, never a tinted gray or the accent.
+- **Icons:** one hidden sprite per page (`<svg hidden><symbol id="i-…">`, used with `<use href="#i-…">`), drawn on a 24×24 grid, `stroke="currentColor"`, stroke 1.75, round caps and joins, outline style, so one icon serves every state. Size ~1–1.25em next to text (12px inside chips, 48px in an empty state's accent-subtle circle). Check legibility at 16px. One icon style per page; no icon fonts, no icon CDNs, no brand logos.
 - **Optical alignment:** a button with a trailing icon gets ~2px less padding on the icon side; play triangles nudge ~2px toward the point. Fix in the SVG when you can.
 
 ## Print (brief, resume, cover letter)
