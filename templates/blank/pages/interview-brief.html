@@ -83,6 +83,8 @@
   .num { font-variant-numeric: lining-nums tabular-nums; }
   :focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
   .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+  /* Hidden stays hidden even when the styling script can't load (offline). */
+  [hidden] { display: none !important; }
   @media (prefers-reduced-motion: no-preference) {
     .btn { transition-property: scale, background-color, box-shadow, color; transition-duration: 150ms; transition-timing-function: ease-out; }
     .btn:active:not(:disabled) { scale: 0.96; }
@@ -140,7 +142,7 @@
 </style>
 
 <!-- The assistant fills this from jobs/<folder>/interview-prep.md.
-     Write every "<" inside it as < (JSON.stringify(data).replace(/</g, '\\u003c')), so no text can end this block early. -->
+     Write every "<" inside it as \u003c (JSON.stringify(data).replace(/</g, '\\u003c')), so no text can end this block early. -->
 <script type="application/json" id="data">
 {
   "example": true,
@@ -226,7 +228,7 @@
 </script>
 
 <main id="main" class="mx-auto max-w-[64rem] px-4 sm:px-6 py-8 sm:py-10 flex flex-col gap-6">
-  <p id="example-note" class="no-print hidden text-small rounded-(--radius-md) bg-accent-wash px-4 py-2.5">Example brief. Ask your assistant for interview prep to make one for a real job.</p>
+  <p id="example-note" hidden class="no-print text-small rounded-(--radius-md) bg-accent-wash px-4 py-2.5">Example brief. Ask your assistant for interview prep to make one for a real job.</p>
 
   <header class="flex flex-col gap-3 border-b border-line pb-5">
     <span class="label">Interview brief</span>
@@ -276,7 +278,7 @@
   const d = JSON.parse(document.getElementById('data').textContent);
   const $ = id => document.getElementById(id);
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  if (d.example) $('example-note').classList.remove('hidden');
+  if (d.example) $('example-note').hidden = false;
   $('title').innerHTML = `${esc(d.company)} <span class="text-fg-muted font-normal">·</span> ${esc(d.role)}`;
   $('format').textContent = d.format; $('when').textContent = d.when; $('where').textContent = d.where;
   $('company60').innerHTML = (d.company60 || []).map(x => `<li>${esc(x)}</li>`).join('');

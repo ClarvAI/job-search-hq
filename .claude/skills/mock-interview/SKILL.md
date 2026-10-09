@@ -12,10 +12,10 @@ Setup: `$ARGUMENTS`. If no job is given, ask which job (or a general interview f
 ## Before starting
 1. Read the job folder (or the best-fit role from preferences), `profile/story-bank.md`, `knowledge/interview-questions.md`, `knowledge/field/role-questions.md`, `knowledge/field/field-primer.md` (if it still says `STATUS: not generated`, pick technical questions from the posting's requirements instead), and past debriefs in `interviews/` (re-test weak areas), and `references/practice-methods.md` (probes and what makes practice work).
 2. Pick a realistic interviewer persona for this company and role (e.g., "Maria, Operations Manager at Acme Corp"). Pick questions that fit the role, mostly ones likely in the real interview, including one technical or role-specific one and one about a weak spot.
-3. Tell the user how it works in 3 lines: answer out loud (terminal: `/voice` once, then hold Space while talking; Desktop: click the mic), press **Done answering** in the Interview Room when finished (or just send), say "stuck" (or press **Ask for a hint**) for a hint, "end" (or **Ask to end interview**) to stop.
+3. Tell the user how it works in 3 lines: answer out loud (terminal: `/voice` once, then hold Space while talking; Desktop: click the mic), press **Done answering** in the Interview Room when finished, or just send the answer (either one stops the clock and gives you the answer time), say "stuck" (or press **Ask for a hint**) for a hint, "end" (or **Ask to end interview**) to stop.
 
 ## Running it (Interview Room tools available → use them)
-- Call `interview_start` (company, role, interviewer, style, total). `style` is one of the styles above (`ai-screen` works too, though the tool's own list doesn't name it); `total` = the number of main questions.
+- Call `interview_start` (company, role, interviewer, style, total). `style` is one of the styles above; `total` = the number of main questions.
 - `interview_say` kind `intro`: a natural 1–2 sentence greeting in character.
 - Send `interview_say` calls one at a time and wait for each to return. Never send two in the same message: they get read aloud over each other, and the answer clock can start while the user is still listening.
 - For each main question: `interview_say` kind `question` with `seconds` (behavioral 120, technical 180). **Then stop and wait** for the user's answer. No coaching mid-interview.
@@ -47,6 +47,7 @@ If the user has asked (or plans to ask) an employer for an interview accommodati
 - **Questions in advance:** before `interview_start`, give them the topics or the exact questions in chat, as the employer agreed to.
 - **Breaks:** after a main question is scored, ask in character or plainly "Ready for the next one, or want a break?" and wait. Split a long session into two shorter ones if that mirrors the real day.
 - **Written answers:** they can type instead of speaking; keep the same scoring.
+- **Screen reader users:** the panel's own read-aloud talks over the screen reader, so tell them first how to turn it off (**Stop reading aloud** in the Interview Room), or run the interview in chat (as in "Without the Interview Room tools"), where the screen reader reads each question. Put the target time in the question message ("about 2 minutes"). The room plays a short tone with a notice when think time is over, at 30 seconds left and at time up (no spoken words), so mention the tones once; in chat there's no clock, so give time feedback only in the debrief. Never score on speed.
 Note it in the debrief's first line ("Practised with: longer answer time, no read-aloud") so later sessions repeat the setup.
 
 ## Without the Interview Room tools

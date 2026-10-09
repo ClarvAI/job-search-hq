@@ -14,5 +14,5 @@ It was written with Claude Code's names; translate them with the table in AGENTS
 ## Codex notes
 
 - On Windows without bash, use `update.ps1` as the Claude skill describes. If the sandbox blocks the download or writing the backup, ask the user to allow it for this one command, or ask them to download the zip themselves and give you its path.
-- After an update that prints `hooks-changed: yes`: Codex keeps changed hooks off until they're trusted again, and that turns the safety checks off too. Tell the user to type `/hooks`, review and trust them, then start a new chat, and run `$health` to confirm.
+- After an update or rollback that prints `hooks-changed: codex`: Codex keeps changed hooks off until they're trusted again, and that turns the safety checks off too. Tell the user to type `/hooks`, review and trust them, then start a new chat, and run `$health` to confirm. `hooks-changed: claude` matters only if they also use Claude Code (close and reopen the folder there).
 - Log the update in `history/activity.md` with `Codex` as the app.

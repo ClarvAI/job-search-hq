@@ -2,7 +2,8 @@ import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
 import type { Decision, Inbox, Lead, Notice } from '../types'
-import { dateOrder, daysBetween, isIso, isSamePosting, localDate, parseCsv, plain, records, savedNote, toCsv, toIso, trackerRefs } from './leads'
+import { dateOrder, daysBetween, isIso, isSamePosting, localDate, orderFor, plain, readCsv, records, savedNote, toCsv, toIso, trackerRefs } from './leads'
+import { csvTrouble, isExcelLock } from './csvdate'
 import type { DateOrder } from './leads'
 
 // Job Inbox: /find-jobs writes new leads to jobs/leads.csv; the user goes through them here.
@@ -33,6 +34,9 @@ const inbox = atom({ plugin: 'job-inbox', key: 'inbox' } as const, null as Inbox
 const asking = atom({ plugin: 'job-inbox', key: 'asking' } as const, '')
 const notice = atom({ plugin: 'job-inbox', key: 'notice' } as const, { text: '', isError: false, undoId: '', undoStatus: '' } as Notice)
 const pending = atom({ plugin: 'job-inbox', key: 'pending' } as const, [] as Decision[])
+const showAll = atom({ plugin: 'job-inbox', key: 'showAll' } as const, false)
+// Lead cards shown until the user presses "Show all" (best fits first).
+const SHOWN = 15
 
 // The quiet-time timer for the activity line (a module variable: a reload just drops it, and the
 // pending decisions in $.state are written at the next prompt, close, or session start instead).
@@ -42,6 +46,7 @@ const labelOf = (l: { company: string; role: string }) => `${l.company} - ${l.ro
 
 function toLead(r: Record<string, string>, tracked: ReturnType<typeof trackerRefs>, order: DateOrder): Lead {
   const g = (k: string) => r[k] ?? ''
+  order = orderFor(Object.values(r), order)
   const lead = {
     id: g('id'), foundDate: toIso(g('found_date'), order), company: g('company'), role: g('role'), location: g('location'),
     remote: g('remote').toLowerCase(), pay: g('pay'), posted: g('posted'), link: g('link'), applyLink: g('apply_link'),
@@ -61,7 +66,9 @@ async function load($: any): Promise<Inbox> {
   const hasFile = await $.fs.exists(LEADS)
   const tracked = trackerRefs(await readText($, TRACKER).catch(() => ''))
   const order = dateOrder(await readText($, 'profile/preferences.md').catch(() => ''))
-  const leads = records(await readText($, LEADS)).filter(r => (r.company ?? '') !== '').map(r => toLead(r, tracked, order))
+  const leadsText = await readText($, LEADS)
+  const problem = readCsv(leadsText).problem
+  const leads = (problem !== '' ? [] : records(leadsText)).filter(r => (r.company ?? '') !== '').map(r => toLead(r, tracked, order))
   const counts: Record<string, number> = {}
   for (const l of leads) counts[l.status] = (counts[l.status] ?? 0) + 1
   const rank = (l: Lead) => ({ A: 0, B: 1, C: 2 } as Record<string, number>)[l.fitGuess] ?? 3
@@ -76,6 +83,7 @@ async function load($: any): Promise<Inbox> {
     saved: leads.filter(l => l.status === 'saved' && !l.isTracked),
     counts,
     hasFile,
+    problem: csvTrouble(problem, 'Your leads file (jobs/leads.csv)'),
   }
 }
 
@@ -112,12 +120,35 @@ async function flushLog($: any): Promise<void> {
   const d = new Date(await $.clock.now())
   const pad = (n: number) => String(n).padStart(2, '0')
   const lineOut = `- ${localDate(d.getTime())} ${pad(d.getHours())}:${pad(d.getMinutes())} · Job Inbox panel (Claude) · Job leads reviewed: ${parts.join(', ')}\n`
+  await appendLine($, ACTIVITY, lineOut)
+}
+
+// One line added to the end of history/activity.md. The file is re-read right before the write and
+// checked afterwards, so a line another app added meanwhile is kept and this one is not lost.
+async function appendLine($: any, path: string, lineOut: string): Promise<boolean> {
+  const readNow = async (): Promise<string> => ((await $.fs.exists(path)) ? String(await $.fs.read(path)) : '# Recent activity\n\n')
+  let wrote = false
   try {
-    const before: string = (await $.fs.exists(ACTIVITY)) ? await $.fs.read(ACTIVITY) : '# Recent activity\n\n'
-    await $.fs.write(ACTIVITY, before.replace(/\n*$/, '\n') + lineOut)
-    const after: string = await $.fs.read(ACTIVITY)
-    if (!after.includes(lineOut)) await $.fs.write(ACTIVITY, after.replace(/\n*$/, '\n') + lineOut)
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const before = await readNow()
+      if (wrote && before.includes(lineOut)) return true
+      if ((await readNow()) !== before) continue
+      await $.fs.write(path, before.replace(/\n*$/, '\n') + lineOut)
+      wrote = true
+      if ((await readNow()).includes(lineOut)) return true
+    }
   } catch { /* the log is a convenience; the decisions are already saved in leads.csv */ }
+  return false
+}
+
+// True when Excel seems to have the file open (its "~$" lock file is next to it). Without a lock file
+// it may still be open, so a failed save also asks the user to save and close Excel.
+async function openInExcel($: any, path: string): Promise<boolean> {
+  const at = path.lastIndexOf('/')
+  try {
+    const entries: Array<{ name: string }> = await $.fs.list(at < 0 ? '.' : path.slice(0, at))
+    return entries.some(e => isExcelLock(String(e.name), path.slice(at + 1)))
+  } catch { return false }
 }
 
 function scheduleLog($: any): void {
@@ -130,7 +161,9 @@ async function saveLead($: any, id: string, change: (get: (c: string) => string,
   const today = localDate(await $.clock.now())
   for (let attempt = 0; ; attempt++) {
     const original: string = await $.fs.read(LEADS).catch(() => '')
-    const rows = parseCsv(original.replace(/^\uFEFF/, ''))
+    const { rows, problem } = readCsv(original)
+    // A damaged file is never written back: that would spread the damage.
+    if (problem !== '') { await refresh($).catch(() => undefined); await say($, csvTrouble(problem, 'Your leads file (jobs/leads.csv)'), true); return false }
     const header = rows[0] ?? []
     const idx = (c: string) => {
       let i = header.findIndex(h => h.trim().toLowerCase() === c)
@@ -145,6 +178,10 @@ async function saveLead($: any, id: string, change: (get: (c: string) => string,
     if (!change(get, set, today)) { await refresh($); return false }
     for (const r of rows) while (r.length < header.length) r.push('')
     const next = (original.startsWith('\uFEFF') ? '\uFEFF' : '') + toCsv(rows)
+    if (await openInExcel($, LEADS)) {
+      await say($, 'Your leads file is open in Excel. Save and close it there, then try again (otherwise Excel would later put back its older copy).', true)
+      return false
+    }
     try {
       // Compare and write back to back, so another app's save has the smallest window to slip in.
       if ((await $.fs.read(LEADS)) !== original) {
@@ -159,7 +196,7 @@ async function saveLead($: any, id: string, change: (get: (c: string) => string,
     }
     // If another app saved at the same instant, don't redo the change; check the saved row is still there.
     const back: string = await $.fs.read(LEADS).catch(() => next)
-    if (back !== next && !parseCsv(back.replace(/^\uFEFF/, '')).some(r => r.length >= target.length && target.every((v, i) => (r[i] ?? '') === v))) {
+    if (back !== next && !readCsv(back).rows.some(r => r.length >= target.length && target.every((v, i) => (r[i] ?? '') === v))) {
       await say($, 'Another app saved your leads file at the same moment, so this choice may not have stuck. Press Refresh and check.', true)
       return false
     }
@@ -279,6 +316,7 @@ export const register: Register = on => {
     const s = await read($, inbox)
     const open = await read($, asking)
     const note = await read($, notice)
+    const allShown = await read($, showAll)
     if (s === null) return <Text dimColor>Loading…</Text>
 
     const card = (l: Lead, isOld: boolean) => {
@@ -339,9 +377,13 @@ export const register: Register = on => {
             <Button key="find" label="Find jobs" plain onPress={() => $.prompt.fill({ text: '/find-jobs' })} />
           </Box>
         )}
-        {s.fresh.map(l => card(l, false))}
-        {s.older.length > 0 && <Text bold>{`Older leads (found more than ${OLDER_THAN_DAYS} days ago)`}</Text>}
-        {s.older.map(l => card(l, true))}
+        {s.problem !== '' && <Text color="error" wrap="wrap">{s.problem}</Text>}
+        {(allShown ? s.fresh : s.fresh.slice(0, SHOWN)).map(l => card(l, false))}
+        {(allShown || s.fresh.length < SHOWN) && s.older.length > 0 && <Text bold>{`Older leads (found more than ${OLDER_THAN_DAYS} days ago)`}</Text>}
+        {(allShown || s.fresh.length < SHOWN) && (allShown ? s.older : s.older.slice(0, SHOWN - s.fresh.length)).map(l => card(l, true))}
+        {s.fresh.length + s.older.length > SHOWN && (
+          <Button key="show-all" label={allShown ? 'Show fewer' : `Show all ${s.fresh.length + s.older.length} leads`} plain onPress={() => update($, showAll, v => !v)} />
+        )}
         {s.saved.length > 0 && (
           <Box flexDirection="column">
             <Text bold>{`Saved, waiting to be added to your tracker (${s.saved.length})`}</Text>

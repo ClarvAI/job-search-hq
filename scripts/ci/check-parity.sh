@@ -3,7 +3,10 @@
 #  1. every .claude/skills/<name>/SKILL.md has a Codex wrapper .agents/skills/<name>/SKILL.md, with the
 #     same name and the identical description (Codex-only chat skills under .agents/ are fine);
 #  2. templates/blank/ holds no real-looking email addresses or phone numbers (only example.com-style
-#     addresses and 555 numbers), and its preferences.md starts out as "SETUP: not done".
+#     addresses and 555 numbers), and its preferences.md starts out as "SETUP: not done";
+#  3. the blank CSVs start with a UTF-8 BOM and hold only their comma-separated header line;
+#  4. no JSON data block in templates/blank/pages/*.html holds a raw "</" (escape "<" as \u003c).
+#  5. the five copies of the panels' csvdate.ts are identical.
 # Usage: bash scripts/ci/check-parity.sh      Exits 1 on any problem.
 set -u
 REPO="$(cd "$(dirname "$0")/../.." && pwd -P)"
@@ -102,5 +105,55 @@ else:
         fail('no templates/blank/**/preferences.md with "SETUP: not done"')
     else:
         print("ok    templates/blank: %d text files, no real contact details, setup starts as not done" % files)
+
+# 3. Blank CSVs: a UTF-8 BOM (so Excel on Windows reads accents right) and the header line only.
+csvs = 0
+for d, _, names in os.walk(blank):
+    for fn in sorted(names):
+        if not fn.endswith(".csv"):
+            continue
+        p = os.path.join(d, fn)
+        raw = open(p, "rb").read()
+        csvs += 1
+        if not raw.startswith(b"\xef\xbb\xbf"):
+            fail(p + ": should start with a UTF-8 BOM")
+        lines = [l for l in raw.decode("utf-8-sig").splitlines() if l.strip()]
+        if len(lines) != 1:
+            fail("%s: should hold only the header line (has %d lines)" % (p, len(lines)))
+        elif ";" in lines[0] or "," not in lines[0]:
+            fail(p + ": the header should be comma-separated")
+print("ok    templates/blank: %d CSV files checked (BOM, header only)" % csvs)
+
+# 4. Page data blocks: JSON inside <script type="application/json"> must not hold a raw "</"
+#    (it would end the script element early; write it as \u003c/). Checked in the blank pages.
+DATA = re.compile(r"<script\b[^>]*\btype\s*=\s*[\"']application/json[\"'][^>]*>(.*?)</script", re.S | re.I)
+pages = os.path.join(blank, "pages")
+blocks = 0
+if os.path.isdir(pages):
+    for fn in sorted(os.listdir(pages)):
+        if not fn.endswith(".html"):
+            continue
+        p = os.path.join(pages, fn)
+        text = open(p, encoding="utf-8").read()
+        for m in DATA.finditer(text):
+            blocks += 1
+            if "</" in m.group(1):
+                fail('%s: a data block contains a raw "</" (escape "<" as \\u003c)' % p)
+            if "<!--" in m.group(1):
+                fail('%s: a data block contains "<!--" (escape "<" as \\u003c)' % p)
+print("ok    templates/blank/pages: %d data blocks checked for raw \"</\"" % blocks)
+
+# 5. The panels' shared CSV/date helpers: every mod carries its own copy of csvdate.ts; all must match.
+copies = sorted(os.path.join(".claude/skills", m, "hooks/csvdate.ts") for m in os.listdir(".claude/skills")
+                if os.path.isfile(os.path.join(".claude/skills", m, "hooks/csvdate.ts")))
+if copies:
+    first = open(copies[0], "rb").read()
+    diff = [c for c in copies[1:] if open(c, "rb").read() != first]
+    for c in diff:
+        fail("%s differs from %s (change all copies of csvdate.ts together)" % (c, copies[0]))
+    if not diff:
+        print("ok    csvdate.ts: %d identical copies" % len(copies))
+    if len(copies) < 5:
+        fail("expected csvdate.ts in 5 mods, found %d" % len(copies))
 sys.exit(1 if bad else 0)
 PY

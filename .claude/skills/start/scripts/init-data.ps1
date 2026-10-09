@@ -17,8 +17,11 @@ if (-not $bi -or -not $bi.PSIsContainer -or $bi.LinkType) { Fail 'templates\blan
 $prefix = $bi.FullName.TrimEnd('\', '/').Length + 1
 
 $n = 0; $failed = 0
-$files = @(Get-ChildItem -LiteralPath $Blank -Recurse -File -Force | ForEach-Object { $_.FullName.Substring($prefix).Replace('\', '/') } |
-  Where-Object { $_ -ne 'README.md' } | Sort-Object)
+try {
+  $files = @(Get-ChildItem -LiteralPath $Blank -Recurse -File -Force | ForEach-Object { $_.FullName.Substring($prefix).Replace('\', '/') } |
+    Where-Object { $_ -ne 'README.md' } | Sort-Object)
+} catch { Fail 'could not list the starter files in templates\blank\; nothing was created' }
+if ($files.Count -eq 0) { Fail 'could not list the starter files in templates\blank\; nothing was created' }
 foreach ($rel in $files) {
   $dst = Join-Path $Root $rel
   # Present (or a link, even a broken one): leave it alone.

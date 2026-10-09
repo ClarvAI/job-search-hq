@@ -8,7 +8,7 @@ Nothing it produces is legal, financial, tax, immigration, or medical advice. Th
 
 ## AI output can be wrong
 
-The assistant can misread a posting, get a date or a number wrong, misremember a rule, or state something with more confidence than it deserves. Pay figures, deadlines and company facts can be out of date. The workspace has checks (a fact check against your own resume, a voice check, reminders to verify), but they reduce mistakes; they don't remove them. Read everything before you use it.
+The assistant can misread a posting, get a date or a number wrong, misremember a rule, or state something with more confidence than it deserves. Pay figures, deadlines and company facts can be out of date. Counts it works out for you (visa unemployment days left, which benefit weeks a certification covers, dates read from a spreadsheet) are estimates: the official counter, your agency or school, and your own records win. The workspace has checks (a fact check against your own resume, a voice check, reminders to verify), but they reduce mistakes; they don't remove them. Read everything before you use it.
 
 ## You are responsible for what you send and submit
 

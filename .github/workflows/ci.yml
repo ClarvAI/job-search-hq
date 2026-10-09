@@ -56,6 +56,18 @@ jobs:
         run: ./scripts/ci/parse-powershell.ps1
       - name: my-data backup and reset (bash)
         run: bash scripts/ci/mydata-smoke.sh --impl sh
+      - name: Startup summary (summary.sh, and session-start.ps1 under PowerShell 7)
+        env:
+          PS_EXE: pwsh
+        run: |
+          bash scripts/ci/summary-fixtures.sh --impl sh
+          bash scripts/ci/summary-fixtures.sh --impl ps
+      - name: Health check fixtures (bash, and health.ps1 under PowerShell 7)
+        env:
+          PS_EXE: pwsh
+        run: |
+          bash scripts/ci/health-fixtures.sh --impl sh
+          bash scripts/ci/health-fixtures.sh --impl ps
       - name: Health check runs on a fresh checkout
         run: |
           out="$(bash .claude/skills/health/scripts/health.sh)"
@@ -88,6 +100,10 @@ jobs:
         run: /bin/bash scripts/ci/guard-fixtures.sh --impl sh
       - name: my-data backup and reset with /bin/bash 3.2
         run: /bin/bash scripts/ci/mydata-smoke.sh --impl sh
+      - name: Startup summary with /bin/bash 3.2 and the system awk
+        run: /bin/bash scripts/ci/summary-fixtures.sh --impl sh
+      - name: Health check fixtures with /bin/bash 3.2
+        run: /bin/bash scripts/ci/health-fixtures.sh --impl sh
       - name: Health check with /bin/bash 3.2
         run: |
           out="$(/bin/bash .claude/skills/health/scripts/health.sh)"
@@ -141,6 +157,20 @@ jobs:
       - name: my-data backup and reset (Git Bash)
         shell: bash
         run: bash scripts/ci/mydata-smoke.sh --impl sh
+      - name: Startup summary (Git Bash, and session-start.ps1 under Windows PowerShell 5.1)
+        shell: bash
+        env:
+          PS_EXE: powershell
+        run: |
+          bash scripts/ci/summary-fixtures.sh --impl sh
+          bash scripts/ci/summary-fixtures.sh --impl ps
+      - name: Health check fixtures (Git Bash, and health.ps1 under Windows PowerShell 5.1)
+        shell: bash
+        env:
+          PS_EXE: powershell
+        run: |
+          bash scripts/ci/health-fixtures.sh --impl sh
+          bash scripts/ci/health-fixtures.sh --impl ps
       - name: Health check (Windows PowerShell 5.1)
         shell: powershell
         run: |

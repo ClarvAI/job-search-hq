@@ -7,8 +7,9 @@
 # Page-count check only (throwaway PDF, like page-count.sh):
 #   powershell -NoProfile -ExecutionPolicy Bypass -File .claude\skills\tailor-resume\scripts\make-pdf.ps1 jobs\<folder>\resume.html -CheckOnly
 #
-# Output: same lines as make-pdf.sh: "pdf: ...", "engine: ...", "paper: ...", "pages: N", "parse: ...",
-# or a status: no-browser, no-rendercv, print-failed, render-failed, not-found: <path>, usage: ...
+# Output: same lines as make-pdf.sh: "pdf: ...", "engine: ...", "paper: ...", "pages: N", "parse: ...", maybe
+# "parse-note: ...", or a status: no-browser, no-rendercv, print-failed (a blank PDF, or one without the name, email
+# and phone, is saved as <final name>-CHECK.pdf and a "check:" line says where), render-failed, not-found: <path>, usage: ...
 param(
   [Parameter(Position = 0)] [string]$Source,
   [Parameter(Position = 1)] [string]$Name,
@@ -18,6 +19,9 @@ param(
 # 'Continue', not 'Stop': in Windows PowerShell 5.1 any stderr text from rendercv/pdftotext would
 # otherwise abort the script. Steps that must succeed use -ErrorAction Stop themselves.
 $ErrorActionPreference = 'Continue'
+# File names and parse lines can hold accented letters; print them as UTF-8 (Windows PowerShell 5.1 defaults to the
+# console code page, which turns them into question marks).
+try { [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false) } catch {}
 
 $OnWindows = [Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT
 
@@ -137,6 +141,41 @@ try {
   if ($CheckOnly) { Write-Output ("pages: " + (Get-PageCount $tmpPdf)); exit 0 }
 
   $final = Join-Path $dir ((Get-Slug $Name) + '-' + $kind + '-' + (Get-Slug $Company) + $suffix + '.pdf')
+
+  # ---- Is it a real document? A blank page, or one without the person's name, email and phone, is never saved
+  # under the final name (the Apply Kit offers that name for uploads).
+  $raw0 = [IO.File]::ReadAllText($srcFull)
+  $bad = ''
+  if (Get-Command pdftotext -ErrorAction SilentlyContinue) {
+    $chk = Join-Path $tmp 'check.txt'
+    & pdftotext -enc UTF-8 $tmpPdf $chk 2>$null
+    if (Test-Path -LiteralPath $chk) {
+      $ct = [IO.File]::ReadAllText($chk, [Text.Encoding]::UTF8)
+      if (($ct -replace '\s', '') -eq '') { $bad = 'it has no text' }
+      else {
+        $seen = $ct.ToLowerInvariant().Contains($Name.ToLowerInvariant())
+        $em0 = [regex]::Match($raw0, '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}')
+        if ($em0.Success -and $ct.ToLowerInvariant().Contains($em0.Value.ToLowerInvariant())) { $seen = $true }
+        $ph = [regex]::Match($raw0, '\+?\(?[0-9][0-9 ().-]{7,}[0-9]')
+        if ($ph.Success) {
+          $pd = $ph.Value -replace '[^0-9]', ''
+          if ($pd.Length -ge 7 -and ($ct -replace '[^0-9]', '').Contains($pd.Substring($pd.Length - 7))) { $seen = $true }
+        }
+        if (-not $seen) { $bad = 'the name, email and phone are all missing from its text' }
+      }
+    }
+  } elseif (-not (Get-PdfLatin1 $tmpPdf).Contains('/Font')) { $bad = 'it has no text' }
+  $checkPdf = $final -replace '\.pdf$', '-CHECK.pdf'
+  if ($bad) {
+    $moved = $true
+    try { Move-Item -LiteralPath $tmpPdf -Destination $checkPdf -Force -ErrorAction Stop } catch { $moved = $false }
+    Write-Output 'print-failed'
+    if ($moved) { Write-Output "check: $checkPdf ($bad; saved under this name so it can't be uploaded by mistake)" }
+    if (Test-Path -LiteralPath $final) { Write-Output "old: $final is from an earlier run and may not match the current file" }
+    exit 1
+  }
+  if (Test-Path -LiteralPath $checkPdf) { Remove-Item -LiteralPath $checkPdf -Force -ErrorAction SilentlyContinue }
+
   try { Move-Item -LiteralPath $tmpPdf -Destination $final -Force -ErrorAction Stop }
   catch { Write-Output "save-failed: $final (is the PDF open in another app?)"; exit 1 }
   $paper = Get-PaperSize $final
@@ -172,6 +211,7 @@ try {
 
   $good = New-Object System.Collections.Generic.List[string]
   $bad = New-Object System.Collections.Generic.List[string]
+  $note = ''
 
   $top = ($lines | Select-Object -First 3) -join ' '
   if ($top.ToLowerInvariant().Contains($Name.ToLowerInvariant())) { $good.Add('name') } else { $bad.Add('name not in the first lines') }
@@ -217,7 +257,12 @@ try {
   else {
     $lost = $srcYears | Where-Object { $pdfYears -notcontains $_ } | Select-Object -First 1
     if ($lost) { $bad.Add("date $lost not readable") }
-    else { $bad.Add("dates read in a different order than on the page (check the PDF's text order)") }
+    else {
+      # Every date is there, just read in another order: usually a year standing alone at the right of a line
+      # (a project or award). Applicant tracking systems handle that; it is a note, not something to fix.
+      $good.Add('dates readable')
+      $note = "dates read in a slightly different order than on the page (usually a year on its own at the right of a line); that's fine, don't change the layout for it"
+    }
   }
 
   if ($bad.Count -eq 0) { Write-Output ("parse: ok (" + ($good -join ', ') + ")") }
@@ -226,6 +271,7 @@ try {
     if ($good.Count -gt 0) { $msg += " (fine: " + ($good -join ', ') + ")" }
     Write-Output $msg
   }
+  if ($note) { Write-Output "parse-note: $note" }
   exit 0
 }
 finally {

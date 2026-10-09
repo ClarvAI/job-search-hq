@@ -7,8 +7,9 @@ test('slash dates are read only when the day/month order is certain', async () =
   expect(toIso('14/10/2026')).toBe('2026-10-14')
   expect(toIso('10/14/26')).toBe('2026-10-14')
   expect(toIso('7/7/2026')).toBe('2026-07-07')
-  expect(toIso('06/10/2026', dateOrder('home_base: Leeds, UK\n'))).toBe('2026-10-06')
-  expect(toIso('06/10/2026', dateOrder('home_base: Columbus, OH\n'))).toBe('2026-06-10')
+  expect(toIso('06/10/2026', dateOrder('date_order: DMY\n'))).toBe('2026-10-06')
+  expect(toIso('06/10/2026', dateOrder('date_order: MDY\n'))).toBe('2026-06-10')
+  expect(toIso('06/10/2026', dateOrder('home_base: Columbus, OH\n'))).toBe('06/10/2026')
   expect(dateOrder('home_base:\n<!-- city / region -->\n')).toBe('')
   expect(toIso('13/14/2026')).toBe('13/14/2026')
 })
@@ -49,4 +50,11 @@ test('CSV round-trips quoted commas and Excel quirks; plain() strips fancy chara
 test('the note Claude gets on Save names the job, the lead and add-job', async () => {
   const note = savedNote({ id: 'L-20261005-01', company: 'Northwind Traders, Inc.', role: 'Operations Analyst', location: 'Columbus OH', link: 'https://x.com/1', applyLink: '' })
   expect(note).toBe('[Job Inbox] The user saved Northwind Traders, Inc. - Operations Analyst (Columbus OH) from jobs/leads.csv (lead L-20261005-01, https://x.com/1). Run add-job on it when the user next talks to you (together with any other saved leads); add-job marks the lead added.')
+})
+
+test('two known, different job IDs are separate openings even when the link is the same careers page', async () => {
+  const page = 'https://careers.acme.example/search'
+  expect(isSamePosting({ company: 'Acme', role: 'Analyst', location: 'London', link: page, jobId: 'R-1' }, { company: 'Acme', role: 'Analyst', location: 'London', link: page, jobId: 'R-2' })).toBe(false)
+  expect(isSamePosting({ company: 'Acme', role: 'Analyst', link: page, jobId: 'R-1' }, { company: 'Acme Ltd', role: 'Analyst II', link: page, jobId: 'r-1' })).toBe(true)
+  expect(isSamePosting({ company: 'Acme', role: 'Analyst', link: page, jobId: 'R-1' }, { company: 'Acme', role: 'Analyst', link: page })).toBe(true)
 })

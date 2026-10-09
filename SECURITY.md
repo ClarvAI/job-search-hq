@@ -20,11 +20,11 @@ The main protection is the rules the assistant follows (`AGENTS.md`): it drafts 
 
 `.claude/hooks/guard.sh` (and `guard.ps1` on Windows) runs before the assistant uses certain tools, in both apps. It blocks:
 
-- **Email:** anything except reading, searching, and creating or updating drafts (no send, reply, forward, delete, label or archive).
-- **Calendar:** anything except reading and adding an event with no attendees to the user's own calendar.
+- **Email:** anything except reading, searching, and creating or updating drafts (no send, reply, forward, delete, label or archive). Any other connected app whose action sends, replies, forwards, trashes or deletes is blocked too.
+- **Calendar and meeting tools** (Google Calendar, Outlook, Calendly, Zoom and similar): anything except reading and adding an event with no attendees, guests or invitees to the user's own calendar.
 - **Browser and computer use:** sending an automated browser to Gmail, Outlook or LinkedIn. It sees addresses the assistant asks for; it can't see which site a tab the user already opened is showing.
 - **Web fetches:** addresses that look like they carry personal data (an email address, the user's name or phone number, or a large block of data). This is a pattern check and can't catch every disguise.
-- **Shell:** pushing this folder to a public GitHub repository, or creating or making one public. `.githooks/pre-push` repeats this check inside git when turned on.
+- **Shell:** pushing this folder to a public GitHub repository, creating a public repository or gist, or making a repository public. `.githooks/pre-push` repeats the push check inside git when turned on.
 
 If the guard script crashes or is missing, the hook command turns that into a block.
 
@@ -34,10 +34,13 @@ What it does **not** cover:
 - **Codex:** hooks run only after the user reviews and trusts them, and again after any change to them; until then the guard does not run. Codex hosted tools such as its web search don't go through hooks at all, and OpenAI notes that some specialized tool paths can skip hooks ("a useful guardrail, not a complete enforcement boundary"). File edits (apply_patch) are not checked by the guard.
 - **Claude Code:** the guard checks shell commands, web fetches, and connector/MCP tools (Gmail, Calendar, the built-in browser, Claude in Chrome, computer use). It also checks commands run through Claude Code's separate PowerShell tool on Windows. File edits and web searches are not checked by the guard. Project hooks run only after the user trusts the folder.
 - It reads tool requests, not the screen. It can't stop the user from doing something themselves, and it can't stop a program the assistant runs from doing something the command line doesn't show.
+- **The public-repository check reads the command line.** It follows git aliases, `-c` settings, URL rewrites and SSH host aliases for GitHub, and blocks commands that hide what they run (base64 or similar fed to a shell). It can't see inside a script saved in a file and run later. The optional `.githooks/pre-push` hook runs inside git and sees the real destination, so it covers that case; it is off until the user turns it on (`git config core.hooksPath .githooks`, offered by `/start` and `/health`, never enabled without their yes). Neither check knows hosts other than GitHub (GitLab, Bitbucket, self-hosted git, cloud drives): pushes there aren't checked at all. If GitHub can't be reached within a few seconds to confirm a repository is private, the push is blocked.
+- **Browser destinations are matched by address.** Addresses are decoded first, so a search engine's `url?q=` link to a blocked site is caught, and well-known link shorteners are blocked; but a site that redirects on its own server to Gmail, Outlook or LinkedIn can't be seen in advance. What the assistant types into a page on any other site isn't checked: keeping coach mode read-only on employer sites is a rule, not a block.
+- **Web-fetch checks are patterns,** not a guarantee: data split across a URL or encoded in an unusual way can get through.
 
 ### 2. App permissions (Claude Code)
 
-`.claude/settings.json` asks before edits to the product's own instructions and settings (`AGENTS.md`, `CLAUDE.md`, `.agents/`, `.codex/`, `.githooks/`, `VERSION`, `product-manifest.json`; Claude Code already protects `.claude/`), before edits to the user's master resume and preferences, and before shell commands that move, copy over, delete or rewrite those files. It blocks `curl`, `wget`, `git push` and `rm -rf`. These rules match the command text the assistant writes; the Claude Code documentation is clear that they are not a security boundary around a program.
+`.claude/settings.json` asks before edits to the product's own instructions and settings (`AGENTS.md`, `CLAUDE.md`, `.agents/`, `.codex/`, `.githooks/`, `VERSION`, `product-manifest.json`; Claude Code already protects `.claude/`), before edits to the user's master resume and preferences, and before shell commands that name a path in `profile/` and could change it (redirects such as `>`, `cp`, `mv`, `rm`, `tee`, `sed`, `awk`, `perl`, `python`, `node`, `ruby`, `touch`, `ln`, `rsync`, `tar`, `unzip` and similar). It blocks `curl`, `wget`, `git push` and `rm -rf`. These rules match the command text the assistant writes: a command that reaches `profile/` without naming it (a script file, a variable, a `cd` first) isn't caught, and the Claude Code documentation is clear that they are not a security boundary around a program. Two further checks don't depend on them: the Outbox panel sends only after the user has confirmed send mode once inside the panel, and assisted mode is confirmed by the user in chat before the first form each session (a rule the assistant follows).
 
 Codex uses its own approval and sandbox settings, which the user controls in Codex.
 

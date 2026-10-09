@@ -2,6 +2,8 @@ import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
 import type { Contact, Notice, Summary } from '../types'
+import type { DateOrder } from './csvdate'
+import { addDays, csvTrouble, dateOrder, daysBetween, isExcelLock, isIso, localDate, orderFor, plain, readCsv, toCsv, toIso } from './csvdate'
 
 // Contacts board: the user's networking board over contacts/contacts.csv (the single source of truth).
 // The user records what actually happened (a message sent, a reply, a conversation, a referral);
@@ -36,93 +38,26 @@ const isHidden = atom({ plugin: 'contacts-board', key: 'isHidden' } as const, fa
 const armed = atom({ plugin: 'contacts-board', key: 'armed' } as const, '')
 const showCold = atom({ plugin: 'contacts-board', key: 'showCold' } as const, false)
 const notice = atom({ plugin: 'contacts-board', key: 'notice' } as const, { text: '', isError: false } as Notice)
-
-function parseCsv(text: string): string[][] {
-  const rows: string[][] = []
-  let row: string[] = []
-  let cell = ''
-  let quoted = false
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i]
-    if (quoted) {
-      if (c === '"' && text[i + 1] === '"') { cell += '"'; i++ }
-      else if (c === '"') quoted = false
-      else cell += c
-    } else if (c === '"') quoted = true
-    else if (c === ',') { row.push(cell); cell = '' }
-    else if (c === '\n' || c === '\r') {
-      if (c === '\r' && text[i + 1] === '\n') i++
-      row.push(cell); rows.push(row); row = []; cell = ''
-    } else cell += c
-  }
-  if (cell !== '' || row.length > 0) { row.push(cell); rows.push(row) }
-  return rows.filter(r => r.some(v => v.trim() !== ''))
-}
-
-function toCsv(rows: string[][]): string {
-  const q = (v: string) => (/[",\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v)
-  return rows.map(r => r.map(q).join(',')).join('\n') + '\n'
-}
-
-function localDate(ms: number): string {
-  const d = new Date(ms)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-}
+const showAll = atom({ plugin: 'contacts-board', key: 'showAll' } as const, false)
+// Cards shown per column until the user presses "Show all" (due ones come first).
+const SHOWN = 10
 
 const parts = (iso: string): [number, number, number] => { const [y = 0, m = 1, d = 1] = iso.split('-').map(Number); return [y, m, d] }
-
-function addDays(iso: string, days: number, businessOnly = false): string {
-  const [y, m, d] = parts(iso)
-  const date = new Date(y, m - 1, d)
-  let left = days
-  while (left > 0) {
-    date.setDate(date.getDate() + 1)
-    const wd = date.getDay()
-    if (!businessOnly || (wd !== 0 && wd !== 6)) left--
-  }
-  return localDate(date.getTime())
-}
 
 function minusDays(iso: string, days: number): string {
   const [y, m, d] = parts(iso)
   return localDate(new Date(y, m - 1, d - days).getTime())
 }
 
-// Excel may rewrite dates as 14/10/2026 or 10/14/26, in the order of the user's region. Same rules as
-// the Pipeline panel: a slash date is read only when its order is certain (a part over 12, both parts
-// the same, or a US or day-first home_base); otherwise it stays as written for the user to confirm.
+// Excel may rewrite dates as 14/10/2026, 10/14/26 or 14.10.2026. Same rules as the Pipeline panel
+// (csvdate.ts): a date is read only when its meaning is certain (the row's own dates, or date_order in
+// profile/preferences.md); otherwise it stays exactly as written for the user to confirm.
 const DATE_COLS = ['last_contact', 'next_followup']
-type DateOrder = 'mdy' | 'dmy' | ''
-const US_STATES = 'AL|AK|AZ|AR|CA|CO|CT|DE|DC|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY'
-function dateOrder(prefs: string): DateOrder {
-  const home = /^[ \t]*home_base:[ \t]*(.*)$/m.exec(prefs)?.[1]?.trim() ?? ''
-  if (/\b(USA|U\.S\.A?\.?|United States)\b/i.test(home) || new RegExp(`,\\s*(${US_STATES})\\b`).test(home)) return 'mdy'
-  if (/\b(UK|U\.K\.|United Kingdom|Britain|England|Scotland|Wales|Ireland|Australia|New Zealand|India|South Africa|Singapore|Germany|France|Spain|Italy|Portugal|Netherlands|Belgium|Brazil|Mexico)\b/i.test(home)) return 'dmy'
-  return ''
-}
 async function readOrder($: any): Promise<DateOrder> {
   const prefs: string = (await $.fs.exists('profile/preferences.md').catch(() => false)) ? await $.fs.read('profile/preferences.md').catch(() => '') : ''
   return dateOrder(prefs)
 }
-function toIso(v: string, order: DateOrder = ''): string {
-  const t = v.trim()
-  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/.exec(t)
-  if (!m || !m[3]) return t
-  const a = Number(m[1]), b = Number(m[2])
-  const [mo = 0, da = 0] = a === b ? [a, b] : a > 12 ? [b, a] : b > 12 ? [a, b] : order === 'mdy' ? [a, b] : order === 'dmy' ? [b, a] : [0, 0]
-  if (mo < 1 || mo > 12 || da < 1 || da > 31) return t
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${m[3].length === 2 ? `20${m[3]}` : m[3]}-${pad(mo)}-${pad(da)}`
-}
-// A cell never starts with = + - @ or a tab: Excel would run it as a formula, so those are dropped.
-const safeCell = (v: string) => v.replace(/[\r\n]+/g, ' ').replace(/^[\s=+\-@]+/, '')
-const isIso = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v)
-
-function daysBetween(a: string, b: string): number {
-  const [y1, m1, d1] = parts(a), [y2, m2, d2] = parts(b)
-  return Math.round((new Date(y2, m2 - 1, d2).getTime() - new Date(y1, m1 - 1, d1).getTime()) / 86400000)
-}
+const safeCell = plain
 
 function ago(iso: string, today: string): string {
   if (!isIso(iso)) return iso
@@ -137,6 +72,14 @@ function friendlyDate(iso: string, today: string): string {
   return `${iso} (in ${daysBetween(today, iso)} days)`
 }
 
+// A networking follow-up that's due: same rule as the due alerts. Not for cold contacts, not after 2
+// unanswered messages, and not when the linked job is applied or later (its row owns the follow-up).
+function isDueContact(c: Contact, today: string): boolean {
+  if (c.status === 'cold' || c.jobOwnsFollowup) return false
+  if (['to-contact', 'contacted'].includes(c.status) && c.touches >= MAX_TOUCHES) return false
+  return isIso(c.nextFollowup) && c.nextFollowup <= today
+}
+
 const toNumber = (v: string) => { const n = parseInt(v, 10); return Number.isFinite(n) && n > 0 ? n : 0 }
 const normStatus = (v: string) => { const s = v.trim().toLowerCase(); return s === '' ? 'to-contact' : s }
 
@@ -148,8 +91,8 @@ function keyOf(get: (c: string) => string): string {
 }
 
 async function jobStatuses($: any): Promise<Record<string, string>> {
-  const raw: string = ((await $.fs.exists(TRACKER)) ? await $.fs.read(TRACKER).catch(() => '') : '').replace(/^\uFEFF/, '')
-  const [header = [], ...rows] = parseCsv(raw)
+  const raw: string = (await $.fs.exists(TRACKER)) ? await $.fs.read(TRACKER).catch(() => '') : ''
+  const { rows: [header = [], ...rows] } = readCsv(raw)
   const fi = header.findIndex(h => h.trim().toLowerCase() === 'folder')
   const si = header.findIndex(h => h.trim().toLowerCase() === 'status')
   const out: Record<string, string> = {}
@@ -164,13 +107,16 @@ async function jobStatuses($: any): Promise<Record<string, string>> {
 async function load($: any): Promise<Summary> {
   const today = localDate(await $.clock.now())
   const hasFile: boolean = await $.fs.exists(CONTACTS)
-  const raw = (hasFile ? await $.fs.read(CONTACTS) : '').replace(/^\uFEFF/, '')
-  const [header = [], ...rows] = parseCsv(raw)
+  const raw = hasFile ? await $.fs.read(CONTACTS) : ''
+  const { rows: [header = [], ...all], problem } = readCsv(raw)
+  // A damaged file shows nothing but the message: its rows can't be trusted.
+  const rows = problem === '' ? all : []
   const col = (name: string) => header.findIndex(h => h.trim().toLowerCase() === name)
   const at = (r: string[], name: string) => (col(name) >= 0 ? (r[col(name)] ?? '').trim() : '')
   const jobs = await jobStatuses($)
   const order = await readOrder($)
   const contacts: Contact[] = rows.map(r => {
+    const o = orderFor(r, order)
     const job = at(r, 'job')
     const jobStatus = job ? jobs[job.toLowerCase()] ?? '' : ''
     return {
@@ -179,8 +125,8 @@ async function load($: any): Promise<Summary> {
       company: at(r, 'company'),
       title: at(r, 'title'),
       relationship: at(r, 'relationship').toLowerCase(),
-      lastContact: toIso(at(r, 'last_contact'), order),
-      nextFollowup: toIso(at(r, 'next_followup'), order),
+      lastContact: toIso(at(r, 'last_contact'), o),
+      nextFollowup: toIso(at(r, 'next_followup'), o),
       status: normStatus(at(r, 'status')),
       touches: toNumber(at(r, 'touches')),
       job,
@@ -192,8 +138,8 @@ async function load($: any): Promise<Summary> {
   for (const c of contacts) counts[c.status] = (counts[c.status] ?? 0) + 1
   const byDate = (a: Contact, b: Contact) => (a.nextFollowup || '9999').localeCompare(b.nextFollowup || '9999') || a.name.localeCompare(b.name)
   contacts.sort(byDate)
-  const due = contacts.filter(c => c.status !== 'cold' && isIso(c.nextFollowup) && c.nextFollowup <= today)
-  return { today, contacts, due, counts, hasFile }
+  const due = contacts.filter(c => isDueContact(c, today))
+  return { today, contacts, due, counts, hasFile, problem: csvTrouble(problem, 'Your contacts file (contacts/contacts.csv)') }
 }
 
 async function refresh($: any): Promise<Summary> {
@@ -217,12 +163,35 @@ async function logActivity($: any, what: string): Promise<void> {
   const pad = (n: number) => String(n).padStart(2, '0')
   const stamp = `${localDate(d.getTime())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
   const lineOut = `- ${stamp} · Contacts panel (Claude) · ${what.replace(/[\r\n]+/g, ' ')}\n`
+  await appendLine($, ACTIVITY, lineOut)
+}
+
+// One line added to the end of history/activity.md. The file is re-read right before the write and
+// checked afterwards, so a line another app added meanwhile is kept and this one is not lost.
+async function appendLine($: any, path: string, lineOut: string): Promise<boolean> {
+  const readNow = async (): Promise<string> => ((await $.fs.exists(path)) ? String(await $.fs.read(path)) : '# Recent activity\n\n')
+  let wrote = false
   try {
-    const before: string = (await $.fs.exists(ACTIVITY)) ? await $.fs.read(ACTIVITY) : '# Recent activity\n\n'
-    await $.fs.write(ACTIVITY, before.replace(/\n*$/, '\n') + lineOut)
-    const after: string = await $.fs.read(ACTIVITY)
-    if (!after.includes(lineOut)) await $.fs.write(ACTIVITY, after.replace(/\n*$/, '\n') + lineOut)
-  } catch { /* the log is a convenience; never block a contacts save on it */ }
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const before = await readNow()
+      if (wrote && before.includes(lineOut)) return true
+      if ((await readNow()) !== before) continue
+      await $.fs.write(path, before.replace(/\n*$/, '\n') + lineOut)
+      wrote = true
+      if ((await readNow()).includes(lineOut)) return true
+    }
+  } catch { /* the log is a convenience; never block a save on it */ }
+  return false
+}
+
+// True when Excel seems to have the file open (its "~$" lock file is next to it). Without a lock file
+// it may still be open, so a failed save also asks the user to save and close Excel.
+async function openInExcel($: any, path: string): Promise<boolean> {
+  const at = path.lastIndexOf('/')
+  try {
+    const entries: Array<{ name: string }> = await $.fs.list(at < 0 ? '.' : path.slice(0, at))
+    return entries.some(e => isExcelLock(String(e.name), path.slice(at + 1)))
+  } catch { return false }
 }
 
 type Change = (get: (c: string) => string, set: (c: string, v: string) => void, today: string) => { what: string; forClaude?: string } | string
@@ -236,7 +205,9 @@ async function saveContact($: any, key: string, change: Change): Promise<boolean
   for (let attempt = 0; ; attempt++) {
     if (!(await $.fs.exists(CONTACTS))) { await say($, 'Your contacts file (contacts/contacts.csv) is missing. Ask Claude to check it.', true); return false }
     const original: string = await $.fs.read(CONTACTS)
-    const rows = parseCsv(original.replace(/^\uFEFF/, ''))
+    const { rows, problem } = readCsv(original)
+    // A damaged file is never written back: that would spread the damage.
+    if (problem !== '') { await refresh($).catch(() => undefined); await say($, csvTrouble(problem, 'Your contacts file (contacts/contacts.csv)'), true); return false }
     if (rows.length === 0) rows.push([...HEADER])
     const header = rows[0] ?? []
     const find = (c: string) => header.findIndex(h => h.trim().toLowerCase() === c)
@@ -248,7 +219,8 @@ async function saveContact($: any, key: string, change: Change): Promise<boolean
     const target = rows.slice(1).find(r => keyOf(c => (find(c) >= 0 ? (r[find(c)] ?? '') : '')) === key)
     if (!target) { await say($, 'That person is no longer in your contacts file. Press Refresh, or ask Claude to check it.', true); return false }
     // Only this person's dates are tidied, and only when their order is certain; other rows stay as they are.
-    for (const c of DATE_COLS) { const i = find(c); if (i >= 0 && target[i]) target[i] = toIso(target[i], order) }
+    const o = orderFor(target, order)
+    for (const c of DATE_COLS) { const i = find(c); if (i >= 0 && target[i]) target[i] = toIso(target[i], o) }
     const get = (c: string) => (find(c) >= 0 ? (target[find(c)] ?? '') : '').trim()
     const set = (c: string, v: string) => { const i = idx(c); while (target.length <= i) target.push(''); target[i] = safeCell(v) }
     const out = change(get, set, today)
@@ -256,6 +228,10 @@ async function saveContact($: any, key: string, change: Change): Promise<boolean
     if (result.what === '') return false
     for (const r of rows) while (r.length < header.length) r.push('')
     const next = (original.startsWith('\uFEFF') ? '\uFEFF' : '') + toCsv(rows)
+    if (await openInExcel($, CONTACTS)) {
+      await say($, 'Your contacts file is open in Excel. Save and close it there, then try again (otherwise Excel would later put back its older copy).', true)
+      return false
+    }
     try {
       // Re-read right before writing: if Claude, Codex or Excel changed the file meanwhile, redo the change on the new version.
       if ((await $.fs.read(CONTACTS)) !== original) {
@@ -271,7 +247,7 @@ async function saveContact($: any, key: string, change: Change): Promise<boolean
     // If another app saved at the same instant, never redo the change (it would count a message twice);
     // check that the saved row is still there instead.
     const back: string = await $.fs.read(CONTACTS).catch(() => next)
-    if (back !== next && !parseCsv(back.replace(/^\uFEFF/, '')).some(r => r.length >= target.length && target.every((v, i) => (r[i] ?? '') === v))) {
+    if (back !== next && !readCsv(back).rows.some(r => r.length >= target.length && target.every((v, i) => (r[i] ?? '') === v))) {
       await update($, armed, () => '')
       await refresh($).catch(() => undefined)
       await say($, 'Another app saved your contacts file at the same moment, so this change may not have stuck. Check the person below and try again if needed.', true)
@@ -298,22 +274,30 @@ async function messageSent($: any, c: Contact, value: string): Promise<void> {
   const jobs = await jobStatuses($)
   await saveContact($, c.key, (get, set) => {
     const status = normStatus(get('status'))
-    const touches = toNumber(get('touches')) + 1
+    // The unanswered count and the 5-day nudge are for people who haven't replied yet. A thank-you or
+    // update to someone who replied, talked or referred the user is not chasing them: no count, no nag.
+    const waiting = get('status') === '' || status === 'to-contact' || status === 'contacted'
+    const touches = waiting ? toNumber(get('touches')) + 1 : toNumber(get('touches'))
     const job = get('job')
     const jobStatus = job ? jobs[job.toLowerCase()] ?? '' : ''
     const owned = APPLIED_OR_LATER.includes(jobStatus)
     const last = get('last_contact')
     // last_contact is the newest message; recording an older one doesn't move it back.
     if (!isIso(last) || date >= last) set('last_contact', date)
-    set('touches', String(touches))
+    if (waiting) set('touches', String(touches))
     // Status moves to contacted only from to-contact or blank: never backwards from replied, talked or referred (or out of cold).
-    const moved = get('status') === '' || status === 'to-contact'
+    const moved = waiting && status !== 'contacted'
     if (moved) set('status', 'contacted')
     let extra = ''
     let forClaude = ''
     if (owned) {
+      // The job row owns the follow-up date: any old networking date on this person is cleared.
+      const hadDate = get('next_followup') !== ''
+      set('next_followup', '')
       forClaude = `${c.name}'s job (${job}) is ${jobStatus}, so the job row owns the follow-up date and next_followup stays empty on the contact. Only if this message was an actual follow-up about the application, add 1 to that job's followups in jobs/tracker.csv and set its next_action_date per the follow-up cadence. A thank-you note, a scheduling reply or other correspondence does not count as a follow-up and must not replace an interview or offer next step; ask the user if you can't tell which it was.`
-      extra = '; follow-up date stays with the job'
+      extra = `; follow-up date stays with the job${hadDate ? ' (old contact follow-up date cleared)' : ''}`
+    } else if (!waiting) {
+      extra = ''
     } else if (touches >= MAX_TOUCHES) {
       set('next_followup', '')
       extra = `; ${touches} messages with no reply, so no more follow-ups (stop here)`
@@ -324,7 +308,7 @@ async function messageSent($: any, c: Contact, value: string): Promise<void> {
     }
     forClaude += ' If an Outbox draft to this person matches this message, set it to sent (sent: ' + date + ') and move it to outbox/sent/.'
     return {
-      what: `${who(c)}: message sent ${date}${moved ? ', now Contacted' : ''}; ${touches} with no reply${extra}`,
+      what: `${who(c)}: message sent ${date}${moved ? ', now Contacted' : ''}${waiting ? `; ${touches} with no reply` : ''}${extra}`,
       forClaude: forClaude.trim(),
     }
   })
@@ -463,6 +447,7 @@ export const register: Register = on => {
     const s = await read($, summary)
     const target = await read($, armed)
     const coldShown = await read($, showCold)
+    const allShown = await read($, showAll)
     const note = await read($, notice)
     if (s === null) return <Text dimColor>Loading…</Text>
 
@@ -470,7 +455,7 @@ export const register: Register = on => {
       const action = target.startsWith(`${c.key}#`) ? target.slice(c.key.length + 1) : ''
       const arm = (a: string) => async () => { await say($, ''); await update($, armed, () => `${c.key}#${a}`) }
       const cancel = <Button key={`${c.key}:cancel`} label="Cancel" onPress={() => update($, armed, () => '')} />
-      const isDue = c.status !== 'cold' && isIso(c.nextFollowup) && c.nextFollowup <= s.today
+      const isDue = isDueContact(c, s.today)
       const waiting = ['to-contact', 'contacted'].includes(c.status)
       const atCap = waiting && c.touches >= MAX_TOUCHES
       const yesterday = minusDays(s.today, 1)
@@ -574,16 +559,23 @@ export const register: Register = on => {
         {note.text !== '' && <Text color={note.isError ? 'error' : 'success'}>{note.isError ? `Not saved: ${note.text}` : note.text}</Text>}
         {!s.hasFile && <Text dimColor>No contacts file yet. Ask Claude to set one up, or type /network to find people to talk to.</Text>}
         {s.hasFile && s.contacts.length === 0 && <Text dimColor>No one here yet. Type /network to find people at a company you like, or /import-linkedin to bring in your connections.</Text>}
+        {s.problem !== '' && <Text color="error" wrap="wrap">{s.problem}</Text>}
         {COLUMNS.map(col => {
+          // Due follow-ups first, then by date; long columns are cut short until "Show all".
           const list = s.contacts.filter(c => c.status === col.value)
+            .sort((a, b) => Number(isDueContact(b, s.today)) - Number(isDueContact(a, s.today)))
           if (list.length === 0) return null
           return (
             <Box key={`col:${col.value}`} flexDirection="column" gap={1}>
               <Text bold underline>{`${col.label} (${list.length})`}</Text>
-              {list.map(card)}
+              {(allShown ? list : list.slice(0, SHOWN)).map(card)}
+              {!allShown && list.length > SHOWN && <Text dimColor>{`${list.length - SHOWN} more in this column.`}</Text>}
             </Box>
           )
         })}
+        {COLUMNS.some(col => s.contacts.filter(c => c.status === col.value).length > SHOWN) && (
+          <Button key="show-all" label={allShown ? 'Show fewer' : `Show all ${s.contacts.length} people`} plain onPress={() => update($, showAll, v => !v)} />
+        )}
         {other.length > 0 && (
           <Box key="col:other" flexDirection="column" gap={1}>
             <Text bold underline>{`Status not recognized (${other.length})`}</Text>

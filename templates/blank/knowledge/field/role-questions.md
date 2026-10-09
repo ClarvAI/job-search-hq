@@ -1,5 +1,5 @@
 STATUS: not generated
-<!-- /start builds this file for the user's target roles (see the "field pack" step in the start skill). Then the line above becomes "STATUS: generated YYYY-MM-DD for <field>". Until then, /interview-prep and /mock-interview draw technical questions from a quick web lookup of real interview reports instead, and offer to build it. -->
+<!-- /start builds this file for the user's target roles (see the "field pack" step in the start skill). Then the line above becomes "STATUS: generated YYYY-MM-DD for <field>"; if the user's target roles change, rebuild it (or say it is out of date). Until then, /interview-prep and /mock-interview draw technical questions from a quick web lookup of real interview reports instead, and offer to build it. -->
 
 # Role-Specific Interview Questions
 

@@ -54,6 +54,7 @@ These are always HIGH:
     - Resume and cover letter: one column, real text, standard headings, body text near-black, the accent only on the name and section rules, the font from the ATS-safe list, `parse: ok` from `make-pdf`. Anything else themed there is HIGH.
     - Designed resume: exists only next to an ATS version made from the same checked text; real selectable text, no images of text, no hidden, white or tiny text (< 9pt), all text ≥ 4.5:1 on white, one column, `parse: ok`. Breaking any of these is HIGH.
     - Portfolio: public, so contrast in both themes and resume-level facts only (run `truth-checker`); no NDA material.
+14. **Data block safety** (dashboard, flashcards, interview briefs): the `<script type="application/json" id="data">` block is valid JSON and contains no `<` at all, so no `</script>` can end it early: every `<` in the data is written as the six characters backslash, u, 0, 0, 3, c (check with a search of the block for `</` and `<`; any hit is HIGH). Render scripts put data on the page with `textContent`, never `innerHTML`, and allow only `https:`/`mailto:` links from data. The portfolio has no data block; its text uses `&lt;`, `&gt;`, `&amp;`.
 
 ## Checks: panels (mods)
 
@@ -91,7 +92,7 @@ Prefer the cheapest fix that works, in this order: delete (a line, an animation,
 
 ## Verifying in a browser (when available)
 
-In the Claude Desktop app, the built-in browser is the easiest way to look: open the page there, take a screenshot, and check both light and dark mode.
+In the Claude Desktop app, the built-in browser is the easiest way to look: open the page there, take a screenshot, and check both light and dark mode. Some versions only open web addresses, not files on the computer; if a page won't open there, don't keep trying: use headless Chrome below, or give the user the file path to double-click (on a Mac, `open <file>`).
 
 If Chrome is installed, Claude can render without opening a window, e.g. on a Mac:
 `"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --virtual-time-budget=6000 --window-size=1280,1400 --screenshot=out.png file:///path/to/page.html`

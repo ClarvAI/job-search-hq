@@ -23,7 +23,7 @@ CI (`.github/workflows/ci.yml`) runs the same scripts on every push and pull req
 | Shell scripts parse and pass shellcheck | `scripts/ci/lint-shell.sh` |
 | JSON files parse | `scripts/ci/check-json.sh` |
 | JavaScript modules parse | `scripts/ci/check-node.sh` |
-| Every Claude skill has a Codex wrapper with the same description; blank starter files hold no real-looking contact details | `scripts/ci/check-parity.sh` |
+| Every Claude skill has a Codex wrapper with the same description; blank starter files hold no real-looking contact details; the blank CSVs are header-only with a BOM; no data block in the blank pages holds a raw `</` | `scripts/ci/check-parity.sh` |
 | `product-manifest.json` matches the app files | `bash scripts/build-manifest.sh --check` |
 | Blank pages are still on the Default theme | `node .claude/skills/page-design/scripts/apply-theme.mjs --check-blank` |
 | The safety guard blocks and allows what it should (bash and PowerShell), and both versions agree | `scripts/ci/guard-fixtures.sh`, `scripts/ci/guard-parity.sh` |
@@ -37,7 +37,9 @@ CI (`.github/workflows/ci.yml`) runs the same scripts on every push and pull req
 - **Plain English.** Users aren't programmers. Short sentences, no jargon, one clear next step. In instructions to the assistant, refer to the user as "the user" and they/them.
 - **Claude and Codex stay in step.** Every `.claude/skills/<name>/SKILL.md` has a wrapper in `.agents/skills/<name>/SKILL.md` with the same `name` and the identical `description`. Behaviour rules shared by both apps go in `AGENTS.md`; Claude-only notes go in `CLAUDE.md`.
 - **Every script has both versions.** A `.sh` script (it must run on macOS bash 3.2 and Git Bash) has a `.ps1` twin (Windows PowerShell 5.1 and PowerShell 7) that behaves the same. Keep `guard.sh`, `guard.ps1` and `.githooks/pre-push` in step.
-- **Starter files are blank.** New personal files go in `templates/blank/` as blank starting copies, never directly in a user-owned folder. They hold no real data, and `profile/preferences.md` starts as `SETUP: not done`.
+- **Starter files are blank.** New personal files go in `templates/blank/` as blank starting copies, never directly in a user-owned folder. They hold no real data, and `profile/preferences.md` starts as `SETUP: not done`. The blank CSVs are a header row saved as UTF-8 with a byte-order mark; keep it.
+- **User data stays out of app files.** Anything made for one user (a theme, a template in their look, a preview) goes in a user-owned path (`profile/templates/`, `pages/.preview/`; see `DATA_CONTRACT.md`), never in a file the app ships, so updates and `git pull` never conflict with it.
+- **Dates and CSVs are read one way everywhere.** Panels, hooks and skills follow the rules in `AGENTS.md` ("Reading dates someone else wrote", "CSV files"): never guess a date's order from where the user lives, never rewrite an unclear date, and never save over a CSV that looks damaged.
 - **Statistics need a source.** Any number presented as fact (how long recruiters look at a resume, response rates, pay) cites where it comes from, with a date, or is left out.
 - **Safety rules don't loosen quietly.** A change that lets the assistant send, submit, post, or reach Gmail, Outlook or LinkedIn needs a clear reason in the pull request and guard fixtures that cover it.
 

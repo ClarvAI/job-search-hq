@@ -13,4 +13,4 @@ It was written with Claude Code's names; translate them with the table in AGENTS
 
 ## Codex notes
 
-- Unzipping: Mac/Linux/Git Bash exactly `unzip -n imports/<file>.zip -d imports/<file-name-without-.zip>`; Windows PowerShell `Expand-Archive imports\<file>.zip imports\<file-name-without-.zip>` (no `-Force`, so nothing is overwritten). Ask before any other form.
+- Unzipping: Mac/Linux/Git Bash exactly `unzip -n "imports/<file>.zip" -d "imports/<file-name-without-.zip>"`; Windows PowerShell `Expand-Archive -LiteralPath "imports\<file>.zip" -DestinationPath "imports\<file-name-without-.zip>"` (no `-Force`, so nothing is overwritten). Keep the quotes: downloaded names often have spaces or `(1)`. Ask before any other form.

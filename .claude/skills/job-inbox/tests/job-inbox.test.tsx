@@ -143,3 +143,31 @@ test('no pop-up at session start; the line above the prompt counts new leads aft
   expect(drawn.indexOf('Job search')).toBeLessThan(drawn.indexOf('Job Inbox'))
   await band.unmount()
 })
+
+test('a damaged leads file is reported and nothing in it is saved', async ($, on) => {
+  const broken = LEADS.replace('Process work matches your warehouse internship', '"Process work matches')
+  const { files } = setup(on, { 'jobs/leads.csv': broken, 'jobs/tracker.csv': TRACKER })
+  await $.command.run({ command: 'job-inbox', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'job-inbox', surface: 'terminal', ...PANE } as never)
+  const drawn = JSON.stringify(await ui.drawn())
+  expect(drawn).toContain('looks damaged')
+  expect(drawn).not.toContain('L-20261005-02:save')
+  expect(files['jobs/leads.csv']).toBe(broken)
+  await ui.unmount()
+})
+
+test('a long inbox shows the best fits first and the rest behind "Show all"', async ($, on) => {
+  let csv = HEAD + '\n'
+  for (let i = 0; i < 20; i++) csv += `L-${i},2026-10-05,Company ${i},Analyst,X,,,,https://c${i}.example/1,,,site,${i === 19 ? 'A' : 'C'},fit,,new,,\n`
+  setup(on, { 'jobs/leads.csv': csv, 'jobs/tracker.csv': TRACKER })
+  await $.command.run({ command: 'job-inbox', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'job-inbox', surface: 'terminal', ...PANE } as never)
+  let drawn = JSON.stringify(await ui.drawn())
+  expect(drawn).toContain('Company 19 · Analyst')
+  expect(drawn).toContain('Show all 20 leads')
+  expect((drawn.match(/:save"/g) ?? []).length).toBe(15)
+  await ui.press({ key: 'show-all' })
+  drawn = JSON.stringify(await ui.drawn())
+  expect((drawn.match(/:save"/g) ?? []).length).toBe(20)
+  await ui.unmount()
+})

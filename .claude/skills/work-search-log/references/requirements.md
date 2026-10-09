@@ -15,7 +15,7 @@ Checked 2026-10-08 on each agency's own website (state `.gov` sites, gov.uk, aca
 | Texas | 1 to 5, by county (your TWC letter says) | WorkInTexas.com | keep the log; send only if asked; request payment every two weeks | benefit year or while paid, whichever is longer |
 | Florida | 5 employer contacts (3 in small counties) | Employ Florida | enter contacts in the biweekly payment request | check your state's site |
 | New York | 3 activities | none required (JobZone optional) | confirm on weekly certification; keep the log | 1 year (paper) |
-| Pennsylvania | 2 applications + 1 activity (from week 3) | PA CareerLink | yes/no on weekly certification; keep the log | 2 years from the application date |
+| Pennsylvania | 2 applications + 1 activity (from week 3) | PA CareerLink | yes/no for each week on the biweekly claim; keep the log | 2 years from the application date |
 | Illinois | check your state's site (no number published) | IllinoisJobLink.com | report at biweekly certification; keep the record | 53 weeks after each week |
 | Georgia | 3 activities on 3 or more days | WorkSource Georgia | submit the weekly work search record | check your state's site ("retain a copy") |
 | Ohio | 2 activities | OhioMeansJobs.com | on each weekly claim | 18 months |
@@ -72,7 +72,9 @@ Checked 2026-10-08 on each agency's own website (state `.gov` sites, gov.uk, aca
 - **Activities:** job fair; searching PA CareerLink or job banks; creating or posting a resume; contacting colleagues, former co-workers or others in your field; employment agency or school placement service; civil service or pre-employment test; a PA CareerLink program.
 - **Registration:** PA CareerLink within 30 days after filing.
 - **Fields (form UC-304, Work Search Record, optional but the record must hold the same):** Applications/interviews: date · employer · employer contact name · employer phone/email · how you applied · result. Activities: date · type of activity · location · contact name · contact phone/email. Week runs Sunday to Saturday.
-- **Reported:** weekly certification asks yes/no; don't send the record unless asked.
+- **Reported:** claims are filed every two weeks (biweekly; `benefits_cert_covers: 2`), and the claim asks yes/no about the work search for each of the two weeks; don't send the record unless asked. Check the claimant's own filing schedule on the UC system.
+- **Start:** the requirement begins with the 3rd week claimed: count weeks from `benefits_claim_start`.
+- **Two field sets:** the record has two parts (applications/interviews and activities); export them as two tables.
 - **Keep:** "two years from your Application for Benefits (AB) date."
 - Sources: https://www.pa.gov/en/agencies/dli/resources/for-claimants-workers/benefits-information/using-the-uc-system/claimant-faqs/work-search.html · https://benefits.uc.pa.gov/admin/gsipub/htmlarea/uploads/UC304.pdf
 

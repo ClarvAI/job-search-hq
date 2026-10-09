@@ -1,6 +1,6 @@
 ---
 name: my-data
-description: "Back up, wrap up, or wipe the user's job-search data. Makes a dated zip backup of everything (plus a JSON Resume copy of their resume) in a folder they pick; closes the search after they accept a job, or pauses it (final statuses, withdrawal notes, thank-yous); or deletes everything and resets the folder to blank for a fresh start or to hand it to someone else. Use when the user says things like \"back up my stuff\", \"export my data\", \"save a copy of everything\", \"I got the job, wrap up\", \"I accepted an offer\", \"pause my search\", \"I'm taking a break\", \"delete everything\", \"wipe my data\", \"start over\", or \"give this to a friend\"."
+description: "Back up, wrap up, or wipe the user's job-search data. Makes a dated zip backup of everything (plus a JSON Resume copy of their resume) in a folder they pick; closes the search after they accept a job, or pauses it (final statuses, withdrawal notes, thank-yous); deletes everything and resets the folder to blank for a fresh start or to hand it to someone else; or brings a backup back (restore). Use when the user says things like \"back up my stuff\", \"export my data\", \"save a copy of everything\", \"I got the job, wrap up\", \"I accepted an offer\", \"pause my search\", \"I'm taking a break\", \"delete everything\", \"wipe my data\", \"start over\", \"give this to a friend\", \"restore my backup\", or \"move my data to my new computer\"."
 ---
 
 # my-data (Codex)

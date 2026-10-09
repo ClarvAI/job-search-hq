@@ -17,6 +17,6 @@ export type Notice = { text: string; isError: boolean }
 
 declare module 'claude-code' {
   interface PluginState {
-    outbox: { drafts: Draft[]; waiting: Draft[]; broken: string[]; armed: string; notice: Notice; mode: string; signature: string; hasSignature: boolean }
+    outbox: { drafts: Draft[]; waiting: Draft[]; broken: string[]; armed: string; notice: Notice; mode: string; signature: string; hasSignature: boolean; fileMode: string; unsure: string[] }
   }
 }

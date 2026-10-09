@@ -1,7 +1,14 @@
 <!doctype html>
 <!--
-  Cover letter template (matches the resume's fonts).
-  Assistant: copy to jobs/<folder>/cover-letter.html and replace the content inside <main>.
+  Cover letter template (matches the resume's fonts; the app's copy, always on the default look).
+  Assistant: if profile/templates/cover-letter-template.html exists, start from that copy
+  instead (it carries the user's look); never edit this file. Copy it to
+  jobs/<folder>/cover-letter.html and replace everything between the opening and closing
+  main tags. Set the lang attribute of the html element to the letter's language.
+  The date line, salutation and closing below are English (US) examples: for another
+  language or country, write that country's form instead, for example a place-and-date
+  line ("Berlin, 9. Oktober 2026"), "Sehr geehrte Frau Weber," and "Mit freundlichen
+  Grüßen" (see cover-letter/references/languages-and-countries.md).
   One page by default (longer only if the posting or field requires it, e.g. some
   academic letters), plain paragraphs, no tables or images. After the checks, make the PDF with
   .claude/skills/tailor-resume/scripts/make-pdf.sh (Windows without bash: make-pdf.ps1),

@@ -9,6 +9,9 @@ Look in the job folder before fetching: `posting.md` (`pay_range`), `fit.md` and
 ## 1. Pin down what you're pricing
 
 - **Title → occupation code.** Search O*NET OnLine: `https://www.onetonline.org/find/quick?s=<title words>`. Pick the closest match from the duties, not the title (a "Supply Chain Analyst" might be Logistics Analysts 13-1081.02 or Management Analysts 13-1111). Wage data is published at the 6-digit SOC level (drop the `.0x`). If two codes fit, pull both and say so.
+  - O*NET's search ranks by title words, so the first hit is often a higher-paid neighbor. Check duties against the posting. Examples that often go wrong: "Data Analyst" or "Reporting Analyst" usually fits Management Analysts 13-1111, Operations Research Analysts 15-2031 or Market Research Analysts 13-1161 (for marketing data), not Data Scientists 15-2051 (that's for roles that build models, with Python/R and machine learning as core duties); "BI Analyst" or "BI Developer": Business Intelligence Analysts 15-2051.01 sits under Data Scientists, so also pull Computer Systems Analysts 15-1211 or Database Architects 15-1243 if the duties are dashboards, SQL and data models; "Financial Analyst" is 13-2051, "Budget Analyst" 13-2031, "Business Analyst" usually 13-1111.
+  - If the only matching code pays clearly more (or less) than the duties suggest, say "closest code is a stretch" in the block, and lean on current postings.
+- **Common titles:** for titles with many current postings in the area (analyst, coordinator, specialist, engineer, nurse), current posted ranges for the same title and level are the main source; government data is the context line, not the anchor.
 - **Level:** from the posting (years required, title words like I/II/Senior) and the user's `career_stage`.
 - **Geography:** the job's metro area; also the state and national figures for context. Remote roles: use the employer's posted range, then the user's metro.
 
@@ -37,6 +40,7 @@ Percentiles of base wages by occupation and area, from employer surveys. **Limit
 Look up the national statistics office's earnings-by-occupation tables. Two that are easy:
 - **UK:** ONS ASHE Table 14 (earnings by 4-digit occupation, with percentiles and regions): search ONS for "ASHE table 14"; published each autumn as a spreadsheet download.
 - **Canada:** Job Bank wage pages give low / median / high hourly wages by occupation (NOC) and region: `https://www.jobbank.gc.ca/wagereport/occupation/<id>` (find the id by searching the occupation on jobbank.gc.ca). Convert hourly to annual (× about 2,080 hours) and say you did.
+- **Germany:** the Federal Employment Agency's **Entgeltatlas** (https://web.arbeitsagentur.de/entgeltatlas/) gives median gross monthly pay (with quartiles) by occupation (KldB code), region, age group and gender, for full-time employees. Monthly × 12 for an annual figure (say so; many offers add a 13th month or holiday pay, so compare like with like). Tariff (collective agreement) tables apply in many sectors; if the posting names a tariff (e.g. TV-L, IG Metall), read that table instead.
 - **EU:** check the country's statistics office; the EU Pay Transparency Directive is bringing posted ranges in many member states, so check the posting first.
 
 ### Crowd data (secondary only)

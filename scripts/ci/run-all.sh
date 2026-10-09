@@ -27,12 +27,16 @@ else
 fi
 step "guard fixtures (bash)" bash "$HERE/guard-fixtures.sh" --impl sh
 step "my-data smoke (bash)" bash "$HERE/mydata-smoke.sh" --impl sh
+step "startup summary (bash)" bash "$HERE/summary-fixtures.sh" --impl sh
+step "health check fixtures (bash)" bash "$HERE/health-fixtures.sh" --impl sh
 if [ -n "$PS" ]; then
   export PS_EXE="$PS"
   step "guard fixtures (PowerShell)" bash "$HERE/guard-fixtures.sh" --impl ps
   step "guard parity" bash "$HERE/guard-parity.sh"
   step "PowerShell parse" "$PS" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$HERE/parse-powershell.ps1"
   step "my-data smoke (PowerShell)" bash "$HERE/mydata-smoke.sh" --impl ps
+  step "startup summary (PowerShell)" bash "$HERE/summary-fixtures.sh" --impl ps
+  step "health check fixtures (PowerShell)" bash "$HERE/health-fixtures.sh" --impl ps
 else
   echo; echo "######## PowerShell checks skipped (no pwsh or powershell; set PS_EXE)"
 fi

@@ -2,16 +2,16 @@ import { expect, mock, test } from 'claude-code/testing'
 
 const PANE = { component: 'Pane', requestId: 'outbox', props: { title: 'Outbox', isFocused: true, bodyColumns: 100 } } as const
 
-function setup(on: any, files: Record<string, string>, opts: { failWrites?: boolean; unreadable?: () => string; duringCall?: () => void } = {}) {
+function setup(on: any, files: Record<string, string>, opts: { failWrites?: boolean; unreadable?: () => string; duringCall?: () => void; store?: Record<string, unknown>; mcpError?: boolean } = {}) {
   mock.clock(on, { now: new Date(2026, 9, 6, 9, 0).getTime() } as never)
-  mock.store(on, {})
+  mock.store(on, opts.store ?? {})
   const rel = (p: string) => p.replace(/^.*\/outbox\/(?=outbox\/|profile\/)|^.*\/skills\/outbox\//, '')
   const calls: any[] = []
   on('fs.exists', (_$: any, e: any) => ({ value: rel(e.path) === 'outbox' || rel(e.path) in files }) as never)
   on('fs.list', () => ({ value: Object.keys(files).filter(f => f.startsWith('outbox/')).map(f => ({ name: f.slice(7), kind: 'file', size: 1, mtimeMs: 0, isLink: false })) }) as never)
   on('fs.read', (_$: any, e: any) => { if (opts.unreadable?.() === rel(e.path)) throw new Error('EBUSY: syncing'); return { value: files[rel(e.path)] ?? '' } as never })
   on('fs.write', (_$: any, e: any) => { if (opts.failWrites) throw new Error('EBUSY'); files[rel(e.path)] = e.text; return { value: undefined } as never })
-  on('mcp.call', (_$: any, e: any) => { calls.push(e); opts.duringCall?.(); return { value: { content: [{ type: 'text', text: 'ok' }], isError: false } } as never })
+  on('mcp.call', (_$: any, e: any) => { calls.push(e); opts.duringCall?.(); if (opts.mcpError) throw new Error('timeout waiting for Gmail'); return { value: { content: [{ type: 'text', text: 'ok' }], isError: false } } as never })
   on('ui.open', () => ({ value: { isPlaced: true } }) as never)
   on('session.append', () => ({ deny: 'recorded by the test' }) as never)  // newer test kits require next() for a value answer; a deny is ignored by the panels
   on('command.register', () => ({ value: undefined }) as never)
@@ -118,10 +118,12 @@ test('if saving the file fails after Gmail succeeded, the card recovers and warn
 })
 
 const SEND_PREFS = 'outbox_mode: send\n'
+// The user turned send mode on in the panel once (remembered in the plugin's store).
+const SEND_OK = { 'send-mode-confirmed': { value: 'send', at: 0 } }
 
 test('send mode fails closed when the Outbox setting cannot be read at confirm time', async ($, on) => {
   let syncing = false
-  const { calls, files } = setup(on, { 'outbox/2026-10-06-jane.md': DRAFT, 'profile/signature.txt': 'Alex Rivera', 'profile/preferences.md': SEND_PREFS }, { unreadable: () => (syncing ? 'profile/preferences.md' : '') })
+  const { calls, files } = setup(on, { 'outbox/2026-10-06-jane.md': DRAFT, 'profile/signature.txt': 'Alex Rivera', 'profile/preferences.md': SEND_PREFS }, { unreadable: () => (syncing ? 'profile/preferences.md' : ''), store: SEND_OK })
   await $.command.run({ command: 'outbox', args: '' } as never)
   const ui = await $.ui.mount({ plugin: 'outbox', surface: 'terminal', ...PANE } as never)
   await ui.press({ key: '2026-10-06-jane.md:approve' })
@@ -138,7 +140,7 @@ test('send mode fails closed when the Outbox setting cannot be read at confirm t
 test('a send recorded while the draft was edited elsewhere is still filed as sent, and is never sent twice', async ($, on) => {
   let edit = false
   const files: Record<string, string> = { 'outbox/2026-10-06-jane.md': DRAFT, 'profile/signature.txt': 'Alex Rivera', 'profile/preferences.md': SEND_PREFS }
-  const { calls } = setup(on, files, { duringCall: () => { if (edit) files['outbox/2026-10-06-jane.md'] = DRAFT.replace('Thanks!', 'Thanks, edited in Codex!') } })
+  const { calls } = setup(on, files, { duringCall: () => { if (edit) files['outbox/2026-10-06-jane.md'] = DRAFT.replace('Thanks!', 'Thanks, edited in Codex!') }, store: SEND_OK })
   await $.command.run({ command: 'outbox', args: '' } as never)
   const ui = await $.ui.mount({ plugin: 'outbox', surface: 'terminal', ...PANE } as never)
   await ui.press({ key: '2026-10-06-jane.md:approve' })
@@ -158,7 +160,7 @@ test('a send recorded while the draft was edited elsewhere is still filed as sen
 })
 
 test('if the file cannot be updated after a send, the draft cannot be sent again', async ($, on) => {
-  const { calls } = setup(on, { 'outbox/2026-10-06-jane.md': DRAFT, 'profile/signature.txt': 'Alex Rivera', 'profile/preferences.md': SEND_PREFS }, { failWrites: true })
+  const { calls } = setup(on, { 'outbox/2026-10-06-jane.md': DRAFT, 'profile/signature.txt': 'Alex Rivera', 'profile/preferences.md': SEND_PREFS }, { failWrites: true, store: SEND_OK })
   await $.command.run({ command: 'outbox', args: '' } as never)
   const ui = await $.ui.mount({ plugin: 'outbox', surface: 'terminal', ...PANE } as never)
   await ui.press({ key: '2026-10-06-jane.md:approve' })
@@ -198,5 +200,88 @@ test('no pop-up at session start, and Mark sent adds the panel line to history/a
   await ui.press({ key: '2026-10-06-jane.md:confirm-sent' })
   expect(files['outbox/2026-10-06-jane.md']).toContain('sent: 2026-10-06')
   expect(files['history/activity.md']).toContain('- 2026-10-06 09:00 · Outbox panel (Claude) · Marketing Coordinator (Req #R-123456) follow-up: sent')
+  await ui.unmount()
+})
+
+test('send mode needs a one-time confirmation in the panel; an example inside a comment never turns it on', async ($, on) => {
+  const files: Record<string, string> = { 'outbox/2026-10-06-jane.md': DRAFT, 'profile/signature.txt': 'Alex Rivera', 'profile/preferences.md': '<!-- outbox_mode: send lets the panel send -->\noutbox_mode: draft-only\n' }
+  const { calls } = setup(on, files)
+  await $.command.run({ command: 'outbox', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'outbox', surface: 'terminal', ...PANE } as never)
+  expect(JSON.stringify(await ui.drawn())).toContain('Mode: draft only')
+  files['profile/preferences.md'] = SEND_PREFS
+  await ui.press({ key: 'refresh' })
+  let drawn = JSON.stringify(await ui.drawn())
+  expect(drawn).toContain('Mode: draft only')
+  expect(drawn).toContain("send mode isn't on yet")
+  await ui.press({ key: 'mode-on' })
+  await ui.press({ key: 'mode-confirm' })
+  drawn = JSON.stringify(await ui.drawn())
+  expect(drawn).toContain('Mode: send')
+  await ui.press({ key: '2026-10-06-jane.md:approve' })
+  await ui.press({ key: '2026-10-06-jane.md:confirm' })
+  expect(JSON.stringify(calls[0])).toContain('send_message')
+  // Switching back to draft-only forgets the confirmation.
+  files['profile/preferences.md'] = 'outbox_mode: draft-only\n'
+  await ui.press({ key: 'refresh' })
+  files['profile/preferences.md'] = SEND_PREFS
+  await ui.press({ key: 'refresh' })
+  expect(JSON.stringify(await ui.drawn())).toContain("send mode isn't on yet")
+  await ui.unmount()
+})
+
+test('an uncertain send is never retried by itself, even from a renamed copy, until the user checks Sent', async ($, on) => {
+  const files: Record<string, string> = { 'outbox/2026-10-06-jane.md': DRAFT, 'profile/signature.txt': 'Alex Rivera', 'profile/preferences.md': SEND_PREFS }
+  const opts = { store: SEND_OK, mcpError: true }
+  const { calls } = setup(on, files, opts)
+  await $.command.run({ command: 'outbox', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'outbox', surface: 'terminal', ...PANE } as never)
+  await ui.press({ key: '2026-10-06-jane.md:approve' })
+  await ui.press({ key: '2026-10-06-jane.md:confirm' })
+  expect(calls.length).toBe(1)
+  let drawn = JSON.stringify(await ui.drawn())
+  expect(drawn).toContain("couldn't confirm whether it sent")
+  expect(drawn).toContain('never confirmed')
+  // The same message under another file name is held too.
+  files['outbox/2026-10-07-jane-copy.md'] = files['outbox/2026-10-06-jane.md'] ?? ''
+  delete files['outbox/2026-10-06-jane.md']
+  await ui.press({ key: 'refresh' })
+  await ui.press({ key: '2026-10-07-jane-copy.md:approve' })
+  expect(JSON.stringify(await ui.drawn())).toContain('was never confirmed')
+  expect(calls.length).toBe(1)
+  // The user checked Sent and it isn't there: sending is allowed again.
+  opts.mcpError = false
+  await ui.press({ key: '2026-10-07-jane-copy.md:unstick' })
+  await ui.press({ key: '2026-10-07-jane-copy.md:confirm-unstick' })
+  await ui.press({ key: '2026-10-07-jane-copy.md:approve' })
+  await ui.press({ key: '2026-10-07-jane-copy.md:confirm' })
+  expect(calls.length).toBe(2)
+  drawn = JSON.stringify(await ui.drawn())
+  expect(drawn).toContain('to Jane Doe <jane@globex.example>.')
+  await ui.unmount()
+})
+
+test('other placeholder styles are caught, the card shows the signature that will be added, and attachments are not sent from here', async ($, on) => {
+  const files: Record<string, string> = {
+    'outbox/a.md': '---\nchannel: email\nto: pat@drummond.com\nsubject: Hi\n---\nHi {First name},\nThanks.\n',
+    'outbox/b.md': '---\nchannel: email\nto: pat@drummond.com\nsubject: Hi\n---\nHi <Name>, thanks.\n',
+    'outbox/c.md': '---\nchannel: email\nto: pat@drummond.com\nsubject: Hi\n---\nHi Pat, I start on ___.\n',
+    'outbox/d.md': '---\nchannel: email\nto: pat@drummond.com\nsubject: Referral\n---\nHi Pat, my resume is attached.\n',
+    'profile/signature.txt': 'Alex Rivera\n512-867-0142',
+    'profile/preferences.md': SEND_PREFS,
+  }
+  const { calls } = setup(on, files, { store: SEND_OK })
+  await $.command.run({ command: 'outbox', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'outbox', surface: 'terminal', ...PANE } as never)
+  expect(JSON.stringify(await ui.drawn())).toContain('Hi Pat, my resume is attached.\\n\\nAlex Rivera\\n512-867-0142')
+  await ui.press({ key: 'a.md:approve' })
+  expect(JSON.stringify(await ui.drawn())).toContain('placeholder ({First name})')
+  await ui.press({ key: 'b.md:approve' })
+  expect(JSON.stringify(await ui.drawn())).toContain('placeholder (<Name>)')
+  await ui.press({ key: 'c.md:approve' })
+  expect(JSON.stringify(await ui.drawn())).toContain('placeholder (___)')
+  await ui.press({ key: 'd.md:approve' })
+  expect(JSON.stringify(await ui.drawn())).toContain("can't attach files")
+  expect(calls.length).toBe(0)
   await ui.unmount()
 })

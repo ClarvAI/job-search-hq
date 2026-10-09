@@ -127,12 +127,43 @@ test('Message sent today: last contact, touches +1, to-contact becomes contacted
   await ui.unmount()
 })
 
-test('Message sent never moves someone backwards from replied, and an earlier date is accepted', async ($, on) => {
+test('Message sent never moves someone backwards from replied, and a thank-you to them is not counted or chased', async ($, on) => {
   const { files } = setup(on)
   const ui = await open($, 'desktop')
   await ui.press({ key: `${K.pat}:sent` })
   await ui.press({ key: `${K.pat}:sent-yesterday` })
-  expect(row(files, 'Pat Lee')).toContain('Initech internship,2026-10-05,2026-10-12,replied,1,')
+  // Pat already replied: the message updates last_contact only (no unanswered count, no 5-day nudge).
+  expect(row(files, 'Pat Lee')).toContain('Initech internship,2026-10-05,,replied,0,')
+  await ui.press({ key: `${K.chris}:sent` })
+  await ui.press({ key: `${K.chris}:sent-today` })
+  expect(row(files, 'Chris Wu')).toContain('industry meetup,2026-10-06,,talked,0,')
+  await ui.unmount()
+})
+
+test('once the linked job is applied, a message clears the stale networking date and the board stops counting it', async ($, on) => {
+  const csv = HEAD + '\n' + 'Sam Roe,Acme Corp,Recruiter,recruiter,career fair,2026-09-29,2026-10-05,contacted,1,acme-sma,,,\n'
+  const { files } = setup(on, csv)
+  const ui = await open($, 'terminal')
+  let drawn = JSON.stringify(await ui.drawn())
+  expect(drawn).toContain('nothing due')
+  expect(drawn).toContain('handled by your application (acme-sma)')
+  await ui.press({ key: `${K.sam}:sent` })
+  await ui.press({ key: `${K.sam}:sent-today` })
+  expect(row(files, 'Sam Roe')).toContain('career fair,2026-10-06,,contacted,2,acme-sma')
+  drawn = JSON.stringify(await ui.drawn())
+  expect(drawn).toContain('old contact follow-up date cleared')
+  await ui.unmount()
+})
+
+test('a damaged contacts file is reported and never written; a stray quote no longer swallows rows', async ($, on) => {
+  const { files } = setup(on, HEAD + '\n' + 'Jane Doe,Globex,"Project Manager,alum,,,,to-contact,0,,,,\nPat Lee,Initech,Analyst,alum,,,,to-contact,0,,,,\n')
+  const ui = await open($, 'terminal')
+  expect(JSON.stringify(await ui.drawn())).toContain('looks damaged')
+  files['contacts/contacts.csv'] = HEAD + '\n' + 'Jane Doe,Globex,Project "PM" Manager,alum,,,,to-contact,0,,,,\nPat Lee,Initech,Analyst,alum,,,,to-contact,0,,,,\n'
+  await ui.press({ key: 'refresh' })
+  const drawn = JSON.stringify(await ui.drawn())
+  expect(drawn).toContain('Pat Lee')
+  expect(drawn).not.toContain('looks damaged')
   await ui.unmount()
 })
 

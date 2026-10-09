@@ -1,33 +1,42 @@
 #!/usr/bin/env node
-// Applies the theme in profile/design.md to every page and print template, deterministically.
+// Applies the theme in profile/design.md to every page and to the user's copies of the print templates, deterministically.
 //
 // Usage (from the workspace folder):
 //   node .claude/skills/page-design/scripts/apply-theme.mjs            check contrast, then update the files below
 //   node .claude/skills/page-design/scripts/apply-theme.mjs --check    check and compare only; changes nothing
 //   node .claude/skills/page-design/scripts/apply-theme.mjs --print    show the resolved theme, contrast table and token block
-//   node .claude/skills/page-design/scripts/apply-theme.mjs --check-blank   confirm templates/blank/pages/ are still on the Default preset (maintainers, CI)
+//   node .claude/skills/page-design/scripts/apply-theme.mjs --check-blank   confirm templates/blank/pages/ and templates/*.html
+//        are still on the Default preset (maintainers, CI)
 //   node .claude/skills/page-design/scripts/apply-theme.mjs --preview [folder]
-//        write a sample dashboard in every preset (and the user's own theme) to a temporary folder; changes nothing else
+//        write a sample dashboard in every preset (and the user's own theme) to pages/.preview/ (or [folder]);
+//        changes nothing else
+//   node .claude/skills/page-design/scripts/apply-theme.mjs --regenerate <name,...|all>
+//        after an update changed an app template: rebuild profile/templates/<name> from the new templates/<name>
+//        plus the theme, keeping the old copy as profile/templates/<name minus .html>.previous.html. Pages are not touched.
 // Options: --preset <default|modern|minimal|high-contrast> (use a preset instead of the design block),
 //          --design <file> (read another design file), --root <folder> (another workspace; used by tests).
 // Maintainers: --build-presets rewrites presets/<name>.md (the precomputed blocks used when Node is missing).
 //
 // Files it themes: pages/*.html and jobs/*/interview-brief.html (the token block between
-// "/* ---- Design tokens" and "/* ---- End design tokens ---- */", plus the Google Fonts line);
-// templates/resume-template.html and templates/cover-letter-template.html (the document theme block only);
-// templates/resume-designed-template.html (the designed resume block and the fonts line).
-// Never touches templates/blank/ (those stay on the default preset), data blocks, or anything else.
-// The workspace may have no pages/ or jobs/ yet (a fresh download before the first run); then only the templates are themed.
-// Updates: templates/*.html are app files that carry the user's theme, so /update replaces them and runs this script again.
+// "/* ---- Design tokens" and "/* ---- End design tokens ---- */", plus the Google Fonts line), and the user's
+// template copies in profile/templates/: resume-template.html and cover-letter-template.html (the document theme
+// block only) and resume-designed-template.html (the designed resume block and the fonts line).
+// The app's own templates/*.html are never written (they stay on the Default look, so git pull and /update never
+// meet a changed app file). When the theme makes a template differ from the app's copy and the user has no copy yet,
+// the themed copy is created in profile/templates/. tailor-resume and cover-letter use profile/templates/<name>
+// when it exists, else templates/<name>. profile/templates/.generated.json remembers what this script last wrote,
+// so --regenerate can tell whether the user changed a copy by hand.
+// Never touches templates/ (including templates/blank/), data blocks, or resumes already made for a job.
+// The workspace may have no pages/ or jobs/ yet (a fresh download before the first run).
 //
 // Output: "theme: ...", "contrast: ok ..." or FAIL lines, "adjusted: ..." / "note: ...", one line per file
-// ("updated:", "unchanged:", "differs:", "skipped:"), and a last line "result: ..." or "error: ...".
+// ("updated:", "created:", "refreshed:", "unchanged:", "differs:", "skipped:"), and a last line "result: ..." or "error: ...".
+import crypto from 'node:crypto'
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { wcag, report } from '../palette.mjs'
-import { parseDesign, resolveTheme, fixContrast, PRESETS, PRESET_NAMES } from '../themes.mjs'
+import { parseDesign, resolveTheme, fixContrast, PRESETS, PRESET_NAMES, DOC_FONTS, DOC_DENSITY } from '../themes.mjs'
 import { tokenBlock, designedBlock, documentBlock, fontsLink, FONTS_LINK_RE, MARK } from '../tokens.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -120,11 +129,6 @@ function targets() {
     const f = path.join(jobsDir, d, 'interview-brief.html')
     if (fs.existsSync(f) && !fs.lstatSync(path.join(jobsDir, d)).isSymbolicLink()) list.push({ file: f, kind: 'page' })
   }
-  const tpl = path.join(ROOT, 'templates')
-  for (const [name, kind] of [['resume-template.html', 'resume'], ['cover-letter-template.html', 'letter'], ['resume-designed-template.html', 'designed']]) {
-    const f = path.join(tpl, name)
-    if (fs.existsSync(f)) list.push({ file: f, kind })
-  }
   return list
 }
 
@@ -133,14 +137,101 @@ function apply({ t, R }, { write }) {
   for (const { file, kind } of targets()) {
     if (fs.lstatSync(file).isSymbolicLink()) { out(`skipped: ${rel(file)} (a link; only real files are changed)`); skipped++; continue }
     const html = fs.readFileSync(file, 'utf8')
-    const r = kind === 'page' ? themePage(html, t, R) : kind === 'designed' ? themeDesigned(html, t, R) : themeDoc(html, t, kind)
+    const r = themePage(html, t, R)
     if (r.skip) { out(`skipped: ${rel(file)} (${r.skip})`); skipped++; continue }
     if (r.html === html) { out(`unchanged: ${rel(file)}`); same++; continue }
     if (!write) { out(`differs: ${rel(file)}`); differs++; continue }
     fs.writeFileSync(file, r.html)
     out(`updated: ${rel(file)}`); updated++
   }
+  const tr = applyTemplates({ t, R }, { write })
+  return { updated: updated + tr.updated, same: same + tr.same, differs: differs + tr.differs, skipped: skipped + tr.skipped }
+}
+
+// ---- Print templates: the app's copy (templates/) stays as shipped; the user's themed copy lives in profile/templates/ ----
+const TEMPLATES = [['resume-template.html', 'resume'], ['cover-letter-template.html', 'letter'], ['resume-designed-template.html', 'designed']]
+const USER_TPL = path.join(ROOT, 'profile', 'templates')
+const RECORD = path.join(USER_TPL, '.generated.json')
+const sha = s => crypto.createHash('sha256').update(s.replace(/\r/g, '')).digest('hex')
+const previousName = name => name.replace(/\.html$/, '.previous.html')
+function readRecord() { try { const r = JSON.parse(fs.readFileSync(RECORD, 'utf8')); return r && typeof r === 'object' ? r : {} } catch { return {} } }
+function writeRecord(r) { fs.writeFileSync(RECORD, JSON.stringify(r, null, 2) + '\n') }
+function themeTemplate(html, kind, t, R) { return kind === 'designed' ? themeDesigned(html, t, R) : themeDoc(html, t, kind) }
+function isLink(f) { try { return fs.lstatSync(f).isSymbolicLink() } catch { return false } }
+function userTemplatesOk() {
+  if (isLink(path.join(ROOT, 'profile')) || isLink(USER_TPL)) { out('skipped: profile/templates/ (a link; only real folders are changed)'); return false }
+  return true
+}
+
+function applyTemplates({ t, R }, { write }) {
+  let updated = 0, same = 0, differs = 0, skipped = 0
+  if (!userTemplatesOk()) return { updated, same, differs, skipped: 1 }
+  const record = readRecord()
+  let recordChanged = false
+  for (const [name, kind] of TEMPLATES) {
+    const product = path.join(ROOT, 'templates', name), mine = path.join(USER_TPL, name)
+    if (fs.existsSync(mine)) {
+      if (isLink(mine)) { out(`skipped: ${rel(mine)} (a link; only real files are changed)`); skipped++; continue }
+      const html = fs.readFileSync(mine, 'utf8')
+      const r = themeTemplate(html, kind, t, R)
+      if (r.skip) { out(`skipped: ${rel(mine)} (${r.skip})`); skipped++; continue }
+      if (r.html === html) { out(`unchanged: ${rel(mine)}`); same++; continue }
+      if (!write) { out(`differs: ${rel(mine)}`); differs++; continue }
+      fs.writeFileSync(mine, r.html)
+      // Only a copy this script made and nobody changed since stays "as generated"; a hand-edited one keeps its old record.
+      if (record[name] === sha(html)) { record[name] = sha(r.html); recordChanged = true }
+      out(`updated: ${rel(mine)}`); updated++
+      continue
+    }
+    if (!fs.existsSync(product)) { out(`skipped: templates/${name} (missing; restore the app's files with /update or a fresh download)`); skipped++; continue }
+    const base = fs.readFileSync(product, 'utf8')
+    const r = themeTemplate(base, kind, t, R)
+    if (r.skip) { out(`skipped: templates/${name} (${r.skip})`); skipped++; continue }
+    if (r.html === base) { out(`unchanged: templates/${name} (the app's copy already has this look; no copy of your own needed)`); same++; continue }
+    if (!write) { out(`differs: ${rel(mine)} (not made yet; applying the theme creates it from templates/${name})`); differs++; continue }
+    fs.mkdirSync(USER_TPL, { recursive: true })
+    fs.writeFileSync(mine, r.html)
+    record[name] = sha(r.html); recordChanged = true
+    out(`created: ${rel(mine)} (templates/${name} with your theme)`); updated++
+  }
+  if (write && recordChanged) writeRecord(record)
   return { updated, same, differs, skipped }
+}
+
+// After an update changed templates/<name>: rebuild the user's copy from the new app template plus the theme.
+function regenerate({ t, R }, which) {
+  const names = which === 'all' ? TEMPLATES.map(x => x[0]) : which.split(',').map(s => s.trim().replace(/^.*\//, '')).filter(Boolean)
+  for (const n of names) if (!TEMPLATES.some(x => x[0] === n)) die(`--regenerate: unknown template "${n}" (use ${TEMPLATES.map(x => x[0]).join(', ')} or all)`)
+  if (!userTemplatesOk()) die('profile/templates/ is a link; nothing was changed')
+  const record = readRecord()
+  let n = 0, kept = 0
+  for (const [name, kind] of TEMPLATES) {
+    if (!names.includes(name)) continue
+    const product = path.join(ROOT, 'templates', name), mine = path.join(USER_TPL, name)
+    if (!fs.existsSync(product)) { out(`skipped: templates/${name} (missing)`); continue }
+    const r = themeTemplate(fs.readFileSync(product, 'utf8'), kind, t, R)
+    if (r.skip) { out(`skipped: templates/${name} (${r.skip})`); continue }
+    if (!fs.existsSync(mine)) {
+      // No copy of their own: the app's template is used as is, unless the theme now makes it differ.
+      if (r.html === fs.readFileSync(product, 'utf8')) { out(`unchanged: templates/${name} (no copy of your own needed)`); continue }
+      fs.mkdirSync(USER_TPL, { recursive: true })
+      fs.writeFileSync(mine, r.html); record[name] = sha(r.html); n++
+      out(`created: ${rel(mine)} (the new templates/${name} with your theme)`)
+      continue
+    }
+    if (isLink(mine)) { out(`skipped: ${rel(mine)} (a link; only real files are changed)`); continue }
+    const old = fs.readFileSync(mine, 'utf8')
+    if (old === r.html) { out(`unchanged: ${rel(mine)}`); continue }
+    const handEdited = record[name] !== sha(old)
+    const prev = path.join(USER_TPL, previousName(name))
+    fs.writeFileSync(prev, old)
+    fs.writeFileSync(mine, r.html)
+    record[name] = sha(r.html); n++
+    if (handEdited) kept++
+    out(`refreshed: ${rel(mine)} (the new version of the app's template, with your theme; the earlier copy is ${rel(prev)}${handEdited ? ' and has changes made by hand, so offer to carry them over' : ''})`)
+  }
+  writeRecord(record)
+  return { n, kept }
 }
 
 // ---- Preview -----------------------------------------------------------------------------------
@@ -181,6 +272,41 @@ function preview(dir) {
 }
 
 // ---- Precomputed presets (for the no-Node fallback) --------------------------------------------
+// The documents block (ATS resume and cover letter) doesn't depend on the preset; it comes from design.md's documents block.
+function docsSection() {
+  const docs = { font: 'Arial', accent: '#111111', density: 'standard', paper: 'Letter' }
+  const fonts = Object.entries(DOC_FONTS).map(([n, f]) => `| ${n} | \`${f.stack}\` | ${f.google ? `\`@import url("https://fonts.googleapis.com/css2?family=${f.google}&display=swap");\`` : 'none'} |`).join('\n')
+  const dens = ['compact', 'standard', 'roomy'].map(d => `| ${d} | ${DOC_DENSITY.resume[d].join(' / ')} | ${DOC_DENSITY.letter[d].join(' / ')} |`).join('\n')
+  return `## 4. Documents block (resume and cover letter; the same for every preset)
+
+The ATS resume and cover letter take their look from the \`documents\` block of \`profile/design.md\`, not from the preset. Their themed copies live in \`profile/templates/\` (\`resume-template.html\`, \`cover-letter-template.html\`); if a copy isn't there yet, copy it from \`templates/\` first, and never edit the app's copies in \`templates/\`. Replace everything from \`  /* ---- Document theme\` through \`  /* ---- End document theme ---- */\` with the block below, then change its values to match the documents block, using the tables. The default (Arial, near-black, standard, Letter) for the resume:
+
+\`\`\`css
+${documentBlock(docs, 'resume')}
+\`\`\`
+
+and for the cover letter:
+
+\`\`\`css
+${documentBlock(docs, 'letter')}
+\`\`\`
+
+- \`--doc-font\`: the stack for the chosen font. Fonts with an \`@import\` line also need that line right after the block's first comment line (as the generator writes it); fonts without one have no \`@import\` line.
+
+| Font | --doc-font | @import line |
+|---|---|---|
+${fonts}
+
+- \`--doc-size\` / \`--doc-leading\` / \`@page\` margin by density:
+
+| Density | Resume (size / leading / margin) | Cover letter (size / leading / margin) |
+|---|---|---|
+${dens}
+
+- \`@page\` \`size:\` is \`Letter\` or \`A4\` (the documents block's \`paper\`).
+- \`--doc-accent\`: \`#111111\`, or a color from "Safe document accents" in \`references/importing-a-design-system.md\` (already measured on white). Without Node, never use another color here.
+`
+}
 function buildPresets() {
   const dir = path.join(here, '..', 'presets')
   fs.mkdirSync(dir, { recursive: true })
@@ -197,7 +323,7 @@ Precomputed and contrast-checked by \`scripts/apply-theme.mjs --build-presets\` 
 
 Fonts: ${th.t.fonts.heading} (headings), ${th.t.fonts.body} (text), ${th.t.fonts.mono} (labels and numbers). Text size ${th.t.baseSize}%, ${th.t.density} spacing, ${th.t.radius}px corners, motion ${th.t.motion}.
 
-## 1. Fonts line (every page, and templates/resume-designed-template.html)
+## 1. Fonts line (every page, and the designed resume template)
 
 Replace the line that starts \`<link rel="stylesheet" href="https://fonts.googleapis.com/css2?\` (or \`href="data:text/css,\`) with:
 
@@ -213,14 +339,15 @@ Replace everything from the line starting \`  /* ---- Design tokens\` through th
 ${tokenBlock(th.t, th.R)}
 \`\`\`
 
-## 3. Designed resume block (templates/resume-designed-template.html)
+## 3. Designed resume block (profile/templates/resume-designed-template.html)
 
-Replace everything from \`  /* ---- Designed resume theme\` through \`  /* ---- End designed resume theme ---- */\` with the block below. It uses Letter paper and standard spacing; for A4, change \`size: Letter\` to \`size: A4\`.
+The user's copy of the designed resume template lives in \`profile/templates/\`; if it isn't there yet, copy \`templates/resume-designed-template.html\` there first (never edit the app's copy in \`templates/\`). Replace everything from \`  /* ---- Designed resume theme\` through \`  /* ---- End designed resume theme ---- */\` with the block below. It uses Letter paper and standard spacing; for A4, change \`size: Letter\` to \`size: A4\`.
 
 \`\`\`css
 ${designedBlock({ ...th.t, docs: { ...th.t.docs, paper: 'Letter', density: 'standard' } }, th.R)}
 \`\`\`
-`
+
+${docsSection()}`
     fs.writeFileSync(path.join(dir, `${name}.md`), md)
     out(`preset: presets/${name}.md`)
   }
@@ -230,9 +357,11 @@ ${designedBlock({ ...th.t, docs: { ...th.t.docs, paper: 'Letter', density: 'stan
 // ---- Main --------------------------------------------------------------------------------------
 if (flag('--build-presets')) { buildPresets(); process.exit(0) }
 if (flag('--preview')) {
-  const dir = path.resolve(opt('--preview') || path.join(os.tmpdir(), 'job-search-theme-preview'))
+  // Inside the workspace (pages/.preview/ is the user's own, git-ignored, and removed by a reset), so the
+  // built-in browser and the user can open the files; the pages themselves and the templates don't change.
+  const dir = path.resolve(opt('--preview') || path.join(ROOT, 'pages', '.preview'))
   const made = preview(dir)
-  out(`result: ${made.length} previews written (nothing in the workspace changed)`)
+  out(`result: ${made.length} previews written to ${rel(dir) || dir} (your pages and templates did not change)`)
   process.exit(0)
 }
 if (flag('--check-blank')) {
@@ -249,8 +378,17 @@ if (flag('--check-blank')) {
     else if (r.html !== html) { out(`differs: ${rel(file)} (not on the Default preset)`); bad++ }
     else { out(`unchanged: ${rel(file)}`); good++ }
   }
-  if (bad) die(`${bad} blank page(s) are not on the Default preset; run apply-theme.mjs --preset default --root <a scratch copy> to see the right token block`)
-  out(`result: checked (${good} blank page(s) on the Default preset; nothing changed)`)
+  // The app's print templates ship on the Default look too; a user's theme only ever goes in profile/templates/.
+  for (const [name, kind] of TEMPLATES) {
+    const file = path.join(ROOT, 'templates', name)
+    if (!fs.existsSync(file)) { out(`differs: templates/${name} (missing)`); bad++; continue }
+    const html = fs.readFileSync(file, 'utf8'), r = themeTemplate(html, kind, th0.t, th0.R)
+    if (r.skip) { out(`differs: templates/${name} (${r.skip})`); bad++ }
+    else if (r.html !== html) { out(`differs: templates/${name} (not on the Default look; a user's theme belongs in profile/templates/)`); bad++ }
+    else { out(`unchanged: templates/${name}`); good++ }
+  }
+  if (bad) die(`${bad} blank page(s) or app template(s) are not on the Default preset; run apply-theme.mjs --preset default --root <a scratch copy> to see the right blocks`)
+  out(`result: checked (${good} blank page(s) and app template(s) on the Default preset; nothing changed)`)
   process.exit(0)
 }
 const presetArg = opt('--preset')
@@ -270,6 +408,13 @@ if (flag('--print')) {
   out(report(th.R, { high: t.spec.contrast === 'high' }))
   out('\n' + tokenBlock(t, th.R))
   out('result: printed (nothing changed)')
+  process.exit(0)
+}
+if (args.includes('--regenerate')) {
+  const which = opt('--regenerate')
+  if (!which) die('--regenerate needs a template name list (e.g. resume-template.html) or all')
+  const g = regenerate(th, which)
+  out(`result: templates refreshed (${g.n} changed${g.kept ? `, ${g.kept} had changes made by hand` : ''}; pages not touched)`)
   process.exit(0)
 }
 const write = !flag('--check')

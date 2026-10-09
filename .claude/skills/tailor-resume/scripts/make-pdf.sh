@@ -12,13 +12,17 @@
 # .yaml  -> rendered with RenderCV (only if `rendercv` is already installed).
 # Output file: <First>-<Last>-Resume-<Company>.pdf, or <First>-<Last>-Cover-Letter-<Company>.pdf when the
 # source file name contains "cover", or <First>-<Last>-Resume-<Company>-Designed.pdf when it contains "designed"
-# (the optional designed resume, templates/resume-designed-template.html).
+# (the optional designed resume, made from profile/templates/resume-designed-template.html or, if the user has no
+# themed copy, templates/resume-designed-template.html).
 #
 # Output lines (first line is the status):
-#   pdf: <path>            then  paper: Letter|A4|...  pages: N  parse: ...
+#   pdf: <path>            then  paper: Letter|A4|...  pages: N  parse: ...  (and maybe parse-note: ...)
 #   no-browser             no Chrome/Edge/Chromium found: fall back to the manual Print -> Save as PDF steps
 #   no-rendercv            RenderCV isn't installed: use the .html route instead
-#   print-failed / render-failed / not-found: <path> / usage: ...
+#   print-failed           no PDF, or one that came out blank (no text) or without the name, email and phone; a
+#                          bad PDF is saved as <final name>-CHECK.pdf (never under the final name) and a "check:" line
+#                          says where
+#   render-failed / not-found: <path> / usage: ...
 set -u
 here="$(cd "$(dirname "$0")" && pwd)"
 . "$here/pdf-common.sh"
@@ -29,9 +33,20 @@ if [ -z "$src" ] || [ -z "$person" ] || [ -z "$company" ]; then
 fi
 [ -f "$src" ] || { echo "not-found: $src"; exit 1; }
 
-# File-name pieces: letters (accented ones kept), digits and hyphens only ("Bluth & Sons Labs" -> "Bluth-Sons-Labs"),
-# the same rule the Apply Kit panel uses to find the file.
-slug() { printf '%s' "$1" | LC_ALL=C tr -cs 'A-Za-z0-9\200-\377' '-' | LC_ALL=C sed -e 's/^-//' -e 's/-$//'; }
+# File-name pieces: letters (accented ones kept), digits and hyphens only ("Bluth & Sons Labs" -> "Bluth-Sons-Labs",
+# "O'Neil" with a straight or curly apostrophe -> "O-Neil"), the same rule the Apply Kit panel uses to find the file
+# (JavaScript: replace(/[^\p{L}\p{N}]+/gu, '-'), trimmed). perl knows Unicode letters; it ships with macOS, Linux
+# and Git for Windows (python3 is the second choice). Without either, ASCII letters and digits plus any non-ASCII
+# bytes are kept, which can differ from the panel for punctuation such as a curly apostrophe.
+slug() {
+  if command -v perl >/dev/null 2>&1; then
+    printf '%s' "$1" | perl -CS -pe 's/[^\p{L}\p{N}]+/-/g; s/^-+|-+$//g'
+  elif command -v python3 >/dev/null 2>&1 && python3 -c 1 >/dev/null 2>&1; then
+    python3 -I -c 'import re,sys; print(re.sub(r"[\W_]+", "-", sys.argv[1]).strip("-"), end="")' "$1"
+  else
+    printf '%s' "$1" | LC_ALL=C tr -cs 'A-Za-z0-9\200-\377' '-' | LC_ALL=C sed -e 's/^-//' -e 's/-$//'
+  fi
+}
 base="$(basename "$src")"
 case "$(printf '%s' "$base" | tr 'A-Z' 'a-z')" in *cover*) kind="Cover-Letter" ;; *) kind="Resume" ;; esac
 # The optional designed resume (resume-designed.html) gets its own name, so the ATS resume's name never changes.
@@ -59,6 +74,35 @@ case "$(printf '%s' "$base" | tr 'A-Z' 'a-z')" in
     engine="browser" ;;
   *) echo "unsupported: $base (use .html or .rendercv.yaml)"; exit 2 ;;
 esac
+
+# ---- Is it a real document? A blank page, or one without the person's name, email and phone, is never saved
+# under the final name (the Apply Kit offers that name for uploads).
+lower() { tr 'A-Z' 'a-z'; }
+email="$(grep -o -E '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' "$src" 2>/dev/null | head -1)"
+bad=""
+if command -v pdftotext >/dev/null 2>&1 && pdftotext -enc UTF-8 "$tmp_pdf" "$tmpdir/check.txt" 2>/dev/null; then
+  if [ -z "$(tr -d '[:space:]' < "$tmpdir/check.txt")" ]; then bad="it has no text"
+  else
+    seen=""
+    lower < "$tmpdir/check.txt" | grep -q -F "$(printf '%s' "$person" | lower)" && seen=1
+    [ -n "$email" ] && grep -q -i -F "$email" "$tmpdir/check.txt" && seen=1
+    # Phone: the last 7 digits of the first phone-like number in the source, anywhere in the PDF's digits.
+    ph="$(grep -o -E '\+?\(?[0-9][0-9 ().-]{7,}[0-9]' "$src" 2>/dev/null | head -1 | tr -cd '0-9')"
+    [ "${#ph}" -ge 7 ] && tr -cd '0-9' < "$tmpdir/check.txt" | grep -q "${ph: -7}" && seen=1
+    [ -n "$seen" ] || bad="the name, email and phone are all missing from its text"
+  fi
+elif ! LC_ALL=C grep -a -q '/Font' "$tmp_pdf"; then
+  bad="it has no text"
+fi
+check_pdf="${final%.pdf}-CHECK.pdf"
+if [ -n "$bad" ]; then
+  mv -f "$tmp_pdf" "$check_pdf" 2>/dev/null || check_pdf=""
+  echo "print-failed"
+  [ -n "$check_pdf" ] && echo "check: $check_pdf ($bad; saved under this name so it can't be uploaded by mistake)"
+  [ -f "$final" ] && echo "old: $final is from an earlier run and may not match the current file"
+  exit 1
+fi
+rm -f "$check_pdf"
 
 mv -f "$tmp_pdf" "$final" || { echo "save-failed: $final (is the PDF open in another app?)"; exit 1; }
 paper="$(paper_size "$final")"
@@ -93,16 +137,15 @@ else
   cp "$src" "$tmpdir/source.txt"
 fi
 source_txt="$tmpdir/source.txt"
-problems=""; good=""
+problems=""; good=""; note=""
 add_problem() { problems="${problems:+$problems; }$1"; }
 add_good() { good="${good:+$good, }$1"; }
-lower() { tr 'A-Z' 'a-z'; }
 
 # Name near the top.
 if grep -v '^[[:space:]]*$' "$text" | head -3 | lower | grep -q -F "$(printf '%s' "$person" | lower)"; then add_good "name"
 else add_problem "name not in the first lines"; fi
 
-# Email.
+# Email (the first one in the visible text).
 email="$(grep -o -E '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' "$source_txt" | head -1)"
 if [ -z "$email" ]; then add_problem "no email in the file"
 elif grep -q -i -F "$email" "$text"; then add_good "email"
@@ -151,9 +194,15 @@ else
   lost=""
   for y in $src_years; do printf '%s' " $pdf_years" | grep -q " $y " || lost="$y"; done
   if [ -n "$lost" ]; then add_problem "date $lost not readable"
-  else add_problem "dates read in a different order than on the page (check the PDF's text order)"; fi
+  else
+    # Every date is there, just read in another order: usually a year standing alone at the right of a line
+    # (a project or award). Applicant tracking systems handle that; it is a note, not something to fix.
+    add_good "dates readable"
+    note="dates read in a slightly different order than on the page (usually a year on its own at the right of a line); that's fine, don't change the layout for it"
+  fi
 fi
 
 if [ -z "$problems" ]; then echo "parse: ok ($good)"
 else echo "parse: check these: $problems${good:+ (fine: $good)}"; fi
+[ -n "$note" ] && echo "parse-note: $note"
 exit 0

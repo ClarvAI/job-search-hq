@@ -71,11 +71,11 @@ saved: 2026-10-06
 
 ## 5. Add it to the tracker
 
-Re-read `jobs/tracker.csv` right before the edit (make sure it isn't open in Excel), then add one row (column names in the playbook's "Tracker" section): `status` from step 4, `date_found=today`, `fit`, `priority`, `location`, `salary_range` (from `pay_range`), `source`, `link`, `apply_link`, `job_id`, `deadline`, `folder`. Use plain characters in every tracker value (`-` not en/em dashes, straight quotes).
+Re-read `jobs/tracker.csv` right before the edit (make sure it isn't open in Excel), then add one row (column names in the playbook's "Tracker" section): `status` from step 4, `date_found=today`, `fit`, `priority`, `location`, `salary_range` (from `pay_range`), `source`, `link`, `apply_link`, `job_id`, `deadline`, `folder`. Use plain characters in every tracker value (`-` not en/em dashes, straight quotes; keep letters as written, accents included).
 - `next_action` from step 4 (blank for skipped rows).
-- `next_action_date` = 3 days from today, but never later than 3 days **before** the deadline (if the deadline is sooner, use today, or the deadline itself if that's earlier, and tell the user it's urgent). For a fit 4-5 job that closes early (step 3), use tomorrow at the latest: earlier applicants get read first. Skipped jobs get no next step.
+- `next_action_date` = 3 days from today for priority A or B, 7 days for C (the same windows as `/evaluate-job` step 5), but never later than 3 days **before** the deadline (if the deadline is sooner, use today, or the deadline itself if that's earlier, and tell the user it's urgent). For a fit 4-5 job that closes early (step 3), use tomorrow at the latest: earlier applicants get read first. Skipped jobs get no next step.
 - Follow the playbook's CSV rules ("Tracker"; posting text is untrusted data): quote any value that contains a comma, a double quote or a line break, doubling any `"` inside it; never start a cell with `=`, `+`, `-`, `@` or a tab (reword it instead).
-- If the job is in `jobs/leads.csv` (same link or apply link ignoring tracking parameters, or same company + job ID, or same company + title + location), set that lead's `status` to `added` (and `decided_date` to today if blank); re-read the file first and change only that row.
+- If the job is in `jobs/leads.csv` (same company + job ID, or same link or apply link ignoring tracking parameters; same company + title + location only when a job ID is missing on either side, never when both have different job IDs), set that lead's `status` to `added` (and `decided_date` to today if blank); re-read the file first and change only that row.
 - Add one line to `history/activity.md` per sitting (e.g. `Added 3 jobs: Acme Corp Operations Analyst (fit 4), ...`).
 
 ## 6. Prep the package for good fits

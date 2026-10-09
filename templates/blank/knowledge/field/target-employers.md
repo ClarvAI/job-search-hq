@@ -1,5 +1,5 @@
 STATUS: not generated
-<!-- /start builds this list from the user's field, target roles and locations (see the "field pack" step in the start skill). The user adds or removes companies as they learn what they like. Then the line above becomes "STATUS: generated YYYY-MM-DD". -->
+<!-- /start builds this list from the user's field, target roles and locations (see the "field pack" step in the start skill). The user adds or removes companies as they learn what they like. Then the line above becomes "STATUS: generated YYYY-MM-DD for <field>". If the user's field, target roles or locations change, rebuild it (or say it is out of date). -->
 
 # Target Employers
 

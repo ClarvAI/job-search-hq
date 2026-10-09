@@ -16,7 +16,7 @@ Losing a job is a shock. Start with one or two human sentences, not a checklist.
 1. **Their last day of work** (and the date they were told, if different). If they don't know yet, use the date they were told and mark the plan "update when the last day is confirmed".
 2. **Where they worked:** country, and the US state (or UK nation) where they physically worked. Benefits are claimed where they worked.
 3. **What they were given:** a severance or settlement agreement, a WARN or redundancy notice, a benefits or COBRA letter, nothing yet. Ask them to drop any letters in `imports/` if they want you to pull out the dates (read only the dates, deadlines and what they're asked to do; don't copy the terms into notes).
-4. **Anything that makes time tighter:** a visa tied to the job, or (US) whether they're 40 or older *only if* they have a severance agreement (it changes the review period; don't save the answer).
+4. **Anything that makes time tighter:** a visa tied to the job. For a US severance agreement, don't ask the user's age: read the review period the agreement itself gives (its "consider" and "revoke" wording). If it mentions the Age Discrimination in Employment Act or the Older Workers Benefit Protection Act, it is giving the 40-and-over protections; 45 days instead of 21 applies when the layoff is part of a group program (several people let go at once; such agreements must come with a list of the job titles and ages of those selected and not selected). If the agreement is unclear, ask "Was this package offered to a group of people at once, or just to you?" and use the longer period only as "check with a lawyer". Don't save any of it.
 
 ## 2. Build the dated plan
 
@@ -57,7 +57,7 @@ Show the user the dated deadlines (not the whole file) and say which one is firs
 ## 4. Update their files (with their OK)
 
 - `profile/master-resume.md`: the end date for the job, and any wins they want recorded while they're fresh (show the exact change first).
-- `profile/preferences.md`: a dated line under "Notes from conversations" ("Laid off from <employer>, last day <date>"); if they claim unemployment, offer `/work-search-log` (it records the state and starts the weekly log). If a visa clock applies, offer to fill the visa lines (they need the official numbers from the DSO or an immigration lawyer).
+- `profile/preferences.md`: a dated line under "Notes from conversations" ("Laid off from <employer>, last day <date>"); if they claim unemployment, offer `/work-search-log` (it records the state, the claim date and any registration deadline, and starts the weekly log). If a visa clock applies, offer to fill the visa lines (`visa_type`, `visa_clock_start` = the first counted unemployment day, not the last day worked, `visa_days_allowed`, `visa_days_used`, `visa_days_used_as_of`; the numbers come from the DSO, the official counter or an immigration lawyer).
 - Their former employer may rehire or refer them later: offer to add the company's other teams to the search.
 
 ## 5. Then the search

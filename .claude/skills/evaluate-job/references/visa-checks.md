@@ -19,6 +19,20 @@ Signals for the user's decision, never immigration advice. Always end with: "For
 - **F-1 OPT and STEM OPT:** the unemployment allowance is 90 days on post-completion OPT and 150 days in total with a STEM OPT extension (SEVIS counts each day without employer information). Source: Study in the States, https://studyinthestates.dhs.gov/sevis-help-hub/student-records/fm-student-employment/unemployment-counter. STEM OPT also needs an employer enrolled in E-Verify and a training plan (Form I-983): https://studyinthestates.dhs.gov/stem-opt-hub. If the user is on STEM OPT or plans to be, note whether the posting or the company says it uses E-Verify; ask the recruiter if not stated.
 - **H-1B after a job ends:** up to 60 consecutive days, or until the authorized stay ends if sooner, to change status, adjust status, or be named in a new employer's petition: https://www.uscis.gov/policy-manual/volume-2-part-m-chapter-9 (and the archived USCIS page "Options for Nonimmigrant Workers Following Termination of Employment"). A long hiring process can matter more than fit here; say so.
 
+## Visa clock
+
+The one formula (used by `/today` and `/evaluate-job`; don't vary it). The lines in `profile/preferences.md`:
+- `visa_clock_start`: the **first counted unemployment day** of the current gap (as the DSO or official counter counts it, usually the day after the last day of work). Blank while employed.
+- `visa_days_used`: unemployment days already used, from the official count (SEVP Portal, SEVIS counter, DSO or lawyer).
+- `visa_days_used_as_of`: the date that count was read. Blank means the count covers only gaps before `visa_clock_start`.
+- `visa_days_allowed`: the total allowed, from the official source.
+
+Days used today = `visa_days_used` + the number of calendar days from the counting start through today, both included, where the counting start is the later of `visa_clock_start` and the day after `visa_days_used_as_of` (if `visa_days_used_as_of` is blank: `visa_clock_start`). If the counting start is after today, add 0. Days left = `visa_days_allowed` − days used today. All four numbers are needed: if any is missing, don't estimate; say which one to get from the DSO or the official counter.
+
+Example: allowed 90; the SEVP Portal showed 12 used on 2026-10-01; clock started 2026-09-20; today 2026-10-09. Counting start = 2026-10-02, so 8 more days: 20 used, 70 left.
+
+When the user starts a job again (with their OK): clear `visa_clock_start`, and set `visa_days_used` to the official count with today's date in `visa_days_used_as_of`, so a later gap starts from the right number.
+
 ## Visa clock vs. the hiring timeline
 
-If `visa_clock_start` is set in `profile/preferences.md`, days left = `visa_days_allowed` − `visa_days_used` − days since `visa_clock_start`. Compare with how long this employer's process is likely to take (posting, recruiter, or "unknown"). If it's tight, say so in the verdict and suggest asking the recruiter about their timeline early. The official counter (SEVP Portal or the DSO) or the lawyer has the real number.
+If `visa_clock_start` is set, work out the days left with the formula above and compare with how long this employer's process is likely to take (posting, recruiter, or "unknown"). If it's tight, say so in the verdict and suggest asking the recruiter about their timeline early. The official counter (SEVP Portal or the DSO) or the lawyer has the real number.

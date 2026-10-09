@@ -5,15 +5,15 @@ Background for `/cover-letter`, `/tailor-resume`, `truth-checker` and `voice-edi
 ## 1. The language rule (this workspace)
 
 - **Write application documents only in a language the user can review.** Read `application_languages:` in `profile/preferences.md` (e.g. `English (native), German (B2)`). A language listed there at about B2 or higher is one the user can review. If the field is blank, ask once ("Which languages can you read well enough to check a cover letter in?") and offer to save the answer.
-- **The user can't review that language** (not listed, or below B2): still write the draft if they want it, but also give a plain English gloss (a sentence-by-sentence meaning, not a polished translation) and put this line at the top of the file and in the hand-off: `Needs a native-speaker check before sending.` Suggest who could check it (a native-speaking friend, a university language centre, a professional translator). The Outbox draft for any message in that language carries the same line in the notes to the user, never in the message body.
+- **The user can't review that language** (not listed, or below B2): still write the draft if they want it, but also give a plain gloss in a language they read well, usually their master resume's (a sentence-by-sentence meaning, not a polished translation) and put this line at the top of the file and in the hand-off: `Needs a native-speaker check before sending.` Suggest who could check it (a native-speaking friend, a university language centre, a professional translator). The Outbox draft for any message in that language carries the same line in the notes to the user, never in the message body.
 - **Generate in the target language; don't translate sentence by sentence.** Write from the master resume's facts directly in the target language, using that country's structure and phrasing (sections 3-4). Word-for-word translation keeps English sentence shapes and idioms that read as foreign. (Opinion, widely shared by translators and career services.)
 - **Facts never change with the language.** Numbers, dates, employer names and job titles are the master resume's. A job title may be given in the target language only if it's the real title or a plain description with the original in brackets (e.g. "Qualitätsingenieur (Quality Engineer)"); never a grander equivalent. Degree names: keep the original and add a common local equivalent in brackets only if the user agrees (e.g. "BSc Biomedical Engineering (vergleichbar mit Bachelor of Science)").
 - **Language levels** go in CEFR terms (A1-C2) in Europe, e.g. "Deutsch: B2". Use the level the user gave; never raise it. (Rule for Europass; Custom in Germany per Make it in Germany.)
-- **Checks:** `truth-checker` compares the foreign-language text fact by fact against the English master resume (section 5). `voice-editor` keeps the user's plain voice inside the target language's register (section 4).
+- **Checks:** `truth-checker` compares the document fact by fact against the master resume, whatever language each is in (section 5). `voice-editor` keeps the user's plain voice inside the target language's register (section 4).
 
 ## 2. Privacy items (all countries)
 
-Photos, date of birth, nationality, marital status, children, religion and similar personal details are **never added unless the user explicitly chooses** to include them for that application. Where a country's custom expects one (e.g. a photo in Switzerland or Germany), say so once, plainly, and let the user decide. Never store the user's date of birth or ID numbers in this folder (AGENTS.md rule 4); if they choose to put a birth date on a CV, they type it into the final document themselves, or tell you it's fine to put it in that job's CV file only.
+Photos, date of birth, nationality, marital status, children, religion and similar personal details are **never added unless the user explicitly chooses** to include them for that application. Where a country's custom expects one (e.g. a photo in Switzerland or Germany), say so once, plainly, and let the user decide. Never store the user's date of birth or ID numbers in this folder (AGENTS.md rule 4), not even in one job's CV file: if they choose to put a birth date on a CV, they add it themselves to their final copy outside this folder (or type it into the employer's form), after you've made the PDF.
 
 ## 3. Country notes
 
@@ -61,9 +61,9 @@ Keep the user's voice (plain, specific, their real results) but use the target l
 - Japanese: keigo; leave to the native template and a native speaker.
 The AI-tell list in `voice-editor` applies in every language (throat-clearing, grand claims, stock enthusiasm, triplets). Don't import English contractions or idioms.
 
-## 5. Fact-checking a foreign-language document
+## 5. Fact-checking a document in another language
 
-`truth-checker` lists every number, date, employer, title, degree, tool and outcome in the foreign text, gives each one's English meaning, and matches it to the English master resume line. Flag anything that can't be traced (UNSUPPORTED), any title upgraded in translation (INFLATED, e.g. "Leiter" for "lead"/"coordinator" when the source says neither), any reformatted number that changed (CHANGED: watch decimal commas, "1.000" vs "1,000", dates written day-month-year), and any personal detail (photo, birth date, marital status) the user didn't choose.
+`truth-checker` lists every number, date, employer, title, degree, tool and outcome in the document, gives each one's meaning in the master resume's language, and matches it to the master resume line. Flag anything that can't be traced (UNSUPPORTED), any title upgraded in translation (INFLATED, e.g. "Leiter" for "lead"/"coordinator" when the source says neither), any reformatted number that changed (CHANGED: watch decimal commas, "1.000" vs "1,000", dates written day-month-year), and any personal detail (photo, birth date, marital status) the user didn't choose.
 
 ## Sources
 

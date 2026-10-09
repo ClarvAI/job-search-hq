@@ -12,7 +12,11 @@ const DIR = 'outbox'
 const ACTIVITY = 'history/activity.md'
 const EMAIL = /^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/
 const LINKEDIN_NOTE_LIMIT = 200
-const PLACEHOLDER = /\[[^\]\n]{1,60}\]/
+// Blanks left to fill in: [Name], {First name}, {{name}}, <Company> (an address in angle brackets is
+// fine), or a run of underscores.
+const PLACEHOLDER = /\[[^\]\n]{1,60}\]|\{\{?[^{}\n]{1,60}\}\}?|<[^<>@:/\n]{1,40}>|_{3,}/
+// The Outbox can't attach files: a message that says it has one is sent from Gmail by the user.
+const ATTACHMENT = /\battach(?:ed|ment|ing)\b|\benclosed\b/i
 // Drafts with a Gmail call in progress (a plain Set: checked and set with no await in between).
 const inFlight = new Set<string>()
 
@@ -24,6 +28,11 @@ const notice = atom({ plugin: 'outbox', key: 'notice' } as const, { text: '', is
 // draft-only (default): approving makes a Gmail draft the user sends themselves.
 // send: the user switched this on in profile/preferences.md; approving sends.
 const mode = atom({ plugin: 'outbox', key: 'mode' } as const, 'draft-only')
+// What profile/preferences.md says. "send" only takes effect once the user turns it on here, once
+// (remembered in the plugin's store until the file says draft-only again).
+const fileMode = atom({ plugin: 'outbox', key: 'fileMode' } as const, 'draft-only')
+// Drafts whose earlier send was never confirmed: the user checks Gmail's Sent folder first.
+const unsure = atom({ plugin: 'outbox', key: 'unsure' } as const, [] as string[])
 const signature = atom({ plugin: 'outbox', key: 'signature' } as const, '')
 const hasSignature = atom({ plugin: 'outbox', key: 'hasSignature' } as const, true)
 
@@ -41,9 +50,9 @@ function parse(file: string, raw: string): Draft | undefined {
   if (!match) return undefined
   const head: Record<string, string> = {}
   let listKey = ''
-  for (const line of match[1].split('\n')) {
+  for (const line of (match[1] ?? '').split('\n')) {
     const item = /^\s*-\s+(.*)$/.exec(line)
-    if (item && listKey) { head[listKey] = [head[listKey], unquote(item[1])].filter(Boolean).join(', '); continue }
+    if (item && listKey) { head[listKey] = [head[listKey], unquote(item[1] ?? '')].filter(Boolean).join(', '); continue }
     const at = line.indexOf(':')
     if (at < 1) continue
     const key = line.slice(0, at).trim().toLowerCase()
@@ -61,7 +70,7 @@ function parse(file: string, raw: string): Draft | undefined {
     created: get('created'),
     status: (get('status') || 'draft').toLowerCase(),
     replyTo: get('reply_to'),
-    body: match[2].trim(),
+    body: (match[2] ?? '').trim(),
   }
 }
 
@@ -95,11 +104,13 @@ function compose(body: string, sig: string): { body: string; htmlBody: string } 
 
 // Accepts "a@b.com, c@d.com", "Jane Doe <jane@globex.example>", or YAML list items (already joined).
 function addresses(list: string): string[] {
-  return list.split(/[,;]/).map(s => s.trim()).filter(Boolean).map(s => /<([^>]+)>/.exec(s)?.[1].trim() ?? s)
+  return list.split(/[,;]/).map(s => s.trim()).filter(Boolean).map(s => /<([^>]+)>/.exec(s)?.[1]?.trim() ?? s)
 }
 
 // The example signature's made-up name and phone, which must never go out in a real email.
 const SAMPLE_SIGNATURE = /\byour name\b|\byour title\b|555-01\d\d|linkedin\.com\/in\/your-name/i
+
+const SEND_OK = 'send-mode-confirmed'
 
 async function settings($: any): Promise<void> {
   let prefs = ''
@@ -110,8 +121,20 @@ async function settings($: any): Promise<void> {
     if ((await read($, mode)) !== 'draft-only') await update($, mode, () => 'draft-only')
     throw err
   }
-  const found = /^\s*outbox_mode:\s*([a-z-]+)/im.exec(prefs)?.[1] ?? 'draft-only'
-  const value = found === 'send' ? 'send' : 'draft-only'
+  // Only a real setting line counts: never an example inside an HTML comment.
+  const found = (/^[ \t]*(?:[-*][ \t]+)?outbox_mode:[ \t]*`?([a-z-]+)/im.exec(prefs.replace(/<!--[\s\S]*?-->/g, ''))?.[1] ?? 'draft-only').toLowerCase()
+  const inFile = found === 'send' ? 'send' : 'draft-only'
+  if ((await read($, fileMode)) !== inFile) await update($, fileMode, () => inFile)
+  let confirmed = false
+  if (inFile === 'send') {
+    // If the store can't be read, send mode stays off (fail closed).
+    const stored = await Promise.resolve().then(() => $.store.get(SEND_OK)).catch(() => undefined)
+    confirmed = !!stored && typeof stored === 'object' && (stored as { value?: string }).value === 'send'
+  } else {
+    // Back to draft-only: turning send mode on again later needs a new confirmation here.
+    await Promise.resolve().then(() => $.store.delete(SEND_OK)).catch(() => undefined)
+  }
+  const value = inFile === 'send' && confirmed ? 'send' : 'draft-only'
   if ((await read($, mode)) !== value) await update($, mode, () => value)
   // Only the user's own signature is ever added; a missing or still-sample one means no signature.
   const own: string = (await $.fs.exists('profile/signature.txt')) ? clean(await $.fs.read('profile/signature.txt')).trim() : ''
@@ -122,24 +145,52 @@ async function settings($: any): Promise<void> {
 }
 
 // A receipt per sent message in the plugin's own store (outside this folder), written BEFORE Gmail
-// is asked to send. If the file can't be updated afterwards, or the app stops mid-send, the receipt
-// still blocks a second send of that draft (same file, recipient and subject), even if an old copy of
-// the file comes back as a draft later. Only a send Gmail reported as failed removes its receipt.
+// is asked to send, under two keys: the file name, and the message itself (recipient, subject and
+// text), so a renamed or copied file is caught too. If the file can't be updated afterwards, or the
+// app stops mid-send, or Gmail's answer is an error or never comes, the receipt stays: the draft is
+// held as "not confirmed" until the user has checked Gmail's Sent folder. It is never retried by itself.
 const receiptKey = (file: string) => `send-receipt:${file}`
-type Receipt = { at: string; to: string; subject: string; state: 'sending' | 'sent' }
+const messageKey = (d: { to: string; subject: string; body: string }) => `send-receipt-msg:${hash(`${d.to.trim().toLowerCase()}\n${d.subject.trim()}\n${d.body.trim()}`)}`
+type Receipt = { at: string; to: string; subject: string; state: 'sending' | 'sent' | 'uncertain'; file?: string }
+
+// A short fingerprint of a message (53-bit cyrb53): enough to tell messages apart, not a secret.
+function hash(text: string): string {
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57
+  for (let i = 0; i < text.length; i++) {
+    const ch = text.charCodeAt(i)
+    h1 = Math.imul(h1 ^ ch, 2654435761)
+    h2 = Math.imul(h2 ^ ch, 1597334677)
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909)
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909)
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36)
+}
+
+async function receiptOf($: any, d: Draft): Promise<Partial<Receipt> | undefined> {
+  const byFile = await $.store.get(receiptKey(d.file))
+  if (byFile && typeof byFile === 'object') {
+    const r = byFile as Partial<Receipt>
+    if (r.to === d.to && r.subject === d.subject) return r
+  }
+  const byMessage = await $.store.get(messageKey(d))
+  return byMessage && typeof byMessage === 'object' ? (byMessage as Partial<Receipt>) : undefined
+}
+
+async function keepReceipt($: any, d: Draft, r: Receipt): Promise<void> {
+  await $.store.set(receiptKey(d.file), r)
+  await $.store.set(messageKey(d), r)
+}
 
 // '' when this draft may be sent; otherwise why not (it went out already, or a send was never confirmed).
 async function sendBlocked($: any, d: Draft): Promise<string> {
-  let found: unknown
-  try { found = await $.store.get(receiptKey(d.file)) } catch {
+  let r: Partial<Receipt> | undefined
+  try { r = await receiptOf($, d) } catch {
     return 'Unable to check whether this message was already sent, so nothing was sent. Press Copy and send it from Gmail yourself.'
   }
-  if (!found || typeof found !== 'object') return ''
-  const r = found as Partial<Receipt>
-  if (r.to !== d.to || r.subject !== d.subject) return ''
+  if (!r) return ''
   return r.state === 'sent'
     ? `This message was already sent from the Outbox (${r.at ?? 'earlier'}), so it won't be sent again. Press "Mark sent…" to file it.`
-    : `A send of this message started at ${r.at ?? 'an earlier time'} but was never confirmed. Check your Gmail Sent folder: if it's there, press "Mark sent…". If it isn't, press Copy and send it from Gmail yourself.`
+    : `A send of this message at ${r.at ?? 'an earlier time'} was never confirmed, so it won't be sent again from here until you check. Look in your Gmail Sent folder: if it's there, press "Mark sent…". If it isn't, press "Not in my Sent folder…".`
 }
 
 async function scan($: any): Promise<Draft[]> {
@@ -161,6 +212,12 @@ async function scan($: any): Promise<Draft[]> {
   found.sort((a, b) => a.file.localeCompare(b.file))
   pending.sort((a, b) => a.file.localeCompare(b.file))
   bad.sort()
+  const held2: string[] = []
+  for (const d of found) {
+    const r = await Promise.resolve().then(() => receiptOf($, d)).catch(() => undefined)
+    if (r && r.state !== 'sent') held2.push(d.file)
+  }
+  if (JSON.stringify(await read($, unsure)) !== JSON.stringify(held2)) await update($, unsure, () => held2)
   if (JSON.stringify(await read($, drafts)) !== JSON.stringify(found)) await update($, drafts, () => found)
   if (JSON.stringify(await read($, waiting)) !== JSON.stringify(pending)) await update($, waiting, () => pending)
   if (JSON.stringify(await read($, broken)) !== JSON.stringify(bad)) await update($, broken, () => bad)
@@ -178,11 +235,18 @@ async function tellClaude($: any, text: string): Promise<void> {
 // One line in history/activity.md (same format as the other panels), so Codex or a later session sees the change.
 async function logActivity($: any, stamp: string, what: string): Promise<void> {
   const lineOut = `- ${stamp} · Outbox panel (Claude) · ${what.replace(/[\r\n]+/g, ' ')}\n`
+  // Re-read right before the write and check afterwards, so a line another app added meanwhile is kept.
+  const readNow = async (): Promise<string> => ((await $.fs.exists(ACTIVITY)) ? String(await $.fs.read(ACTIVITY)) : '# Recent activity\n\n')
+  let wrote = false
   try {
-    const before: string = (await $.fs.exists(ACTIVITY)) ? await $.fs.read(ACTIVITY) : '# Recent activity\n\n'
-    await $.fs.write(ACTIVITY, before.replace(/\n*$/, '\n') + lineOut)
-    const after: string = await $.fs.read(ACTIVITY)
-    if (!after.includes(lineOut)) await $.fs.write(ACTIVITY, after.replace(/\n*$/, '\n') + lineOut)
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const before = await readNow()
+      if (wrote && before.includes(lineOut)) return
+      if ((await readNow()) !== before) continue
+      await $.fs.write(ACTIVITY, before.replace(/\n*$/, '\n') + lineOut)
+      wrote = true
+      if ((await readNow()).includes(lineOut)) return
+    }
   } catch { /* the log is a convenience; the draft file already holds the new status */ }
 }
 
@@ -291,6 +355,8 @@ export const register: Register = (on, options) => {
     const canSend = (await read($, mode)) === 'send'
     const sig = await read($, signature)
     const ownSig = await read($, hasSignature)
+    const sendInFile = (await read($, fileMode)) === 'send'
+    const held3 = await read($, unsure)
 
     const card = (d: Draft) => {
       const isEmail = d.channel === 'email'
@@ -305,7 +371,9 @@ export const register: Register = (on, options) => {
         <Box key={d.file} flexDirection="column" borderStyle="round" paddingX={1}>
           <Text bold>{title(d)}</Text>
           {meta !== '' && <Text wrap="wrap">{meta}</Text>}
-          <Text wrap="wrap">{d.body}</Text>
+          {/* Exactly what goes out: the text plus the signature that will be added. */}
+          <Text wrap="wrap">{isEmail ? compose(d.body, sig).body : d.body}</Text>
+          {held3.includes(d.file) && <Text color="warning" wrap="wrap">An earlier send of this message was never confirmed. Check your Gmail Sent folder before doing anything else.</Text>}
           {d.channel === 'linkedin' && (
             <Text color={isNote && chars > LINKEDIN_NOTE_LIMIT ? 'warning' : undefined} bold={isNote && chars > LINKEDIN_NOTE_LIMIT}>
               {isNote
@@ -336,7 +404,9 @@ export const register: Register = (on, options) => {
                     return
                   }
                   const stillSend = (await read($, mode)) === 'send'
-                  if (!fresh || fresh.status !== 'draft' || fresh.body !== d.body || fresh.to !== d.to || fresh.subject !== d.subject || fresh.cc !== d.cc || stillSend !== canSend) {
+                  // The signature is part of what the user approved: a changed one means reading it again.
+                  const sigNow = await read($, signature)
+                  if (!fresh || fresh.status !== 'draft' || fresh.body !== d.body || fresh.to !== d.to || fresh.subject !== d.subject || fresh.cc !== d.cc || stillSend !== canSend || sigNow !== sig) {
                     await update($, armed, () => '')
                     await say($, 'This draft (or your Outbox setting) changed since you opened it. Read it again before approving.', true)
                     await scan($)
@@ -351,8 +421,8 @@ export const register: Register = (on, options) => {
                       await say($, blocked, true)
                       return
                     }
-                    const receipt: Receipt = { at: await stampNow($), to: d.to, subject: d.subject, state: 'sending' }
-                    const kept = await Promise.resolve().then(() => $.store.set(receiptKey(d.file), receipt)).then(() => true, () => false)
+                    const receipt: Receipt = { at: await stampNow($), to: d.to, subject: d.subject, state: 'sending', file: d.file }
+                    const kept = await Promise.resolve().then(() => keepReceipt($, d, receipt)).then(() => true, () => false)
                     if (!kept) {
                       await update($, armed, () => '')
                       await say($, 'Unable to keep a send record for this message, so nothing was sent. Press Copy and send it from Gmail yourself.', true)
@@ -364,23 +434,25 @@ export const register: Register = (on, options) => {
                   if (d.replyTo) args.replyToMessageId = d.replyTo  // reply_to holds a Gmail message ID
                   const result: any = await $.mcp.call(server, canSend ? 'send_message' : 'create_draft', args)
                     .catch((err: unknown) => ({ isError: true, content: [{ type: 'text', text: String(err) }] }))
-                  if (canSend && !result.isError) {
-                    const done: Receipt = { at: await stampNow($), to: d.to, subject: d.subject, state: 'sent' }
-                    await Promise.resolve().then(() => $.store.set(receiptKey(d.file), done)).catch(() => undefined)
+                  if (canSend) {
+                    // An error or a lost answer can still mean Gmail sent it: the receipt stays as "uncertain"
+                    // (never removed here), so nothing goes out again until the user has checked Sent.
+                    const done: Receipt = { at: await stampNow($), to: d.to, subject: d.subject, state: result.isError ? 'uncertain' : 'sent', file: d.file }
+                    await Promise.resolve().then(() => keepReceipt($, d, done)).catch(() => undefined)
                   }
-                  // Gmail said the send failed: the receipt goes, so the user can try again after checking Sent.
-                  if (canSend && result.isError) await Promise.resolve().then(() => $.store.delete(receiptKey(d.file))).catch(() => undefined)
                   if (result.isError) {
                     await update($, armed, () => '')
                     await say($, canSend
-                      ? "I couldn't confirm whether it sent. Check your Gmail Sent folder before trying again: if it's there, press Mark sent instead. If it isn't, try again or press Copy and send it from Gmail."
+                      ? "I couldn't confirm whether it sent. Check your Gmail Sent folder: if it's there, press \"Mark sent…\". If it isn't, press \"Not in my Sent folder…\", then send it again or press Copy and send it from Gmail."
                       : "I couldn't confirm the Gmail draft was created. Check your Gmail Drafts before trying again, so you don't end up with two.", true)
+                    await scan($).catch(() => undefined)
                     const detail = (result.content ?? []).map((c: any) => c.text ?? '').join(' ').slice(0, 400)
                     await tellClaude($, `[Outbox] Gmail call failed for ${DIR}/${d.file} via "${server}": ${detail}. If the user asks, help them check the Gmail connector.`)
                   } else if (canSend) {
                     await mark($, d, 'sent', `The user sent "${name}" to ${d.to}`, `Sent "${name}" to ${d.to}.`, true)
                   } else {
-                    await mark($, d, 'in-gmail-drafts', `"${name}" is now a draft in the user's Gmail (not sent yet; they send it from Gmail)`, `Gmail draft created for "${name}". Open Gmail to send it, then press "Mark sent…" under "Waiting in Gmail".`, true)
+                    const attach = ATTACHMENT.test(d.body) ? ' This message mentions an attachment: attach the file in Gmail before you send it.' : ''
+                    await mark($, d, 'in-gmail-drafts', `"${name}" is now a draft in the user's Gmail (not sent yet; they send it from Gmail)${attach ? '. It mentions an attachment; the user attaches the file in Gmail' : ''}`, `Gmail draft created for "${name}". Open Gmail to send it, then press "Mark sent…" under "Waiting in Gmail".${attach}`, true)
                   }
                   } catch {
                     await update($, armed, () => '')
@@ -388,6 +460,20 @@ export const register: Register = (on, options) => {
                   } finally {
                     inFlight.delete(d.file)
                   }
+                }} />
+                {cancel}
+              </Box>
+            </Box>
+          )}
+          {action === 'unstick' && (
+            <Box flexDirection="column">
+              <Text bold wrap="wrap">{`You checked your Gmail Sent folder and "${title(d)}" isn't there? Then it can be sent again from here.`}</Text>
+              <Box flexDirection="row" gap={1}>
+                <Button key={`${d.file}:confirm-unstick`} label="It's not there: allow sending again" variant="primary" onPress={async () => {
+                  await Promise.resolve().then(async () => { await $.store.delete(receiptKey(d.file)); await $.store.delete(messageKey(d)) }).catch(() => undefined)
+                  await update($, armed, () => '')
+                  await say($, `"${title(d)}" can be sent again. Read it over, then press Send… when you're ready.`)
+                  await scan($)
                 }} />
                 {cancel}
               </Box>
@@ -427,6 +513,10 @@ export const register: Register = (on, options) => {
                   await say($, 'This email has no subject. Press "Ask Claude to edit".', true)
                   return
                 }
+                if (canSend && ATTACHMENT.test(d.body)) {
+                  await say($, 'This message mentions an attachment, and the Outbox can\'t attach files. Press Copy and send it from Gmail with the file attached, or ask Claude to edit it.', true)
+                  return
+                }
                 const blocked = canSend ? await sendBlocked($, d) : ''
                 if (blocked !== '') {
                   await say($, blocked, true)
@@ -446,6 +536,7 @@ export const register: Register = (on, options) => {
                 else await say($, 'Unable to copy here. Select the text above and copy it.', true)
               }} />
               <Button key={`${d.file}:marksent`} label="Mark sent…" onPress={() => update($, armed, () => `${d.file}|marksent`)} />
+              {held3.includes(d.file) && <Button key={`${d.file}:unstick`} label="Not in my Sent folder…" onPress={() => update($, armed, () => `${d.file}|unstick`)} />}
               <Button key={`${d.file}:edit`} label="Ask Claude to edit" onPress={() => $.prompt.fill({ text: `Revise my outbox draft ${DIR}/${d.file}: ` })} />
               <Button key={`${d.file}:discard`} label="Discard…" dimColor onPress={() => update($, armed, () => `${d.file}|discard`)} />
             </Box>
@@ -465,6 +556,26 @@ export const register: Register = (on, options) => {
         <Text wrap="wrap">{canSend
           ? 'Mode: send. "Send email" sends from your Gmail after you confirm.'
           : 'Mode: draft only. "Create Gmail draft" puts it in your Gmail drafts; you press Send in Gmail.'}</Text>
+        {sendInFile && !canSend && target !== 'mode|confirm' && (
+          <Box flexDirection="column">
+            <Text color="warning" wrap="wrap">Your preferences say outbox_mode: send, but send mode isn't on yet. Turn it on here once to let this panel send email from your Gmail (you still confirm every message).</Text>
+            <Button key="mode-on" label="Turn on send mode…" onPress={() => update($, armed, () => 'mode|confirm')} />
+          </Box>
+        )}
+        {sendInFile && !canSend && target === 'mode|confirm' && (
+          <Box flexDirection="column" borderStyle="round" paddingX={1}>
+            <Text bold wrap="wrap">Turn on send mode? "Send email" will then send straight from your Gmail after you confirm each message, and a sent email can't be taken back. You can switch back any time by setting outbox_mode: draft-only in your preferences.</Text>
+            <Box flexDirection="row" gap={1}>
+              <Button key="mode-confirm" label="Yes, turn on send mode" variant="primary" onPress={async () => {
+                const ok = await Promise.resolve().then(() => $.store.set(SEND_OK, { value: 'send', at: Date.now() })).then(() => true, () => false)
+                await update($, armed, () => '')
+                await say($, ok ? 'Send mode is on.' : 'Unable to save that choice, so the Outbox stays in draft-only mode.', !ok)
+                await scan($)
+              }} />
+              <Button key="mode-keep" label="Keep draft-only" onPress={() => update($, armed, () => '')} />
+            </Box>
+          </Box>
+        )}
         {!ownSig && <Text color="warning" wrap="wrap">Your signature isn't set up, so emails go without one. Ask Claude to set it up (part of /start).</Text>}
         {note.text !== '' && <Text color={note.isError ? 'error' : 'success'}>{note.isError ? `Not done: ${note.text}` : note.text}</Text>}
         {list.length === 0 && held.length === 0 && <Text dimColor>No drafts waiting. Ask Claude to draft a follow-up, thank-you note, or networking message.</Text>}

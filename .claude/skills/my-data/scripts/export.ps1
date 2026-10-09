@@ -60,9 +60,11 @@ try {
     $src = Join-Path $Root $d
     if (Get-Item -LiteralPath $src -Force -ErrorAction SilentlyContinue) { Copy-Tree $src (Join-Path $stage $d) }
   }
-  # Leave out throwaway files: publish copies, page-count PDFs, OS clutter, Office lock files.
-  $pub = Join-Path $stage 'pages\.publish'
-  if (Test-Path -LiteralPath $pub) { Remove-Item -LiteralPath $pub -Recurse -Force }
+  # Leave out throwaway files: publish copies, theme previews, page-count PDFs, OS clutter, Office lock files.
+  foreach ($tmpDir in @('pages\.publish', 'pages\.preview')) {
+    $pub = Join-Path $stage $tmpDir
+    if (Test-Path -LiteralPath $pub) { Remove-Item -LiteralPath $pub -Recurse -Force }
+  }
   Get-ChildItem -LiteralPath $stage -Recurse -Force -File |
     Where-Object { $_.Name -like '*.check.pdf' -or $_.Name -eq '.DS_Store' -or $_.Name -eq 'Thumbs.db' -or $_.Name -like '~$*' } |
     Remove-Item -Force

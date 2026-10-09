@@ -1,5 +1,5 @@
 STATUS: not generated
-<!-- /start (or /interview-prep, when a story needs it) fills this from public sources. -->
+<!-- /start (or /interview-prep, when a story needs it) fills this from public sources. Then the line above becomes "STATUS: generated YYYY-MM-DD for <field>". -->
 
 # Background on Your Past Employers and School
 

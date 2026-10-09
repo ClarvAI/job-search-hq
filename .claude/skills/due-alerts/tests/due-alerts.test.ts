@@ -27,18 +27,18 @@ function setup(on: any, files: Files, opts: { now?: number; store?: Record<strin
 
 const tracker = (...rows: string[]) => ({ 'jobs/tracker.csv': [HEAD, ...rows].join('\n') + '\n' })
 const contacts = (...rows: string[]) => ({ 'contacts/contacts.csv': [CHEAD, ...rows].join('\n') + '\n' })
-// A US home base: month-first slash dates like 10/7 are read as October 7.
-const US = { 'profile/preferences.md': 'home_base: Denver, CO\n' }
+// date_order: MDY (set during setup): month-first slash dates like 10/7 are read as October 7.
+const US = { 'profile/preferences.md': 'home_base: Denver, CO\ndate_order: MDY\n' }
 
-test('an ambiguous slash date raises no alert unless the home base settles its order', async ($, on) => {
+test('an ambiguous slash date raises no alert unless date_order settles it (where the user lives never does)', async ($, on) => {
   const row = 'Umbrella Health,Nurse Educator,interviewing,,Interview 10/7 10am,,B,4,Leeds,2026-09-15,2026-09-16,,,,,,,0,umbrella-ne,'
-  const quiet = setup(on, tracker(row))
+  const quiet = setup(on, { 'profile/preferences.md': 'home_base: Denver, CO\n', ...tracker(row) })
   await $.session.start(START as never)
   expect(quiet.toasts).toEqual([])
 })
 
-test('a day-first home base reads 7/10 as 7 October', async ($, on) => {
-  const { toasts } = setup(on, { 'profile/preferences.md': 'home_base: Leeds, UK\n', ...tracker('Umbrella Health,Nurse Educator,interviewing,,Interview 7/10 10am,,B,4,Leeds,2026-09-15,2026-09-16,,,,,,,0,umbrella-ne,') })
+test('date_order: DMY reads 7/10 as 7 October', async ($, on) => {
+  const { toasts } = setup(on, { 'profile/preferences.md': 'home_base: Leeds, UK\ndate_order: DMY\n', ...tracker('Umbrella Health,Nurse Educator,interviewing,,Interview 7/10 10am,,B,4,Leeds,2026-09-15,2026-09-16,,,,,,,0,umbrella-ne,') })
   await $.session.start(START as never)
   expect(toasts[0]).toBe('Interview tomorrow with Umbrella Health (Nurse Educator). Open your prep: /interview-prep umbrella-ne')
 })
@@ -198,4 +198,48 @@ test('a contact tied to a closed job is not followed up here (the job row owns i
   })
   await $.session.start(START as never)
   expect(toasts).toEqual([])
+})
+
+test('dotted dates are day first, and another date in the row settles a slash date', async ($, on) => {
+  const { toasts } = setup(on, tracker(
+    'Umbrella Health,Nurse Educator,interviewing,7.10.2026,Interview,,B,4,Berlin,2026-09-15,2026-09-16,,,,,,,0,umbrella-ne,',
+    'Acme Corp,Analyst,applied,06/10/2026,Follow up,,B,4,Leeds,25/09/2026,26/09/2026,,,,,,,0,acme-an,',
+  ))
+  await $.session.start(START as never)
+  expect(toasts[0]).toContain('Interview tomorrow with Umbrella Health (Nurse Educator)')
+  expect(toasts[0]).toContain('Acme Corp (Analyst): Follow up, due today.')
+})
+
+test('an interview kept in the notes ("Also: Interview <date>") still alerts', async ($, on) => {
+  const { toasts } = setup(on, tracker('Globex,Planner,interviewing,2026-10-09,Take-home due,,A,5,CO,2026-09-01,2026-09-02,,,,,,,0,globex-pl,Also: Interview 2026-10-07; panel'))
+  await $.session.start(START as never)
+  expect(toasts[0]).toBe('Interview tomorrow with Globex (Planner). Open your prep: /interview-prep globex-pl')
+})
+
+test('a damaged tracker is reported instead of silently showing nothing', async ($, on) => {
+  const { toasts } = setup(on, { 'jobs/tracker.csv': HEAD + '\nAcme,Analyst,applied,2026-10-06,"Follow up\nGlobex,Planner,applied,2026-10-06,Follow up\n' })
+  await $.session.start(START as never)
+  expect(toasts[0]).toContain('looks damaged')
+})
+
+test('layoff plan steps, the certification day and a short visa clock are included', async ($, on) => {
+  const plan = '# Layoff plan\nlast_day: 2026-09-30\n\n## Dated deadlines\n- [ ] 2026-10-06 (Tue): File for unemployment with the state agency (https://uc.example.gov). Benefits count from the week you file.\n- [x] 2026-10-01 (Thu): Ask for final pay\n- [ ] 2026-10-20 (Tue): Choose health coverage\n'
+  const prefs = 'benefits_cert_day: Tuesday\n<!-- visa_clock_start: 2026-01-01 is an example -->\nvisa_clock_start: 2026-09-01\nvisa_days_allowed: 90\nvisa_days_used: 40\nvisa_days_used_as_of: 2026-09-30\n'
+  const { toasts } = setup(on, { 'jobs/layoff-plan.md': plan, 'profile/preferences.md': prefs })
+  await $.session.start(START as never)
+  const text = toasts.join('\n')
+  // 40 used on 2026-09-30, then Oct 1-6 (6 days): 46 used, 44 left. Over 30, so no visa alert.
+  expect(text).not.toContain('visa')
+  expect(text).toContain('Today is your benefits certification day.')
+  expect(text).toContain('Layoff plan: File for unemployment with the state agency, due today.')
+  expect(text).not.toContain('final pay')
+  expect(text).not.toContain('health coverage')
+})
+
+test('a visa clock with 30 days or fewer left comes first', async ($, on) => {
+  const prefs = 'visa_clock_start: 2026-08-01\nvisa_days_allowed: 90\nvisa_days_used: 0\n'
+  const { toasts } = setup(on, { 'profile/preferences.md': prefs, ...tracker('Acme Corp,Analyst,applied,2026-10-06,Follow up,,B,4,X,2026-09-01,2026-09-02,,,,,,,0,acme-an,') })
+  await $.session.start(START as never)
+  // Aug 1 through Oct 6, both ends: 67 days used, 23 left.
+  expect(toasts[0]?.split('\n')[0]).toBe('About 23 days left on your visa unemployment clock (your own count; the official counter or your DSO has the real number). Type /today for details.')
 })

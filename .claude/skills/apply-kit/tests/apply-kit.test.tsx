@@ -15,6 +15,7 @@ SETUP: done 2026-10-01
 
 name: Alex Rivera
 home_base: Austin, TX
+date_order: MDY
 
 ## What you want
 
@@ -87,7 +88,7 @@ Indeed.
 01/02/2003
 `
 
-function setup(on: any, files: Record<string, string>, opts: { lock?: boolean; onRead?: (path: string, files: Record<string, string>) => void } = {}) {
+function setup(on: any, files: Record<string, string>, opts: { lock?: boolean; list?: (path: string) => unknown[]; onRead?: (path: string, files: Record<string, string>) => void } = {}) {
   mock.clock(on, { now: new Date(2026, 9, 6, 9, 0).getTime() } as never)
   const rel = (p: string) => p.replace(/^.*\/skills\/apply-kit\//, '')
   const copies: string[] = []
@@ -95,7 +96,7 @@ function setup(on: any, files: Record<string, string>, opts: { lock?: boolean; o
   on('fs.exists', (_$: any, e: any) => ({ value: rel(e.path) in files }) as never)
   on('fs.read', (_$: any, e: any) => { opts.onRead?.(rel(e.path), files); return { value: files[rel(e.path)] ?? '' } as never })
   on('fs.write', (_$: any, e: any) => { if (opts.lock) throw new Error('EBUSY: resource busy or locked'); files[rel(e.path)] = e.text; return { value: undefined } as never })
-  on('fs.list', () => ({ value: [] }) as never)
+  on('fs.list', (_$: any, e: any) => ({ value: opts.list?.(rel(e.path)) ?? [] }) as never)
   on('ui.open', () => ({ value: { isPlaced: true } }) as never)
   on('ui.copy', (_$: any, e: any) => { copies.push(e.text); return { value: { isCopied: true } } as never })
   on('prompt.fill', (_$: any, e: any) => { fills.push(e.text); return { isFilled: true } as never })
@@ -301,5 +302,111 @@ test('with no job ready to submit, a picker of open jobs shows', async ($, on) =
   const after = JSON.stringify(await ui.drawn())
   expect(after).toContain('Globex · Project Manager')
   expect(after).toContain('mark-applied')
+  await ui.unmount()
+})
+
+const drawnKit = async ($: any, ui?: any) => JSON.stringify(await ui.drawn())
+
+test('the salary floor is never offered as an expectation; the posted range or the job\'s answer is', async ($, on) => {
+  const prefs = PREFS.replace('- Salary floor: not set; use market range', '- Salary floor: $60,000')
+  const posting = POSTING.replace('deadline: 2026-10-20', 'deadline: 2026-10-20\npay_range: $70,000-$85,000')
+  const { copies } = setup(on, { ...FULL(), 'profile/preferences.md': prefs, 'jobs/globex-pm1/posting.md': posting })
+  await $.command.run({ command: 'apply-kit', args: '' } as never)
+  let ui = await $.ui.mount({ plugin: 'apply-kit', surface: 'terminal', ...PANE } as never)
+  let drawn = await drawnKit($, ui)
+  expect(drawn).toContain('Salary expectation: $70,000-$85,000')
+  expect(drawn).toContain('Your minimum — don\'t type this: $60,000')
+  expect(await ui.find({ key: 'copy:salary-floor' } as never)).toBeUndefined()
+  await ui.press({ key: 'copy:salary' })
+  expect(copies).toEqual(['$70,000-$85,000'])
+  await ui.unmount()
+})
+
+test('a salary answer drafted for this job wins over the posted range', async ($, on) => {
+  const answers = ANSWERS + '\n## What is your desired salary?\n$75,000 to $80,000, depending on the full package.\n'
+  setup(on, { ...FULL(), 'jobs/globex-pm1/application-answers.md': answers })
+  await $.command.run({ command: 'apply-kit', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'apply-kit', surface: 'terminal', ...PANE } as never)
+  expect(await drawnKit($, ui)).toContain('Salary expectation: $75,000 to $80,000, depending on the full package.')
+  await ui.unmount()
+})
+
+test('work authorization is read per country, and "Not sure" is left to the user', async ($, on) => {
+  const prefs = PREFS.replace('- Work authorization: Yes, authorized to work in the US; no sponsorship needed', '- Work authorization (US): Yes\n- Needs sponsorship (US): No\n- Work authorization (UK): Not sure\n- Needs sponsorship (<country>): **[ASK]**')
+  setup(on, { ...FULL(), 'profile/preferences.md': prefs })
+  await $.command.run({ command: 'apply-kit', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'apply-kit', surface: 'terminal', ...PANE } as never)
+  const drawn = await drawnKit($, ui)
+  expect(drawn).toContain('Authorized to work in US: Yes')
+  expect(drawn).toContain('Needs sponsorship (US): No')
+  expect(drawn).toContain('"Authorized to work in UK"]},{"type":"Text","props":{"wrap":"wrap","color":"warning"},"children":["Only you can answer this')
+  expect(drawn).toContain('Use the answers for the country this job is in.')
+  expect(drawn).not.toContain('<country>')
+  expect(await ui.find({ key: 'copy:auth-UK' } as never)).toBeUndefined()
+  expect(await ui.find({ key: 'copy:auth-US' } as never)).toBeDefined()
+  await ui.unmount()
+})
+
+test('sensitive data is judged by the answer, and certifications are left to the user', async ($, on) => {
+  const answers = ANSWERS
+    + "\n## Do you have a valid driver's license?\nYes, a full license.\n"
+    + '\n## Why Bank of America?\nI like their community lending work.\n'
+    + "\n## Driver's license number\nD1234567\n"
+    + '\n## I certify that the information in this application is true and complete\nYes\n'
+    + '\n## Are you willing to relocate to Denver?\n[ASK: relocation]\n'
+  setup(on, { ...FULL(), 'jobs/globex-pm1/application-answers.md': answers })
+  await $.command.run({ command: 'apply-kit', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'apply-kit', surface: 'terminal', ...PANE } as never)
+  const drawn = await drawnKit($, ui)
+  expect(drawn).toContain('Yes, a full license.')
+  expect(drawn).toContain('I like their community lending work.')
+  expect(drawn).not.toContain('D1234567')
+  expect(drawn).toContain('Only you can answer this')
+  expect(await ui.find({ key: 'copy:answer5' } as never)).toBeUndefined()
+  expect(await ui.find({ key: 'copy:answer3' } as never)).toBeDefined()
+  await ui.unmount()
+})
+
+test('a PDF counts as ready only when it is real and newer than its page', async ($, on) => {
+  const pdf = (size: number, mtimeMs: number, name = 'Alex-Rivera-Resume-Globex.pdf') => ({ name, kind: 'file', size, mtimeMs, isLink: false })
+  let listing: unknown[] = [pdf(48000, 100), { name: 'resume.html', kind: 'file', size: 9000, mtimeMs: 200, isLink: false }]
+  setup(on, FULL(), { list: p => (p === 'jobs/globex-pm1' ? listing : []) })
+  await $.command.run({ command: 'apply-kit', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'apply-kit', surface: 'terminal', ...PANE } as never)
+  expect(await drawnKit($, ui)).toContain('This PDF is older than your latest resume')
+  listing = [pdf(800, 300), { name: 'resume.html', kind: 'file', size: 9000, mtimeMs: 200, isLink: false }]
+  await ui.press({ key: 'refresh' })
+  expect(await drawnKit($, ui)).toContain('looks empty or broken')
+  listing = [pdf(48000, 300, 'Alex-Rivera-Resume-Globex-CHECK.pdf'), { name: 'resume.html', kind: 'file', size: 9000, mtimeMs: 200, isLink: false }]
+  await ui.press({ key: 'refresh' })
+  expect(await drawnKit($, ui)).toContain('Alex-Rivera-Resume-Globex-CHECK.pdf needs a look first')
+  listing = [pdf(48000, 300), { name: 'resume.html', kind: 'file', size: 9000, mtimeMs: 200, isLink: false }]
+  await ui.press({ key: 'refresh' })
+  expect(await drawnKit($, ui)).toContain('Upload this file')
+  await ui.unmount()
+})
+
+test('a damaged tracker is reported and nothing is marked applied', async ($, on) => {
+  const broken = HEAD + '\n' + 'Globex,Project Manager,interested,2026-10-07,Review package and submit,2026-10-20,A,5,"Denver CO,2026-10-02,,,,,,,,,globex-pm1,\n'
+  const { files } = setup(on, { ...FULL(), 'jobs/tracker.csv': broken })
+  await $.command.run({ command: 'apply-kit', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'apply-kit', surface: 'terminal', ...PANE } as never)
+  const drawn = await drawnKit($, ui)
+  expect(drawn).toContain('looks damaged')
+  expect(drawn).not.toContain('mark-applied')
+  expect(files['jobs/tracker.csv']).toBe(broken)
+  await ui.unmount()
+})
+
+test('Mark applied never rewrites a date whose order is unclear', async ($, on) => {
+  const head = 'company,role,status,next_action_date,next_action,deadline,date_found,date_applied,contact,followups,folder'
+  const csv = head + '\n' + 'Initech,Analyst,interested,2026-10-08,Review package and submit,,03/04/2026,,,,\n'
+  const prefs = PREFS.replace('date_order: MDY\n', '')
+  const { files } = setup(on, { ...FULL(), 'jobs/tracker.csv': csv, 'profile/preferences.md': prefs })
+  await $.command.run({ command: 'apply-kit', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'apply-kit', surface: 'terminal', ...PANE } as never)
+  await ui.press({ key: 'mark-applied' })
+  await ui.press({ key: 'confirm-applied' })
+  expect(files['jobs/tracker.csv']).toContain('Initech,Analyst,applied,2026-10-15,Follow up,,03/04/2026,2026-10-06,,0,')
   await ui.unmount()
 })

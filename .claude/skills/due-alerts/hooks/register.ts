@@ -1,8 +1,11 @@
 import type { Register } from 'claude-code'
 
+import { addDays, alsoOf, csvTrouble, dateOrder, daysBetween, isIso, localDate, monthDay, orderFor, readCsv, toIso } from './csvdate'
+import type { DateOrder } from './csvdate'
+
 // Due alerts: one short toast when a session opens (and again if the date rolls over while it is
 // open) listing what is due today or tomorrow, most urgent first. It only reads the user's files
-// (jobs/tracker.csv, contacts/contacts.csv, outbox/); the session-start hook already gives Claude the
+// (jobs/tracker.csv, contacts/contacts.csv, outbox/, jobs/layoff-plan.md, profile/preferences.md); the session-start hook already gives Claude the
 // same facts as context, so this is for the user's eyes only and never adds anything to the chat.
 // What it has shown today is remembered in the plugin's own store (outside this folder), so the
 // same alert doesn't come back the same day, even after a restart.
@@ -18,86 +21,29 @@ const OPEN = ['interested', 'applied', 'screening', 'interviewing', 'offer']
 // Playbook: once a job is applied or later, the job row owns the follow-up date, not the contact
 // (same list as the Contacts board, closed outcomes included).
 const JOB_OWNS_FOLLOWUP = ['applied', 'screening', 'interviewing', 'offer', 'accepted', 'rejected', 'withdrawn', 'ghosted']
-const RANK = { interview: 0, offer: 1, deadline: 2, followup: 3, gmail: 4 }
+const RANK = { damaged: -1, visa: 0, interview: 0, offer: 1, benefits: 1, deadline: 2, plan: 2, followup: 3, gmail: 4 }
+const LAYOFF_PLAN = 'jobs/layoff-plan.md'
 
-// Same CSV reader as the Pipeline mod: quoted cells, doubled quotes, line breaks inside quotes, CRLF.
-function parseCsv(text: string): string[][] {
-  const rows: string[][] = []
-  let row: string[] = []
-  let cell = ''
-  let quoted = false
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i]
-    if (quoted) {
-      if (c === '"' && text[i + 1] === '"') { cell += '"'; i++ }
-      else if (c === '"') quoted = false
-      else cell += c
-    } else if (c === '"') quoted = true
-    else if (c === ',') { row.push(cell); cell = '' }
-    else if (c === '\n' || c === '\r') {
-      if (c === '\r' && text[i + 1] === '\n') i++
-      row.push(cell); rows.push(row); row = []; cell = ''
-    } else cell += c
-  }
-  if (cell !== '' || row.length > 0) { row.push(cell); rows.push(row) }
-  return rows.filter(r => r.some(v => v.trim() !== ''))
-}
-
-// Rows as lookups by lower-case column name, so column order and extra columns don't matter.
-function table(text: string): Array<(col: string) => string> {
-  const [header = [], ...rows] = parseCsv(text)
+// Rows as lookups by lower-case column name, so column order and extra columns don't matter. Same CSV
+// reader as the Pipeline mod (csvdate.ts); `order` is the date order for that row (its own dates first).
+type Row = { get: (col: string) => string; order: DateOrder }
+function table(text: string, order: DateOrder): { rows: Row[]; problem: string } {
+  const { rows: [header = [], ...rows], problem } = readCsv(text)
+  if (problem !== '') return { rows: [], problem }
   const names = header.map(h => h.trim().toLowerCase())
-  return rows.map(r => (col: string) => {
-    const i = names.indexOf(col)
-    return i >= 0 ? (r[i] ?? '').trim() : ''
-  })
+  return {
+    problem,
+    rows: rows.map(r => ({
+      order: orderFor(r, order),
+      get: (col: string) => {
+        const i = names.indexOf(col)
+        return i >= 0 ? (r[i] ?? '').trim() : ''
+      },
+    })),
+  }
 }
 
 const pad = (n: number | string) => String(n).padStart(2, '0')
-
-// Local calendar date (never UTC), so "today" flips at the user's midnight.
-function localDate(ms: number): string {
-  const d = new Date(ms)
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-}
-
-// Midnight local time of a YYYY-MM-DD date, plus some days.
-function dayOf(iso: string, days = 0): Date {
-  const [y = 1970, m = 1, d = 1] = iso.split('-').map(Number)
-  return new Date(y, m - 1, d + days)
-}
-
-const addDays = (iso: string, days: number) => localDate(dayOf(iso, days).getTime())
-
-const daysBetween = (a: string, b: string) => Math.round((dayOf(b).getTime() - dayOf(a).getTime()) / 86400000)
-
-const isIso = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v)
-
-// Excel may rewrite dates as 14/10/2026 or 10/14/26, in the order of the user's region. Same rules as
-// the Pipeline panel: a slash date is read only when its order is certain (a part over 12, both parts
-// the same, or a US or day-first home_base); otherwise it is not read at all, so no alert is guessed.
-type DateOrder = 'mdy' | 'dmy' | ''
-const US_STATES = 'AL|AK|AZ|AR|CA|CO|CT|DE|DC|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY'
-function dateOrder(prefs: string): DateOrder {
-  const home = /^[ \t]*home_base:[ \t]*(.*)$/m.exec(prefs)?.[1]?.trim() ?? ''
-  if (/\b(USA|U\.S\.A?\.?|United States)\b/i.test(home) || new RegExp(`,\\s*(${US_STATES})\\b`).test(home)) return 'mdy'
-  if (/\b(UK|U\.K\.|United Kingdom|Britain|England|Scotland|Wales|Ireland|Australia|New Zealand|India|South Africa|Singapore|Germany|France|Spain|Italy|Portugal|Netherlands|Belgium|Brazil|Mexico)\b/i.test(home)) return 'dmy'
-  return ''
-}
-
-// [month, day] of two slash-separated numbers, or undefined when the order can't be known.
-function monthDay(a: number, b: number, order: DateOrder): [number, number] | undefined {
-  const [mo, da] = a === b ? [a, b] : a > 12 ? [b, a] : b > 12 ? [a, b] : order === 'mdy' ? [a, b] : order === 'dmy' ? [b, a] : [0, 0]
-  return mo >= 1 && mo <= 12 && da >= 1 && da <= 31 ? [mo, da] : undefined
-}
-
-function toIso(v: string, order: DateOrder = ''): string {
-  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/.exec(v.trim())
-  if (!m) return v.trim()
-  const [, a = '', b = '', year = ''] = m
-  const md = monthDay(Number(a), Number(b), order)
-  return md ? `${year.length === 2 ? `20${year}` : year}-${pad(md[0])}-${pad(md[1])}` : v.trim()
-}
 
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
 
@@ -155,16 +101,65 @@ function header(raw: string): Record<string, string> | undefined {
   return head
 }
 
+// A "key: value" line in profile/preferences.md, outside HTML comments; '' when blank or missing.
+function pref(prefs: string, key: string): string {
+  const m = new RegExp(`^[ \\t]*(?:[-*][ \\t]+)?${key}:[ \\t]*(.*)$`, 'mi').exec(prefs.replace(/<!--[\s\S]*?-->/g, ''))
+  return (m?.[1] ?? '').replace(/\s+#\s.*$/, '').replace(/[*`]/g, '').trim()
+}
+
+const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+
+// Days left on a visa unemployment clock, by the one formula in evaluate-job's visa-checks.md:
+// used = visa_days_used + days from the later of visa_clock_start and the day after
+// visa_days_used_as_of, through today, counting both ends. undefined when a number is missing.
+export function visaDaysLeft(prefs: string, today: string): number | undefined {
+  const start = toIso(pref(prefs, 'visa_clock_start'))
+  const allowed = Number(pref(prefs, 'visa_days_allowed'))
+  const usedText = pref(prefs, 'visa_days_used')
+  const used = usedText === '' ? 0 : Number(usedText)
+  if (!isIso(start) || !Number.isFinite(allowed) || allowed <= 0 || !Number.isFinite(used)) return undefined
+  const asOf = toIso(pref(prefs, 'visa_days_used_as_of'))
+  const from = isIso(asOf) && addDays(asOf, 1) > start ? addDays(asOf, 1) : start
+  const running = from > today ? 0 : daysBetween(from, today) + 1
+  return allowed - used - running
+}
+
 export async function collect($: any, today: string): Promise<Alert[]> {
   const prefs = await readText($, 'profile/preferences.md')
-  if (/^search_status:\s*closed/m.test(prefs)) return []
   const order = dateOrder(prefs)
   const tomorrow = addDays(today, 1)
   const alerts: Alert[] = []
 
+  // Benefits and visa clocks keep running after a search is closed until the user clears them.
+  const left = visaDaysLeft(prefs, today)
+  if (left !== undefined && left <= 30) {
+    alerts.push({ id: `visa|${today}`, rank: RANK.visa, date: today, text: `About ${Math.max(0, left)} days left on your visa unemployment clock (your own count; the official counter or your DSO has the real number). Type /today for details.` })
+  }
+  const certDay = pref(prefs, 'benefits_cert_day').toLowerCase()
+  if (certDay !== '') {
+    const [y = 1970, m = 1, d = 1] = today.split('-').map(Number)
+    const weekday = WEEKDAYS[new Date(y, m - 1, d).getDay()] ?? ''
+    if (weekday !== '' && certDay.slice(0, 3) === weekday.slice(0, 3)) {
+      alerts.push({ id: `benefits|${today}`, rank: RANK.benefits, date: today, text: 'Today is your benefits certification day. Type /today for this period\'s work-search count.' })
+    }
+  }
+  if (/^search_status:\s*closed/m.test(prefs)) return alerts.sort((a, b) => a.rank - b.rank)
+
+  // Layoff plan: unchecked dated lines ("- [ ] 2026-10-12 (Mon): File for unemployment ...") due by tomorrow.
+  for (const line of (await readText($, LAYOFF_PLAN)).split(/\r?\n/)) {
+    const m = /^\s*[-*]\s*\[\s\]\s*(\d{4}-\d{2}-\d{2})\s*(?:\([^)]*\))?\s*:?\s*(.*)$/.exec(line)
+    if (!m || !m[1] || m[1] > tomorrow) continue
+    const what = (m[2] ?? '').replace(/\s*\(https?:[^)]*\)/g, '').replace(/\.\s.*$/, '').replace(/\.$/, '').trim()
+    alerts.push({ id: `plan|${m[1]}|${what.toLowerCase()}`, rank: RANK.plan, date: m[1], text: `Layoff plan: ${what || 'a dated step'}, ${when(m[1], today)}.` })
+  }
+
   // Jobs: interviews, offer answer-by dates, application deadlines, then any other next step due.
   const ownedFolders = new Set<string>()
-  for (const get of table(await readText($, TRACKER))) {
+  const tracker = table(await readText($, TRACKER), order)
+  if (tracker.problem !== '') {
+    alerts.push({ id: `damaged|tracker|${tracker.problem}|${today}`, rank: RANK.damaged, date: today, text: csvTrouble(tracker.problem, 'Your tracker (jobs/tracker.csv)') })
+  }
+  for (const { get, order: rowOrder } of tracker.rows) {
     const company = get('company')
     if (company === '') continue
     const role = get('role')
@@ -175,14 +170,18 @@ export async function collect($: any, today: string): Promise<Alert[]> {
     const key = `${company}|${role}|${folder || get('job_id') || get('link')}`.toLowerCase()
     const name = role ? `${company} (${role})` : company
     const next = get('next_action')
-    const nextDate = toIso(get('next_action_date'), order)
-    const deadline = toIso(get('deadline'), order)
+    const nextDate = toIso(get('next_action_date'), rowOrder)
+    const deadline = toIso(get('deadline'), rowOrder)
+    // A second commitment kept at the start of the notes ("Also: Interview 2026-10-12").
+    const also = alsoOf(get('notes'), rowOrder)
 
     const isInterviewStep = /interview/i.test(next) && !/prep|thank/i.test(next)
-    const interviewDate = isInterviewStep ? dateIn(next, today, order) || (isIso(nextDate) ? nextDate : '') : ''
-    if (interviewDate === today || interviewDate === tomorrow) {
-      const day = interviewDate === today ? 'today' : 'tomorrow'
-      alerts.push({ id: `interview|${key}|${interviewDate}`, rank: RANK.interview, date: interviewDate, text: `Interview ${day} with ${name}. Open your prep: /interview-prep ${folder || company}` })
+    const interviewDate = isInterviewStep ? dateIn(next, today, rowOrder) || (isIso(nextDate) ? nextDate : '') : ''
+    const alsoInterview = also && /interview/i.test(also.text) && !/prep|thank/i.test(also.text) ? also.date : ''
+    const soonest = [interviewDate, alsoInterview].filter(d => d === today || d === tomorrow).sort()[0]
+    if (soonest) {
+      const day = soonest === today ? 'today' : 'tomorrow'
+      alerts.push({ id: `interview|${key}|${soonest}`, rank: RANK.interview, date: soonest, text: `Interview ${day} with ${name}. Open your prep: /interview-prep ${folder || company}` })
       continue
     }
     if (status === 'offer' && isIso(deadline) && daysBetween(today, deadline) <= 3) {
@@ -198,14 +197,20 @@ export async function collect($: any, today: string): Promise<Alert[]> {
     }
     if (isIso(nextDate) && nextDate <= today) {
       alerts.push({ id: `next|${key}|${nextDate}|${next.toLowerCase()}`, rank: RANK.followup, date: nextDate, text: `${name}: ${next || 'next step'}, ${when(nextDate, today)}.` })
+    } else if (also && isIso(also.date) && also.date <= today) {
+      alerts.push({ id: `also|${key}|${also.date}`, rank: RANK.followup, date: also.date, text: `${name}: ${also.text}, ${when(also.date, today)}.` })
     }
   }
 
   // Contacts: only pure networking follow-ups. A contact tied to a job that's applied or later is
   // followed up through that job's row, so it's skipped here and never counted twice.
-  for (const get of table(await readText($, CONTACTS))) {
+  const contacts = table(await readText($, CONTACTS), order)
+  if (contacts.problem !== '') {
+    alerts.push({ id: `damaged|contacts|${contacts.problem}|${today}`, rank: RANK.damaged, date: today, text: csvTrouble(contacts.problem, 'Your contacts file (contacts/contacts.csv)') })
+  }
+  for (const { get, order: rowOrder } of contacts.rows) {
     const name = get('name')
-    const date = toIso(get('next_followup'), order)
+    const date = toIso(get('next_followup'), rowOrder)
     if (name === '' || !isIso(date) || date > today) continue
     if (get('status').toLowerCase() === 'cold' || Number(get('touches') || 0) >= 2) continue
     if (get('job') && ownedFolders.has(get('job').toLowerCase())) continue

@@ -31,6 +31,11 @@ $isWin = ($env:OS -eq 'Windows_NT')
 $start = '/start'; if ($App -eq 'codex') { $start = '$start' }
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../../..')).TrimEnd('\', '/')
 $rootName = Split-Path -Leaf $root
+# "1 minute", "2 minutes"
+function Get-Plural([long]$N, [string]$Word) { if ($N -eq 1) { return "$N $Word" } else { return "$N ${Word}s" } }
+# What to suggest when product files are broken: /update needs the VERSION file.
+if (Test-Path -LiteralPath (Join-Path $root 'VERSION') -PathType Leaf) { $repair = 'Update the workspace (/update) or download a fresh copy' }
+else { $repair = 'Download a fresh copy of the workspace and move your data into it (/my-data explains how)' }
 
 # ---- 1. Folder opened at the root ----
 $cwd = (Get-Location).ProviderPath.TrimEnd('\', '/')
@@ -64,7 +69,9 @@ if (Has-Command 'claude') {
     if (-not $cvn) {
         Say-Skip 'Claude Code version' "the claude command didn't report a version"
     } elseif (Version-AtLeast $cvn '2.1.287') {
-        Say-Ok 'Claude Code version' "$cvn (panels need 2.1.287 or later in the terminal)"
+        Say-Ok 'Claude Code version' "$cvn (the panels need 2.1.287 or later in the terminal, 2.1.286 or later in the desktop app)"
+    } elseif ($App -eq 'codex') {
+        Say-Note 'Claude Code version' "$cvn is too old for the Claude panels. That only matters if you also use Claude Code: run 'claude update' there."
     } else {
         Say-Fix 5 'Claude Code version' "$cvn is too old for the panels (Outbox, Pipeline, Interview Room need 2.1.287 or later). Update Claude Code: run 'claude update' in a terminal, or update the desktop app. Everything else works without them."
     }
@@ -83,13 +90,20 @@ if (Has-Command 'codex') {
 $settings = Read-Text (Join-Path $root '.claude/settings.json')
 $codexHooks = Read-Text (Join-Path $root '.codex/hooks.json')
 if (-not ($settings.Contains('guard.sh') -and $settings.Contains('session-start.sh') -and $codexHooks.Contains('guard.sh') -and $codexHooks.Contains('session-start'))) {
-    Say-Fix 2 'hook setup' 'the safety checks are missing from .claude/settings.json or .codex/hooks.json. Update the workspace (/update) or download a fresh copy.'
+    Say-Fix 2 'hook setup' "the safety checks are missing from .claude/settings.json or .codex/hooks.json. $repair."
 } else {
-    $off = ''
-    foreach ($f in @((Join-Path $HOME '.claude/settings.json'), (Join-Path $root '.claude/settings.local.json'))) {
+    $off = ''; $managed = ''
+    foreach ($f in @((Join-Path $HOME '.claude/settings.json'), (Join-Path $root '.claude/settings.json'), (Join-Path $root '.claude/settings.local.json'))) {
         if ((Read-Text $f) -match '"disableAllHooks"\s*:\s*true') { $off = $f }
     }
-    if ($off) {
+    $managedFiles = @('/Library/Application Support/ClaudeCode/managed-settings.json', '/etc/claude-code/managed-settings.json')
+    if ($env:ProgramData) { $managedFiles += (Join-Path $env:ProgramData 'ClaudeCode\managed-settings.json') }
+    foreach ($f in $managedFiles) {
+        if ((Read-Text $f) -match '"disableAllHooks"\s*:\s*true') { $managed = $f }
+    }
+    if ($managed) {
+        Say-Fix 2 'hook setup' "hooks are switched off for the whole computer by its managed settings ($managed), so in Claude Code nothing blocks email sending. Only whoever manages this computer can change that; until then, don't connect Gmail in Claude Code."
+    } elseif ($off) {
         Say-Fix 2 'hook setup' "hooks are switched off in $off (`"disableAllHooks`": true), so nothing blocks email sending. Remove that line, then restart the app."
     } else {
         Say-Ok 'hook setup' 'safety checks and the daily greeting are set up for Claude and Codex'
@@ -104,18 +118,30 @@ if (-not ((Read-Text (Join-Path $root '.claude/hooks/session-start.sh')).Contain
 } elseif (-not (Test-Path -LiteralPath $mark -PathType Leaf)) {
     Say-Fix 3 'hooks running' "the startup hook has never run in this folder, so the safety checks are probably off too. $hooksOff"
 } else {
+    # The marker is "<time> <app> <session id>". Only a marker from this app counts, and when the app
+    # tells us its session (Claude Code does), only one from this very session proves hooks run now.
     $parts = @(((Read-Text $mark).Trim()) -split '\s+')
     $ts = [long]0; $null = [long]::TryParse(($parts[0] -replace '[^0-9]', ''), [ref]$ts)
-    $who = 'unknown app'; if ($parts.Count -gt 1 -and $parts[1]) { $who = $parts[1] }
+    $who = ''; if ($parts.Count -gt 1 -and $parts[1]) { $who = $parts[1] }
+    $sid = ''; if ($parts.Count -gt 2 -and $parts[2]) { $sid = $parts[2] }
     $now = [long](([DateTime]::UtcNow - (New-Object DateTime 1970, 1, 1, 0, 0, 0, ([DateTimeKind]::Utc))).TotalSeconds)
     $age = [long][Math]::Max(0, [Math]::Floor(($now - $ts) / 60))
-    if ($age -lt 60) { $ago = "$age minutes ago" }
-    elseif ($age -lt 2880) { $ago = "$([Math]::Floor($age / 60)) hours ago" }
-    else { $ago = "$([Math]::Floor($age / 1440)) days ago" }
-    if ($age -le 720) {
+    if ($age -lt 1) { $ago = 'just now' }
+    elseif ($age -lt 60) { $ago = "$(Get-Plural $age 'minute') ago" }
+    elseif ($age -lt 2880) { $ago = "$(Get-Plural ([Math]::Floor($age / 60)) 'hour') ago" }
+    else { $ago = "$(Get-Plural ([Math]::Floor($age / 1440)) 'day') ago" }
+    $hereSid = ''; if ($App -eq 'claude' -and $env:CLAUDE_CODE_SESSION_ID) { $hereSid = $env:CLAUDE_CODE_SESSION_ID }
+    if ($who -and $who -ne $App -and $age -le 720) {
+        Say-Note 'hooks running' "not confirmed for ${App}: the startup hook last ran $ago in $who. If this chat didn't open with the daily greeting, hooks aren't running here, so the safety checks are off too. $hooksOff"
+    } elseif ($hereSid -and $sid -and $hereSid -eq $sid) {
+        Say-Ok 'hooks running' "the startup hook ran in this session ($ago)"
+    } elseif ($hereSid -and $sid -and $age -le 720) {
+        Say-Note 'hooks running' "not confirmed for this session: the startup hook last ran $ago in another session. If this chat didn't open with the daily greeting, hooks aren't running, so the safety checks are off too. Reopen this folder and click Trust."
+    } elseif ($age -le 720) {
+        if (-not $who) { $who = 'unknown app' }
         Say-Ok 'hooks running' "the startup hook last ran $ago ($who)"
     } else {
-        Say-Fix 3 'hooks running' "the startup hook last ran $ago ($who). If you started this chat just now, hooks aren't running, so the safety checks are off too. $hooksOff"
+        Say-Fix 3 'hooks running' "the startup hook last ran $ago ($(if ($who) { $who } else { 'unknown app' })). If you started this chat just now, hooks aren't running, so the safety checks are off too. $hooksOff"
     }
 }
 
@@ -169,32 +195,37 @@ if ($isWin) {
 $guardSh = (Join-Path $root '.claude/hooks/guard.sh').Replace('\', '/')   # bash wants forward slashes
 $guardPs = Join-Path $root '.claude/hooks/guard.ps1'
 if (-not (Test-Path -LiteralPath $guardSh)) {
-    Say-Fix 2 'safety check (bash)' 'the safety check file .claude/hooks/guard.sh is missing. Update the workspace (/update) or download a fresh copy.'
+    Say-Fix 2 'safety check (bash)' "the safety check file .claude/hooks/guard.sh is missing. $repair."
 } elseif (-not $bashExe) {
     Say-Skip 'safety check (bash)' 'bash is not installed (see the Git Bash line)'
 } else {
     $r = Test-Guard $bashExe @($guardSh)
     if (-not $r) { Say-Ok 'safety check (bash)' 'blocks a Gmail send, allows a Gmail search, blocks empty input' }
-    else { Say-Fix 2 'safety check (bash)' "the self-test failed ($r). Update the workspace (/update) or download a fresh copy; until then, don't connect Gmail." }
+    else { Say-Fix 2 'safety check (bash)' "the self-test failed ($r). $repair; until then, don't connect Gmail." }
 }
 $psExe = ''
 if ($isWin -and (Has-Command 'powershell')) { $psExe = (Get-Command powershell).Source }
 elseif (Has-Command 'pwsh') { $psExe = (Get-Command pwsh).Source }
 if (-not (Test-Path -LiteralPath $guardPs)) {
-    Say-Fix 2 'safety check (PowerShell)' 'the file .claude/hooks/guard.ps1 is missing. Update the workspace (/update) or download a fresh copy.'
+    Say-Fix 2 'safety check (PowerShell)' "the file .claude/hooks/guard.ps1 is missing. $repair."
 } elseif (-not $psExe) {
     Say-Skip 'safety check (PowerShell)' 'PowerShell could not be started'
 } else {
     $r = Test-Guard $psExe @('-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', $guardPs)
     if (-not $r) { Say-Ok 'safety check (PowerShell)' 'blocks a Gmail send, allows a Gmail search, blocks empty input' }
-    else { Say-Fix 2 'safety check (PowerShell)' "the self-test failed ($r). Update the workspace (/update) or download a fresh copy; until then, don't connect Gmail in Codex." }
+    else { Say-Fix 2 'safety check (PowerShell)' "the self-test failed ($r). $repair; until then, don't connect Gmail in Codex." }
 }
 
 # ---- 6. Script line endings ----
 $crlf = @()
-$shFiles = @(Get-ChildItem -LiteralPath (Join-Path $root '.claude/hooks') -Filter '*.sh' -File -ErrorAction SilentlyContinue)
+# Every bash script the app runs: hooks, the git hook, skill scripts and maintenance scripts.
+$shFiles = @()
+foreach ($d in @('.claude/hooks', '.claude/skills', 'scripts')) {
+    $p = Join-Path $root $d
+    if (Test-Path -LiteralPath $p) { $shFiles += @(Get-ChildItem -LiteralPath $p -Recurse -Filter '*.sh' -File -ErrorAction SilentlyContinue) }
+}
 $pp = Join-Path $root '.githooks/pre-push'; if (Test-Path -LiteralPath $pp) { $shFiles += Get-Item -LiteralPath $pp }
-foreach ($f in $shFiles) { if ((Read-Text $f.FullName).Contains("`r")) { $crlf += $f.Name } }
+foreach ($f in $shFiles) { if ((Read-Text $f.FullName).Contains("`r")) { $crlf += $f.FullName.Substring($root.Length + 1).Replace('\', '/') } }
 if ($crlf.Count -gt 0) {
     Say-Fix 2 'script line endings' "these scripts have Windows line endings, which stops them running: $($crlf -join ', '). Download a fresh copy as a zip (or re-clone with git config core.autocrlf false)."
 } else {
@@ -204,6 +235,7 @@ if ($crlf.Count -gt 0) {
 # ---- 7. Windows-only checks ----
 if ($isWin) {
     if ($bashExe) { Say-Ok 'Git Bash' "found ($bashExe); Claude Code's safety checks run in it" }
+    elseif ($App -eq 'codex') { Say-Note 'Git Bash' "not found. Codex doesn't need it; only Claude Code's safety checks do, so install Git for Windows from git-scm.com only if you also use Claude Code." }
     else { Say-Fix 2 'Git Bash' "not found. Claude Code's safety checks need it: install Git for Windows from git-scm.com (the default options are fine), then restart Claude. Codex doesn't need it." }
     $blocked = @()
     $dirs = @('.claude', '.agents', '.codex', '.githooks') | ForEach-Object { Join-Path $root $_ } | Where-Object { Test-Path -LiteralPath $_ }
@@ -221,8 +253,13 @@ if ($isWin) {
 }
 
 # ---- 8. Synced folder (warning only) ----
-if ($root -match 'OneDrive|Dropbox|iCloud|Mobile Documents|Google ?Drive|GoogleDrive|CloudStorage|[\\/]Box[\\/]|Box Sync') {
-    Say-Note 'synced folder' "this folder is in a cloud-synced location, so your job-search files (with other people's contact details) are uploaded to that account too. That's fine if you're comfortable with it. If the app ever says a file changed by itself or seems slow, set the folder to 'always keep on this device'."
+# Whole folder names only, so a folder that merely mentions one (like "dropbox-notes") doesn't count.
+$synced = ''
+foreach ($seg in ($root -split '[\\/]')) {
+    if ($seg -cmatch '^(OneDrive|OneDrive - .*|OneDrive-.*|Dropbox|Dropbox \(.*|iCloud|iCloud Drive.*|Mobile Documents|Google Drive|GoogleDrive.*|My Drive|CloudStorage|Box|Box Sync)$') { $synced = $seg }
+}
+if ($synced) {
+    Say-Note 'synced folder' "this folder is in a cloud-synced location ($synced), so your job-search files (with other people's contact details) are uploaded to that account too. That's fine if you're comfortable with it. If the app ever says a file changed by itself or seems slow, set the folder to 'always keep on this device'."
 } else {
     Say-Ok 'synced folder' 'not in a cloud-synced folder'
 }
@@ -263,7 +300,7 @@ if ((Test-Path -LiteralPath (Join-Path $root '.git')) -and (Has-Command 'git')) 
     if ($hpn -eq '.githooks' -or $hpn -eq (Join-Path $root '.githooks') -or $hpn -eq ($root.Replace('\', '/') + '/.githooks')) {
         Say-Ok 'git push check' 'on (stops pushes to a public GitHub repository)'
     } else {
-        Say-Fix 6 'git push check' 'this folder uses git, but the check that stops pushes to a public GitHub repository is off. To turn it on, run this once in the folder: git config core.hooksPath .githooks'
+        Say-Note 'git push check' "this folder uses git, and the extra check that stops pushes to a public GitHub repository isn't turned on. The assistant can turn it on for you (it runs: git config core.hooksPath .githooks). It also catches pushes the built-in safety check can't see, like ones made through git aliases or scripts."
     }
 } else {
     Say-Skip 'git push check' "this folder doesn't use git (that's fine)"
@@ -280,7 +317,7 @@ foreach ($d in @('jobs', 'contacts')) {
 if ($locks.Count -gt 0) {
     Say-Fix 4 'Excel' "a sheet is open in Excel ($($locks -join ', ')). Save and close it in Excel before the assistant updates it, or Excel will later put back its older copy."
 } else {
-    Say-Ok 'Excel' 'no tracker or contacts sheet is open in Excel'
+    Say-Ok 'Excel' "no Excel lock file found (Excel doesn't always leave one, so if the tracker or contacts sheet is open in Excel, save and close it before the assistant updates it)"
 }
 
 # ---- 12. Setup and starter files ----
@@ -305,15 +342,38 @@ if (Test-Path -LiteralPath $blank -PathType Container) {
     elseif (-not $setupDone) { Say-Note 'starter files' "$missing starter file(s) not created yet (normal before setup; $start creates them)" }
     else { Say-Fix 4 'starter files' "$missing starter file(s) are missing (for example $first). Type ${start}: it puts back only what's missing and never overwrites your files." }
 } else {
-    Say-Fix 2 'starter files' 'templates/blank is missing, so this copy of the workspace is incomplete. Update it (/update) or download a fresh copy.'
+    Say-Fix 2 'starter files' "templates/blank is missing, so this copy of the workspace is incomplete. $repair."
 }
 
-# ---- 13. Version ----
+# ---- 13. App templates unchanged (a theme belongs in profile/templates/) ----
+# Same fingerprint as scripts/build-manifest.sh: sha256 of the file with carriage returns removed.
+$manifestText = Read-Text (Join-Path $root 'product-manifest.json')
+if (-not $manifestText) {
+    Say-Skip 'app templates' 'no product-manifest.json to compare with'
+} else {
+    $edited = @()
+    $sha = [Security.Cryptography.SHA256]::Create()
+    foreach ($f in @(Get-ChildItem -LiteralPath (Join-Path $root 'templates') -Filter '*.html' -File -ErrorAction SilentlyContinue | Sort-Object Name)) {
+        $rel = 'templates/' + $f.Name
+        $m = [regex]::Match($manifestText, '"' + [regex]::Escape($rel) + '":\s*"([0-9a-f]{64})"')
+        if (-not $m.Success) { continue }
+        $bytes = [IO.File]::ReadAllBytes($f.FullName) | Where-Object { $_ -ne 13 }
+        $got = -join ($sha.ComputeHash([byte[]]@($bytes)) | ForEach-Object { $_.ToString('x2') })
+        if ($got -ne $m.Groups[1].Value) { $edited += $rel }
+    }
+    if ($edited.Count -gt 0) {
+        Say-Note 'app templates' "the app's own template was edited ($($edited -join ', ')). Your look belongs in profile/templates/, where updates never touch it: ask the assistant to re-apply your theme there (it keeps any hand edits). Until then, an update or git pull may stop or replace these files."
+    } else {
+        Say-Ok 'app templates' 'unchanged (your theme, if any, lives in profile/templates/)'
+    }
+}
+
+# ---- 14. Version ----
 $vf = Join-Path $root 'VERSION'
 if (Test-Path -LiteralPath $vf -PathType Leaf) {
-    Say-Ok 'version' ((Read-Text $vf).Split("`n")[0].Trim())
+    Say-Ok 'version' (((Read-Text $vf).Split("`n")[0].Trim()) -replace '^version:\s*', '')
 } else {
-    Say-Note 'version' "no VERSION file, so this copy can't tell which release it is (an older copy). /update can bring it up to date."
+    Say-Note 'version' "no VERSION file, so this copy can't tell which release it is, and /update can't run on it. To get the current version, download a fresh copy and move your data into it (/my-data explains how)."
 }
 
 Write-Output "summary: $($script:ok) ok, $($script:fix) to fix, $($script:note) notes, $($script:skip) skipped"

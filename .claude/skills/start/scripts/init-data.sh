@@ -24,8 +24,14 @@ BLANK="$ROOT/templates/blank"
 
 n=0; failed=0
 # Every regular file under templates/blank/ except its own README.md. Paths have no newlines (product files).
-list="$(cd "$BLANK" && find . -type f ! -path ./README.md 2>/dev/null | sed 's#^\./##' | LC_ALL=C sort)"
-while IFS= read -r rel; do
+# No here-document or pipe into the loop: on some locked-down Macs bash can't make the temporary file a
+# here-document needs, and the loop would silently do nothing and report "nothing to do".
+list="$(cd "$BLANK" && find . -type f ! -path ./README.md | sed 's#^\./##' | LC_ALL=C sort)" && [ -n "$list" ] \
+  || { echo "error: could not list the starter files in templates/blank/; nothing was created"; exit 1; }
+oldifs="$IFS"; IFS='
+'
+for rel in $list; do
+  IFS="$oldifs"
   [ -n "$rel" ] || continue
   dst="$ROOT/$rel"
   # Present (or a link, even a broken one): leave it alone.
@@ -37,9 +43,8 @@ while IFS= read -r rel; do
   else
     failed=$((failed + 1)); echo "error: could not create $rel"
   fi
-done <<EOF
-$list
-EOF
+done
+IFS="$oldifs"
 
 # Empty folders the workflows expect.
 for d in interviews outbox outbox/sent outbox/discarded imports; do

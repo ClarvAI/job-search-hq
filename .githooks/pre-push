@@ -21,8 +21,9 @@ is_github_alias() {
 u="${url%/}"; u="${u%.git}"; h=""
 re_ssh='^(ssh|git\+ssh|ssh\+git)://([^@/]*@)?([^/:]+)(:[0-9]+)?/(.*)$'
 re_scp='^([^@/]*@)?([^/:\\]+):(.*)$'
-case "$u" in
-  *github.com[:/]*) p="${u#*github.com}"; p="${p#:}"; p="${p#/}" ;;
+lu="$(printf '%s' "$u" | tr 'A-Z' 'a-z')"   # GitHub.com and github.com are the same host
+case "$lu" in
+  *github.com[:/]*) p="${lu#*github.com}"; p="${p#:}"; p="${p#/}" ;;
   *)
     if [[ $u =~ $re_ssh ]]; then h="${BASH_REMATCH[3]}"; p="${BASH_REMATCH[5]}"
     elif [[ $u != *://* && $u =~ $re_scp ]]; then h="${BASH_REMATCH[2]}"; p="${BASH_REMATCH[3]}"

@@ -20,6 +20,8 @@ export type Field = {
   copy: string
   hint: string
   isMissing: boolean
+  // True for questions only the user can answer (certifications, attestations, [ASK] items, "Not sure").
+  isYours?: boolean
 }
 
 export type Section = { title: string; note: string; fields: Field[] }
@@ -35,6 +37,8 @@ export type Kit = {
   hasAnswers: boolean
   files: FileItem[]
   followUpDate: string
+  // What's wrong with the tracker file ('' when it reads cleanly); "Mark applied" is refused while it is set.
+  problem: string
 }
 
 export type Notice = { text: string; isError: boolean }

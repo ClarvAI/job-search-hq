@@ -2,6 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
 import type { Field, FileItem, Job, Kit, Notice, Section } from '../types'
+import { addDays, csvTrouble, dateOrder, isExcelLock, localDate, orderFor, plain, readCsv, toCsv, toIso } from './csvdate'
 
 // Apply Kit: while the user fills in an online application form themselves, this pane shows every
 // answer the form will ask for (from profile/ and the job's folder), each with a Copy button.
@@ -17,8 +18,12 @@ const MISSING = '[not set] — ask Claude'
 const DATE_COLS = ['next_action_date', 'date_found', 'date_applied', 'deadline']
 // A bracketed placeholder like [ASK] or [Your answer], but not a markdown link [text](url).
 const PLACEHOLDER = /\[[^\]\n]{1,80}\](?!\()/
-const SENSITIVE_KEY = /(\bssn\b|social security|date of birth|\bdob\b|birth ?date|passport|licen[cs]e number|driver'?s? licen[cs]e|\bbank\b|routing|account number|password|tax id|\bitin\b|id number)/i
-const SENSITIVE_VALUE = /\b\d{3}-\d{2}-\d{4}\b/
+// Sensitive data is judged by the value, not by the question's words: "Do you have a valid driver's
+// license? Yes" or "Why Bank of America?" are fine to show; a number under a sensitive question is not.
+const SENSITIVE_KEY = /(\bssn\b|social security|date of birth|\bdob\b|birth ?date|passport|licen[cs]e|\bbank\b|routing|account number|bank account|\biban\b|password|tax id|\bitin\b|\bnin\b|national insurance|id number|identification number|visa number|alien|\ba-number|\bi-94\b)/i
+// A run of 5 or more digits (spaces or dashes allowed between): an ID, account or date of birth.
+const ID_LIKE = /\d(?:[\s./-]?\d){4,}/
+const SENSITIVE_VALUE = /\b\d{3}-\d{2}-\d{4}\b|\bpass(?:word|wd)?\s*[:=]\s*\S/i
 // Follow-up timing from knowledge/job-search-playbook.md: applied online, no response -> 7-10 business days.
 const FOLLOW_UP_BUSINESS_DAYS = 7
 
@@ -28,80 +33,8 @@ const armed = atom({ plugin: 'apply-kit', key: 'armed' } as const, false)
 const picking = atom({ plugin: 'apply-kit', key: 'picking' } as const, false)
 const notice = atom({ plugin: 'apply-kit', key: 'notice' } as const, { text: '', isError: false } as Notice)
 
-// ---- CSV and dates (same rules as the Pipeline panel) ----
-
-function parseCsv(text: string): string[][] {
-  const rows: string[][] = []
-  let row: string[] = []
-  let cell = ''
-  let quoted = false
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i]
-    if (quoted) {
-      if (c === '"' && text[i + 1] === '"') { cell += '"'; i++ }
-      else if (c === '"') quoted = false
-      else cell += c
-    } else if (c === '"') quoted = true
-    else if (c === ',') { row.push(cell); cell = '' }
-    else if (c === '\n' || c === '\r') {
-      if (c === '\r' && text[i + 1] === '\n') i++
-      row.push(cell); rows.push(row); row = []; cell = ''
-    } else cell += c
-  }
-  if (cell !== '' || row.length > 0) { row.push(cell); rows.push(row) }
-  return rows.filter(r => r.some(v => v.trim() !== ''))
-}
-
-function toCsv(rows: string[][]): string {
-  const q = (v: string) => (/[",\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v)
-  return rows.map(r => r.map(q).join(',')).join('\n') + '\n'
-}
-
-// tracker.csv holds plain characters only, so it opens cleanly in Excel.
-// A cell never starts with = + - @ or a tab: Excel would run it as a formula, so those are dropped.
-function plain(v: string): string {
-  return v.replace(/[–—]/g, '-').replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/…/g, '...').replace(/[\r\n]+/g, ' ').replace(/^[\s=+\-@]+/, '')
-}
-
-function localDate(ms: number): string {
-  const d = new Date(ms)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-}
-
-function addDays(iso: string, days: number, businessOnly = false): string {
-  const [y = 0, m = 1, d = 1] = iso.split('-').map(Number)
-  const date = new Date(y, m - 1, d)
-  let left = days
-  while (left > 0) {
-    date.setDate(date.getDate() + 1)
-    const wd = date.getDay()
-    if (!businessOnly || (wd !== 0 && wd !== 6)) left--
-  }
-  return localDate(date.getTime())
-}
-
-// Same date rules as the Pipeline panel: a slash date is read only when its day/month order is
-// certain (a part over 12, both parts the same, or a US or day-first home_base); otherwise it is
-// left exactly as written for the user to confirm.
-type DateOrder = 'mdy' | 'dmy' | ''
-const US_STATES = 'AL|AK|AZ|AR|CA|CO|CT|DE|DC|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY'
-function dateOrder(prefs: string): DateOrder {
-  const home = /^[ \t]*home_base:[ \t]*(.*)$/m.exec(prefs)?.[1]?.trim() ?? ''
-  if (/\b(USA|U\.S\.A?\.?|United States)\b/i.test(home) || new RegExp(`,\\s*(${US_STATES})\\b`).test(home)) return 'mdy'
-  if (/\b(UK|U\.K\.|United Kingdom|Britain|England|Scotland|Wales|Ireland|Australia|New Zealand|India|South Africa|Singapore|Germany|France|Spain|Italy|Portugal|Netherlands|Belgium|Brazil|Mexico)\b/i.test(home)) return 'dmy'
-  return ''
-}
-function toIso(v: string, order: DateOrder = ''): string {
-  const t = v.trim()
-  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/.exec(t)
-  if (!m || !m[3]) return t
-  const a = Number(m[1]), b = Number(m[2])
-  const [mo = 0, da = 0] = a === b ? [a, b] : a > 12 ? [b, a] : b > 12 ? [a, b] : order === 'mdy' ? [a, b] : order === 'dmy' ? [b, a] : [0, 0]
-  if (mo < 1 || mo > 12 || da < 1 || da > 31) return t
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${m[3].length === 2 ? `20${m[3]}` : m[3]}-${pad(mo)}-${pad(da)}`
-}
+// CSV and dates: csvdate.ts, the same rules as the Pipeline panel. A date is read only when its meaning
+// is certain; anything else is left exactly as written for the user to confirm.
 
 // Same row identity as the Pipeline panel: company + role + folder (or job ID, link, date found).
 function keyOf(company: string, role: string, folder = ''): string {
@@ -153,7 +86,12 @@ function tidy(v: string | undefined, links: 'url' | 'text' = 'text'): string {
 }
 
 const isUnset = (v: string) => v === '' || /\[ASK/i.test(v) || /^(tbd|n\/a|none yet)$/i.test(v)
-const isSensitive = (label: string, value: string) => SENSITIVE_KEY.test(label) || SENSITIVE_VALUE.test(value)
+const isSensitive = (label: string, value: string) => SENSITIVE_VALUE.test(value) || (SENSITIVE_KEY.test(label) && ID_LIKE.test(value))
+
+// Questions only the user can answer: legal certifications and attestations, and anything Claude marked
+// [ASK]. The kit never offers to draft or copy these.
+const YOURS = /certif|attest|\bi (?:hereby )?(?:certify|confirm|acknowledge|agree)|true(?:,)? (?:and|&) (?:complete|correct|accurate)|convicted|criminal|felony|non-?compete|signature|e-?sign/i
+const ONLY_YOU = 'Only you can answer this. Read the question on the form and answer it yourself.'
 
 function field(id: string, label: string, raw: string, hint = '', missingText = MISSING): Field {
   if (isSensitive(label, raw)) {
@@ -212,26 +150,75 @@ function contactSection(resume: string, prefs: string): { section: Section; name
   }
 }
 
-function eligibilitySection(prefs: string): Section {
-  const want = section(prefs, /^what you want/i)
+// "- Work authorization (US): Yes" and "- Needs sponsorship (US): No": one pair per country (the
+// preferences template's exact format). The template's own "(<country>)" line is not an answer.
+function countryLines(text: string, key: RegExp): Array<{ country: string; value: string }> {
+  const out: Array<{ country: string; value: string }> = []
+  for (const line of text.split('\n')) {
+    const m = /^\s*(?:[-*]\s+)?\**([^:(\n]+?)\s*\(([^)\n]+)\)\**\s*:\s*(.*)$/.exec(line)
+    if (!m || !key.test((m[1] ?? '').replace(/[*`_]/g, '').trim())) continue
+    const country = (m[2] ?? '').trim()
+    if (country === '' || /^<.*>$/.test(country)) continue
+    out.push({ country, value: tidy(m[3]) })
+  }
+  return out
+}
+
+function yesNo(id: string, label: string, raw: string | undefined, hint: string): Field {
+  const v = raw ?? ''
+  if (isUnset(v)) return { id, label, value: MISSING, copy: '', hint: `${hint} Only you can answer this.`, isMissing: true }
+  if (/not sure|unsure|don'?t know|depends/i.test(v)) return { id, label, value: ONLY_YOU, copy: '', hint: '', isMissing: true, isYours: true }
+  return field(id, label, v, hint)
+}
+
+function authFields(want: string): { fields: Field[]; note: string } {
+  const auths = countryLines(want, /^work authori/i)
+  const sponsors = countryLines(want, /^(needs )?sponsorship/i)
+  const countries = [...new Set([...auths, ...sponsors].map(l => l.country))]
+  if (countries.length > 0) {
+    const fields = countries.flatMap(c => [
+      yesNo(`auth-${c}`, `Authorized to work in ${c}`, auths.find(l => l.country === c)?.value, 'Answers "Are you legally authorized to work here?".'),
+      yesNo(`sponsor-${c}`, `Needs sponsorship (${c})`, sponsors.find(l => l.country === c)?.value, 'Answers "Will you now or in the future require sponsorship?".'),
+    ])
+    return { fields, note: countries.length > 1 ? 'Use the answers for the country this job is in.' : '' }
+  }
+  // An older single line, like "Work authorization: Yes, authorized in the US; no sponsorship needed".
   const fields: Field[] = []
   const auth = tidy(valueOf(want, /^work authori/i))
   fields.push(field('auth', 'Work authorization', auth, isUnset(auth) ? 'Forms ask "Are you legally authorized to work here?" and "Will you now or in the future need sponsorship?". Only you can answer these.' : 'Your recorded answer to "Are you authorized to work here?" and "Do you need sponsorship?".'))
   const sponsor = valueOf(want, /sponsor/i)
   if (sponsor !== undefined) fields.push(field('sponsor', 'Needs sponsorship', tidy(sponsor)))
+  return { fields, note: '' }
+}
+
+// What to type as a salary expectation: this job's drafted answer, else a desired salary from the
+// preferences, else the range the posting lists. The user's minimum (salary floor) is never offered
+// as an expectation: it is shown for their eyes only, with nothing to copy.
+function salaryFields(want: string, jobAnswer: string, posted: string): Field[] {
+  const out: Field[] = []
+  const desired = tidy(valueOf(want, /^desired salary|^salary expectation|^target salary/i))
+  const isSet = (v: string) => !isUnset(v) && !PLACEHOLDER.test(v) && !/not set|market range/i.test(v)
+  if (isSet(jobAnswer)) out.push(field('salary', 'Salary expectation', jobAnswer, 'From this job\'s drafted answers.'))
+  else if (isSet(desired)) out.push(field('salary', 'Salary expectation', desired, 'From your preferences.'))
+  else if (isSet(posted)) out.push(field('salary', 'Salary expectation', posted, 'The pay range this posting lists. Entering it (or "Negotiable") is common; ask Claude for a number if you want one.'))
+  else out.push({ id: 'salary', label: 'Salary expectation', value: 'Not set. Leave it blank if the field is optional, or type "Negotiable".', copy: 'Negotiable', hint: 'Ask Claude for a market range for this job if the form makes you enter a number.', isMissing: false })
+  const floor = tidy(valueOf(want, /^salary floor|^minimum salary|^floor|^minimum pay/i))
+  if (isSet(floor)) out.push(info('salary-floor', 'Your minimum — don\'t type this', floor, 'For your eyes only: putting your minimum on a form sets a low anchor.'))
+  return out
+}
+
+function eligibilitySection(prefs: string, salaryAnswer = '', posted = ''): Section {
+  const want = section(prefs, /^what you want/i)
+  const auth = authFields(want)
+  const fields: Field[] = [...auth.fields]
   fields.push(field('start', 'Earliest start date', tidy(valueOf(want, /^earliest start/i))))
   const relocate = valueOf(want, /relocat/i)
   const locations = tidy(valueOf(want, /^locations?$/i))
   const relocValue = relocate !== undefined ? tidy(relocate) : /relocat/i.test(locations) && !isUnset(locations) ? locations : ''
   fields.push(field('relocate', 'Willing to relocate', relocValue))
   fields.push(field('travel', 'Willing to travel', tidy(valueOf(want, /travel/i))))
-  const salary = tidy(valueOf(want, /^salary|^desired salary|^pay/i))
-  if (isUnset(salary) || /not set|market range/i.test(salary)) {
-    fields.push({ id: 'salary', label: 'Salary expectation', value: 'Not set. Leave it blank if the field is optional, or type "Negotiable".', copy: 'Negotiable', hint: 'Ask Claude for a market range for this job if the form makes you enter a number.', isMissing: false })
-  } else {
-    fields.push(field('salary', 'Salary expectation', salary, 'From your preferences. Check this job\'s answers below for a range tailored to it.'))
-  }
-  return { title: 'Eligibility and preferences', note: '', fields }
+  fields.push(...salaryFields(want, salaryAnswer, posted))
+  return { title: 'Eligibility and preferences', note: auth.note, fields }
 }
 
 function eeoSection(prefs: string): Section {
@@ -334,7 +321,11 @@ function parseAnswers(md: string): Field[] {
     if (blocks.length > 0) blocks[blocks.length - 1]!.a.push(line.replace(/^\s*(?:\*\*)?A(?:nswer)?\s*:\s*(?:\*\*)?\s*/i, ''))
   }
   const fields = blocks
-    .map((b, i) => field(`answer${i}`, b.q, b.a.join('\n').trim(), '', 'Not drafted yet — ask Claude'))
+    .map((b, i) => {
+      const answer = b.a.join('\n').trim()
+      if (YOURS.test(b.q) || /\[ASK/i.test(answer)) return { id: `answer${i}`, label: b.q, value: ONLY_YOU, copy: '', hint: '', isMissing: true, isYours: true }
+      return field(`answer${i}`, b.q, answer, '', 'Not drafted yet — ask Claude')
+    })
   if (fields.length === 0 && body.trim() !== '') return [field('answers-all', 'Your drafted answers', body.trim())]
   return fields
 }
@@ -343,19 +334,44 @@ function hyphenName(v: string): string {
   return v.trim().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '')
 }
 
+// A PDF counts as ready to upload only when it is a real file (not a near-empty or broken print, not a
+// "-CHECK.pdf" that make-pdf saved for the user to look at) and newer than the page it was printed from.
+const MIN_PDF_BYTES = 3000
+
 async function filesFor($: any, dir: string, job: Job, name: string, documents: string): Promise<FileItem[]> {
   const items: FileItem[] = []
   const company = hyphenName(job.company)
   const person = hyphenName(name)
   const exists = async (f: string) => { try { return await $.fs.exists(`${dir}/${f}`) } catch { return false } }
+  let listing: Array<{ name: string; kind: string; size: number; mtimeMs: number }> = []
+  try { listing = await $.fs.list(dir) } catch { listing = [] }
+  // Matched by letters and digits only, so "Jane-O’Neil-Resume-Acme.pdf" (saved on a Mac) is found too.
+  const entry = (file: string) => listing.find(e => e.kind === 'file' && /\.pdf$/i.test(e.name) && hyphenName(e.name.replace(/\.pdf$/i, '')).toLowerCase() === hyphenName(file.replace(/\.pdf$/i, '')).toLowerCase())
+  const mtime = (file: string) => listing.find(e => e.name === file)?.mtimeMs ?? 0
   // sources: the formatted .html page the user prints to PDF. draft: the text-only version (Markdown),
   // which is not something to print or upload; it means Claude still has to build the page.
   const doc = async (label: string, kind: string, sources: string[], command: string, need: 'required' | 'optional' | 'none', draft = '') => {
     const pdf = person ? `${person}-${kind}-${company}.pdf` : ''
     const shown = pdf || `${MISSING} (your name isn't in your profile yet)`
-    if (pdf && (await exists(pdf))) { items.push({ label, name: pdf, status: 'Saved in the job folder. Upload this file.', isReady: true, fix: '' }); return }
     let source = ''
     for (const s of sources) if (!source && (await exists(s))) source = s
+    const found = pdf ? entry(pdf) : undefined
+    const check = pdf ? entry(pdf.replace(/\.pdf$/, '-CHECK.pdf')) : undefined
+    if (found) {
+      const isStale = source !== '' && mtime(source) > found.mtimeMs
+      if (found.size < MIN_PDF_BYTES) {
+        items.push({ label, name: found.name, status: `This PDF looks empty or broken. ${source ? `Open ${source} in your browser, Print, Save as PDF with this name (replace the old file), and check it.` : 'Ask Claude to make it again.'}`, isReady: false, fix: source ? '' : `${command} ${job.folder || `${job.company} ${job.role}`}` })
+      } else if (isStale) {
+        items.push({ label, name: found.name, status: `This PDF is older than your latest ${label.toLowerCase()} (${source}), so it may be out of date. Open ${source} in your browser, Print, Save as PDF with this name (replace the old file).`, isReady: false, fix: '' })
+      } else {
+        items.push({ label, name: found.name, status: 'Saved in the job folder. Upload this file.', isReady: true, fix: '' })
+      }
+      return
+    }
+    if (check) {
+      items.push({ label, name: shown, status: `${check.name} needs a look first: the PDF maker couldn't confirm it came out right. Open it; if it looks good, rename it to ${shown}. If not, ask Claude to make it again.`, isReady: false, fix: '' })
+      return
+    }
     if (source) {
       items.push({ label, name: shown, status: `Ready to save: open ${source} in your browser, Print, Save as PDF with this name.`, isReady: true, fix: '' })
     } else if (draft && (await exists(draft))) {
@@ -385,19 +401,22 @@ function pickDefault(all: Job[]): Job | undefined {
 async function loadJobs($: any): Promise<Job[]> {
   const raw = await readText($, TRACKER)
   const order = dateOrder(await readText($, PREFS))
-  const [header = [], ...rows] = parseCsv(raw)
+  const { rows: [header = [], ...rows], problem } = readCsv(raw)
+  // A damaged tracker shows no jobs (only the message); its rows can't be trusted.
+  if (problem !== '') return []
   const col = (name: string) => header.findIndex(h => h.trim().toLowerCase() === name)
   const at = (r: string[], name: string) => (col(name) >= 0 ? (r[col(name)] ?? '').trim() : '')
   return rows.map(r => {
     const folder = at(r, 'folder')
+    const o = orderFor(r, order)
     return {
       key: rowKey(c => at(r, c)),
       company: at(r, 'company'),
       role: at(r, 'role'),
       status: at(r, 'status').toLowerCase(),
       nextAction: at(r, 'next_action'),
-      nextDate: toIso(at(r, 'next_action_date'), order),
-      deadline: toIso(at(r, 'deadline'), order),
+      nextDate: toIso(at(r, 'next_action_date'), o),
+      deadline: toIso(at(r, 'deadline'), o),
       // A folder name is one plain path segment; anything else is ignored rather than followed.
       folder: /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(folder) && !folder.includes('..') ? folder : '',
       contact: at(r, 'contact'),
@@ -419,10 +438,12 @@ async function build($: any, want: string): Promise<Kit> {
   let questions: Field[] = []
   let hasAnswers = false
   let files: FileItem[] = []
+  let posted = ''
   if (job) {
     const dir = job.folder ? `jobs/${job.folder}` : ''
     const posting = frontmatter(dir ? await readText($, `${dir}/posting.md`) : '')
     const p = posting.head
+    posted = p.pay_range ?? ''
     sections.push({
       title: 'This job',
       note: dir ? '' : 'This job has no folder yet, so there are no drafted answers or files. Paste the posting link to Claude to set it up.',
@@ -440,12 +461,16 @@ async function build($: any, want: string): Promise<Kit> {
     asked.forEach((q, i) => {
       const n = norm(q)
       const drafted = questions.some(f => { const m = norm(f.label); return m !== '' && n !== '' && (m.includes(n) || n.includes(m)) })
-      if (!drafted) questions.push({ id: `asked${i}`, label: q, value: hasAnswers ? 'Not drafted yet — ask Claude' : 'No answer drafted yet', copy: '', hint: '', isMissing: true })
+      if (drafted) return
+      if (YOURS.test(q)) questions.push({ id: `asked${i}`, label: q, value: ONLY_YOU, copy: '', hint: '', isMissing: true, isYours: true })
+      else questions.push({ id: `asked${i}`, label: q, value: hasAnswers ? 'Not drafted yet — ask Claude' : 'No answer drafted yet', copy: '', hint: '', isMissing: true })
     })
     files = dir ? await filesFor($, dir, job, contact.name, p.documents ?? '') : []
   }
-  sections.push(contact.section, eligibilitySection(prefs), eeoSection(prefs), ...historySections(resume))
-  return { today, job, jobs, sections, questions, hasAnswers, files, followUpDate: addDays(today, FOLLOW_UP_BUSINESS_DAYS, true) }
+  const salaryAnswer = questions.find(q => /salary|compensation|pay (?:expectation|requirement|range)|expected pay/i.test(q.label) && q.copy !== '')?.copy ?? ''
+  sections.push(contact.section, eligibilitySection(prefs, salaryAnswer, posted), eeoSection(prefs), ...historySections(resume))
+  const problem = csvTrouble(readCsv(await readText($, TRACKER)).problem, 'Your tracker (jobs/tracker.csv)')
+  return { today, job, jobs, sections, questions, hasAnswers, files, followUpDate: addDays(today, FOLLOW_UP_BUSINESS_DAYS, true), problem }
 }
 
 async function refresh($: any): Promise<Kit> {
@@ -464,12 +489,35 @@ async function logActivity($: any, what: string): Promise<void> {
   const pad = (n: number) => String(n).padStart(2, '0')
   const stamp = `${localDate(d.getTime())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
   const lineOut = `- ${stamp} · Apply Kit panel (Claude) · ${what.replace(/[\r\n]+/g, ' ')}\n`
+  await appendLine($, ACTIVITY, lineOut)
+}
+
+// One line added to the end of history/activity.md. The file is re-read right before the write and
+// checked afterwards, so a line another app added meanwhile is kept and this one is not lost.
+async function appendLine($: any, path: string, lineOut: string): Promise<boolean> {
+  const readNow = async (): Promise<string> => ((await $.fs.exists(path)) ? String(await $.fs.read(path)) : '# Recent activity\n\n')
+  let wrote = false
   try {
-    const before: string = (await $.fs.exists(ACTIVITY)) ? await $.fs.read(ACTIVITY) : '# Recent activity\n\n'
-    await $.fs.write(ACTIVITY, before.replace(/\n*$/, '\n') + lineOut)
-    const after: string = await $.fs.read(ACTIVITY)
-    if (!after.includes(lineOut)) await $.fs.write(ACTIVITY, after.replace(/\n*$/, '\n') + lineOut)
-  } catch { /* the log is a convenience; never block a tracker save on it */ }
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const before = await readNow()
+      if (wrote && before.includes(lineOut)) return true
+      if ((await readNow()) !== before) continue
+      await $.fs.write(path, before.replace(/\n*$/, '\n') + lineOut)
+      wrote = true
+      if ((await readNow()).includes(lineOut)) return true
+    }
+  } catch { /* the log is a convenience; never block a save on it */ }
+  return false
+}
+
+// True when Excel seems to have the file open (its "~$" lock file is next to it). Without a lock file
+// it may still be open, so a failed save also asks the user to save and close Excel.
+async function openInExcel($: any, path: string): Promise<boolean> {
+  const at = path.lastIndexOf('/')
+  try {
+    const entries: Array<{ name: string }> = await $.fs.list(at < 0 ? '.' : path.slice(0, at))
+    return entries.some(e => isExcelLock(String(e.name), path.slice(at + 1)))
+  } catch { return false }
 }
 
 // Re-read the tracker, set the one row to applied, write it back, log it, and tell Claude.
@@ -481,14 +529,17 @@ async function markApplied($: any, job: Job): Promise<void> {
   for (let attempt = 0; ; attempt++) {
     let original = ''
     try { original = await $.fs.read(TRACKER) } catch { await say($, 'I couldn\'t read your tracker (jobs/tracker.csv). Ask Claude to check it.', true); return }
-    const rows = parseCsv(original.replace(/^\uFEFF/, ''))
+    const { rows, problem } = readCsv(original)
+    // A damaged tracker is never written back: that would spread the damage.
+    if (problem !== '') { await update($, armed, () => false); await say($, csvTrouble(problem, 'Your tracker (jobs/tracker.csv)'), true); return }
     const header = rows[0] ?? []
     const find = (c: string) => header.findIndex(h => h.trim().toLowerCase() === c)
     const idx = (c: string) => { let i = find(c); if (i < 0) { header.push(c); i = header.length - 1 } return i }
     // Find the row by its cells as read, before any of its dates is tidied; other rows stay as they are.
     const target = rows.slice(1).find(r => rowKey(c => (find(c) >= 0 ? (r[find(c)] ?? '') : '').trim()) === job.key)
     if (!target) { await say($, 'That job is no longer in your tracker. Press Refresh, or ask Claude to check it.', true); return }
-    for (const c of DATE_COLS) { const i = find(c); if (i >= 0 && target[i]) target[i] = toIso(target[i], order) }
+    const o = orderFor(target, order)
+    for (const c of DATE_COLS) { const i = find(c); if (i >= 0 && target[i]) target[i] = toIso(target[i], o) }
     const get = (c: string) => (target[idx(c)] ?? '').trim()
     const set = (c: string, v: string) => { const i = idx(c); while (target.length <= i) target.push(''); target[i] = plain(v) }
     if (get('status').toLowerCase() !== 'interested') {
@@ -507,6 +558,10 @@ async function markApplied($: any, job: Job): Promise<void> {
     for (const r of rows) while (r.length < header.length) r.push('')
     what = `${job.company} (${job.role}): marked applied on ${today}; follow-up set for ${saved.nextDate}`
     const next = (original.startsWith('\uFEFF') ? '\uFEFF' : '') + toCsv(rows)
+    if (await openInExcel($, TRACKER)) {
+      await say($, 'Your tracker is open in Excel. Save and close it there, then press "Yes, I submitted it" again (otherwise Excel would later put back its older copy).', true)
+      return
+    }
     try {
       // Compare and write back to back, so another app's save has the smallest window to slip in.
       if ((await $.fs.read(TRACKER)) !== original) {
@@ -521,7 +576,7 @@ async function markApplied($: any, job: Job): Promise<void> {
     }
     // If another app saved at the same instant, never redo the change; check the saved row is still there.
     const back: string = await $.fs.read(TRACKER).catch(() => next)
-    if (back !== next && !parseCsv(back.replace(/^\uFEFF/, '')).some(r => r.length >= target.length && target.every((v, i) => (r[i] ?? '') === v))) {
+    if (back !== next && !readCsv(back).rows.some(r => r.length >= target.length && target.every((v, i) => (r[i] ?? '') === v))) {
       await update($, armed, () => false)
       await refresh($).catch(() => undefined)
       await say($, 'Another app saved your tracker at the same moment, so "applied" may not have been recorded. Check the job, and tell Claude you applied if it still shows "interested".', true)
@@ -643,6 +698,7 @@ export const register: Register = on => {
         ) : (
           <Text dimColor wrap="wrap">Pick a job to see its answers. Your profile answers are below either way.</Text>
         )}
+        {k.problem !== '' && <Text color="error" wrap="wrap">{k.problem}</Text>}
         {note.text !== '' && <Text color={note.isError ? 'error' : 'success'} wrap="wrap">{note.text}</Text>}
         {(isPicking || !job) ? picker : <Button key="switch" label="Switch job" plain onPress={() => update($, picking, () => true)} />}
         {k.sections.filter(s => s.title === 'This job').map(block)}
@@ -652,7 +708,7 @@ export const register: Register = on => {
             {!k.hasAnswers && <Text dimColor wrap="wrap">No answers have been drafted for this job yet.</Text>}
             {k.hasAnswers && <Text dimColor wrap="wrap">Drafted by Claude from your profile. Read each one before you paste it.</Text>}
             {k.questions.map(row)}
-            {(!k.hasAnswers || k.questions.some(q => q.isMissing)) && (
+            {(!k.hasAnswers || k.questions.some(q => q.isMissing && !q.isYours)) && (
               <Button key="draft-answers" label="Ask Claude to draft answers" onPress={() => $.prompt.fill({ text: `Draft my application answers for ${job.company} ${job.role}${job.folder ? ` (jobs/${job.folder}/application-answers.md)` : ''}, including every question on the posting.` })} />
             )}
           </Box>

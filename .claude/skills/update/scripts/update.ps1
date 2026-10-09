@@ -5,7 +5,9 @@
 #   ... update.ps1 -Check [-Source <zip or https URL>]          what an update would change; changes nothing
 #   ... update.ps1 [-Source <zip or https URL>] [-Sha256 <hex>]  install it (only after the user said yes)
 #   ... update.ps1 -Rollback [-Name <backup folder>]            undo the last update (or the named one)
-# Same rules and output lines as update.sh (see there and DATA_CONTRACT.md).
+# Same rules and output lines as update.sh (see there and DATA_CONTRACT.md): the app's templates/*.html are plain
+# app files; a user's themed copy in profile/templates/ is rebuilt when its app template changes (the old copy is
+# kept as <name>.previous.html), and pages are never touched.
 # Keep Test-Protected in step with update.sh and scripts/build-manifest.sh.
 param(
   [string]$Source = '',
@@ -60,6 +62,13 @@ function Get-ManFiles([string]$path) {   # ordered list of @{p; h}
   }
   return ,$list
 }
+# Which app must reload its hooks after these app files changed (Claude: .claude/settings.json is read when the
+# folder opens; Codex: changed hooks in .codex/hooks.json stay off until trusted again).
+function Write-HooksLines($paths) {
+  if (@($paths) -contains '.claude/settings.json') { Write-Output 'hooks-changed: claude' }
+  if (@($paths) -contains '.codex/hooks.json') { Write-Output 'hooks-changed: codex' }
+}
+# "themed": the app templates a user may have their own themed copy of (profile/templates/<file name>).
 function Get-ManThemed([string]$path) {
   $out = @(); $in = $false
   foreach ($line in (Read-Text $path).Split("`n")) {
@@ -167,6 +176,11 @@ if ($Rollback) {
   if ($r.Count -gt 1) { $r[0..($r.Count - 2)] | ForEach-Object { Write-Output $_ } }
   if ($r[-1] -ne $true) { Fail "some files could not be restored; the rest were (see above). Backup: $b" }
   Add-Line (Join-Path $b 'backup-info.txt') ("rolled_back: " + (Get-Date -Format 'yyyy-MM-dd HH:mm'))
+  Write-HooksLines (@(Read-Lines (Join-Path $b 'added.txt')) + @(Read-Lines (Join-Path $b 'changed.txt')))
+  foreach ($t in (Read-Lines (Join-Path $b 'templates.txt'))) {
+    $prev = $t -replace '\.html$', '.previous.html'
+    if (Test-Path -LiteralPath (P "profile/templates/$prev")) { Write-Output "note: that update refreshed your profile/templates/$t; your copy from before it is profile/templates/$prev" }
+  }
   Write-Output "rollback: done ($to -> $from)"
   exit 0
 }
@@ -251,7 +265,6 @@ try {
     $lh = Get-LocalFp $f.p
     if ($null -eq $lh) { $a = 'ADD' }
     elseif ($lh -eq $f.h) { $a = 'SAME' }
-    elseif ($themed -contains $f.p) { $a = 'THEME' }
     elseif ($oldH.ContainsKey($f.p) -and $lh -eq $oldH[$f.p]) { $a = 'UPDATE' }
     else { $a = 'LOCAL' }
     $plan.Add(@{ a = $a; p = $f.p })
@@ -263,15 +276,18 @@ try {
     if ($lh -eq $oldH[$p]) { $plan.Add(@{ a = 'REMOVE'; p = $p }) } else { $plan.Add(@{ a = 'LOCALREMOVE'; p = $p }) }
   }
   $nA = @($plan | Where-Object { $_.a -eq 'ADD' }).Count
-  $nU = @($plan | Where-Object { $_.a -in @('UPDATE', 'THEME') }).Count
+  $nU = @($plan | Where-Object { $_.a -eq 'UPDATE' }).Count
   $nL = @($plan | Where-Object { $_.a -in @('LOCAL', 'LOCALREMOVE') }).Count
   $nR = @($plan | Where-Object { $_.a -eq 'REMOVE' }).Count
-  $hooksChanged = @($plan | Where-Object { $_.a -in @('ADD', 'UPDATE', 'LOCAL', 'THEME') -and $_.p -match '^(\.codex/hooks\.json|\.claude/settings\.json|\.claude/hooks/)' }).Count -gt 0
+  $changing = @($plan | Where-Object { $_.a -ne 'SAME' } | ForEach-Object { $_.p })
+  # App templates that change in this update and that the user has a themed copy of.
+  $retheme = @($themed | Where-Object { ($changing -contains $_) -and (Test-Path -LiteralPath (P ('profile/templates/' + ($_ -replace '^.*/', ''))) -PathType Leaf) } | ForEach-Object { $_ -replace '^.*/', '' })
 
   if ($Check) {
     Write-Output "installed: $OldV"; Write-Output "available: $NewV"
     foreach ($x in $plan) { if ($x.a -in @('LOCAL', 'LOCALREMOVE')) { Write-Output "would keep your edited version: $($x.p) (saved as $($x.p).local)" } }
-    if ($hooksChanged) { Write-Output 'hooks-changed: yes' }
+    Write-HooksLines $changing
+    foreach ($t in $retheme) { Write-Output ("would refresh your themed copy: profile/templates/$t (your current copy is kept as profile/templates/" + ($t -replace '\.html$', '.previous.html') + ')') }
     Write-Output "update: check ($nA to add, $nU to update, $nR to remove, $nL edited by you; nothing changed)"
     exit 0
   }
@@ -288,7 +304,7 @@ try {
     if (Test-Path -LiteralPath (P 'product-manifest.json')) { [IO.File]::Copy((P 'product-manifest.json'), (Join-Path $BF 'product-manifest.json')) }
     else { [IO.File]::WriteAllText((Join-Path $B 'added-manifest'), '', $utf8) }
     foreach ($x in $plan) {
-      if ($x.a -notin @('UPDATE', 'THEME', 'LOCAL', 'REMOVE', 'LOCALREMOVE')) { continue }
+      if ($x.a -notin @('UPDATE', 'LOCAL', 'REMOVE', 'LOCALREMOVE')) { continue }
       $bc = Join-Path $BF $x.p
       [IO.Directory]::CreateDirectory((Split-Path -Parent $bc)) | Out-Null
       [IO.File]::Copy((P $x.p), $bc, $true)
@@ -297,14 +313,13 @@ try {
     Add-Line (Join-Path $B 'backup-info.txt') 'complete: yes'
   } catch { Fail "cannot back up the app files ($($_.Exception.Message)) (nothing was changed)" }
 
-  $themedDone = $false; $step = ''
+  $step = ''
   try {
     foreach ($x in $plan) {
       $p = $x.p; $step = $p
       switch ($x.a) {
         'ADD' { Add-Line (Join-Path $B 'added.txt') $p; Install-File (Join-Path $New $p) $p; Write-Output "added: $p" }
         'UPDATE' { Install-File (Join-Path $New $p) $p; Write-Output "updated: $p" }
-        'THEME' { Install-File (Join-Path $New $p) $p; Write-Output "updated: $p"; $themedDone = $true }
         { $_ -in @('LOCAL', 'LOCALREMOVE') } {
           $l = "$p.local"; if (Test-Path -LiteralPath (P $l)) { $l = "$p.$stamp.local" }
           [IO.File]::Move((P $p), (P $l))
@@ -337,15 +352,22 @@ try {
     if ($l -like 'created: *') { Write-Output ('new starter file: ' + $l.Substring(9)) }
     elseif ($l -like 'error:*') { Write-Output ('note: starter files:' + $l.Substring(6)) }
   }
-  if ($themedDone) {
+  # The user's themed template copies (profile/templates/): rebuild the ones whose app template changed.
+  # Pages and interview briefs are never re-themed by an update.
+  if ($retheme.Count -gt 0) {
+    try { [IO.File]::WriteAllText((Join-Path $B 'templates.txt'), (($retheme -join "`n") + "`n"), $utf8) } catch {}
+    $list = $retheme -join ','
     $node = Get-Command node -ErrorAction SilentlyContinue
     if ($node) {
-      $r = @(& $node.Source (P '.claude/skills/page-design/scripts/apply-theme.mjs') 2>&1 | ForEach-Object { [string]$_ })
+      $r = @(& $node.Source (P '.claude/skills/page-design/scripts/apply-theme.mjs') --regenerate $list 2>&1 | ForEach-Object { [string]$_ })
+      foreach ($l in $r) { if ($l -match '^(refreshed|created): (.*)$') { Write-Output ('template: ' + $Matches[2]) } }
       $last = if ($r.Count) { $r[-1] } else { '' }
-      if ($last -like 'result:*') { Write-Output "note: your page theme was applied to the new templates ($last)" }
-      else { Write-Output "note: re-applying your theme to the new templates failed ($last); run the page-design skill's apply-theme.mjs" }
+      if ($last -notlike 'result:*') {
+        $err = @($r | Where-Object { $_ -like 'error:*' })[0]
+        Write-Output "note: your themed template copies (profile/templates/: $list) were not refreshed ($err); they still work but miss this update's template changes; refresh them with the page-design skill"
+      }
     } else {
-      Write-Output 'note: the resume and cover-letter templates are back on the default look; re-apply the user''s theme (page-design skill, "Without Node")'
+      Write-Output "note: the app's $list changed, and Node isn't available to refresh your themed copy in profile/templates/; refresh it by hand (update skill, `"Themed templates without Node`")"
     }
   }
   $mig = P 'migrations'
@@ -355,7 +377,7 @@ try {
       if ($mv -and (Compare-Ver $mv $OldV) -gt 0 -and (Compare-Ver $mv $NewV) -le 0) { Write-Output "migration: migrations/$($m.Name)" }
     }
   }
-  if ($hooksChanged) { Write-Output 'hooks-changed: yes' }
+  Write-HooksLines $changing
   $cl = P 'CHANGELOG.md'
   if (Test-Path -LiteralPath $cl) {
     Write-Output 'changelog:'

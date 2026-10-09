@@ -8,7 +8,7 @@ Used by `start` (one optional question, after the essentials) and by `page-desig
 
 | design.md key | Take from the source | Notes |
 |---|---|---|
-| `accent` | the primary / brand / action color (buttons, links) | hex; one color only. A second brand color is decoration, not a second accent. |
+| `accent` | the primary / brand / action color (buttons, links) | hex; one color only. A second brand color is decoration, not a second accent: tell the user in one line it isn't used ("Pages use one accent color, so your gold isn't used"). |
 | `accent_dark` | the primary color in the dark theme, if defined | skip if there is no dark theme |
 | `neutral` | the main gray, or the page background's tint | hex; skip pure white/black |
 | `font_heading`, `font_body`, `font_mono` | display/heading, body/text, code/mono families | Google Fonts or system fonts only. A paid or custom font: pick the closest Google font, tell the user ("Your brand uses Graphik, which can't load here; Inter is the closest free match.") |
@@ -27,7 +27,7 @@ Then: show the user the exact lines for `profile/design.md`, get an OK, save, ru
 
 1. List them: Artifact tool, `action: "list"`, `type: "Design System"`. Rows start with (mine), (shared in the organization) or (shared with the user). A default, when there is one, is the first row and is marked as the user's or the organization's default.
 2. One marked default → propose it ("You have a design system called *<title>*. Use it for your pages?"). Several and no default → let the user pick from the titles (a choice question). None → say so and offer the other routes.
-3. Read the chosen one: `action: "read"` with its url. If the read lists files instead of tokens, list them (`action: "list"`, `scope: "files"`, `url`) and read the tokens or README file by `path`.
+3. Read the chosen one: `action: "read"` with its url, then read its files by path, in this order: `path: "README.md"` (how the system is meant to be used), then `path: "tokens.json"` (the values). Read them by path even if a file listing doesn't show them. If one isn't there, list the files once (`action: "list"`, `scope: "files"`, `url`) and read the tokens file it does have (a `.json` or `.css` with colors and fonts) by its `path`. Never fill in a value the files don't give.
 4. Map its tokens with the table above: color tokens (including the dark theme), font families and type scale (base size), spacing scale (density), radius. Set `source: claude-design-system <url>`.
 5. Never publish, edit or comment on the design system artifact. Codex has no Artifact tool: skip this route there.
 
@@ -41,7 +41,10 @@ Look for tools named like `mcp__*Figma*__get_variable_defs` or `mcp__*Figma*__ge
 ## Route 3: a website or online portfolio
 
 1. Ask for the URL (their own site or their employer's public brand page only if they say it's theirs to use).
-2. Claude: WebFetch the page and ask for the CSS custom properties, the button and link colors, background color, and the `font-family` values (also the linked stylesheet if the page's CSS is external). Codex: use web search or the built-in browser to read the same.
+2. Read the real styles. A plain page fetch (WebFetch, web search) returns the text only and drops the page's `<style>` and stylesheet links, so it can't tell you the colors or fonts.
+   - **Built-in browser available** (Claude desktop app, Codex desktop app): open the URL there and read the computed styles of a main button, a text link, the body text and the page background (`background-color`, `color`, `font-family`, `border-radius`), for example with the browser's page-reading or script tool.
+   - **Otherwise:** ask the user for the address of their stylesheet (a link ending in `.css`, which a fetch can read as plain text) or simply for their brand colors as hex codes and their font names. A brand guide file (Route 4) works too.
+   - **Never name, guess or "recognize" a color or font you haven't read** from the styles, the stylesheet or the user. If you couldn't read them, say so and ask.
 3. The most-used saturated color on buttons/links is the accent. Map the rest with the table above. Set `source: website <url>`.
 
 ## Route 4: a brand guide file
@@ -50,7 +53,7 @@ The user drops a PDF or image (brand guide, style sheet, logo sheet) into `impor
 
 ## Route 5: none (show the presets)
 
-- Claude: run `node .claude/skills/page-design/scripts/apply-theme.mjs --preview` and open the printed files in the built-in browser (or give the paths to double-click): a sample dashboard in each preset. Ask which they like.
+- Claude (with Node): run `node .claude/skills/page-design/scripts/apply-theme.mjs --preview`: a sample dashboard in each preset, written to `pages/.preview/`. Open the printed files in the built-in browser if it can open files from the computer; otherwise give the paths to double-click. Ask which they like.
 - Codex (or no Node): describe them in one line each: **Default** (friendly headings, warm stone, deep teal), **Modern** (clean sans, violet), **Minimal** (black and white, color only for status), **High contrast** (bigger text, strongest contrast, no motion).
 - No answer or "you pick": keep `default`.
 

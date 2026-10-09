@@ -1,5 +1,5 @@
 STATUS: not generated
-<!-- /start builds this file for the user's target roles (see the "field pack" step in the start skill), and /tailor-resume adds keywords it sees in real postings. Then the line above becomes "STATUS: generated YYYY-MM-DD". -->
+<!-- /start builds this file for the user's target roles (see the "field pack" step in the start skill), and /tailor-resume adds keywords it sees in real postings. Then the line above becomes "STATUS: generated YYYY-MM-DD for <field>". If the user's field or target roles change, rebuild it (or say it is out of date). -->
 
 # Resume Keywords and Bullet Patterns
 

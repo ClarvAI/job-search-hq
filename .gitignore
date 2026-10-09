@@ -22,6 +22,10 @@
 /pages/*
 !/pages/README.md
 /knowledge/field/
+# (Themed resume and cover-letter templates live in profile/templates/, already covered by /profile/*.)
+# PDFs and zips saved at the top of the folder (a resume, a backup, a release zip): never part of the app.
+/*.pdf
+/*.zip
 
 # ---- Update leftovers ----
 # Copies of app files replaced by an update (for rollback), and your edited versions kept aside

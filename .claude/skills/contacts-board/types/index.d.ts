@@ -21,12 +21,14 @@ export type Summary = {
   due: Contact[]
   counts: Record<string, number>
   hasFile: boolean
+  // What's wrong with contacts.csv ('' when it reads cleanly); nothing is saved while it is set.
+  problem: string
 }
 
 export type Notice = { text: string; isError: boolean }
 
 declare module 'claude-code' {
   interface PluginState {
-    'contacts-board': { summary: Summary | null; isHidden: boolean; armed: string; showCold: boolean; notice: Notice }
+    'contacts-board': { summary: Summary | null; isHidden: boolean; armed: string; showCold: boolean; notice: Notice; showAll: boolean }
   }
 }

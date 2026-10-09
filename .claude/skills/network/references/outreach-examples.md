@@ -76,6 +76,8 @@ Shared link first, no mention of jobs, a general interest, the ask as a question
 > "Alex Rivera, three years in customer success at Lumen Software. Built the onboarding email series that cut first-month churn 18% and ran customer interviews for two product launches."
 >
 > My resume is attached. No worries at all if it's not a fit.
+
+(Outbox drafts can't carry attachments. Keep "My resume is attached" only when the user will attach the PDF in Gmail before sending; tell them which file. Otherwise write "Happy to send my resume if that helps.")
 >
 > Thank you,
 > Alex

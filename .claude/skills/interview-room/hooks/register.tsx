@@ -65,9 +65,61 @@ function dots(score: number): string {
   return '●'.repeat(n) + '○'.repeat(5 - n)
 }
 
+// One sound and one on-screen notice at each turning point of an answer (never one every second):
+// think time over, 30 seconds left, time up. For a user who can't watch the clock (voice only, screen
+// reader). A tone, not speech, so it never ends up in the user's dictated answer. Which cues this
+// answer has had is a module variable: a reload just drops it.
+let cues = new Set<string>()
+
+// A short beep as a WAV file, made here (8-bit, 8 kHz) so the mod ships no sound files: one tone for
+// "start" and "30 seconds left", a falling pair for "time is up".
+function beep(freqs: number[]): string {
+  const rate = 8000
+  const samples: number[] = []
+  freqs.forEach((f, k) => {
+    const n = Math.round(rate * 0.16)
+    for (let i = 0; i < n; i++) {
+      const env = Math.min(1, i / (rate * 0.01), (n - i) / (rate * 0.03))
+      samples.push(Math.round(128 + 70 * env * Math.sin((2 * Math.PI * f * i) / rate)))
+    }
+    if (k < freqs.length - 1) for (let i = 0; i < rate * 0.08; i++) samples.push(128)
+  })
+  const bytes: number[] = []
+  const str = (t: string) => { for (const ch of t) bytes.push(ch.charCodeAt(0)) }
+  const u32 = (v: number) => bytes.push(v & 255, (v >>> 8) & 255, (v >>> 16) & 255, (v >>> 24) & 255)
+  const u16 = (v: number) => bytes.push(v & 255, (v >>> 8) & 255)
+  str('RIFF'); u32(36 + samples.length); str('WAVE'); str('fmt '); u32(16); u16(1); u16(1); u32(rate); u32(rate); u16(1); u16(8)
+  str('data'); u32(samples.length)
+  bytes.push(...samples)
+  const abc = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+  let out = ''
+  for (let i = 0; i < bytes.length; i += 3) {
+    const a = bytes[i] ?? 0, b = bytes[i + 1] ?? 0, c = bytes[i + 2] ?? 0
+    const n = (a << 16) | (b << 8) | c
+    out += (abc[(n >>> 18) & 63] ?? '') + (abc[(n >>> 12) & 63] ?? '') + (i + 1 < bytes.length ? abc[(n >>> 6) & 63] ?? '' : '=') + (i + 2 < bytes.length ? abc[n & 63] ?? '' : '=')
+  }
+  return out
+}
+const CUE = beep([880])
+const TIME_UP = beep([660, 440])
+
 async function tick($: any): Promise<void> {
   const at = await $.clock.now()
   await update($, now, () => at)
+  const c = await read($, clock)
+  if (!c || c.stoppedAt !== 0 || at < c.startedAt) return
+  const prepMs = (c.prep ?? 0) * 1000
+  const total = at - c.startedAt
+  const left = c.limit * 1000 - Math.max(0, total - prepMs)
+  const cue = (id: string, text: string, sound: string) => {
+    if (cues.has(id)) return
+    cues.add(id)
+    $.ui.toast(text, { timeoutMs: 5000 })
+    void Promise.resolve().then(() => $.audio.play({ base64: sound, mime: 'audio/wav' })).catch(() => undefined)
+  }
+  if (prepMs > 0 && total >= prepMs && total < prepMs + 5000) cue('start', 'Think time is over. Start answering now.', CUE)
+  if (left <= 0) cue('time', 'Time is up. Finish your sentence.', TIME_UP)
+  else if (left <= 30000 && c.limit > 30) cue('30', '30 seconds left.', CUE)
 }
 
 // `from` may be in the future: the clock shows 0:00 (and the pane says "listen")
@@ -76,6 +128,7 @@ async function startClock($: any, limit: number, prep = 0, from = 0): Promise<vo
   const at = await $.clock.now()
   await update($, clock, () => ({ startedAt: Math.max(at, from), stoppedAt: 0, limit, prep }))
   await update($, now, () => at)
+  cues = new Set<string>()
   ticker?.cancel()
   ticker = $.clock.every(1000, () => void tick($).catch(() => undefined))
 }
@@ -116,7 +169,7 @@ async function pickVoice($: any): Promise<void> {
   const english = listing.split('\n')
     .map(l => /^(.+?)\s+(en_[A-Z]{2})\s+#/.exec(l))
     .filter((m): m is RegExpExecArray => m !== null)
-    .map(m => ({ name: m[1].trim(), locale: m[2] }))
+    .map(m => ({ name: (m[1] ?? '').trim(), locale: m[2] ?? '' }))
   const rank = (v: { name: string; locale: string }) =>
     (/\(Premium\)/i.test(v.name) ? 40 : /\(Enhanced\)/i.test(v.name) ? 20 : 0) + (v.locale === 'en_US' ? 2 : 0)
   const best = english.sort((a, b) => rank(b) - rank(a))[0]
@@ -281,6 +334,19 @@ export const register: Register = on => {
     return { result: `Round closed. Average ${avg} over ${list.length} scored answers. Now write the debrief to interviews/ and give the user their top 3 fixes.` }
   })
 
+  // Sending the answer (without pressing "Done answering") stops the clock too, and Claude is told how
+  // long the answer took, for the debrief.
+  on('prompt.submit', async ($, e, next) => {
+    const r = await read($, room)
+    const c = await read($, clock)
+    if (r === null || r.isOver || c === null || c.stoppedAt !== 0 || (e as { origin?: unknown }).origin !== undefined) return next(e)
+    const at = await $.clock.now()
+    if (at < c.startedAt) return next(e)
+    const took = await stopClock($)
+    const answered = Math.max(0, took - (c.prep ?? 0) * 1000)
+    return next({ ...e, context: [...(e.context ?? []), `[Interview Room] The user's answer took about ${mmss(answered)} (target ${mmss(c.limit * 1000)}).`] })
+  })
+
   on('command.run', { command: 'interview-room' }, async $ => {
     await $.ui.open({ id: PANE, title: 'Interview Room' })
     return { text: 'Interview Room opened. Start a practice round with /mock-interview.' }
@@ -353,7 +419,9 @@ export const register: Register = on => {
           <Text bold color="suggestion">Listen to the question. Your clock starts when it ends.</Text>
         )}
         {c !== null && !r.isOver && isPrep && (
-          <Text bold color="suggestion">{`Think time: ${mmss(prepMs - total)} left. Recording starts automatically.`}</Text>
+          <Text bold color="suggestion">{r.style === 'one-way'
+            ? `Think time: ${mmss(prepMs - total)} left. Your answer clock starts automatically (on the real platform, recording starts then). Turn on dictation yourself when it starts.`
+            : `Think time: ${mmss(prepMs - total)} left. Your answer clock starts automatically.`}</Text>
         )}
         {c !== null && !r.isOver && !isListening && !isPrep && (
           <Text bold color={color}>{`${mmss(elapsed)} / ${mmss(c.limit * 1000)}${left < 0 ? '   wrap it up' : ''}`}</Text>

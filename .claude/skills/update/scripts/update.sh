@@ -10,12 +10,14 @@
 # Rules (DATA_CONTRACT.md): only paths listed in the release's product-manifest.json are written; a release that
 # lists a user-owned path, or whose files don't match their fingerprints, is refused before anything changes.
 # An app file the user edited (its fingerprint matches neither the installed nor the new version) is kept as
-# <file>.local next to the new one. The resume/cover-letter templates carry the user's theme, so they are
-# replaced and the theme is applied again. Everything replaced or removed is copied to .backup/<old version>/
-# first; if anything fails midway, the update undoes itself.
-# Output: "added:/updated:/removed:/kept-local:/migration:/hooks-changed:/note:" lines, a changelog block, and a
-# last line "update: done A -> B (backup: .backup/X)", "update: check ...", "update: already up to date",
-# "rollback: done ...", or "error: ..." (exit 1).
+# <file>.local next to the new one. Everything replaced or removed is copied to .backup/<old version>/ first; if
+# anything fails midway, the update undoes itself. The app's templates/*.html are plain app files (the user's theme
+# lives in their own copies in profile/templates/); when an update changes one the user has a copy of, that copy is
+# rebuilt from the new template plus their theme (apply-theme.mjs --regenerate), and the old copy is kept as
+# profile/templates/<name>.previous.html. Pages (pages/, interview briefs) are never touched.
+# Output: "added:/updated:/removed:/kept-local:/new starter file:/template:/migration:/hooks-changed: claude|codex/
+# note:" lines, a changelog block, and a last line "update: done A -> B (backup: .backup/X)", "update: check ...",
+# "update: already up to date", "rollback: done ...", or "error: ..." (exit 1).
 # Keep is_protected in step with scripts/build-manifest.sh and update.ps1.
 set -u
 die() { echo "error: $*"; exit 1; }
@@ -58,7 +60,16 @@ safe_path() {      # relative, no "..", no backslashes or odd characters
   return 0
 }
 man_files() { tr -d '\r' < "$1" | awk -F'"' '/^    "[^"]+": "[0-9a-f]{64}",?$/ { print $2 "\t" $4 }'; }
+# "themed": the app templates a user may have their own themed copy of (profile/templates/<file name>).
 man_themed() { tr -d '\r' < "$1" | awk -F'"' '/"themed": \[/ { t = 1; next } t && /\]/ { t = 0 } t && /^    "[^"]+",?$/ { print $2 }'; }
+# hooks_lines <file listing paths>: which app must reload its hooks after these app files changed.
+# Claude Code reads hook settings from .claude/settings.json when the folder opens; Codex turns changed hooks in
+# .codex/hooks.json off until the user trusts them again. (Hook scripts in .claude/hooks/ take effect on their own.)
+hooks_lines() {
+  grep -qxF '.claude/settings.json' "$1" 2>/dev/null && echo "hooks-changed: claude"
+  grep -qxF '.codex/hooks.json' "$1" 2>/dev/null && echo "hooks-changed: codex"
+  return 0
+}
 man_version() { tr -d '\r' < "$1" | sed -n 's/^  "version": "\([0-9][0-9.]*\)",\{0,1\}$/\1/p' | head -1; }
 ver_of() { tr -d '\r' < "$1" | sed -n 's/^version:[[:space:]]*\([0-9][0-9.]*\).*/\1/p' | head -1; }
 ver_cmp() {        # prints -1, 0 or 1 comparing dotted versions $1 and $2
@@ -134,6 +145,13 @@ if [ "$mode" = rollback ]; then
   [ "$(ver_of "$ROOT/VERSION")" = "$to" ] || die "the installed version is $(ver_of "$ROOT/VERSION"), not $to; roll back the newer update first"
   restore_from "$b" || die "some files could not be restored; the rest were (see above). Backup: ${b#"$ROOT"/}"
   echo "rolled_back: $(date '+%Y-%m-%d %H:%M')" >> "$b/backup-info.txt"
+  cat "$b/added.txt" "$b/changed.txt" 2>/dev/null > "$b/touched.tmp"; hooks_lines "$b/touched.tmp"; rm -f "$b/touched.tmp"
+  if [ -f "$b/templates.txt" ]; then
+    while IFS= read -r t; do
+      [ -n "$t" ] && [ -f "$ROOT/profile/templates/${t%.html}.previous.html" ] && \
+        echo "note: that update refreshed your profile/templates/$t; your copy from before it is profile/templates/${t%.html}.previous.html"
+    done < "$b/templates.txt"
+  fi
   echo "rollback: done ($to -> $from)"
   exit 0
 fi
@@ -160,12 +178,12 @@ fi
 X="$TMP/x"; mkdir -p "$X"
 if command -v unzip >/dev/null 2>&1; then
   entries="$(unzip -Z1 "$zip" 2>/dev/null)" || die "the update file is not a readable zip (nothing was changed)"
-  while IFS= read -r e; do
+  # A pipe, not a here-document: a here-document needs a temporary file, and if that can't be made the check
+  # would silently not run.
+  printf '%s\n' "$entries" | while IFS= read -r e; do
     [ -n "$e" ] || continue
-    case "$e" in /*|*\\*|..|../*|*/../*|*/..|[A-Za-z]:*) die "the update file has an unsafe path ($e); refused (nothing was changed)" ;; esac
-  done <<EOF
-$entries
-EOF
+    case "$e" in /*|*\\*|..|../*|*/../*|*/..|[A-Za-z]:*) printf '%s\n' "$e"; exit 1 ;; esac
+  done > "$TMP/unsafe.txt" || die "the update file has an unsafe path ($(head -1 "$TMP/unsafe.txt")); refused (nothing was changed)"
   unzip -q "$zip" -d "$X" 2>/dev/null || die "the update file could not be unpacked; it may be damaged (nothing was changed)"
 elif command -v python3 >/dev/null 2>&1 && python3 -c 1 >/dev/null 2>&1; then
   python3 -I - "$zip" "$X" <<'PY' || die "the update file is damaged or has an unsafe path (nothing was changed)"
@@ -215,32 +233,35 @@ cut -f1 "$TMP/new.tsv" "$TMP/old.tsv" | LC_ALL=C sort -u | while IFS= read -r p;
   elif [ -f "$ROOT/$p" ]; then printf '%s\t%s\n' "$p" "$(fp "$ROOT/$p")"; fi
 done > "$TMP/local.tsv"
 # plan.tsv: ACTION<TAB>path. ADD new file; SAME already the new version; UPDATE replace an unedited file;
-# THEME replace a themed template; LOCAL user-edited: keep theirs as .local, install new; REMOVE no longer
-# shipped and unedited; LOCALREMOVE no longer shipped but edited: set aside as .local.
+# LOCAL user-edited: keep theirs as .local, install new; REMOVE no longer shipped and unedited;
+# LOCALREMOVE no longer shipped but edited: set aside as .local.
 awk -F'\t' -v OFS='\t' '
-  FILENAME == ARGV[1] { th[$1] = 1; next }
-  FILENAME == ARGV[2] { old[$1] = $2; next }
-  FILENAME == ARGV[3] { loc[$1] = $2; next }
+  FILENAME == ARGV[1] { old[$1] = $2; next }
+  FILENAME == ARGV[2] { loc[$1] = $2; next }
   { neu[$1] = $2; order[++n] = $1 }
   END {
     for (i = 1; i <= n; i++) { p = order[i]; h = neu[p]
       if (!(p in loc)) print "ADD", p
       else if (loc[p] == h) print "SAME", p
-      else if (p in th) print "THEME", p
       else if ((p in old) && loc[p] == old[p]) print "UPDATE", p
       else print "LOCAL", p }
     for (p in old) if (!(p in neu) && (p in loc)) { if (loc[p] == old[p]) print "REMOVE", p; else print "LOCALREMOVE", p }
-  }' "$TMP/themed.txt" "$TMP/old.tsv" "$TMP/local.tsv" "$TMP/new.tsv" > "$TMP/plan.tsv"
+  }' "$TMP/old.tsv" "$TMP/local.tsv" "$TMP/new.tsv" > "$TMP/plan.tsv"
 count() { grep -c "^$1	" "$TMP/plan.tsv"; }
-nA="$(count ADD)"; nU="$(( $(count UPDATE) + $(count THEME) ))"; nL="$(( $(count LOCAL) + $(count LOCALREMOVE) ))"; nR="$(count REMOVE)"
+nA="$(count ADD)"; nU="$(count UPDATE)"; nL="$(( $(count LOCAL) + $(count LOCALREMOVE) ))"; nR="$(count REMOVE)"
 
-hooks_changed=""
-grep -E "^(ADD|UPDATE|LOCAL|THEME)	(\.codex/hooks\.json|\.claude/settings\.json|\.claude/hooks/)" "$TMP/plan.tsv" >/dev/null && hooks_changed=1
+awk -F'\t' '$1 != "SAME" { print $2 }' "$TMP/plan.tsv" > "$TMP/changing.txt"
+# App templates that change in this update and that the user has a themed copy of.
+: > "$TMP/retheme.txt"
+while IFS= read -r p; do
+  [ -n "$p" ] && grep -qxF "$p" "$TMP/changing.txt" && [ -f "$ROOT/profile/templates/${p##*/}" ] && echo "${p##*/}" >> "$TMP/retheme.txt"
+done < "$TMP/themed.txt"
 
 if [ "$mode" = check ]; then
   echo "installed: $OLDV"; echo "available: $NEWV"
   awk -F'\t' '$1 == "LOCAL" || $1 == "LOCALREMOVE" { print "would keep your edited version: " $2 " (saved as " $2 ".local)" }' "$TMP/plan.tsv"
-  [ -n "$hooks_changed" ] && echo "hooks-changed: yes"
+  hooks_lines "$TMP/changing.txt"
+  while IFS= read -r t; do [ -n "$t" ] && echo "would refresh your themed copy: profile/templates/$t (your current copy is kept as profile/templates/${t%.html}.previous.html)"; done < "$TMP/retheme.txt"
   echo "update: check ($nA to add, $nU to update, $nR to remove, $nL edited by you; nothing changed)"
   exit 0
 fi
@@ -255,7 +276,7 @@ printf 'from: %s\nto: %s\ndate: %s\n' "$OLDV" "$NEWV" "$(date '+%Y-%m-%d %H:%M')
 if [ -f "$ROOT/product-manifest.json" ]; then cp -p "$ROOT/product-manifest.json" "$B/files/product-manifest.json" || die "cannot back up product-manifest.json (nothing was changed)"
 else : > "$B/added-manifest"; fi
 while IFS="$(printf '\t')" read -r a p; do
-  case "$a" in UPDATE|THEME|LOCAL|REMOVE|LOCALREMOVE)
+  case "$a" in UPDATE|LOCAL|REMOVE|LOCALREMOVE)
     mkdir -p "$(dirname "$B/files/$p")" && cp -p "$ROOT/$p" "$B/files/$p" || die "cannot back up $p (nothing was changed)"
     echo "$p" >> "$B/changed.txt" ;;
   esac
@@ -268,12 +289,10 @@ fail() {  # undo everything done so far, then stop
     && die "the update could not finish ($1); everything was put back as it was" \
     || die "the update could not finish ($1) and some files could not be put back; restore them from ${B#"$ROOT"/}/files"
 }
-themed_done=""
 while IFS="$(printf '\t')" read -r a p; do
   case "$a" in
     ADD) echo "$p" >> "$B/added.txt"; install_file "$NEW/$p" "$p" || fail "could not add $p"; echo "added: $p" ;;
     UPDATE) install_file "$NEW/$p" "$p" || fail "could not update $p"; echo "updated: $p" ;;
-    THEME) install_file "$NEW/$p" "$p" || fail "could not update $p"; echo "updated: $p"; themed_done=1 ;;
     LOCAL|LOCALREMOVE)
       l="$p.local"; [ -e "$ROOT/$l" ] && l="$p.$stamp.local"
       mv -f "$ROOT/$p" "$ROOT/$l" || fail "could not set aside $p"
@@ -294,13 +313,18 @@ install_file "$NEW/product-manifest.json" product-manifest.json || fail "could n
 out="$(bash "$ROOT/.claude/skills/start/scripts/init-data.sh" 2>&1)"
 printf '%s\n' "$out" | sed -n 's/^created: /new starter file: /p'
 printf '%s\n' "$out" | grep '^error:' | sed 's/^error:/note: starter files:/'
-if [ -n "$themed_done" ]; then
+# The user's themed template copies (profile/templates/): rebuild the ones whose app template changed.
+# Pages and interview briefs are never re-themed by an update.
+if [ -s "$TMP/retheme.txt" ]; then
+  cp "$TMP/retheme.txt" "$B/templates.txt" 2>/dev/null
+  list="$(paste -sd, "$TMP/retheme.txt")"
   if command -v node >/dev/null 2>&1; then
-    r="$(node "$ROOT/.claude/skills/page-design/scripts/apply-theme.mjs" 2>&1 | tail -1)"
-    case "$r" in result:*) echo "note: your page theme was applied to the new templates ($r)" ;;
-      *) echo "note: re-applying your theme to the new templates failed ($r); run the page-design skill's apply-theme.mjs" ;; esac
+    r="$(node "$ROOT/.claude/skills/page-design/scripts/apply-theme.mjs" --regenerate "$list" 2>&1)"
+    printf '%s\n' "$r" | sed -n -E 's/^(refreshed|created): /template: /p'
+    case "$(printf '%s\n' "$r" | tail -1)" in result:*) ;;
+      *) echo "note: your themed template copies (profile/templates/: $list) were not refreshed ($(printf '%s\n' "$r" | grep '^error:' | head -1)); they still work but miss this update's template changes; refresh them with the page-design skill" ;; esac
   else
-    echo "note: the resume and cover-letter templates are back on the default look; re-apply the user's theme (page-design skill, \"Without Node\")"
+    echo "note: the app's $list changed, and Node isn't available to refresh your themed copy in profile/templates/; refresh it by hand (update skill, \"Themed templates without Node\")"
   fi
 fi
 if [ -d "$ROOT/migrations" ]; then
@@ -310,7 +334,7 @@ if [ -d "$ROOT/migrations" ]; then
     [ "$(ver_cmp "$mv_" "$OLDV")" = 1 ] && [ "$(ver_cmp "$mv_" "$NEWV")" != 1 ] && echo "migration: ${m#"$ROOT"/}"
   done
 fi
-[ -n "$hooks_changed" ] && echo "hooks-changed: yes"
+hooks_lines "$TMP/changing.txt"
 if [ -f "$ROOT/CHANGELOG.md" ]; then
   echo "changelog:"
   tr -d '\r' < "$ROOT/CHANGELOG.md" | awk -v old="$OLDV" '

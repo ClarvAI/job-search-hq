@@ -2,6 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
 import type { Job, Notice, Summary } from '../types'
+import { addDays, alsoOf, csvTrouble, dateOrder, daysBetween, isExcelLock, isIso, localDate, orderFor, plain, readCsv, toCsv, toIso } from './csvdate'
 
 // Pipeline: the user's interactive job board. It reads jobs/tracker.csv (the single source of truth),
 // shows a one-line band above the prompt, and lets the user change a job's stage, next step and date.
@@ -30,87 +31,12 @@ const isHidden = atom({ plugin: 'pipeline', key: 'isHidden' } as const, false)
 const editing = atom({ plugin: 'pipeline', key: 'editing' } as const, '')
 const showClosed = atom({ plugin: 'pipeline', key: 'showClosed' } as const, false)
 const notice = atom({ plugin: 'pipeline', key: 'notice' } as const, { text: '', isError: false } as Notice)
+const showAll = atom({ plugin: 'pipeline', key: 'showAll' } as const, false)
 
-function parseCsv(text: string): string[][] {
-  const rows: string[][] = []
-  let row: string[] = []
-  let cell = ''
-  let quoted = false
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i]
-    if (quoted) {
-      if (c === '"' && text[i + 1] === '"') { cell += '"'; i++ }
-      else if (c === '"') quoted = false
-      else cell += c
-    } else if (c === '"') quoted = true
-    else if (c === ',') { row.push(cell); cell = '' }
-    else if (c === '\n' || c === '\r') {
-      if (c === '\r' && text[i + 1] === '\n') i++
-      row.push(cell); rows.push(row); row = []; cell = ''
-    } else cell += c
-  }
-  if (cell !== '' || row.length > 0) { row.push(cell); rows.push(row) }
-  return rows.filter(r => r.some(v => v.trim() !== ''))
-}
-
-function toCsv(rows: string[][]): string {
-  const q = (v: string) => (/[",\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v)
-  return rows.map(r => r.map(q).join(',')).join('\n') + '\n'
-}
-
-// tracker.csv holds plain characters only, so it opens cleanly in Excel (playbook, "Tracker").
-// A cell never starts with = + - @ or a tab: Excel would run it as a formula, so those are dropped.
-function plain(v: string): string {
-  return v.replace(/[–—]/g, '-').replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/…/g, '...').replace(/[\r\n]+/g, ' ').replace(/^[\s=+\-@]+/, '')
-}
-
-function localDate(ms: number): string {
-  const d = new Date(ms)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-}
-
-function addDays(iso: string, days: number, businessOnly = false): string {
-  const [y, m, d] = iso.split('-').map(Number)
-  const date = new Date(y, m - 1, d)
-  let left = days
-  while (left > 0) {
-    date.setDate(date.getDate() + 1)
-    const wd = date.getDay()
-    if (!businessOnly || (wd !== 0 && wd !== 6)) left--
-  }
-  return localDate(date.getTime())
-}
-
-// Excel may rewrite dates as 14/10/2026 or 10/14/26, in the order of the user's region. A slash date
-// is read only when its order is certain: a part over 12, both parts the same, or home_base in
-// profile/preferences.md naming a US place (month first) or a day-first country. Anything else is
+// Excel may rewrite dates as 14/10/2026, 10/14/26 or 14.10.2026. csvdate.ts reads a date only when its
+// meaning is certain (the row's own dates or date_order in profile/preferences.md); anything else is
 // left exactly as written and shown as "date unclear" for the user to confirm (AGENTS.md).
 const DATE_COLS = ['next_action_date', 'date_found', 'date_applied', 'deadline']
-type DateOrder = 'mdy' | 'dmy' | ''
-const US_STATES = 'AL|AK|AZ|AR|CA|CO|CT|DE|DC|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY'
-function dateOrder(prefs: string): DateOrder {
-  const home = /^[ \t]*home_base:[ \t]*(.*)$/m.exec(prefs)?.[1]?.trim() ?? ''
-  if (/\b(USA|U\.S\.A?\.?|United States)\b/i.test(home) || new RegExp(`,\\s*(${US_STATES})\\b`).test(home)) return 'mdy'
-  if (/\b(UK|U\.K\.|United Kingdom|Britain|England|Scotland|Wales|Ireland|Australia|New Zealand|India|South Africa|Singapore|Germany|France|Spain|Italy|Portugal|Netherlands|Belgium|Brazil|Mexico)\b/i.test(home)) return 'dmy'
-  return ''
-}
-function toIso(v: string, order: DateOrder = ''): string {
-  const t = v.trim()
-  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/.exec(t)
-  if (!m) return t
-  const a = Number(m[1]), b = Number(m[2])
-  const [mo, da] = a === b ? [a, b] : a > 12 ? [b, a] : b > 12 ? [a, b] : order === 'mdy' ? [a, b] : order === 'dmy' ? [b, a] : [0, 0]
-  if (mo < 1 || mo > 12 || da < 1 || da > 31) return t
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${m[3].length === 2 ? `20${m[3]}` : m[3]}-${pad(mo)}-${pad(da)}`
-}
-const isIso = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v)
-
-function daysBetween(a: string, b: string): number {
-  const [y1, m1, d1] = a.split('-').map(Number), [y2, m2, d2] = b.split('-').map(Number)
-  return Math.round((new Date(y2, m2 - 1, d2).getTime() - new Date(y1, m1 - 1, d1).getTime()) / 86400000)
-}
 
 function friendlyDate(iso: string, today: string): string {
   if (!iso) return ''
@@ -119,6 +45,9 @@ function friendlyDate(iso: string, today: string): string {
   if (iso === today) return 'due today'
   return `by ${iso}`
 }
+
+const isInterview = (text: string) => /interview/i.test(text) && !/prep|thank/i.test(text)
+const SHOWN = 20
 
 // Folder is part of the key so two postings with the same company and title stay separate.
 // A row's identity: company + role + folder. Rows typed in by hand may have no folder, so fall
@@ -131,31 +60,75 @@ function rowKey(get: (c: string) => string): string {
   return keyOf(get('company'), get('role'), get('folder') || get('job_id') || get('link') || get('date_found'))
 }
 
+// True when Excel seems to have the file open (its "~$" lock file is next to it). Without a lock file
+// it may still be open, so a failed save also asks the user to save and close Excel.
+async function openInExcel($: any, path: string): Promise<boolean> {
+  const at = path.lastIndexOf('/')
+  try {
+    const entries: Array<{ name: string }> = await $.fs.list(at < 0 ? '.' : path.slice(0, at))
+    return entries.some(e => isExcelLock(String(e.name), path.slice(at + 1)))
+  } catch { return false }
+}
+
+// One line added to the end of history/activity.md. The file is re-read right before the write and
+// checked afterwards, so a line another app added meanwhile is kept and this one is not lost.
+async function appendLine($: any, path: string, lineOut: string): Promise<boolean> {
+  const readNow = async (): Promise<string> => ((await $.fs.exists(path)) ? String(await $.fs.read(path)) : '# Recent activity\n\n')
+  let wrote = false
+  try {
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const before = await readNow()
+      if (wrote && before.includes(lineOut)) return true
+      if ((await readNow()) !== before) continue
+      await $.fs.write(path, before.replace(/\n*$/, '\n') + lineOut)
+      wrote = true
+      if ((await readNow()).includes(lineOut)) return true
+    }
+  } catch { /* the log is a convenience; never block a save on it */ }
+  return false
+}
+
 async function load($: any): Promise<Summary> {
   const today = localDate(await $.clock.now())
-  const raw = ((await $.fs.exists(TRACKER)) ? await $.fs.read(TRACKER) : '').replace(/^\uFEFF/, '')
+  const raw = (await $.fs.exists(TRACKER)) ? await $.fs.read(TRACKER) : ''
   const prefs: string = (await $.fs.exists('profile/preferences.md')) ? await $.fs.read('profile/preferences.md').catch(() => '') : ''
   const order = dateOrder(prefs)
-  const [header = [], ...rows] = parseCsv(raw)
+  const { rows: [header = [], ...rows], problem } = readCsv(raw)
   const col = (name: string) => header.findIndex(h => h.trim().toLowerCase() === name)
   const at = (r: string[], name: string) => (col(name) >= 0 ? (r[col(name)] ?? '').trim() : '')
-  const jobs: Job[] = rows.map(r => ({
-    key: rowKey(c => at(r, c)),
-    company: at(r, 'company'),
-    role: at(r, 'role'),
-    status: at(r, 'status').toLowerCase(),
-    nextAction: at(r, 'next_action'),
-    nextDate: toIso(at(r, 'next_action_date'), order),
-    folder: at(r, 'folder'),
-    location: at(r, 'location'),
-    deadline: toIso(at(r, 'deadline'), order),
-  })).filter(j => j.company !== '')
+  const jobs: Job[] = problem !== '' ? [] : rows.map(r => {
+    const o = orderFor(r, order)
+    const also = alsoOf(at(r, 'notes'), o)
+    return {
+      key: rowKey(c => at(r, c)),
+      company: at(r, 'company'),
+      role: at(r, 'role'),
+      status: at(r, 'status').toLowerCase(),
+      nextAction: at(r, 'next_action'),
+      nextDate: toIso(at(r, 'next_action_date'), o),
+      folder: at(r, 'folder'),
+      location: at(r, 'location'),
+      deadline: toIso(at(r, 'deadline'), o),
+      also: also?.text ?? '',
+      alsoDate: also?.date ?? '',
+    }
+  }).filter(j => j.company !== '')
   const counts: Record<string, number> = {}
   for (const j of jobs) counts[j.status] = (counts[j.status] ?? 0) + 1
-  const byDate = (a: Job, b: Job) => (a.nextDate || '9999').localeCompare(b.nextDate || '9999')
-  const active = jobs.filter(j => OPEN.includes(j.status)).sort(byDate)
+  // Due: a next step (or a second commitment in the notes) dated today or earlier; an offer answer-by
+  // date within 3 days (passed ones stay due: they are urgent); an application deadline within the
+  // next 3 days. A passed application deadline is not "due" forever: the card says it passed.
+  const isDue = (j: Job) => (isIso(j.nextDate) && j.nextDate <= today)
+    || (isIso(j.alsoDate) && j.alsoDate <= today)
+    || (j.status === 'offer' && isIso(j.deadline) && daysBetween(today, j.deadline) <= 3)
+    || (j.status === 'interested' && isIso(j.deadline) && j.deadline >= today && daysBetween(today, j.deadline) <= 3)
+  // Most urgent first: offers, interviews, application deadlines, then everything else by date.
+  const rank = (j: Job) => !isDue(j) ? 9 : j.status === 'offer' ? 0 : isInterview(j.nextAction) || isInterview(j.also) ? 1 : j.status === 'interested' && isIso(j.deadline) ? 2 : 3
+  const firstDate = (j: Job) => [j.nextDate, j.alsoDate].filter(isIso).sort()[0] ?? '9999'
+  const byUrgency = (a: Job, b: Job) => rank(a) - rank(b) || firstDate(a).localeCompare(firstDate(b))
+  const active = jobs.filter(j => OPEN.includes(j.status)).sort(byUrgency)
   const closed = jobs.filter(j => !OPEN.includes(j.status))
-  const due = active.filter(j => (isIso(j.nextDate) && j.nextDate <= today) || (isIso(j.deadline) && (j.status === 'interested' || j.status === 'offer') && daysBetween(today, j.deadline) <= 3))
+  const due = active.filter(isDue)
   let drafts = 0
   if (await $.fs.exists('outbox')) {
     for (const entry of await $.fs.list('outbox')) {
@@ -168,7 +141,7 @@ async function load($: any): Promise<Summary> {
     }
   }
   const isClosed = /^search_status:\s*closed/m.test(prefs)
-  return { today, active, closed, due, counts, drafts, isClosed }
+  return { today, active, closed, due, counts, drafts, isClosed, problem: csvTrouble(problem, 'Your tracker (jobs/tracker.csv)') }
 }
 
 async function refresh($: any): Promise<Summary> {
@@ -189,12 +162,7 @@ async function logActivity($: any, what: string): Promise<void> {
   const stamp = `${localDate(d.getTime())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
   const text = what.replace(/\. The user accepted this offer.*$/, '. The user accepted this offer')
   const lineOut = `- ${stamp} · Pipeline panel (Claude) · ${text.replace(/[\r\n]+/g, ' ')}\n`
-  try {
-    const before: string = (await $.fs.exists(ACTIVITY)) ? await $.fs.read(ACTIVITY) : '# Recent activity\n\n'
-    await $.fs.write(ACTIVITY, before.replace(/\n*$/, '\n') + lineOut)
-    const after: string = await $.fs.read(ACTIVITY)
-    if (!after.includes(lineOut)) await $.fs.write(ACTIVITY, after.replace(/\n*$/, '\n') + lineOut)
-  } catch { /* the log is a convenience; never block a tracker save on it */ }
+  await appendLine($, ACTIVITY, lineOut)
 }
 
 // Read the tracker fresh, change one job's row, write it back, and tell Claude what changed.
@@ -206,7 +174,9 @@ async function saveJob($: any, key: string, change: (get: (c: string) => string,
   // Optimistic save: if the file changes (Claude, Codex, Excel) between our read and our write, start over from the new version.
   for (let attempt = 0; ; attempt++) {
   const original: string = await $.fs.read(TRACKER)
-  const rows = parseCsv(original.replace(/^\uFEFF/, ''))
+  const { rows, problem } = readCsv(original)
+  // A damaged file (an unclosed quote, or saved with semicolons) is never written back: that would spread the damage.
+  if (problem !== '') { await refresh($).catch(() => undefined); await say($, csvTrouble(problem, 'Your tracker (jobs/tracker.csv)'), true); return }
   const header = rows[0] ?? []
   const find = (c: string) => header.findIndex(h => h.trim().toLowerCase() === c)
   const idx = (c: string) => {
@@ -217,13 +187,18 @@ async function saveJob($: any, key: string, change: (get: (c: string) => string,
   // Find the row by the cells exactly as the board read them, before any date in it is tidied.
   const target = rows.slice(1).find(r => rowKey(c => (find(c) >= 0 ? (r[find(c)] ?? '') : '').trim()) === key)
   if (!target) { await say($, 'That job is no longer in jobs/tracker.csv. Press Refresh, or ask Claude to check the tracker.', true); return }
-  // Only this row's dates are tidied, and only when their order is certain; other rows stay as they are.
-  for (const c of DATE_COLS) { const i = find(c); if (i >= 0 && target[i]) target[i] = toIso(target[i], order) }
+  // Only this row's dates are tidied, and only when their meaning is certain; other rows stay as they are.
+  const o = orderFor(target, order)
+  for (const c of DATE_COLS) { const i = find(c); if (i >= 0 && target[i]) target[i] = toIso(target[i], o) }
   const get = (c: string) => (target[idx(c)] ?? '').trim()
   const set = (c: string, v: string) => { const i = idx(c); while (target.length <= i) target.push(''); target[i] = plain(v) }
   what = change(get, set, today)
   for (const r of rows) while (r.length < header.length) r.push('')
   const next = (original.startsWith('\uFEFF') ? '\uFEFF' : '') + toCsv(rows)
+  if (await openInExcel($, TRACKER)) {
+    await say($, 'Your tracker is open in Excel. Save and close it there, then try again (otherwise Excel would later put back its older copy).', true)
+    return
+  }
   try {
     // Compare and write back to back, so the window for another app's save to slip in stays as small as it can.
     if ((await $.fs.read(TRACKER)) !== original) {
@@ -239,7 +214,7 @@ async function saveJob($: any, key: string, change: (get: (c: string) => string,
   // Another app may have saved at the same instant. The change is never applied a second time (that
   // could push a date back twice); instead, check that the row as saved is still there.
   const back: string = await $.fs.read(TRACKER).catch(() => next)
-  if (back !== next && !parseCsv(back.replace(/^\uFEFF/, '')).some(r => r.length >= target.length && target.every((v, i) => (r[i] ?? '') === v))) {
+  if (back !== next && !readCsv(back).rows.some(r => r.length >= target.length && target.every((v, i) => (r[i] ?? '') === v))) {
     await refresh($).catch(() => undefined)
     await say($, 'Another app saved your tracker at the same moment, so this change may not have stuck. Check the job below and try again if needed.', true)
     return
@@ -269,11 +244,19 @@ async function setStage($: any, job: Job, status: string): Promise<void> {
       extra = `; follow-up set for ${get('next_action_date')}`
     }
     if (!OPEN.includes(status)) { set('next_action', ''); set('next_action_date', ''); extra = '; next step cleared' }
-    else if (['screening', 'interviewing', 'offer'].includes(status) && /^follow up/i.test(get('next_action'))) {
-      // A company that's now screening or interviewing the user doesn't need a follow-up nudge.
-      set('next_action', status === 'offer' ? 'Respond to offer' : 'Decide next step')
+    else if (status === 'offer') {
+      // An offer always needs an answer, whatever the next step was. The deadline column held the
+      // application deadline until now; it is cleared so it is never shown as the offer's answer-by date.
+      const old = get('deadline')
+      set('next_action', 'Respond to offer')
       set('next_action_date', today)
-      extra += status === 'offer' ? '; ask the user for the answer-by date and put it in deadline' : '; ask the user for the interview date and set the next step to "Interview <date>"'
+      if (old !== '') set('deadline', '')
+      extra += `; ask the user for the answer-by date and put it in deadline${old !== '' ? ` (the old application deadline ${old} was cleared)` : ''}`
+    } else if (['screening', 'interviewing'].includes(status) && /^follow up/i.test(get('next_action'))) {
+      // A company that's now screening or interviewing the user doesn't need a follow-up nudge.
+      set('next_action', 'Decide next step')
+      set('next_action_date', today)
+      extra += '; ask the user for the interview date and set the next step to "Interview <date>"'
     } else if (get('next_action_date') === '') {
       set('next_action', get('next_action') || 'Decide next step')
       set('next_action_date', addDays(today, 1, true))
@@ -282,7 +265,7 @@ async function setStage($: any, job: Job, status: string): Promise<void> {
     if (status === 'accepted') extra += '. The user accepted this offer: congratulate them, then offer the "closing the search" wrap-up from the offer skill (withdrawals, thank-yous, career log)'
     return `${job.company} (${job.role}) moved to ${stageLabel(status)}${extra}`
   })
-  if (status === 'accepted') $.ui.toast(`Congratulations on the job at ${job.company}! Open your dashboard for a little celebration, and ask Claude to wrap up your search.`, { timeoutMs: 15000 })
+  if (status === 'accepted') $.ui.toast(`Congratulations on the job at ${job.company}! Ask Claude to wrap up your search and refresh your dashboard for a little celebration.`, { timeoutMs: 15000 })
 }
 
 async function setDate($: any, job: Job, value: string): Promise<void> {
@@ -301,9 +284,21 @@ async function setNext($: any, job: Job, value: string): Promise<void> {
   })
 }
 
+// "Also: Interview 2026-10-12" at the start of the notes: a second commitment kept there while the
+// next step holds the earlier one (interview-prep, take-home assignments).
+const ALSO = /^\s*Also:\s*[^;|]*?\s*(?:\d{4}-\d{1,2}-\d{1,2}|\d{1,2}[./]\d{1,2}[./](?:\d{4}|\d{2}))\b\.?\s*[;|]?\s*/i
+
 async function markDone($: any, job: Job): Promise<void> {
-  // Open jobs always keep a next step (playbook rule), so "done" hands the user a decision due today.
-  await saveJob($, job.key, (_get, set, today) => {
+  // Open jobs always keep a next step (playbook rule). If the notes hold a second commitment, it becomes
+  // the next step; otherwise "done" hands the user a decision due today.
+  await saveJob($, job.key, (get, set, today) => {
+    const also = alsoOf(get('notes'))
+    if (also && also.date !== '') {
+      set('next_action', also.text)
+      set('next_action_date', also.date)
+      set('notes', get('notes').replace(ALSO, ''))
+      return `${job.company}: finished "${job.nextAction || 'next step'}"; next step is now "${also.text}"`
+    }
     set('next_action', 'Decide next step'); set('next_action_date', today)
     return `${job.company}: finished "${job.nextAction || 'next step'}"; suggest the user's next step`
   })
@@ -319,6 +314,7 @@ async function snooze($: any, job: Job, days: number): Promise<void> {
 
 function line(s: Summary): string {
   if (s.isClosed) return 'Search closed. Congratulations on the new job!'
+  if (s.problem !== '') return 'Your tracker needs fixing before it can be read'
   const total = Object.values(s.counts).reduce((a, b) => a + b, 0)
   if (total === 0 && s.drafts === 0) return 'Nothing tracked yet'
   const n = (k: string) => s.counts[k] ?? 0
@@ -383,6 +379,7 @@ export const register: Register = on => {
     const open = await read($, editing)
     const closedShown = await read($, showClosed)
     const note = await read($, notice)
+    const allShown = await read($, showAll)
     if (s === null) return <Text dimColor>Loading…</Text>
 
     const card = (j: Job) => {
@@ -398,11 +395,22 @@ export const register: Register = on => {
               {j.nextAction ? `Next: ${j.nextAction}${j.nextDate ? ` (${friendlyDate(j.nextDate, s.today)})` : ''}` : 'No next step yet. Press Update… to add one.'}
             </Text>
           )}
-          {isOpenJob && isIso(j.deadline) && (
-            <Text color={(j.status === 'interested' || j.status === 'offer') && daysBetween(s.today, j.deadline) <= 3 ? 'warning' : undefined} dimColor={!((j.status === 'interested' || j.status === 'offer') && daysBetween(s.today, j.deadline) <= 3)}>
-              {`${j.status === 'offer' ? 'Answer the offer by' : 'Application deadline'}: ${j.deadline}${daysBetween(s.today, j.deadline) < 0 ? ' (passed)' : daysBetween(s.today, j.deadline) === 0 ? ' (today)' : ` (in ${daysBetween(s.today, j.deadline)} days)`}`}
-            </Text>
+          {isOpenJob && j.also !== '' && (
+            <Text color={isIso(j.alsoDate) && j.alsoDate <= s.today ? 'warning' : undefined}>{`Also: ${j.also}${isIso(j.alsoDate) && j.alsoDate <= s.today ? ` (${friendlyDate(j.alsoDate, s.today)})` : ''}`}</Text>
           )}
+          {isOpenJob && isIso(j.deadline) && (() => {
+            const left = daysBetween(s.today, j.deadline)
+            const isUrgent = (j.status === 'offer' && left <= 3) || (j.status === 'interested' && left >= 0 && left <= 3)
+            return (
+              <Text color={isUrgent ? 'warning' : undefined} dimColor={!isUrgent}>
+                {`${j.status === 'offer' ? 'Answer the offer by' : 'Application deadline'}: ${j.deadline}${left < 0 ? ' (passed)' : left === 0 ? ' (today)' : ` (in ${left} ${left === 1 ? 'day' : 'days'})`}`}
+              </Text>
+            )
+          })()}
+          {j.status === 'offer' && j.deadline === '' && (
+            <Text color="warning" wrap="wrap">No answer-by date recorded for this offer. Ask the employer when they need your answer, then tell Claude.</Text>
+          )}
+          {isOpenJob && j.deadline !== '' && !isIso(j.deadline) && <Text dimColor>{`Deadline: date unclear: ${j.deadline}`}</Text>}
           {isEditing && canEdit && (
             <Box flexDirection="column" gap={1} marginTop={1}>
               <els.Select key={`${j.key}:stage`} label="Stage" value={j.status || 'interested'} options={STAGES} onSelect={(v: string) => setStage($, j, v)} />
@@ -432,8 +440,12 @@ export const register: Register = on => {
         <Text bold>{line(s)}</Text>
         <Text dimColor>Changes here save straight to your tracker (jobs/tracker.csv), and Claude is told about them. "Start application" and "Prep for interview" write a message to Claude; press Enter to send it.</Text>
         {note.text !== '' && <Text color={note.isError ? 'error' : 'success'}>{note.isError ? `Not saved: ${note.text}` : note.text}</Text>}
-        {s.active.length === 0 && <Text dimColor>No open applications yet. Type /find-jobs, or paste a job link to Claude.</Text>}
-        {s.active.map(card)}
+        {s.problem !== '' && <Text color="error" wrap="wrap">{s.problem}</Text>}
+        {s.problem === '' && s.active.length === 0 && <Text dimColor>No open applications yet. Type /find-jobs, or paste a job link to Claude.</Text>}
+        {(allShown ? s.active : s.active.slice(0, SHOWN)).map(card)}
+        {s.active.length > SHOWN && (
+          <Button key="show-all" label={allShown ? `Show only the first ${SHOWN}` : `Show all ${s.active.length} open jobs`} plain onPress={() => update($, showAll, v => !v)} />
+        )}
         {s.closed.length > 0 && (
           <Button key="closed" label={closedShown ? 'Hide closed jobs' : `Show closed jobs (${s.closed.length})`} plain onPress={() => update($, showClosed, v => !v)} />
         )}

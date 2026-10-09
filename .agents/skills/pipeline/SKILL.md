@@ -9,13 +9,13 @@ The chat version of the Claude Pipeline panel. `jobs/tracker.csv` is the only so
 
 ## Show the board
 
-Read `jobs/tracker.csv` (it may come from Excel: tolerate a byte-order mark, Windows line endings, quoted commas, and dates like `10/14/2026`; write dates back as `YYYY-MM-DD`). Excel's date order depends on the computer's region: if a slash date could be read either way (like `06/10/2026`), ask the user which they meant before relying on it or rewriting it. If it has only the header, say "Nothing tracked yet" and offer `add-job` or `find-jobs`. If `profile/preferences.md` has a `search_status: closed` line, lead with "Search closed" (the user accepted a job) before showing anything.
+Read `jobs/tracker.csv` (it may come from Excel: tolerate a byte-order mark, Windows line endings, quoted commas, and dates like `10/14/2026`; write dates back as `YYYY-MM-DD`). Read dates as AGENTS.md says ("Reading dates someone else wrote"); a date that is still unclear shows as "date unclear", never counts as due or overdue, and is never rewritten until the user says what it means. If the file is damaged (a semicolon-separated header, or a quoted value that never closes), don't edit it: say so and offer to repair it into a copy for them to check. If it has only the header, say "Nothing tracked yet" and offer `add-job` or `find-jobs`. If `profile/preferences.md` has a `search_status: closed` line, lead with "Search closed" (the user accepted a job) before showing anything.
 
 Show a compact board, open stages first, in this order: Offer, Interviewing, Screening, Applied, Interested. One line per job:
 
 `Example Co · Operations Analyst · next: onsite interview · Thu Oct 9`
 
-Mark anything due today or overdue, and any application or offer `deadline` within 3 days, with the words "due" or "overdue" (no emoji) and put those first. Under the board, one line of counts (e.g. "9 open · 2 due today · 1 deadline this week") and the weekly goal from `profile/preferences.md` if it helps. Closed jobs (accepted, rejected, withdrawn, skipped, ghosted): just a count, and list them only if they ask.
+Mark anything due today or overdue, and any application or offer `deadline` within 3 days, with the words "due" or "overdue" (no emoji) and put those first. A passed offer deadline is "offer deadline passed" (first); a passed application deadline on an `interested` job is "deadline passed" (suggest checking the posting or marking it skipped), not "overdue" forever. A row whose `notes` start with `Also: <what> YYYY-MM-DD` (e.g. `Also: Interview 2026-10-20`, `Also: Take-home due 2026-10-18`) has a second commitment: show it on its own line and count it by its own date. With `search_status: closed`, still show unsent withdrawal notes (`Send withdrawal note`). Under the board, one line of counts (e.g. "9 open · 2 due today · 1 deadline this week") and the weekly goal from `profile/preferences.md` if it helps. Closed jobs (accepted, rejected, withdrawn, skipped, ghosted): just a count, and list them only if they ask.
 
 On Mac or Linux (or Windows with Git Bash), `bash .claude/hooks/summary.sh long` prints the same counts; use it as a cross-check if it runs.
 
@@ -27,10 +27,10 @@ When the user says what happened, change only that job's row. Check its current 
 |---|---|
 | "I applied to X" (today, yesterday, a date), row `interested` or `skipped` | `status=applied`, `date_applied` = the real date, `next_action=Follow up`, `next_action_date` = 7 business days after applying, `followups=0` |
 | "They called / recruiter screen set" | `status=screening`, next step and date from what they said |
-| "Interview scheduled for <date>" | `status=interviewing`, `next_action=Interview <date>`, `next_action_date` = that date; offer `interview-prep` |
-| "Got an offer" | `status=offer`; put the response deadline in `deadline` and the next step "Respond to offer", due 3 days before that deadline (today if sooner); offer the `offer` skill |
+| "Interview scheduled for <date>" | `status=interviewing`, `next_action=Interview <date>`, `next_action_date` = that date; if the row already has a booked interview or `Take-home due <date>`, keep the earlier one as the next step and put the other at the start of `notes` as `Also: Interview YYYY-MM-DD` / `Also: Take-home due YYYY-MM-DD`; offer `interview-prep` |
+| "Got an offer" | Whatever the old next step was: `status=offer`, `next_action=Respond to offer`, and ask for the answer-by date. Put it in `deadline` (replacing any old application deadline) with `next_action_date` 3 days before it (today if sooner); until they know it, `next_action_date` = today. Offer the `offer` skill |
 | "Rejected" / "I withdrew" / "not applying" / "never heard back, give up" | `rejected` / `withdrawn` / `skipped` / `ghosted`; clear `next_action` and `next_action_date` |
-| "Did the next step" | set `next_action` to the real next step if they know it, otherwise "Decide next step" due today; an open job always keeps a next step |
+| "Did the next step" | if `notes` start with an `Also:` item, that becomes the next step (with its date) and the token is removed; otherwise set `next_action` to the real next step if they know it, or "Decide next step" due today; an open job always keeps a next step |
 | "Push it back a week" | move `next_action_date` 7 days later |
 | "I accepted!" | `status=accepted`; clear `next_action` and `next_action_date`; congratulate them, then offer the "Closing the search" wrap-up in the `offer` skill |
 

@@ -83,6 +83,8 @@
   .num { font-variant-numeric: lining-nums tabular-nums; }
   :focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
   .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+  /* Hidden stays hidden even when the styling script can't load (offline). */
+  [hidden] { display: none !important; }
   @media (prefers-reduced-motion: no-preference) {
     .btn { transition-property: scale, background-color, box-shadow, color; transition-duration: 150ms; transition-timing-function: ease-out; }
     .btn:active:not(:disabled) { scale: 0.96; }
@@ -164,8 +166,10 @@
   }
 </style>
 
-<!-- The assistant regenerates this from profile/story-bank.md and knowledge/field/field-primer.md (and job-specific prep).
-     Write every "<" inside it as < (JSON.stringify(data).replace(/</g, '\\u003c')), so no text can end this block early. -->
+<!-- The assistant regenerates this from profile/story-bank.md and knowledge/field/field-primer.md (and job-specific prep):
+     one card per story. Example cards have ids starting "example-"; the user's own cards never reuse those ids,
+     so practice on an example card never carries over to a real one.
+     Write every "<" inside it as \u003c (JSON.stringify(data).replace(/</g, '\\u003c')), so no text can end this block early. -->
 <script type="application/json" id="data">
 {
   "generated": "2026-10-06",
@@ -176,25 +180,25 @@
       "name": "My stories",
       "cards": [
         {
-          "id": "tell-me-about-yourself",
+          "id": "example-tell-me-about-yourself",
           "q": "Tell me about yourself.",
           "a": "Example card. Ask your assistant to refresh your flashcards and this deck fills with your own stories.\nPresent: what you do now and one result you're proud of.\nPast: the experience that got you here.\nFuture: the kind of role you want next and why this one.\nKeep it to about 90 seconds.",
           "tag": "Pitch"
         },
         {
-          "id": "solved-a-hard-problem",
+          "id": "example-solved-a-hard-problem",
           "q": "Tell me about a time you solved a hard problem.",
           "a": "Example card.\nS: The situation, in one sentence.\nT: What you were responsible for.\nA: What you did, step by step (say \"I\", not \"we\").\nR: The result, with a number if you have one, and what you learned.",
           "tag": "Example"
         },
         {
-          "id": "disagreed-with-someone",
+          "id": "example-disagreed-with-someone",
           "q": "Tell me about a time you disagreed with someone at work.",
           "a": "Example card.\nPick a real, low-drama disagreement.\nShow that you listened, used facts, and kept the relationship.\nEnd on the outcome and what you would do the same next time.",
           "tag": "Example"
         },
         {
-          "id": "why-this-job",
+          "id": "example-why-this-job",
           "q": "Why do you want this job?",
           "a": "Example card.\nOne specific thing about the company (a product, a team, a recent announcement).\nOne way the role matches what you have done.\nOne way it moves you toward where you want to go.",
           "tag": "Example"
@@ -206,13 +210,13 @@
       "name": "Field basics",
       "cards": [
         {
-          "id": "questions-to-ask",
+          "id": "example-questions-to-ask",
           "q": "What questions should you ask the interviewer?",
           "a": "Example card. Ask your assistant to build your field primer and this deck fills with technical questions for your field.\nGood ones: What does success look like in the first 90 days? What is the team working on right now? What do people who do well here have in common?",
           "tag": "Example"
         },
         {
-          "id": "greatest-weakness",
+          "id": "example-greatest-weakness",
           "q": "What is your greatest weakness?",
           "a": "Example card.\nName a real, non-critical weakness.\nSay what you are doing about it, with a concrete step.\nShow progress since you started working on it.",
           "tag": "Example"
@@ -253,7 +257,7 @@
         <h2 class="qa font-serif text-[clamp(1.375rem,3.2vw,1.875rem)] font-medium" id="q"></h2>
         <p class="mt-auto text-small text-fg-muted">Say your answer out loud, then tap the card or press Space.</p>
       </section>
-      <section class="face back" aria-label="Your notes">
+      <section class="face back" aria-label="Your notes" inert aria-hidden="true">
         <div class="head"><span class="label">Your notes</span><span class="font-mono text-label text-fg-muted truncate max-w-[60%]" id="q-small"></span></div>
         <p class="qa whitespace-pre-line text-body max-w-[36rem]" id="a"></p>
         <p class="mt-auto pt-2 text-small text-fg-muted">How did it go? Rate it below, or swipe right for Good and left for Again.</p>
@@ -287,7 +291,7 @@
     <div class="flex gap-3" id="nav"><button class="btn" id="prev" type="button">Previous card</button><button class="btn" id="next" type="button">Next card</button></div>
     <div class="flex gap-3"><button class="btn" id="shuffle" type="button">Shuffle deck</button><button class="btn" id="clear" type="button">Reset progress…</button></div>
   </div>
-  <div class="hidden flex-wrap items-center gap-3 rounded-(--radius-md) bg-accent-wash px-4 py-3 text-small" id="confirm-clear">
+  <div hidden class="flex flex-wrap items-center gap-3 rounded-(--radius-md) bg-accent-wash px-4 py-3 text-small" id="confirm-clear">
     <span>Reset your review history for this deck? Every card goes back to new.</span>
     <button class="btn" id="clear-yes" type="button">Reset progress</button>
     <button class="btn" id="clear-no" type="button">Keep progress</button>
@@ -437,6 +441,10 @@
   function setFlipped(v) {
     flipped = v;
     card.classList.toggle('flipped', v);
+    // Only the face showing can be read or focused; screen readers don't hear the notes before the flip.
+    const front = card.querySelector('.face.front'), back = card.querySelector('.face.back');
+    front.inert = v; back.inert = !v;
+    front.setAttribute('aria-hidden', String(v)); back.setAttribute('aria-hidden', String(!v));
     $('flip').textContent = v ? 'Show the question' : 'Show my notes';
     $('rate-wrap').hidden = !v;
     pending = null;
@@ -544,11 +552,11 @@
     for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
     pos = 0; show(true, 'Deck shuffled.');
   };
-  $('clear').onclick = () => { $('confirm-clear').classList.replace('hidden', 'flex'); $('clear-no').focus(); };
-  $('clear-no').onclick = () => { $('confirm-clear').classList.replace('flex', 'hidden'); $('clear').focus(); };
+  $('clear').onclick = () => { $('confirm-clear').hidden = false; $('clear-no').focus(); };
+  $('clear-no').onclick = () => { $('confirm-clear').hidden = true; $('clear').focus(); };
   $('clear-yes').onclick = () => {
     deck.cards.forEach(c => delete store.cards[keyOf(deck, c)]); save();
-    $('confirm-clear').classList.replace('flex', 'hidden'); $('hint').textContent = '';
+    $('confirm-clear').hidden = true; $('hint').textContent = '';
     rebuild(); show(false, 'Progress reset.'); $('clear').focus();
   };
 

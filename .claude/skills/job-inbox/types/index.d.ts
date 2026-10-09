@@ -27,6 +27,8 @@ export type Inbox = {
   saved: Lead[]
   counts: Record<string, number>
   hasFile: boolean
+  // What's wrong with leads.csv ('' when it reads cleanly); nothing is saved while it is set.
+  problem: string
 }
 
 export type Notice = { text: string; isError: boolean; undoId: string; undoStatus: string }
@@ -36,6 +38,6 @@ export type Decision = { id: string; label: string; status: string; reason: stri
 
 declare module 'claude-code' {
   interface PluginState {
-    'job-inbox': { inbox: Inbox | null; asking: string; notice: Notice; pending: Decision[] }
+    'job-inbox': { inbox: Inbox | null; asking: string; notice: Notice; pending: Decision[]; showAll: boolean }
   }
 }

@@ -1,7 +1,9 @@
 # Windows version of reset.sh: wipes the user's personal job-search data (every user-owned path in
-# DATA_CONTRACT.md), then puts the blank starting files back by running the first-run script
-# (.claude\skills\start\scripts\init-data.ps1, which copies templates\blank\). Tools, skills, settings,
-# the playbook and templates are kept.
+# DATA_CONTRACT.md) and the local-only leftovers (.backup\ update copies, *.local edited app files set aside by
+# updates, .claude\settings.local.json, .claude\.health\), then puts the blank starting files back by running the
+# first-run script (.claude\skills\start\scripts\init-data.ps1, which copies templates\blank\). Afterwards the
+# folder matches a fresh download after its first run. The app's own files (skills, settings, playbook,
+# templates\) are kept. Refuses while an Office lock file (~$...) shows a file is open in Excel or Word.
 # Usage:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File .claude\skills\my-data\scripts\reset.ps1 -DryRun      list what would change; changes nothing
 #   powershell -NoProfile -ExecutionPolicy Bypass -File .claude\skills\my-data\scripts\reset.ps1 -YesDelete   do it (only after the user typed the confirm phrase)
@@ -65,6 +67,33 @@ foreach ($d in $checkDirs) {
     Fail "$($d.Replace('\', '/')) is a link to another folder; reset only works on real folders (nothing was changed)"
   }
 }
+# Walk the workspace without following links or going into .git (and, when $skip is given, the personal folders).
+function Get-WorkspaceFiles([string]$pattern, [string[]]$skip) {
+  $found = New-Object System.Collections.Generic.List[string]
+  $stack = New-Object System.Collections.Generic.Stack[string]
+  $stack.Push($Root)
+  while ($stack.Count -gt 0) {
+    $dir = $stack.Pop()
+    foreach ($c in @(Get-ChildItem -LiteralPath $dir -Force -ErrorAction Stop)) {
+      $rel = $c.FullName.Substring($Root.Length + 1).Replace('\', '/')
+      if ($c.PSIsContainer -and -not (Test-Link $c)) {
+        if ($rel -eq '.git' -or ($skip -contains $rel)) { continue }
+        $stack.Push($c.FullName)
+      }
+      if ($c.Name -like $pattern -and ((-not $c.PSIsContainer) -or (Test-Link $c))) { $found.Add($rel) }
+    }
+  }
+  return @($found | Sort-Object { $_ } -CaseSensitive)
+}
+# Excel and Word leave a ~$<name> lock file next to a file while it's open. Deleting the tracker under an open
+# Excel would let Excel save its copy back later, so stop until it's closed.
+try { $locks = @(Get-WorkspaceFiles '~$*' @()) } catch { Fail "could not check for open files (nothing was changed)" }
+$lockNote = $false
+if ($locks.Count -gt 0) {
+  foreach ($l in $locks) { Write-Output "open: $l" }
+  if ($dry) { $lockNote = $true }
+  else { Fail "a file is open in Excel or Word (see the open: lines; each ~`$ file is its lock). Close it, then run the reset again. If Excel and Word aren't running, the lock file is a leftover and can be deleted. (nothing was changed)" }
+}
 
 $script:nDel = 0
 # Not named "Del": PowerShell runs its built-in del alias (Remove-Item) before a function of that name.
@@ -104,6 +133,13 @@ try {
   ClearDir 'history' @()
   ClearDir 'pages' @('README.md')
   Remove-Entry (Join-Path $Root 'knowledge\field')
+  # Local-only leftovers (never part of the app's download): update backups, edited app files set aside by an
+  # update, local settings and the health marker. Personal folders are already handled above.
+  Remove-Entry (Join-Path $Root '.backup')
+  Remove-Entry (Join-Path $Root '.claude\settings.local.json')
+  Remove-Entry (Join-Path $Root '.claude\.health')
+  $personal = @('.backup', 'profile', 'jobs', 'contacts', 'outbox', 'interviews', 'history', 'imports', 'pages', 'knowledge/field')
+  foreach ($l in @(Get-WorkspaceFiles '*.local' $personal)) { Remove-Entry (Join-Path $Root $l) }
 
   # 2. Put the blank starter files back (the same first-run script the session-start hook uses).
   $nReset = $BlankFiles.Count
@@ -129,6 +165,7 @@ try {
 
 if ($dry) {
   Write-Output "would delete: $($script:nDel) item(s); would reset: $nReset file(s)"
+  if ($lockNote) { Write-Output 'note: the real reset will refuse until the open: files above are closed' }
   Write-Output "reset: dry-run (nothing changed)"
   exit 0
 }

@@ -60,7 +60,7 @@ Leave out the pay question unless the task is long or looks like real work; it's
 
 ## 7. Tracking
 
-When a take-home arrives, re-read `jobs/tracker.csv` and set that job's row: `next_action` = `Take-home due <YYYY-MM-DD>` (the real due date) and `next_action_date` = the day the user should start (by default two days before the due date, or today if it's due sooner). Leave `status` as it is (it's usually `screening` or `interviewing` already; if it's still `applied`, set `screening`). Log one line in `history/activity.md`. After the user submits, set `next_action` = `Wait for decision` (or `Interview <date>` if a review meeting is booked) with a follow-up date per the playbook.
+When a take-home arrives, re-read `jobs/tracker.csv` and set that job's row: `next_action` = `Take-home due <YYYY-MM-DD>` (the real due date) and `next_action_date` = the day the user should start (by default two days before the due date, or today if it's due sooner). Leave `status` as it is (it's usually `screening` or `interviewing` already; if it's still `applied`, set `screening`). If the row already holds a booked `Interview <date>`, don't hide it: keep whichever comes first (the interview date or the take-home's due date) in `next_action`, and put the other at the very start of `notes` as `Also: Interview YYYY-MM-DD` or `Also: Take-home due YYYY-MM-DD` (then `; ` and the existing notes). Log one line in `history/activity.md`. After the user submits, set `next_action` = the `Also:` item if there is one (and delete the token), otherwise `Wait for decision` (or `Interview <date>` if a review meeting is booked) with a follow-up date per the playbook.
 
 ## Sources
 

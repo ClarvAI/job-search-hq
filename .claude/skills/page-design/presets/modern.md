@@ -6,7 +6,7 @@ Precomputed and contrast-checked by `scripts/apply-theme.mjs --build-presets` (e
 
 Fonts: Inter (headings), Inter (text), JetBrains Mono (labels and numbers). Text size 100%, comfortable spacing, 12px corners, motion full.
 
-## 1. Fonts line (every page, and templates/resume-designed-template.html)
+## 1. Fonts line (every page, and the designed resume template)
 
 Replace the line that starts `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?` (or `href="data:text/css,`) with:
 
@@ -89,9 +89,9 @@ Replace everything from the line starting `  /* ---- Design tokens` through the 
   /* ---- End design tokens ---- */
 ```
 
-## 3. Designed resume block (templates/resume-designed-template.html)
+## 3. Designed resume block (profile/templates/resume-designed-template.html)
 
-Replace everything from `  /* ---- Designed resume theme` through `  /* ---- End designed resume theme ---- */` with the block below. It uses Letter paper and standard spacing; for A4, change `size: Letter` to `size: A4`.
+The user's copy of the designed resume template lives in `profile/templates/`; if it isn't there yet, copy `templates/resume-designed-template.html` there first (never edit the app's copy in `templates/`). Replace everything from `  /* ---- Designed resume theme` through `  /* ---- End designed resume theme ---- */` with the block below. It uses Letter paper and standard spacing; for A4, change `size: Letter` to `size: A4`.
 
 ```css
   /* ---- Designed resume theme (generated from profile/design.md; see .claude/skills/page-design/SKILL.md) ---- */
@@ -105,3 +105,50 @@ Replace everything from `  /* ---- Designed resume theme` through `  /* ---- End
   @page { size: Letter; margin: 0.5in 0.55in; }
   /* ---- End designed resume theme ---- */
 ```
+
+## 4. Documents block (resume and cover letter; the same for every preset)
+
+The ATS resume and cover letter take their look from the `documents` block of `profile/design.md`, not from the preset. Their themed copies live in `profile/templates/` (`resume-template.html`, `cover-letter-template.html`); if a copy isn't there yet, copy it from `templates/` first, and never edit the app's copies in `templates/`. Replace everything from `  /* ---- Document theme` through `  /* ---- End document theme ---- */` with the block below, then change its values to match the documents block, using the tables. The default (Arial, near-black, standard, Letter) for the resume:
+
+```css
+  /* ---- Document theme (generated from profile/design.md; see .claude/skills/page-design/SKILL.md) ---- */
+  :root { --doc-font: Arial, Helvetica, "Liberation Sans", sans-serif; --doc-accent: #111111; --doc-size: 10.5pt; --doc-leading: 1.2; }
+  @page { size: Letter; margin: 0.5in 0.6in; }
+  /* ---- End document theme ---- */
+```
+
+and for the cover letter:
+
+```css
+  /* ---- Document theme (generated from profile/design.md; see .claude/skills/page-design/SKILL.md) ---- */
+  :root { --doc-font: Arial, Helvetica, "Liberation Sans", sans-serif; --doc-accent: #111111; --doc-size: 11pt; --doc-leading: 1.45; }
+  @page { size: Letter; margin: 0.9in 1in; }
+  /* ---- End document theme ---- */
+```
+
+- `--doc-font`: the stack for the chosen font. Fonts with an `@import` line also need that line right after the block's first comment line (as the generator writes it); fonts without one have no `@import` line.
+
+| Font | --doc-font | @import line |
+|---|---|---|
+| Arial | `Arial, Helvetica, "Liberation Sans", sans-serif` | none |
+| Helvetica | `Helvetica, Arial, "Liberation Sans", sans-serif` | none |
+| Calibri | `Calibri, Carlito, Arial, sans-serif` | none |
+| Cambria | `Cambria, Caladea, Georgia, serif` | none |
+| Georgia | `Georgia, "Times New Roman", serif` | none |
+| Times New Roman | `"Times New Roman", Times, "Liberation Serif", serif` | none |
+| Garamond | `"EB Garamond", Garamond, Georgia, serif` | `@import url("https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..700;1,400..700&display=swap");` |
+| Lato | `Lato, Arial, sans-serif` | `@import url("https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;1,400&display=swap");` |
+| Source Sans 3 | `"Source Sans 3", Arial, sans-serif` | `@import url("https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400..700;1,400..700&display=swap");` |
+| Roboto | `Roboto, Arial, sans-serif` | `@import url("https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400..700;1,400..700&display=swap");` |
+| Open Sans | `"Open Sans", Arial, sans-serif` | `@import url("https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400..700;1,400..700&display=swap");` |
+
+- `--doc-size` / `--doc-leading` / `@page` margin by density:
+
+| Density | Resume (size / leading / margin) | Cover letter (size / leading / margin) |
+|---|---|---|
+| compact | 10pt / 1.2 / 0.45in 0.55in | 10.5pt / 1.4 / 0.75in 0.9in |
+| standard | 10.5pt / 1.2 / 0.5in 0.6in | 11pt / 1.45 / 0.9in 1in |
+| roomy | 11pt / 1.25 / 0.6in 0.7in | 11.5pt / 1.5 / 1in 1.1in |
+
+- `@page` `size:` is `Letter` or `A4` (the documents block's `paper`).
+- `--doc-accent`: `#111111`, or a color from "Safe document accents" in `references/importing-a-design-system.md` (already measured on white). Without Node, never use another color here.

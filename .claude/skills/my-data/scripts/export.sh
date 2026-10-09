@@ -56,8 +56,8 @@ for d in $dirs; do
 done
 # Links (shortcuts) point outside the backup; leave them out rather than copy whatever they point to.
 find "$stage" -type l | while IFS= read -r l; do echo "skipped link: ${l#"$stage"/}"; rm -f "$l"; done
-# Leave out throwaway files: publish copies, page-count PDFs, OS clutter.
-rm -rf "$stage/pages/.publish"
+# Leave out throwaway files: publish copies, theme previews, page-count PDFs, OS clutter.
+rm -rf "$stage/pages/.publish" "$stage/pages/.preview"
 find "$stage" \( -name '*.check.pdf' -o -name '.DS_Store' -o -name 'Thumbs.db' -o -name '~$*' \) -exec rm -f {} + 2>/dev/null
 if [ -f "$ROOT/profile/resume.json" ] && [ ! -L "$ROOT/profile/resume.json" ]; then
   cp "$ROOT/profile/resume.json" "$stage/resume.json" || die "could not copy profile/resume.json (nothing was saved)"

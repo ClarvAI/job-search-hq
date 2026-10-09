@@ -8,6 +8,9 @@ export type Job = {
   folder: string
   location: string
   deadline: string
+  // A second dated commitment from "Also: <what> <date>" at the start of the notes ('' when none).
+  also: string
+  alsoDate: string
 }
 
 export type Summary = {
@@ -18,12 +21,14 @@ export type Summary = {
   counts: Record<string, number>
   drafts: number
   isClosed: boolean
+  // What's wrong with the tracker file ('' when it reads cleanly); nothing is saved while it is set.
+  problem: string
 }
 
 export type Notice = { text: string; isError: boolean }
 
 declare module 'claude-code' {
   interface PluginState {
-    pipeline: { summary: Summary | null; isHidden: boolean; editing: string; showClosed: boolean; notice: Notice }
+    pipeline: { summary: Summary | null; isHidden: boolean; editing: string; showClosed: boolean; notice: Notice; showAll: boolean }
   }
 }

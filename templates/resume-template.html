@@ -1,10 +1,14 @@
 <!doctype html>
 <!--
-  ATS-friendly resume template.
-  Assistant: copy this file to jobs/<folder>/resume.html and replace the content
-  inside <main>. Keep: one column, standard headings, real text (no images,
-  tables or icons), one page by default (two where the job's country or the
-  user's seniority expects it; see tailor-resume). After the checks, make the PDF with
+  ATS-friendly resume template (the app's copy, always on the default look).
+  Assistant: if profile/templates/resume-template.html exists, start from that
+  copy instead (it carries the user's look); never edit this file. Copy it to
+  jobs/<folder>/resume.html and replace everything between the opening and
+  closing main tags. Set the lang attribute of the html element to the
+  resume's language (for example de). Keep: one column, standard headings,
+  real text (no images, tables or icons), one page by default (two where the
+  job's country or the user's seniority expects it; see tailor-resume).
+  After the checks, make the PDF with
   .claude/skills/tailor-resume/scripts/make-pdf.sh (Windows without bash: make-pdf.ps1);
   paper size comes from @page below.
   Fallback: the user opens it in a browser and uses Print -> Save as PDF

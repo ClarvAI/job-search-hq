@@ -34,7 +34,7 @@ is_protected() {
     interviews/.gitkeep|outbox/sent/.gitkeep|outbox/discarded/.gitkeep) return 1 ;;
     profile/*|jobs/*|contacts/*|outbox/*|interviews/*|history/*|imports/*|pages/*|knowledge/field/*) return 0 ;;
     .git/*|.backup/*|.claude/.health/*|.claude/settings.local.json|*.local|product-manifest.json) return 0 ;;
-    .ds_store|*/.ds_store|thumbs.db|*/thumbs.db|\~\$*|*/\~\$*|*.check.pdf) return 0 ;;
+    .ds_store|*/.ds_store|thumbs.db|*/thumbs.db|\~\$*|*/\~\$*|*.check.pdf|*-check.pdf) return 0 ;;
   esac
   return 1
 }
@@ -61,6 +61,8 @@ trap 'rm -f "$tmp"' EXIT
   printf '  "version": "%s",\n' "$(jstr "$ver")"
   printf '  "update_source": "%s",\n' "$(jstr "$src")"
   echo '  "hash": "sha256 of the file with carriage returns removed",'
+  # "themed": app templates a user may have a themed copy of in profile/templates/ (D1: the app copies stay on the
+  # Default look); /update rebuilds that copy when one of these changes.
   echo '  "themed": ['
   echo '    "templates/cover-letter-template.html",'
   echo '    "templates/resume-designed-template.html",'

