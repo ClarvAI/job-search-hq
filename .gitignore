@@ -1,17 +1,41 @@
+# ---- Your own data: never part of the app's repository, never touched by updates (see DATA_CONTRACT.md) ----
+# The blank starting copies live in templates/blank/ and are copied into place on the first run.
+/profile/*
+!/profile/README.md
+/jobs/*
+!/jobs/README.md
+/contacts/*
+!/contacts/README.md
+/outbox/*
+!/outbox/sent/
+!/outbox/discarded/
+/outbox/sent/*
+!/outbox/sent/.gitkeep
+/outbox/discarded/*
+!/outbox/discarded/.gitkeep
+/interviews/*
+!/interviews/.gitkeep
+/history/
 # Personal files you drop in (resume, LinkedIn export with other people's data, offer PDFs)
-imports/*
-!imports/README.md
+/imports/*
+!/imports/README.md
+/pages/*
+!/pages/README.md
+/knowledge/field/
 
-# Local-only Claude settings
+# ---- Update leftovers ----
+# Copies of app files replaced by an update (for rollback), and your edited versions kept aside
+/.backup/
+*.local
+
+# ---- Local-only app state ----
 .claude/settings.local.json
+.claude/.health/
 
 # OS and Office clutter (Excel leaves ~$tracker.csv lock files while a file is open)
 .DS_Store
 Thumbs.db
 ~$*
-
-# Publish copies of pages (made fresh each time)
-pages/.publish/
 
 # Page-count check PDFs
 *.check.pdf

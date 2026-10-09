@@ -17,6 +17,7 @@ Read `profile/voice.md` first (how the user sounds, rules, banned words, and the
 - Vary sentence length naturally; contractions are fine unless voice.md says otherwise.
 - Keep all facts exactly as written. Do not add new claims.
 - If the user's samples exist, match their tone (formality, sentence length, sign-off).
+- **Another language:** keep the user's voice (plain, specific, their real results) but use that language's formal register for applications: German "Sie" and "Mit freundlichen Grüßen", French "vous" and a formal closing formula, Spanish "usted", Dutch "u" in a first letter; Nordic first names and "du" are normal. The AI-tell rules apply in every language; don't carry over English idioms, contractions or sentence shapes. Don't change any fact, number format or title while editing. Conventions: `.claude/skills/cover-letter/references/languages-and-countries.md` §4. If you can't judge the language's register confidently, say so in your note.
 - **Resumes** are not prose: only fix stock verbs, bullets that all open the same way, filler and AI tells in the bullets and summary. Keep every fact, number, title, date, heading and the posting's keywords; don't cut bullets for length (the page check handles that) and don't add contractions.
 
 Return: the edited text and a 1–2 line note of what you changed.

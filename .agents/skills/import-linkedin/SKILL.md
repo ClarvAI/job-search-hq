@@ -13,4 +13,4 @@ It was written with Claude Code's names; translate them with the table in AGENTS
 
 ## Codex notes
 
-- Unzipping: Mac/Linux/Git Bash `unzip -o <zip> -d imports/linkedin`; Windows PowerShell `Expand-Archive <zip> imports\linkedin -Force`.
+- Unzipping: Mac/Linux/Git Bash exactly `unzip -n imports/<file>.zip -d imports/<file-name-without-.zip>`; Windows PowerShell `Expand-Archive imports\<file>.zip imports\<file-name-without-.zip>` (no `-Force`, so nothing is overwritten). Ask before any other form.

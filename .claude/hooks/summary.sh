@@ -19,7 +19,7 @@ DRAFTS="$(awk -v bom="$BOM" '
 [ -n "$DRAFTS" ] || DRAFTS=0
 
 if grep -q '^search_status: closed' profile/preferences.md 2>/dev/null; then echo "search closed. Congratulations!"; exit 0; fi
-if grep -q '^SETUP: not done' profile/preferences.md 2>/dev/null && [ "$MODE" = "short" ]; then echo "not set up yet (type /start)"; exit 0; fi
+if { [ ! -f profile/preferences.md ] || grep -q '^SETUP: not done' profile/preferences.md 2>/dev/null; } && [ "$MODE" = "short" ]; then echo "not set up yet (type /start)"; exit 0; fi
 [ -f jobs/tracker.csv ] || { echo "no tracker"; exit 0; }
 LC_ALL=C tr '\r' '\n' < jobs/tracker.csv | LC_ALL=C awk -v today="$TODAY" -v soon="$SOON" -v mode="$MODE" -v drafts="$DRAFTS" -v bom="$BOM" '
 # Excel may save dates with slashes, in the order set by the region of the computer. Only an order that can

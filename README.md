@@ -6,7 +6,7 @@ Works for any field and any stage: students, new grads, experienced professional
 
 **Before setup:** put your current resume (PDF, Word or text) in the `imports` folder. Setup reads it and turns it into your master resume. No resume yet? Setup can build one from a short conversation. Before adding any file, remove your date of birth, ID or passport numbers, bank details and passwords if it has them: the assistant won't keep them, and whatever it reads is sent to the AI company running it.
 
-> **Keep it private.** This folder will hold your resume, your contacts' details, references and offer terms. If you back it up with git, use a **private** repository only, never a public fork. To have git stop ordinary pushes to a public GitHub repository, run this once in the folder: `git config core.hooksPath .githooks` (setup offers to do it for you). It's a safety net, not a lock: it doesn't cover other sites or uploads made some other way, so keeping the repository private is still up to you.
+> **Keep it private.** This folder will hold your resume, your contacts' details, references and offer terms. Those files are never part of the app's download or its git history, so back them up with `/my-data` (a dated zip), not git. If you ever do put this folder in git, use a **private** repository only, never a public fork. As a safety net, run this once in the folder: `git config core.hooksPath .githooks` (setup offers to do it for you), and git stops ordinary pushes to a public GitHub repository. It's not a lock: it doesn't cover other sites or uploads made some other way.
 
 ---
 
@@ -18,7 +18,7 @@ Using only one app? Follow just its section below.
 
 ### With Claude (adds panels and read-aloud interviews in recent versions)
 
-**You need:** a Claude subscription (Pro works; Max if you'll use it a lot) and the **Claude desktop app** (claude.ai/download), updated to the latest version. **Windows only:** first install **Git for Windows** (git-scm.com/download/win; click Next through every screen), then restart. Claude needs it to run this folder's safety checks.
+**You need:** a paid Claude plan (Pro works; see [Cost and plans](#cost-and-plans)) and the **Claude desktop app** (claude.ai/download), updated to the latest version. **Windows only:** first install **Git for Windows** (git-scm.com/download/win; click Next through every screen), then restart. Claude needs it to run this folder's safety checks.
 
 1. Open the Claude desktop app → **Code** tab → choose **Local** (not Cloud) → **Open folder** → pick this folder.
 2. If Claude asks whether you trust this folder, click **Trust**. That turns on the safety rules and the daily greeting.
@@ -30,7 +30,7 @@ Using only one app? Follow just its section below.
 
 ### With Codex (ChatGPT)
 
-**You need:** a ChatGPT plan that includes Codex, and the **Codex app**, updated to the latest version. Install it from OpenAI's [Codex quickstart](https://developers.openai.com/codex/quickstart) (pick Mac or Windows) and sign in with your ChatGPT account. On Windows the safety scripts run with PowerShell, so you don't need Git Bash for Codex.
+**You need:** a ChatGPT account (Codex is included in ChatGPT plans; Plus or higher recommended, see [Cost and plans](#cost-and-plans)), and the **Codex app**, updated to the latest version. Install it from OpenAI's [Codex quickstart](https://developers.openai.com/codex/quickstart) (pick Mac or Windows) and sign in with your ChatGPT account. On Windows the safety scripts run with PowerShell, so you don't need Git Bash for Codex.
 
 1. Open Codex and open this folder as your project.
 
@@ -73,10 +73,18 @@ Just type what you want in plain English ("find me operations analyst jobs near 
 | `/sync-inbox` | Reads job emails in Gmail and updates your tracker |
 | `/weekly-review` | How it's going and what to change |
 | `/career-fair` | Game plan for a career fair, then follow-ups |
+| `/laid-off` | Lost your job? A dated first-week list (unemployment, health coverage, severance) and drafts to ask colleagues for references |
+| `/work-search-log` | Claiming unemployment? Keeps the weekly record your state or Universal Credit asks for, in their order; you enter it yourself |
 | `/my-data` | Back up everything, wrap up or pause your search, or start over |
 | `/pages` | Your dashboard, flashcards, portfolio website, printable interview brief, opened in your browser (in Claude sessions that can publish pages, "publish my flashcards" also gives you a private link for your phone) |
 | `/tour` | A hands-on walkthrough of how everything works |
+| `/health` | Checks that everything is set up and working, changes nothing, and tells you the one thing to fix first |
+| `/update` | Installs a new version of the app (see [Updating](#updating)) |
 | `/menu` | Everything above |
+
+Also built in: applications in other languages with each country's conventions, two-page federal resumes for USAJOBS, and help with take-home assignments and interview accommodation requests (just ask).
+
+If your visa depends on having a job, `/today` can count the days left.
 
 ### Panels (Claude only)
 
@@ -126,21 +134,61 @@ Want the assistant to fill out application forms for you, or Claude's Outbox to 
 | `outbox/` | Message drafts (sent ones move to `outbox/sent/`, discarded ones to `outbox/discarded/`) |
 | `history/` | `activity.md`: what either app changed recently |
 | `interviews/` | Mock interview scorecards, real interview debriefs, weekly reviews |
-| `knowledge/` | Job-search playbook, interview questions, and a field pack built for you during setup (field primer, resume keywords, target employers) |
-| `pages/` | Visual pages you open in your browser: dashboard, flashcards, portfolio site, interview brief |
+| `knowledge/` | The job-search playbook and interview question bank (part of the app), and `knowledge/field/`: your field pack built during setup (field primer, resume keywords, target employers, role-specific questions) |
+| `pages/` | Visual pages you open in your browser: dashboard, flashcards, portfolio site, interview brief (your own copies, made from `templates/blank/pages/` the first time you open the folder) |
 | `imports/` | Drop files here for the assistant (your resume, LinkedIn export, offer letters) |
+| `templates/blank/` | Blank starting copies of your files; the first time you open the folder they're copied into place, never over anything you have |
+| `VERSION`, `CHANGELOG.md` | Which version of the app you have, and what changed in each version |
+| `DATA_CONTRACT.md` | Which files are yours (never shipped, never changed by an update) and which belong to the app |
 
-Keep a backup: say "back up my stuff" (`/my-data`) for a dated zip of everything, and keep a copy somewhere other than this computer. Or ask the assistant to set up git for you (private repository only).
+Keep a backup: say "back up my stuff" (`/my-data`) for a dated zip of everything, and keep a copy somewhere other than this computer. Your own files are never part of the app's download or its git history, so that zip is your backup.
+
+---
+
+## Updating
+
+To get a new version, download the release zip and say "update" (`/update` in Claude, `$update` in Codex). Only the app's files change; your profile, jobs, contacts, drafts, notes and pages are never touched. If you'd edited one of the app's files, your version is kept next to it as `<file>.local`, and "undo the update" rolls back. In Codex, re-approve the safety hooks (`/hooks`) if the update says they changed.
+
+---
+
+## Cost and plans
+
+- **Claude:** Claude Code needs a paid Claude plan: Pro, Max, Team or Enterprise (the free plan doesn't include it). Its usage comes out of the same allowance as your Claude chats.
+- **Codex:** Codex is included in ChatGPT plans. Free and Go have tight limits; Plus or higher is recommended. You can also use an OpenAI API key and pay per use.
+- **What uses the most:** `/start`, `/add-job` on a good-fit job (it builds the whole application), `/find-jobs`, `/interview-prep`, and long mock interviews. Lightest: `/today` and the panels. On Pro or Plus, do one or two big jobs per session.
+- **Which model:** in Claude, the everyday Sonnet model is fine for most work; switch to Opus (the strongest model) for resumes, cover letters and interview prep if your plan allows. In Codex, the app's default model is fine.
+
+Plans and limits change; check claude.com/pricing and OpenAI's Codex pricing page for the current details.
 
 ---
 
 ## Your privacy
 
-- Your files stay on your computer. When the assistant reads a file, its contents are sent to the company running it (Anthropic for Claude, OpenAI for Codex), the same as any chat.
-- Gmail (if you connect it) is only read for job-related mail (a rule the assistant follows). The assistant makes drafts and is told never to send, reply, forward or delete; a safety check blocks those Gmail actions when either app tries them through its connection. The connection itself has broader permissions, and the check is a backstop, not a lock. You can of course still do anything yourself in Gmail.
+Your job-search files stay in this folder on your computer. Job Search HQ has no server, no account and no telemetry. What you work on is sent to the AI provider you use (Anthropic for Claude Code, OpenAI for Codex) under that provider's terms and your plan's data settings. Gmail, Google Calendar, publishing pages, and a Dropbox/OneDrive/iCloud folder each share data with that service, and only if you turn them on. Pages load fonts and a few small libraries from public CDNs (listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)). Your data files are kept out of git; back them up with `/my-data`. Details: [DISCLAIMER.md](DISCLAIMER.md) and [SECURITY.md](SECURITY.md).
+
+- Gmail (if you connect it) is only read for job-related mail (a rule the assistant follows). The assistant makes drafts and never sends, replies, forwards or deletes (see the next section). You can of course still do anything yourself in Gmail.
 - Pages you publish (Claude only, where your session supports publishing) are private links on your claude.ai account until you choose to share them.
 - Never paste your SSN or other ID numbers, bank details, or passwords here. Be very wary of anyone asking for bank details or money before a written offer from a verified company. ID and right-to-work checks before an offer are normal in some countries; give those only through the employer's official process.
-- If you ever put this folder on GitHub, keep it private: it holds other people's contact details. Run `git config core.hooksPath .githooks` once so git stops ordinary pushes to a public GitHub repository (a safety net, not a guarantee).
+
+---
+
+## What the safety check covers
+
+Under the assistant's rules sits a safety check (a "hook") that looks at certain actions before they run, in both apps. It blocks:
+
+- sending, replying to, forwarding or deleting email through the Gmail connection;
+- inviting people to calendar events, or changing or deleting events;
+- sending an automated browser to Gmail, Outlook or LinkedIn;
+- in Claude, web addresses that look like they carry your email, phone, name or large blocks of data (a pattern check that can't catch every disguise);
+- pushing this folder to a public GitHub repository, or creating or making one public.
+
+If the check crashes or is missing, the action is blocked. What it doesn't cover:
+
+- **Claude:** it runs only after you trust the folder. It checks shell commands (including the PowerShell tool on Windows), web fetches and connections (Gmail, Calendar, the browser, computer use), but not file edits or web searches.
+- **Codex:** it runs only after you trust the hooks (`/hooks`), and again after they change, for example after an update. It doesn't check file edits or Codex's built-in web search, and some Codex tool paths skip hooks.
+- **Both:** if a check ever hangs past its time limit, the app lets the action go ahead (in practice it finishes in under a second). It sees the assistant's requests, not your screen: not clicks in a browser tab that's already open, and not everything a script does.
+
+It's a backstop. The main protection is that the assistant drafts and you send. Full details: [SECURITY.md](SECURITY.md).
 
 ---
 
@@ -156,7 +204,18 @@ Keep a backup: say "back up my stuff" (`/my-data`) for a dated zip of everything
 
 ## If something looks off
 
+- **Something not working?** Type `/health` (Codex: `$health`). It checks the folder, app version, safety checks, panels, Gmail and Calendar, and setup, changes nothing, and tells you the most important fix.
 - **No panels or summary line above the message box in Claude?** Check that you opened the top folder and clicked **Trust**. Panels need a recent version of Claude Code, so updating may help, but you don't need them: say "show my board", "show my outbox" or "mock interview" and Claude does the same things in the chat.
 - **Codex doesn't greet you with today's date and your pipeline?** Its hooks aren't on, and that also means its safety checks are off. Make sure you opened the top folder (the one with `AGENTS.md` in it, not a folder inside it), then turn hooks on: type `/hooks` in Codex, trust them, and start a new chat.
 - **The assistant asks before changing your master resume or preferences.** That's on purpose, so nothing changes your source of truth without you seeing it.
 - **Stuck?** Type "I'm lost, what should I do?" or ask for the menu.
+
+---
+
+## License and fine print
+
+- [LICENSE](LICENSE): MIT. Free to use, change and share.
+- [DISCLAIMER.md](DISCLAIMER.md): not professional advice; AI output can be wrong; you're responsible for what you send.
+- [SECURITY.md](SECURITY.md): what the safety checks do and don't cover, and how to report a problem privately.
+- [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md): fonts, libraries and other outside pieces the pages use.
+- [CONTRIBUTING.md](CONTRIBUTING.md): for people who want to improve the app itself.

@@ -15,7 +15,7 @@ function setup(on: any, csv = CSV, opts: { lock?: boolean; onRead?: (path: strin
   on('fs.write', (_$: any, e: any) => { if (opts.lock) throw new Error('EBUSY: resource busy or locked'); files[rel(e.path)] = e.text; opts.afterWrite?.(rel(e.path), files); return { value: undefined } as never })
   on('fs.list', () => ({ value: [] }) as never)
   on('ui.open', () => ({ value: { isPlaced: true } }) as never)
-  on('session.append', () => ({ value: { uuid: 'x' } }) as never)
+  on('session.append', () => ({ deny: 'recorded by the test' }) as never)  // newer test kits require next() for a value answer; a deny is ignored by the panels
   on('command.register', () => ({ value: undefined }) as never)
   return { files, time }
 }

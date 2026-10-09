@@ -9,7 +9,7 @@ Usage: `/career-fair <event name/date> or 'after' for follow-ups` (or just ask i
 
 ## Before (`$ARGUMENTS` = the event)
 1. Ask for the employer or attendee list and the date/time (the user pastes it from the event page; if the user is a student or new grad, Handshake usually shows it for campus fairs).
-2. Rank employers into **Must visit (5)**, **Good (5)**, **If time** using `profile/preferences.md`, `knowledge/target-employers.md`, and open roles (quick check of each careers page).
+2. Rank employers into **Must visit (5)**, **Good (5)**, **If time** using `profile/preferences.md`, `knowledge/field/target-employers.md`, and open roles (quick check of each careers page).
 3. Write `interviews/<date>-<event>-plan.md`:
    - Route: must-visits first (lines grow later).
    - A **30-second pitch** the user says out loud: name, who they are in one line (from preferences and the master resume: for students, school, major and graduation year; otherwise current or most recent role and years of experience), one proof point from `profile/master-resume.md` picked for that employer, what role they want, one question. Make 2–3 variants for the user's main target role types.

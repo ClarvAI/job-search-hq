@@ -4,6 +4,13 @@ try { [Console]::InputEncoding = New-Object System.Text.UTF8Encoding($false) } c
 try { [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false) } catch {}
 $null = [Console]::In.ReadToEnd()
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
+try { $hd = Join-Path $root '.claude/.health'; $null = [IO.Directory]::CreateDirectory($hd); [IO.File]::WriteAllText((Join-Path $hd 'last-session-start'), ('{0} {1}' -f [DateTimeOffset]::UtcNow.ToUnixTimeSeconds(), $App) + "`n") } catch {}
+# First run (or a file was deleted): copy any missing starter file from templates\blank\. Never overwrites.
+$init = ''
+try {
+    $initScript = Join-Path $root '.claude/skills/start/scripts/init-data.ps1'
+    if (Test-Path -LiteralPath $initScript -PathType Leaf) { $init = (@(& $initScript -Quiet 2>$null) -join "`n") }
+} catch { $init = "error: $($_.Exception.Message)" }
 $culture = [Globalization.CultureInfo]::InvariantCulture
 $today = (Get-Date).Date
 $lines = New-Object 'System.Collections.Generic.List[string]'
@@ -36,7 +43,12 @@ function Parse-Date([string]$Value) {
 $ambiguousDates = 0
 $preferences = @(Read-Lines 'profile/preferences.md')
 $lines.Add(('Today is {0} ({1}).' -f $today.ToString('dddd, MMMM dd, yyyy', $culture), $today.ToString('yyyy-MM-dd', $culture)))
-if ($preferences -cmatch '^SETUP: not done') {
+if ($init -match 'init: created (.*)') {
+    $lines.Add("Missing starter files were just set up from the blank copies ($($Matches[1])). In a new folder that's normal (first run); otherwise tell the user a personal file was missing and came back blank.")
+} elseif ($init -match 'error:') {
+    $lines.Add('Some starter files could not be set up. Tell the user, and run .claude\skills\start\scripts\init-data.ps1 to see why.')
+}
+if ($preferences.Count -eq 0 -or $preferences -cmatch '^SETUP: not done') {
     $lines.Add('The user has not finished setup. When they first write, welcome them in one or two sentences and suggest $start, or just say "set me up" (about 15 to 20 minutes).')
 }
 $tracker = Join-Path $root 'jobs/tracker.csv'

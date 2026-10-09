@@ -1,5 +1,6 @@
 {
   "name": "due-alerts",
   "version": "0.1.0",
+  "author": { "name": "Job Search HQ contributors" },
   "description": "A short heads-up when you open Claude: interviews, offer and application deadlines, follow-ups, and Gmail drafts that are due today or tomorrow."
 }

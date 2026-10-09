@@ -41,7 +41,7 @@ foreach ($path in $paths) {
         if ($p -cmatch '/jobs/tracker\.csv$' -and $published -cmatch '(?m)^\| Dashboard \| https') {
             Add-Message "The user's dashboard is published; republish it once you finish this task (see the pages skill)."
         }
-    } elseif ($p -cmatch '/(profile/story-bank\.md|knowledge/field-primer\.md)$') {
+    } elseif ($p -cmatch '/(profile/story-bank\.md|knowledge/field/field-primer\.md)$') {
         if ($published -cmatch '(?m)^\| Flashcards \| https') {
             Add-Message "The user's flashcards are published and their source changed. Refresh and republish them once you finish this task (see the pages skill)."
         }

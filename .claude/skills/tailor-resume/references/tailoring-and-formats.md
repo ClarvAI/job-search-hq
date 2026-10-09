@@ -23,7 +23,8 @@ Background for `/tailor-resume`. Researched 2026-10. Evidence is labeled; most r
 | Career changer | Summary, Experience (reverse-chronological), then Projects / Training that bridge | A **hybrid** layout (short skills summary on top of a normal work history) beats a pure skills-based "functional" resume; recruiters widely say functional resumes look like they're hiding something (opinion, consistent across recruiter sources). Re-word past bullets toward transferable results, never toward duties the user didn't do. |
 | Returning after a break | Normal reverse-chronological; the break as its own one-line entry | Example: "Career break: full-time caregiving, 2022-2024" plus any courses or volunteer work from that time. Evidence: in a 3,771-resume field experiment, applicants who explained a 7+ month gap (illness, explained in the cover letter) got more callbacks than identical applicants who didn't explain it, though still fewer than people with no gap (Blankenau, Namingit & Schwab, Kansas State); a vendor experiment (ResumeGo) found a similar direction. Employers' systems may also filter on unexplained gaps (HBS *Hidden Workers*). The user decides how much reason to give; one plain line is enough. |
 | Experienced / senior | Summary, Experience, Education at the end | Two pages is normal in the US with roughly 10+ years. Detail the last 10-15 years; older roles in a short "Earlier experience" list. Dropping old graduation years is common advice to limit age bias; a 40,000-application field experiment found age discrimination in callbacks, strongest for older women (Neumark, Burn & Button 2019). |
-| Academic, federal, medical, legal | Their own formats | A CV or a USAJOBS federal resume has different rules; look them up rather than forcing one page. |
+| Academic, medical, legal | Their own formats | An academic or medical CV has different rules; look them up rather than forcing one page. |
+| US federal (USAJOBS) | Contact, Experience, Education, optional details | **Two pages maximum** since 27 Sep 2025 (§6). The old long-form federal resume is no longer accepted. |
 
 ## 3. What actually breaks parsing
 
@@ -47,8 +48,22 @@ Applicant tracking systems (Workday, Greenhouse, iCIMS, Taleo and others) pull t
 - Many systems now summarize or rank applications with AI. What helps is the same as for a human: the posting's real terms, clear titles and dates, results stated plainly. There is no trick that beats it reliably.
 - In New York City, employers using an automated tool to screen candidates must give NYC-resident candidates notice (at least 10 business days before use) and let them ask for an alternative process or accommodation (Local Law 144). The employer doesn't have to grant it.
 
+## 6. US federal resumes (USAJOBS)
+
+**Rule (OPM, "Agency Guidance on the Two-Page Limit on Resume Length"):** the Merit Hiring Plan (May 2025) ended the long-form federal resume. Starting **27 September 2025**, USAJOBS restricts all resumes to two pages: stored profile resumes, uploads and resume-builder resumes. It applies to all Title 5 competitive and excepted service announcements. If the only resume an applicant sends is longer than two pages, they are ineligible. Older advice to write a 4-6 page federal resume is out of date; don't follow it.
+- **Exceptions:** non-Title 5, judicial and legislative branch agencies may allow longer resumes, but only if the announcement says how (an "other documents" upload). Positions needing a CV (often medical or research) may ask for it as an "other document". Follow the announcement's "How to Apply" and "Required Documents" sections exactly.
+- **What OPM tells applicants to include,** within the two pages:
+  - Contact: name, email, phone.
+  - For each relevant job: job title and employer; **series and grade** for any federal position (e.g. "GS-0343-09"); **start and end dates with month and year** (e.g. "05/2019 - 08/2022"); **hours worked per week** (e.g. "40 hours/week"). Descriptions that match the announcement and show each required qualification at the stated level.
+  - Education, certifications or licences when relevant or required: school, completion date, degree type, cumulative GPA; any required transcripts as documents.
+  - Optional where relevant: security clearance, job-related training, language skills, organisations, publications, eligibility for special hiring programs (e.g. veterans, military spouses, people with disabilities). Clearance and eligibility only as the user states them; never guess.
+- **Formatting OPM passes on through the USAJOBS Help Center** (recommendations, not rules): PDF preferred to keep page count, 5 MB or less; a sans-serif font such as Lato, Calibri, Arial or Helvetica; 0.5-inch margins; about 14 pt titles and 10 pt body text. Our template (Letter, text PDF) is fine as it is; to fit two pages, cut content rather than shrinking the type below the template's size, and run the page check.
+- **Hints from OPM:** prioritise the most relevant and recent experience, use concise result-focused language, and align wording with the announcement. Keep it two pages even if the user has many years of experience: older roles go in one line each.
+
 ## Sources
 
+- US Office of Personnel Management, "Agency Guidance on the Two-Page Limit on Resume Length" (checked 2026-10): https://www.opm.gov/policy-data-oversight/hiring-information/merit-hiring-plan-resources/agency-guidance-on-the-two-page-limit-on-resume-length
+- IRS jobs, guidance for applicants on the 2-page resume (agency example): https://jobs.irs.gov/sites/default/files/2025-12/guidance-for-applicants-on-2-page-resume%20(1).pdf
 - Greenhouse 2025 AI in Hiring Report (Nov 2025): https://www.greenhouse.com/newsroom/an-ai-trust-crisis-70-of-hiring-managers-trust-ai-to-make-faster-and-better-hiring-decisions-only-8-of-job-seekers-call-it-fair
 - Hidden prompts, ManpowerGroup ~10%: https://builtin.com/articles/hidden-ai-prompts-in-resume
 - Explained vs unexplained gap ("Sick and Tell", Blankenau, Namingit & Schwab; 3,771 resumes, 2016; registry entry, results summarized there): https://www.socialscienceregistry.org/trials/2117

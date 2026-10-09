@@ -10,7 +10,7 @@
 #   site an already-open tab shows, and it doesn't enforce coach mode; the written rules cover that.
 # - Web fetches: block addresses that carry an email address, the user's phone or name, or a
 #   large block of data. A pattern check; it can't catch every way of disguising data.
-# - Shell (Bash): never push this folder to a public GitHub repository, and never make one public.
+# - Shell (Bash, or PowerShell in Claude Code on Windows): never push this folder to a public GitHub repository, and never make one public.
 #   Every other command passes untouched, and quickly.
 #
 # Exit 0 always means "the check ran" (allow, or a deny printed as JSON). The callers in
@@ -93,13 +93,17 @@ check_shell() {
     n=${#w[@]}
     for ((i = 0; i < n; i++)); do t="${w[$i]}"; t="${t//\"/}"; t="${t//\'/}"; w[$i]="$t"; done
     [ "$n" -gt 0 ] || continue
-    if { [ "${w[0]}" = cd ] || [ "${w[0]}" = pushd ]; } && [ "$n" -ge 2 ]; then
-      case "${w[1]}" in /*|[A-Za-z]:*) dir="${w[1]}" ;; "~"*) dir="$HOME${w[1]#\~}" ;; *) dir="$dir/${w[1]}" ;; esac
-      continue
-    fi
+    # cd / pushd, and PowerShell's Set-Location / sl / chdir / Push-Location (with an optional -Path).
+    case "${w[0]}" in cd|pushd|chdir|sl|[Ss]et-[Ll]ocation|[Pp]ush-[Ll]ocation)
+      if [ "$n" -ge 2 ]; then
+        t="${w[1]}"; case "$t" in -[Pp]ath|-[Ll]iteral[Pp]ath) t="${w[2]:-}" ;; esac
+        case "$t" in /*|[A-Za-z]:*) dir="$t" ;; "~"*) dir="$HOME${t#\~}" ;; "") ;; *) dir="$dir/$t" ;; esac
+        continue
+      fi ;;
+    esac
     # gh repo create --public / gh repo edit --visibility public
     for ((i = 0; i < n - 2; i++)); do
-      case "${w[$i]}" in gh|*/gh|gh.exe|*/gh.exe) ;; *) continue ;; esac
+      case "${w[$i]}" in gh|*/gh|gh.exe|*/gh.exe|*\\gh|*\\gh.exe) ;; *) continue ;; esac
       [ "${w[$((i+1))]}" = repo ] || continue
       local rest=" ${w[*]:$((i+2))} "
       case "${w[$((i+2))]}" in
@@ -109,7 +113,7 @@ check_shell() {
     done
     # git [-C dir] [-c k=v] ... push [options] [remote|url] [refspec...]
     for ((i = 0; i < n; i++)); do
-      case "${w[$i]}" in git|*/git|git.exe|*/git.exe) ;; *) continue ;; esac
+      case "${w[$i]}" in git|*/git|git.exe|*/git.exe|*\\git|*\\git.exe) ;; *) continue ;; esac
       local gdir="$dir" j=$((i + 1))
       while [ "$j" -lt "$n" ]; do
         case "${w[$j]}" in
@@ -153,7 +157,7 @@ check_shell() {
 }
 
 case "$tool" in
-  Bash|shell|shell_command|exec_command|local_shell|unified_exec|container.exec)
+  Bash|PowerShell|shell|shell_command|exec_command|local_shell|unified_exec|container.exec)
     case "$input" in *push*|*repo*|*\\u*) check_shell ;; esac
     exit 0 ;;
 esac

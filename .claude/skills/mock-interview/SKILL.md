@@ -10,7 +10,7 @@ Usage: `/mock-interview <job folder or company + role> [behavioral|technical|mix
 Setup: `$ARGUMENTS`. If no job is given, ask which job (or a general interview for their top target role from preferences). Default style `mixed`, 5 main questions.
 
 ## Before starting
-1. Read the job folder (or the best-fit role from preferences), `profile/story-bank.md`, `knowledge/interview-questions.md`, `knowledge/field-primer.md` (if it still says `STATUS: not generated`, pick technical questions from the posting's requirements instead), and past debriefs in `interviews/` (re-test weak areas), and `references/practice-methods.md` (probes and what makes practice work).
+1. Read the job folder (or the best-fit role from preferences), `profile/story-bank.md`, `knowledge/interview-questions.md`, `knowledge/field/role-questions.md`, `knowledge/field/field-primer.md` (if it still says `STATUS: not generated`, pick technical questions from the posting's requirements instead), and past debriefs in `interviews/` (re-test weak areas), and `references/practice-methods.md` (probes and what makes practice work).
 2. Pick a realistic interviewer persona for this company and role (e.g., "Maria, Operations Manager at Acme Corp"). Pick questions that fit the role, mostly ones likely in the real interview, including one technical or role-specific one and one about a weak spot.
 3. Tell the user how it works in 3 lines: answer out loud (terminal: `/voice` once, then hold Space while talking; Desktop: click the mic), press **Done answering** in the Interview Room when finished (or just send), say "stuck" (or press **Ask for a hint**) for a hint, "end" (or **Ask to end interview**) to stop.
 
@@ -38,6 +38,16 @@ Use 2–3 personas with different angles (e.g., the hiring manager, a peer, some
 
 ## Technical presentation practice (`presentation` style)
 Many onsites ask for a 10–15 minute talk on a past project. One `interview_say` with kind `question` and `seconds` = the slot the employer gave (default 600) ("Go ahead whenever you're ready"), then 3–4 realistic panel probes as `followup`s (why that approach, what would you change, what went wrong and how you handled it, what it cost or saved). Debrief on structure and timing.
+
+## Practising with an accommodation
+If the user has asked (or plans to ask) an employer for an interview accommodation, or just wants practice set up a certain way, mirror it. Ask only what setup they want, never why; don't store health details (`.claude/skills/interview-prep/references/accommodations-and-disclosure.md`). With the Interview Room tools:
+- **Longer answer time:** pass a bigger `seconds` on each `interview_say` question or follow-up (e.g. 1.5x or 2x: behavioral 180–240, technical 270–360, follow-up 90–120), matching what the employer agreed if known. Score on content, never on speed.
+- **Question in writing first:** every line already shows on screen as it's read. For think time before the clock starts, pass `prep_seconds` (e.g. 30–60) with each question, in any style.
+- **No read-aloud:** reading aloud is a switch in the Interview Room, not a tool setting. Tell the user once at the start: "Press **Stop reading aloud** in the Interview Room; it remembers your choice." Then the questions are text only.
+- **Questions in advance:** before `interview_start`, give them the topics or the exact questions in chat, as the employer agreed to.
+- **Breaks:** after a main question is scored, ask in character or plainly "Ready for the next one, or want a break?" and wait. Split a long session into two shorter ones if that mirrors the real day.
+- **Written answers:** they can type instead of speaking; keep the same scoring.
+Note it in the debrief's first line ("Practised with: longer answer time, no read-aloud") so later sessions repeat the setup.
 
 ## Without the Interview Room tools
 Same flow in chat: ask one question per message, tell them the target time, and wait. For reading questions aloud and rough answer timing without the panel, follow the "Codex notes" in `.agents/skills/mock-interview/SKILL.md` (they work in any app).

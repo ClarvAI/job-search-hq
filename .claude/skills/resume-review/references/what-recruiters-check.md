@@ -22,7 +22,7 @@ Background for `/resume-review`. Evidence first, then what to do with it. Resear
 - **UK and Ireland:** "CV", usually up to two pages, no photo, no date of birth.
 - **Germany, Austria, Switzerland:** a tabular CV (Lebenslauf) with exact month/year dates; a photo is still common though not required.
 - **Australia and New Zealand:** often two to three pages; longer for senior people.
-- **Academic, medical, legal and government roles** use their own formats (a full academic CV, a federal resume). Look up the norm for the posting instead of forcing one page.
+- **Academic, medical and legal roles** use their own formats (a full academic CV, for example). Look up the norm for the posting instead of forcing one page. US federal resumes on USAJOBS are capped at two pages since 27 Sep 2025 (OPM); see tailor-resume's reference §6.
 - These country notes come from career-guide summaries, not studies; confirm with a current local source (a university careers service or the national job board) before advising.
 
 ## Screening software (ATS): realities vs myths

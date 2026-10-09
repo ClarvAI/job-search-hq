@@ -13,7 +13,7 @@ function setup(on: any, files: Record<string, string>, opts: { failWrites?: bool
   on('fs.write', (_$: any, e: any) => { if (opts.failWrites) throw new Error('EBUSY'); files[rel(e.path)] = e.text; return { value: undefined } as never })
   on('mcp.call', (_$: any, e: any) => { calls.push(e); opts.duringCall?.(); return { value: { content: [{ type: 'text', text: 'ok' }], isError: false } } as never })
   on('ui.open', () => ({ value: { isPlaced: true } }) as never)
-  on('session.append', () => ({ value: { uuid: 'x' } }) as never)
+  on('session.append', () => ({ deny: 'recorded by the test' }) as never)  // newer test kits require next() for a value answer; a deny is ignored by the panels
   on('command.register', () => ({ value: undefined }) as never)
   return { files, calls }
 }

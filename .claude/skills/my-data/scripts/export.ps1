@@ -2,7 +2,7 @@
 # OUTSIDE the workspace.
 # Usage: powershell -NoProfile -ExecutionPolicy Bypass -File .claude\skills\my-data\scripts\export.ps1 [-Destination <folder>] [-IncludeImports] [-IncludeTemplates]
 #   -Destination  default: the user's Downloads folder (created if missing; must be outside the workspace)
-# Includes: profile, jobs, contacts, outbox, interviews, history, knowledge, pages, plus resume.json at
+# Includes: profile, jobs, contacts, outbox, interviews, history, knowledge\field, pages (the user-owned paths), plus resume.json at
 # the top if profile\resume.json exists. Never .claude, .agents, .codex, .git; templates and imports only when asked.
 # Links (shortcuts) are left out, each reported as "skipped link: <path>".
 # Output: last line "saved: <path>" on success; "error: ..." and exit 1 otherwise.
@@ -15,9 +15,8 @@ $ErrorActionPreference = 'Stop'
 function Fail($msg) { Write-Output "error: $msg"; exit 1 }
 
 try { $Root = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..\..\..')).Path.TrimEnd('\', '/') } catch { Fail "cannot find the workspace" }
-if (-not (Test-Path -LiteralPath (Join-Path $Root 'AGENTS.md')) -or -not (Test-Path -LiteralPath (Join-Path $Root 'profile'))) {
-  Fail "this script is not inside a Job Search HQ workspace ($Root)"
-}
+if (-not (Test-Path -LiteralPath (Join-Path $Root 'AGENTS.md'))) { Fail "this script is not inside a Job Search HQ workspace ($Root)" }
+if (-not (Test-Path -LiteralPath (Join-Path $Root 'profile'))) { Fail "there is nothing to back up yet (no profile folder; setup has not run)" }
 
 if ([string]::IsNullOrWhiteSpace($Destination)) { $Destination = Join-Path $HOME 'Downloads' }
 $made = $false
@@ -54,7 +53,7 @@ function Copy-Tree([string]$From, [string]$To) {
 }
 try {
   [IO.Directory]::CreateDirectory($stage) | Out-Null
-  $dirs = @('profile', 'jobs', 'contacts', 'outbox', 'interviews', 'history', 'knowledge', 'pages')
+  $dirs = @('profile', 'jobs', 'contacts', 'outbox', 'interviews', 'history', 'knowledge\field', 'pages')
   if ($IncludeImports) { $dirs += 'imports' }
   if ($IncludeTemplates) { $dirs += 'templates' }
   foreach ($d in $dirs) {
@@ -80,7 +79,7 @@ try {
     "outbox/      message drafts; sent/ holds what you sent",
     "interviews/  interview notes, mock-interview scorecards, weekly reviews",
     "history/     activity.md: what changed and when",
-    "knowledge/   field notes and the job-search playbook",
+    "knowledge/field/  your field pack: primer, keywords, target employers, role questions, background",
     "pages/       dashboard, flashcards, portfolio (open in a browser)"
   )
   if (Test-Path -LiteralPath (Join-Path $stage 'resume.json')) {

@@ -27,12 +27,19 @@ Setup is a conversation, not a form. Follow these, and use judgment for anything
 - **A former employer mentioned hiring them (back)**: that's the strongest lead. Make the first item of the first-week plan a note to that person, and add them to `contacts/contacts.csv` (`relationship=former-manager`).
 - **"Not sure" about roles** (question 7): give a two-line, plain description of 3–5 role types that fit their resume and suggest the two that match best; let them pick.
 - **Career changer:** ask which parts of their past work they want to carry over, and which they'd rather leave behind. Target roles that bridge the two usually convert best; say so once.
+- **Recently laid off or let go** (they say so, or `career_stage` is `returning` and the job ended in the last few weeks): say one kind sentence, then offer `/laid-off` before going on ("A few dates matter this week, like filing for unemployment and health coverage. Want me to put them in a short dated list first? It takes five minutes."). If the job ended within the last 30 days or they have a severance agreement or visa clock running, do it right after section 3's save, before the field pack talk. Don't ask why they left.
+- **Claiming unemployment benefits:** offer `/work-search-log` once setup is done; it asks where they claim and keeps the weekly record.
+- **On a visa that depends on having a job** (they mention OPT, an H-1B grace period, or similar): offer to fill the optional visa lines in `profile/preferences.md` (`visa_type`, `visa_clock_start`, `visa_days_allowed`, `visa_days_used`) so `/today` counts the days; the numbers come from their DSO, the official counter or an immigration lawyer, never a guess, and never a visa or ID number.
 - **Returning after a gap:** don't probe the reason. Ask only how they'd like it described ("one plain line" is the default) and save that under Notes. If they ask why it matters: some employers' application systems screen out unexplained gaps of six months or more (Harvard Business School, *Hidden Workers*, 2021), and one plain line on the resume handles it.
 - **Outside the US:** work authorization, salary norms, resume conventions (photo, length, personal details, "CV" vs "resume") and job boards differ by country. Note the country in `home_base` (and set `paper: A4` in `profile/design.md`'s documents block where A4 is the norm), follow local norms in every skill (resume length and format by country: `.claude/skills/resume-review/references/what-recruiters-check.md`), and say once that some guidance (EEO questions, at-will employment, US-specific job boards) won't apply.
 - **Unsure about salary:** show the current market range for their top two role types and location, built per `.claude/skills/offer/references/pay-data.md` (sourced, dated, a range rather than one number), and save "not set; use market range" rather than pushing for a number.
 - **Short answers, "this is a lot", or they want to stop:** compress. Finish sections 1–3 (the essentials; section 3's save marks setup done, so they aren't sent back to setup next time, and the field pack in section 4 still builds in the background), say the rest happens naturally later, and give the first-week plan.
 - **They share something personal** (health, family, finances, immigration): note only what affects the search (for example "no travel before May"), never the details.
 - **Long, detailed answers:** good. Keep them; they're material for stories and voice.
+
+## Before the first question: make sure the starter files exist
+
+The personal files (`profile/`, `jobs/`, `contacts/`, `history/`, `pages/`, `knowledge/field/`) are not part of the app's download; the session-start hook copies the blank ones into place on the first run. If `profile/preferences.md` is missing (for example the hook didn't run), run `bash .claude/skills/start/scripts/init-data.sh` (Windows without bash: `powershell -NoProfile -ExecutionPolicy Bypass -File .claude\skills\start\scripts\init-data.ps1`). It only copies missing files from `templates/blank/` and never overwrites anything. Don't mention it to the user unless it prints `error:`.
 
 ## 0. Welcome (two or three sentences)
 
@@ -56,6 +63,7 @@ Setup is a conversation, not a form. Follow these, and use judgment for anything
 7. One form, **[choices]**:
    - "Which describes you best?" Options: "Student or about to graduate" · "Early in my career (under ~5 years)" · "Experienced (5+ years)" · "Changing fields or returning to work". Save `career_stage` (student / new-grad / early-career / mid-career / senior / career-changer / returning; ask a quick follow-up if the option covers two). Students: ask the graduation month and year (plain text) and save `graduation`.
    - "What kind of work are you looking for?" Offer 3 options you inferred from the resume (role families, not titles) plus "Not sure". Save `field` in their words and the role list, best first.
+   - "Which languages could you read well enough to check a cover letter in, and roughly how well (native, or a level like B2)?" (plain text; skip if they only apply in their first language). Save to `application_languages:`.
    - "Where would you take a job?" (multi-select) Options: their current city/region from the resume · "Remote" · "Open to relocating" · "Somewhere else (I'll say)". If relocating, ask which regions appeal.
    - "When could you start?" Options: "Right away" · "Within a month" · "On a specific date (I'll say)" · "Not sure yet".
 8. One form, **[choices]**:
@@ -66,17 +74,17 @@ Setup is a conversation, not a form. Follow these, and use judgment for anything
 9. **[choices]** Work authorization, as two separate questions, for each country they're targeting (from their locations; one country at a time): "Are you currently legally authorized to work in <country>?" and "Will you now or in the future need an employer to sponsor a visa for you to work in <country>?" Options for each: "Yes" · "No" · "Not sure". Save each confirmed answer with its country under "Work authorization" in preferences. Never infer one answer from the other; a "Not sure" stays for the user to answer on each application. Never ask for or store visa or ID numbers. If they need sponsorship, note it: `find-jobs` and `evaluate-job` will check for it.
 10. **[their words]** "Of everything you've done so far, what work felt most like *you*, and why?" (This shapes everything; save it under Notes.)
 
-Save these and, in the same edit, replace the `SETUP: not done` line (near the top, under the heading) with `SETUP: done YYYY-MM-DD` (today's date), so stopping later doesn't send them back to the start. Keep the heading; re-read the file and check exactly one `SETUP:` line remains.
+Save these and, in the same edit, replace the `SETUP: not done` line (near the top, under the heading) with `SETUP: done YYYY-MM-DD` (today's date), so stopping later doesn't send them back to the start. Keep the heading; re-read the file and check exactly one `SETUP:` line remains. Then add one line to the end of `history/activity.md` (create it from `templates/blank/history/activity.md` if it's missing): `- <date time> · <app> · Setup done` (time from the computer, as in AGENTS.md).
 
 ## 4. Build the field pack (runs while you keep talking)
 
 Start this right after section 3's save, in the background where the app allows (Claude Code: use the `company-researcher` agent for employers and a general research agent for the rest; Codex: do it yourself after the conversation). Base it on `field`, target roles, `career_stage` and locations. Use current web sources, cite them, and date every file:
-- `knowledge/field-primer.md`: follow the shape in that file. Hooks only from the master resume.
-- `knowledge/resume-keywords.md`: one table per target role from 5–10 real current postings; evidence column from the master resume (or "gap").
-- `knowledge/target-employers.md`: 15–30 employers that hire for their target roles in their locations (former employers first), with careers-page links.
-- `knowledge/interview-questions.md` section 4: 4–6 role-specific technical questions per target role.
-- `knowledge/background.md`: a short section on each past employer (and school, for students).
-Change the first line of each file that has one to `STATUS: generated <date> for <field>` (in `interview-questions.md`, replace section 4's `[ASK: not generated yet]` line instead). Tell the user once it's done ("Your field pack is ready: a primer, keyword lists, and 24 target employers."). Never put anything from these files on a resume unless the master resume backs it.
+- `knowledge/field/field-primer.md`: follow the shape in that file. Hooks only from the master resume.
+- `knowledge/field/resume-keywords.md`: one table per target role from 5–10 real current postings; evidence column from the master resume (or "gap").
+- `knowledge/field/target-employers.md`: 15–30 employers that hire for their target roles in their locations (former employers first), with careers-page links.
+- `knowledge/field/role-questions.md`: 4–6 role-specific technical questions per target role, in the shape in that file. (The generic question bank, `knowledge/interview-questions.md`, is part of the app; never edit it for one user.)
+- `knowledge/field/background.md`: a short section on each past employer (and school, for students).
+Change the first line of each file to `STATUS: generated <date> for <field>`. Tell the user once it's done ("Your field pack is ready: a primer, keyword lists, and 24 target employers."). Never put anything from these files on a resume unless the master resume backs it.
 
 ## 5. One story, one boundary, one sample
 

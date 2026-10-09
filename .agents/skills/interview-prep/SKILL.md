@@ -1,6 +1,6 @@
 ---
 name: interview-prep
-description: "Build an interview prep brief for a specific job (company research, the interviewers, likely behavioral and technical questions mapped to the user's stories, questions to ask, logistics). Use when the user has an interview coming up or asks how to prepare."
+description: "Build an interview prep brief for a specific job (company research, the interviewers, likely behavioral and technical questions mapped to the user's stories, questions to ask, logistics), and handle take-home assignments and interview accommodation requests. Use when the user has an interview coming up, gets a take-home assignment or skills exercise, wants to ask for an interview accommodation, or asks how to prepare."
 ---
 
 # interview-prep (Codex)

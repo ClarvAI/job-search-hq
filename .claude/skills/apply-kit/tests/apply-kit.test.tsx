@@ -100,7 +100,7 @@ function setup(on: any, files: Record<string, string>, opts: { lock?: boolean; o
   on('ui.copy', (_$: any, e: any) => { copies.push(e.text); return { value: { isCopied: true } } as never })
   on('prompt.fill', (_$: any, e: any) => { fills.push(e.text); return { isFilled: true } as never })
   // The test kit keeps no transcript, so the [Apply Kit] note can't be stored or observed here; the panel ignores that failure.
-  on('session.append', () => ({ value: { uuid: 'x' } }) as never)
+  on('session.append', () => ({ deny: 'recorded by the test' }) as never)  // newer test kits require next() for a value answer; a deny is ignored by the panels
   on('command.register', () => ({ value: undefined }) as never)
   return { files, copies, fills }
 }

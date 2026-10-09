@@ -37,6 +37,8 @@ field:
 <!-- the user's field or industry in their own words, e.g. "medical devices", "B2B SaaS marketing", "public school teaching" -->
 home_base:
 <!-- city / region -->
+application_languages:
+<!-- Languages the user can read well enough to check an application in, with a level, e.g. "English (native), German (B2)". Application documents are written only in these (about B2 or above); anything else gets an English gloss and "Needs a native-speaker check before sending." Set by /start, or the first time the user applies in another language. -->
 
 ## What you want
 
@@ -51,6 +53,23 @@ home_base:
 - Earliest start date: **[ASK]**
 - Hours per week for the search: **[ASK]** (sets the weekly goals)
 - Willing to travel for work: **[ASK]**
+
+## Benefits and visa clocks (optional; leave blank if they don't apply)
+
+benefits_jurisdiction:
+<!-- Where the user claims unemployment benefits, if they do: a US state ("US-PA"), "UK-UC" (Universal Credit), "UK-JSA" (New Style JSA), or "<country>: <program>". Set by /work-search-log after the user says so. -->
+benefits_week_starts:
+<!-- The weekday the benefit week starts on (e.g. "Sunday"), from the user's claim letter or the agency's site. -->
+benefits_cert_day:
+<!-- When the user certifies or reports, e.g. "Sunday", "every other Monday from 2026-10-12", "UK journal: before each work coach appointment". /today reminds them that day. -->
+visa_type:
+<!-- Only if the user's right to stay depends on being employed, e.g. "F-1 post-completion OPT", "F-1 STEM OPT", "H-1B grace period". No visa or ID numbers, ever. -->
+visa_clock_start:
+<!-- YYYY-MM-DD the current unemployment clock started (e.g. the last day of employment). Blank while employed. -->
+visa_days_allowed:
+<!-- Total unemployment days allowed, from the official source or the user's school's DSO / immigration lawyer (e.g. 90 on post-completion OPT, 150 in total with STEM OPT, up to 60 for the H-1B grace period). -->
+visa_days_used:
+<!-- Days already used before visa_clock_start (earlier gaps on the same OPT); 0 if none. The official count (e.g. the SEVP Portal or SEVIS counter, or the DSO) always wins. -->
 
 ## Voluntary self-identification (application EEO questions)
 

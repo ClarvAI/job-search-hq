@@ -6,7 +6,7 @@ Everything in `AGENTS.md` applies. This part covers what only Claude Code has. S
 
 ## Slash commands
 
-Every workflow in AGENTS.md is a slash command here: `/start`, `/today`, `/add-job`, `/find-jobs`, `/evaluate-job`, `/tailor-resume`, `/cover-letter`, `/apply`, `/network`, `/follow-up`, `/thank-you`, `/interview-prep`, `/mock-interview`, `/offer`, `/linkedin`, `/resume-review`, `/weekly-review`, `/import-linkedin`, `/sync-inbox`, `/career-fair`, `/pages`, `/my-data`, `/tour` (offer it after `/start` and whenever the user seems unsure), `/menu`. `outbox`, `pipeline`, `contacts`, `job-inbox` and `apply-kit` are panels here (below), opened with `/outbox`, `/pipeline`, `/contacts`, `/job-inbox` and `/apply-kit`. Point the user to them when they fit; they can also just ask.
+Every workflow in AGENTS.md is a slash command here: `/start`, `/today`, `/add-job`, `/find-jobs`, `/evaluate-job`, `/tailor-resume`, `/cover-letter`, `/apply`, `/network`, `/follow-up`, `/thank-you`, `/interview-prep`, `/mock-interview`, `/offer`, `/linkedin`, `/resume-review`, `/weekly-review`, `/import-linkedin`, `/sync-inbox`, `/career-fair`, `/laid-off`, `/work-search-log`, `/pages`, `/my-data`, `/health`, `/update`, `/tour` (offer it after `/start` and whenever the user seems unsure), `/menu`. `outbox`, `pipeline`, `contacts`, `job-inbox` and `apply-kit` are panels here (below), opened with `/outbox`, `/pipeline`, `/contacts`, `/job-inbox` and `/apply-kit`. Point the user to them when they fit; they can also just ask.
 
 Review agents (`truth-checker`, `voice-editor`, `recruiter-reviewer`, `company-researcher`, `job-scout`) are subagents in `.claude/agents/`.
 

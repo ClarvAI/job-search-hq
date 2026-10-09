@@ -11,7 +11,7 @@ company,role,status,next_action_date,next_action,deadline,priority,fit,location,
 ```
 
 - **status** (lowercase, one of): `interested`, `applied`, `screening`, `interviewing`, `offer`, `accepted`, `rejected`, `withdrawn` (the user pulled out after applying), `skipped` (decided not to apply), `ghosted`
-- **next_action**: use one of these so every skill and the board speak the same language: `Decide: apply or skip`, `Review package and submit`, `Find a contact`, `Follow up`, `Prep for interview`, `Interview <date>`, `Send thank-you notes`, `Wait for decision`, `Respond to offer`, `Decide next step`. Add a few words after it if useful ("Follow up with Pat").
+- **next_action**: use one of these so every skill and the board speak the same language: `Decide: apply or skip`, `Review package and submit`, `Find a contact`, `Follow up`, `Prep for interview`, `Interview <date>`, `Send thank-you notes`, `Wait for decision`, `Respond to offer`, `Decide next step`, `Take-home due <date>` (status stays, except `applied` moves to `screening`; `next_action_date` is the day to start, by default two days before it's due). Add a few words after it if useful ("Follow up with Pat").
 - **next_action_date**: `YYYY-MM-DD`. Every open job needs one, including priority C. This drives `/today`, the Pipeline band, and the status line.
 - **deadline**: the application deadline from the posting (`YYYY-MM-DD`), blank if "open until filled". `/add-job` sets the next step at least 3 days before it (or today, if it closes sooner); the board and `/today` warn when it's within 3 days. **Once a job is at `offer`, `deadline` holds the date the user must answer the offer by.**
 - Write only plain characters in `tracker.csv` and `contacts.csv` (`-` not `–`, straight quotes), so they open cleanly in Excel.
@@ -45,12 +45,21 @@ name,company,title,relationship,how_we_met,last_contact,next_followup,status,tou
 - **status**: `to-contact`, `contacted`, `replied`, `talked`, `referred`, `cold`
 - **When the user sends someone a message:** set `last_contact` to the date sent and add 1 to `touches`. Change `status` to `contacted` only if it was `to-contact` or blank; never move someone backwards from `replied`, `talked` or `referred`. **When they reply:** `status` → `replied` (or `talked` after a conversation) and `touches` back to 0. Set `next_followup` only for pure networking (see "Who owns the follow-up date"): 5 business days after the send, or blank once `touches` reaches 2.
 
+`jobs/work-search-log.csv` (only for users claiming unemployment benefits; `/work-search-log` keeps it) records each work-search activity once, append-only, with the same CSV rules (weekly exports go in `jobs/work-search/`, which is not a job folder):
+
+```
+date,activity_type,employer,contact_person,contact_method,position,result,notes,source
+```
+
+`jobs/layoff-plan.md` (from `/laid-off`) holds dated deadlines after a job loss; `/today` shows unchecked lines due within 3 days. Neither adds tracker columns.
+
 ## Timing
 
-Hiring has seasons that differ by field and level. The start skill's field pack notes the ones for the user's field in `knowledge/field-primer.md`; when in doubt, look them up.
+Hiring has seasons that differ by field and level. The start skill's field pack notes the ones for the user's field in `knowledge/field/field-primer.md`; when in doubt, look them up.
 - **Students and new grads (`career_stage`):** big employers often run structured early-career and graduate programs that open 9–12 months before the start date and close once full. Apply early; smaller companies hire closer to the start date. Former co-op or internship employers: ask directly, any time.
 - **Experienced hires:** most roles are posted when needed, year-round; hiring slows around year-end holidays and mid-summer in many countries. Apply in the first week a posting is up.
 - **Any stage:** former managers and colleagues are the strongest leads. Contact them early.
+- **After a layoff:** file for unemployment right away (the US Department of Labor says "as soon as possible"), and ask colleagues for references and recommendations in the first days, before people scatter (`/laid-off`).
 - **Rolling review or early close:** if a posting says applications are reviewed on a rolling basis, "may close early", or closes after a set number of applications (common on government postings), apply within a day or two; the posted deadline is the latest date, not the best one.
 
 ## Pace (quality over volume)

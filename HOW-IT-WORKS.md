@@ -90,7 +90,7 @@ You can use either app, switch between them, or have both open. They follow the 
 
 ## Your pages (in your browser)
 
-These live in the `pages/` folder. Double-click one to open it, or ask the assistant to open it.
+These live in the `pages/` folder: your own copies, made from `templates/blank/pages/` the first time you open the folder. Double-click one to open it, or ask the assistant to open it.
 
 | Page | What it's for | Can you edit it there? |
 |---|---|---|
@@ -117,9 +117,12 @@ These live in the `pages/` folder. Double-click one to open it, or ask the assis
 | `outbox/` | Message drafts (sent ones move to `outbox/sent/`, discarded ones to `outbox/discarded/`) |
 | `history/` | `activity.md`: what either app changed recently |
 | `interviews/` | Mock interview scorecards, real interview notes, weekly reviews |
-| `pages/` | Dashboard, flashcards, portfolio, interview-brief template |
-| `knowledge/` | Job-search playbook, interview questions, and a field pack built for you during setup (field primer, resume keywords, target employers) |
+| `pages/` | Dashboard, flashcards, portfolio, interview-brief template (your own copies) |
+| `knowledge/` | The job-search playbook and interview question bank (part of the app), and `knowledge/field/`: your field pack built during setup (field primer, resume keywords, target employers, role-specific questions) |
 | `imports/` | Drop files here for the assistant (your resume, your LinkedIn export, offer letters) |
+| `templates/blank/` | Blank starting copies of your files; the first time you open the folder they're copied into place, never over anything you have |
+| `VERSION`, `CHANGELOG.md` | Which version of the app you have, and what changed in each version |
+| `DATA_CONTRACT.md` | Which files are yours (never shipped, never changed by an update) and which belong to the app |
 
 You can open any of these yourself. They're ordinary files, and `tracker.csv` opens in Excel or Google Sheets. If you edit the tracker in Excel: don't rename the column headings, save it as **CSV UTF-8 (Comma delimited)** (not .xlsx), and **close Excel when you're done**. If Excel is still open while the assistant changes your tracker and you then press Save in Excel, Excel puts back its older copy and that change is lost. **Keep dates as YYYY-MM-DD** (like 2026-10-07): Excel turns them into your region's style when it opens the file (10/07/2026 or 07/10/2026) and saves them that way, and then the assistant can't always tell which is the day and which the month. Dates where it's clear (like 25/10/2026) are read fine; unclear ones (like 03/04/2026) show as "date unclear" until you confirm them. Before saving, select the date columns → Format Cells → Custom → type `yyyy-mm-dd` → OK. Easiest of all: change dates on the board or just tell the assistant ("move Acme's follow-up to the 14th").
 
@@ -134,18 +137,27 @@ In `profile/preferences.md` (the assistant will explain before changing either):
 
 ---
 
----
-
 ## Resumes and cover letters
 
+- **Applying abroad or in another language:** the assistant writes only in languages you've said you can check (set in your preferences); otherwise you get an English version alongside and a reminder to have a native speaker check it. It never adds a photo, birth date or marital status unless you choose to.
+- **Take-home assignments:** tell the assistant when one arrives. It helps you pin down scope, time and AI rules, drafts any question to the recruiter, tracks the due date, and coaches you; the work itself is yours.
+- **Interview accommodations:** whether and when to mention a disability is your call. The assistant can draft a short request (no diagnosis needed) and set up mock interviews the same way.
+
 - **They come as PDFs.** After they're fact-checked, the assistant saves `Your-Name-Resume-Company.pdf` (and the cover letter) in the job's folder. Open it and look it over before you send it. If your computer has no Chrome or Edge, it walks you through Print → Save as PDF instead.
+
+---
+
+## If you've lost your job
+
+Say **/laid-off** for a dated first-week list (unemployment, health coverage, severance) and drafts to ask colleagues for references. Claiming unemployment? **/work-search-log** keeps the weekly record your state or Universal Credit asks for, in their order; you enter it yourself. If your visa depends on having a job, `/today` can count the days left.
 
 ---
 
 ## Your data
 
 - "Back up my stuff" saves a dated zip of everything to your Downloads folder (or another folder you pick). Keep one copy somewhere other than this computer. "I got the job, wrap up" or "pause my search" tidies your tracker. "Delete everything" wipes this folder back to blank, but only after you type "delete my data".
-- Backing up with git? Use a **private** repository only: this folder holds other people's contact details, references and offer terms. Run `git config core.hooksPath .githooks` once in the folder (setup offers to) and git stops ordinary pushes to a public GitHub repository. It's a safety net, not a lock: it doesn't cover other sites or uploads made another way.
+- Your own files are never part of the app's download or its git history, so that zip is your backup. If you ever put this folder in git anyway, use a **private** repository only: it holds other people's contact details, references and offer terms. As a safety net, run `git config core.hooksPath .githooks` once in the folder (setup offers to) and git stops ordinary pushes to a public GitHub repository. It's not a lock: it doesn't cover other sites or uploads made another way.
+- **New version?** Download the release zip and say "update". Only the app's files change; your files are never touched. If you'd edited an app file, your version is kept next to it as `<file>.local`, and "undo the update" rolls back.
 
 ---
 
@@ -155,5 +167,6 @@ In `profile/preferences.md` (the assistant will explain before changing either):
 - "What changed recently?" (it reads `history/activity.md`)
 - "Undo that last change to my tracker." (The assistant can fix the file.)
 - "Why did you suggest that?" It will show its reasoning and sources.
+- "Check my setup" (`/health`) looks over the folder, safety checks, panels and connections, changes nothing, and tells you the one thing to fix first.
 - Still stuck: ask for the menu or the tour.
-- **Safety checks, honestly:** both apps have checks that block the assistant's own attempts, through its connections, to send, delete, or forward email or to invite people to calendar events, and that stop it navigating a browser to Gmail, Outlook or LinkedIn (they can't see what an already-open tab shows). In Claude, they also block web addresses that carry your email, phone, name or large blocks of data (a pattern check that can't catch every disguised form). In both apps they stop pushes to a public GitHub repository, including through an SSH alias for GitHub (other hosting sites aren't checked; keep any copy private). They only see the actions they recognize: not every script, not clicks in a browser tab that's already open, and not cleverly disguised data. They're a backstop. The main protection is that the assistant's rules say you send everything, and it follows them. None of this limits you: you can always do anything yourself.
+- **Safety checks, honestly:** both apps have checks that block the assistant's own attempts, through its connections, to send, delete, or forward email or to invite people to calendar events, and that stop it navigating a browser to Gmail, Outlook or LinkedIn (they can't see what an already-open tab shows). In Claude, they also block web addresses that carry your email, phone, name or large blocks of data (a pattern check that can't catch every disguised form). In both apps they stop pushes to a public GitHub repository, including through an SSH alias for GitHub (other hosting sites aren't checked; keep any copy private). If a check crashes, the action is blocked; if it hangs past its time limit, the app lets the action go ahead. In Claude the checks run once you trust the folder (they cover shell commands, including PowerShell on Windows, but not file edits or web searches); in Codex they run only after you trust the hooks (`/hooks`), and again after they change. They only see the actions they recognize: not every script, not clicks in a browser tab that's already open, and not cleverly disguised data. They're a backstop. The main protection is that the assistant's rules say you send everything, and it follows them. None of this limits you: you can always do anything yourself. More in the README's "What the safety check covers".

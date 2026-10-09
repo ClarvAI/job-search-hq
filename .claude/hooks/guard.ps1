@@ -106,7 +106,7 @@ function Test-ShellCommand($Data, [string]$cmd) {
         $w = @($seg.Trim() -split '\s+' | Where-Object { $_ -ne '' } | ForEach-Object { $_ -replace '["'']', '' })
         $n = $w.Count
         if ($n -eq 0) { continue }
-        if ($w[0] -in @('cd', 'chdir', 'pushd', 'sl', 'Set-Location') -and $n -ge 2) {
+        if ($w[0] -in @('cd', 'chdir', 'pushd', 'sl', 'Set-Location', 'Push-Location') -and $n -ge 2) {
             $to = $w[1]; if ($to -in @('-Path', '-LiteralPath') -and $n -ge 3) { $to = $w[2] }
             $dir = Join-Dir $dir $to; continue
         }
@@ -232,7 +232,7 @@ try {
     if ([string]::IsNullOrWhiteSpace($tool)) { Deny $incomplete }
 
     # Shell: only git push / gh repo commands are looked at; everything else passes at once.
-    if ($tool -match '^(Bash|shell|shell_command|exec_command|local_shell|unified_exec|container\.exec)$') {
+    if ($tool -match '^(Bash|PowerShell|shell|shell_command|exec_command|local_shell|unified_exec|container\.exec)$') {
         $cmd = Get-ShellText $data
         if ($null -eq $cmd) {
             if ($raw -match 'push|repo|\\u') { Deny "Blocked to be safe: the safety check couldn't read this shell command, so it could not check it. Tell the user the safety check in .claude/hooks/guard.ps1 needs a look." }
@@ -283,7 +283,7 @@ try {
     # Something unexpected broke the check. For risky tools, block rather than let it through.
     $risky = ($tool -eq '') -or
         ($tool -match 'mail|outlook|superhuman|calendar|browser|chrome|playwright|puppeteer|computer|javascript|_repl|repl__|remote.devices|^WebFetch$') -or
-        ($tool -match '^(Bash|shell|shell_command|exec_command|local_shell|unified_exec|container\.exec)$' -and $raw -match 'push|repo')
+        ($tool -match '^(Bash|PowerShell|shell|shell_command|exec_command|local_shell|unified_exec|container\.exec)$' -and $raw -match 'push|repo')
     if ($risky) {
         Deny 'Blocked to be safe: the safety check hit an unexpected error, so this action was not allowed. Tell the user the safety check in .claude/hooks/guard.ps1 needs a look.'
     }

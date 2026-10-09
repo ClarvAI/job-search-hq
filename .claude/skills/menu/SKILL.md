@@ -33,7 +33,8 @@ Show the user this menu (adapt lightly; keep it scannable):
 - `/sync-inbox`: read recruiter emails, update the tracker, and flag likely scams (Gmail)
 
 **Interviews**
-- `/interview-prep <job>`: company brief, likely questions, your best stories, questions to ask
+- `/interview-prep <job>`: company brief, likely questions, your best stories, questions to ask. Got a take-home assignment or need an interview accommodation? Just say so; it's part of this.
+- Applying in another language? `/cover-letter` and `/tailor-resume` handle it, with a native-speaker check when needed.
 - `/mock-interview <job>`: spoken practice with a timer and scorecard (panel); add `one-way` for recorded-video practice
 - `/thank-you <job>`: debrief + thank-you notes
 
@@ -43,9 +44,18 @@ Show the user this menu (adapt lightly; keep it scannable):
 - `/resume-review`: tough review of your master resume
 - `/weekly-review`: how it's going, what to change
 - `/career-fair`: plan for a fair or event, then follow-ups
+
+**If you lost your job or claim benefits**
+- `/laid-off`: a dated first-week list (unemployment, health coverage, severance, final pay), plus drafts for references before people scatter
+- `/work-search-log`: the weekly work-search record unemployment benefits ask for, laid out the way your state or program wants; you file it yourself
+- Visa clock: if your visa depends on having a job, `/today` can count the days left (ask to set it up)
+
+**Your workspace**
 - `/pages`: dashboard, flashcards, portfolio site, printable interview brief
 - Change the look: say "show me the looks", "use my brand colors", "bigger text" or "less motion"; every page changes together
 - `/my-data`: save a backup of everything, wrap up or pause your search, or wipe it and start over
+- `/health`: checks that everything is set up and working (safety checks, panels, connections, setup), changes nothing, and tells you the one thing to fix first
+- `/update`: install a new version of this workspace (your own files are never touched), see what's new, or undo an update
 - `/start`: redo setup
 - `/tour`: hands-on walkthrough of how everything works (or read HOW-IT-WORKS.md)
 

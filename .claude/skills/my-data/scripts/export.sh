@@ -2,7 +2,7 @@
 # Makes a dated zip backup of the user's own job-search data in a folder OUTSIDE the workspace.
 # Usage: bash .claude/skills/my-data/scripts/export.sh [destination-folder] [--include-imports] [--include-templates]
 #   destination-folder  default: ~/Downloads (created if missing; must be outside the workspace)
-# Includes: profile/ jobs/ contacts/ outbox/ interviews/ history/ knowledge/ pages/, plus resume.json at the top
+# Includes: profile/ jobs/ contacts/ outbox/ interviews/ history/ knowledge/field/ pages/ (the user-owned paths), plus resume.json at the top
 # if profile/resume.json exists (the assistant writes it just before exporting).
 # Never includes .claude/ .agents/ .codex/ .git/; templates/ and imports/ only when asked.
 # Links (shortcuts) are left out, each reported as "skipped link: <path>".
@@ -14,7 +14,8 @@ die() { echo "error: $*"; exit 1; }
 # The workspace root is four levels above this script; it must contain AGENTS.md.
 here="$(cd "$(dirname "$0")" 2>/dev/null && pwd -P)" || die "cannot find the script folder"
 ROOT="$(cd "$here/../../../.." 2>/dev/null && pwd -P)" || die "cannot find the workspace"
-[ -f "$ROOT/AGENTS.md" ] && [ -d "$ROOT/profile" ] || die "this script is not inside a Job Search HQ workspace ($ROOT)"
+[ -f "$ROOT/AGENTS.md" ] || die "this script is not inside a Job Search HQ workspace ($ROOT)"
+[ -d "$ROOT/profile" ] || die "there is nothing to back up yet (no profile folder; setup has not run)"
 
 dest=""; with_imports=""; with_templates=""
 for a in "$@"; do
@@ -26,6 +27,7 @@ for a in "$@"; do
   esac
 done
 [ -n "$dest" ] || dest="$HOME/Downloads"
+# shellcheck disable=SC2088  # a literal "~" typed by the user, expanded on purpose
 case "$dest" in "~"|"~/"*) dest="$HOME${dest#\~}" ;; esac
 made=""; [ -d "$dest" ] || made=1
 mkdir -p "$dest" 2>/dev/null || die "cannot create the folder $dest"
@@ -44,12 +46,12 @@ tmp="$(mktemp -d 2>/dev/null || mktemp -d -t jshq)" || die "cannot make a tempor
 trap 'rm -rf "$tmp"' EXIT
 stage="$tmp/$name"; mkdir -p "$stage" || die "cannot make a temporary folder"
 
-dirs="profile jobs contacts outbox interviews history knowledge pages"
+dirs="profile jobs contacts outbox interviews history knowledge/field pages"
 [ -n "$with_imports" ] && dirs="$dirs imports"
 [ -n "$with_templates" ] && dirs="$dirs templates"
 for d in $dirs; do
   if [ -e "$ROOT/$d" ] || [ -L "$ROOT/$d" ]; then
-    cp -R "$ROOT/$d" "$stage/$d" || die "could not copy all of $d (nothing was saved)"
+    mkdir -p "$(dirname "$stage/$d")" && cp -R "$ROOT/$d" "$stage/$d" || die "could not copy all of $d (nothing was saved)"
   fi
 done
 # Links (shortcuts) point outside the backup; leave them out rather than copy whatever they point to.
@@ -70,7 +72,7 @@ fi
   echo "outbox/      message drafts; sent/ holds what you sent"
   echo "interviews/  interview notes, mock-interview scorecards, weekly reviews"
   echo "history/     activity.md: what changed and when"
-  echo "knowledge/   field notes and the job-search playbook"
+  echo "knowledge/field/  your field pack: primer, keywords, target employers, role questions, background"
   echo "pages/       dashboard, flashcards, portfolio (open in a browser)"
   [ -f "$stage/resume.json" ] && echo "resume.json  your resume in JSON Resume format (jsonresume.org), for tools that import it"
   echo ""
@@ -82,9 +84,9 @@ fi
 count="$(find "$stage" -type f | wc -l | tr -d ' ')"
 if command -v zip >/dev/null 2>&1; then
   (cd "$tmp" && zip -q -r -X "$out" "$name") || die "zip failed"
-elif command -v python3 >/dev/null 2>&1; then
+elif command -v python3 >/dev/null 2>&1 && python3 -c 1 >/dev/null 2>&1; then   # -c 1: skip the Windows Store stub
   (cd "$tmp" && python3 -I -m zipfile -c "$out" "$name") || die "zip failed"
-elif command -v python >/dev/null 2>&1; then
+elif command -v python >/dev/null 2>&1 && python -c 1 >/dev/null 2>&1; then
   (cd "$tmp" && python -I -m zipfile -c "$out" "$name") || die "zip failed"
 else
   die "no zip tool found (on Windows, use export.ps1 instead)"

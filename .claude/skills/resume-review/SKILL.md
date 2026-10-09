@@ -14,7 +14,7 @@ Usage: `/resume-review [job folder to review a tailored version]` (or just ask i
    - Lead with the strongest numbers already in the master resume (money saved or earned, % improvements, time cut, scale).
    - Cut weak or old items for tailored versions (e.g., an old class project or early job unless relevant).
    - Consistency: dates, punctuation, tense, bullet style, capitalization of terms and tools, section order.
-   - Keywords for the user's target roles (from `knowledge/resume-keywords.md`, or the target postings if that file still says `STATUS: not generated`) present where true, and only if true.
+   - Keywords for the user's target roles (from `knowledge/field/resume-keywords.md`, or the target postings if that file still says `STATUS: not generated`) present where true, and only if true.
    - Missing: a summary line (optional), links; for students and new grads (`career_stage` in preferences), a GPA decision.
    - **Length and format for their country and stage** (`home_base` and `career_stage` in preferences): see the reference file; one page is a US early-career norm, not a world rule.
    - **ATS:** check what really breaks (columns, tables, text boxes, headers/footers, images, odd headings) and unexplained gaps. Don't chase "ATS scores"; "software rejects most resumes" is a myth.

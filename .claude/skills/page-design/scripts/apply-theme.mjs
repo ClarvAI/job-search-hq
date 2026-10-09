@@ -5,6 +5,7 @@
 //   node .claude/skills/page-design/scripts/apply-theme.mjs            check contrast, then update the files below
 //   node .claude/skills/page-design/scripts/apply-theme.mjs --check    check and compare only; changes nothing
 //   node .claude/skills/page-design/scripts/apply-theme.mjs --print    show the resolved theme, contrast table and token block
+//   node .claude/skills/page-design/scripts/apply-theme.mjs --check-blank   confirm templates/blank/pages/ are still on the Default preset (maintainers, CI)
 //   node .claude/skills/page-design/scripts/apply-theme.mjs --preview [folder]
 //        write a sample dashboard in every preset (and the user's own theme) to a temporary folder; changes nothing else
 // Options: --preset <default|modern|minimal|high-contrast> (use a preset instead of the design block),
@@ -16,6 +17,8 @@
 // templates/resume-template.html and templates/cover-letter-template.html (the document theme block only);
 // templates/resume-designed-template.html (the designed resume block and the fonts line).
 // Never touches templates/blank/ (those stay on the default preset), data blocks, or anything else.
+// The workspace may have no pages/ or jobs/ yet (a fresh download before the first run); then only the templates are themed.
+// Updates: templates/*.html are app files that carry the user's theme, so /update replaces them and runs this script again.
 //
 // Output: "theme: ...", "contrast: ok ..." or FAIL lines, "adjusted: ..." / "note: ...", one line per file
 // ("updated:", "unchanged:", "differs:", "skipped:"), and a last line "result: ..." or "error: ...".
@@ -230,6 +233,24 @@ if (flag('--preview')) {
   const dir = path.resolve(opt('--preview') || path.join(os.tmpdir(), 'job-search-theme-preview'))
   const made = preview(dir)
   out(`result: ${made.length} previews written (nothing in the workspace changed)`)
+  process.exit(0)
+}
+if (flag('--check-blank')) {
+  // Maintainers and CI: the blank page copies (and templates/blank/profile/design.md's look) must stay on the Default preset.
+  const th0 = loadTheme('default')
+  const dir = path.join(ROOT, 'templates', 'blank', 'pages')
+  if (!fs.existsSync(dir)) die('templates/blank/pages/ is missing')
+  let bad = 0, good = 0
+  for (const f of fs.readdirSync(dir).sort()) {
+    if (!f.endsWith('.html')) continue
+    const file = path.join(dir, f), html = fs.readFileSync(file, 'utf8')
+    const r = themePage(html, th0.t, th0.R)
+    if (r.skip) { out(`differs: ${rel(file)} (${r.skip})`); bad++ }
+    else if (r.html !== html) { out(`differs: ${rel(file)} (not on the Default preset)`); bad++ }
+    else { out(`unchanged: ${rel(file)}`); good++ }
+  }
+  if (bad) die(`${bad} blank page(s) are not on the Default preset; run apply-theme.mjs --preset default --root <a scratch copy> to see the right token block`)
+  out(`result: checked (${good} blank page(s) on the Default preset; nothing changed)`)
   process.exit(0)
 }
 const presetArg = opt('--preset')

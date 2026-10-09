@@ -30,7 +30,7 @@ while IFS= read -r p; do
         grep -q '"example": true' "$ROOT/pages/dashboard.html" 2>/dev/null && add "The dashboard page still shows example data; refresh its data block from the tracker at the end of this task (pages skill)."
         grep -qE "^\| Dashboard \| https" "$PUB" 2>/dev/null && add "The user's dashboard is published; republish it once you finish this task (see the pages skill)." ;;
       esac ;;
-    */profile/story-bank.md|*/knowledge/field-primer.md)
+    */profile/story-bank.md|*/knowledge/field/field-primer.md)
       grep -qE "^\| Flashcards \| https" "$PUB" 2>/dev/null && add "The user's flashcards are published and their source changed. Refresh and republish them once you finish this task (see the pages skill)." ;;
     */profile/master-resume.md)
       grep -qE "^\| Portfolio \| https" "$PUB" 2>/dev/null && add "The user's portfolio is published and their master resume changed. Offer to update it; republish only after the user approves." ;;

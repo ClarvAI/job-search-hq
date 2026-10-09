@@ -4,7 +4,7 @@ Used by `/find-jobs` and the `job-scout` agent. Researched 2026-10; endpoints ch
 
 ## 1. Employer job-board feeds (best source: the employer's own data)
 
-Find the token in the careers-page link (the part after the board's domain), or in that company's Notes in `knowledge/target-employers.md`.
+Find the token in the careers-page link (the part after the board's domain), or in that company's Notes in `knowledge/field/target-employers.md`.
 
 | System | How to spot it | Read-only feed | Date field to trust |
 |---|---|---|---|
