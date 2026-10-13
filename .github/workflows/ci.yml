@@ -84,6 +84,7 @@ jobs:
           python scripts/ci/e2e-fresh.py --impl sh
           python scripts/ci/e2e-update.py --impl sh
           python scripts/ci/e2e-mydata.py --impl sh
+          python scripts/ci/e2e-sample.py --impl sh
           python scripts/ci/e2e-theme-git.py
       - name: Published dashboard copies and the Claude Dashboard page
         run: python scripts/ci/check-dashboard-type.py
@@ -94,6 +95,7 @@ jobs:
           python scripts/ci/e2e-fresh.py --impl ps
           python scripts/ci/e2e-update.py --impl ps
           python scripts/ci/e2e-mydata.py --impl ps
+          python scripts/ci/e2e-sample.py --impl ps
       - name: Install Claude Code (the version the panels were last tested with)
         run: |
           npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_TESTED}"
@@ -166,6 +168,7 @@ jobs:
           python3 scripts/ci/e2e-fresh.py --impl sh
           python3 scripts/ci/e2e-update.py --impl sh
           python3 scripts/ci/e2e-mydata.py --impl sh
+          python3 scripts/ci/e2e-sample.py --impl sh
           python3 scripts/ci/e2e-theme-git.py
           python3 scripts/ci/check-dashboard-type.py
 
@@ -242,6 +245,7 @@ jobs:
           python scripts/ci/e2e-fresh.py --impl sh
           python scripts/ci/e2e-update.py --impl sh
           python scripts/ci/e2e-mydata.py --impl sh
+          python scripts/ci/e2e-sample.py --impl sh
       - name: End-to-end, Windows PowerShell 5.1 (fresh clone, /update, /my-data)
         shell: bash
         env:
@@ -250,6 +254,7 @@ jobs:
           python scripts/ci/e2e-fresh.py --impl ps
           python scripts/ci/e2e-update.py --impl ps
           python scripts/ci/e2e-mydata.py --impl ps
+          python scripts/ci/e2e-sample.py --impl ps
       - name: End-to-end, PowerShell 7 (/update, /my-data)
         shell: bash
         env:
@@ -257,6 +262,7 @@ jobs:
         run: |
           python scripts/ci/e2e-update.py --impl ps
           python scripts/ci/e2e-mydata.py --impl ps
+          python scripts/ci/e2e-sample.py --impl ps
       - name: End-to-end, theme + git pull (Windows line endings)
         shell: bash
         run: |

@@ -1,0 +1,63 @@
+{
+  "generated": "{{D+0}}",
+  "newPerDay": 10,
+  "decks": [
+    {
+      "id": "stories",
+      "name": "My stories",
+      "description": "Alex Rivera's stories from the story bank (sample).",
+      "cards": [
+        {
+          "id": "tell-me-about-a-launch-you-are-proud-of",
+          "q": "Tell me about a launch you're proud of.",
+          "a": "S: Northwind was adding an analytics add-on and sales had no clear story for it.\nT: Own positioning and the launch plan.\nA: Ran 25 customer interviews, wrote the positioning, trained sales before launch. Hard part: getting product to drop two features from the message.\nR: 1,200 paying accounts in two quarters; Launch of the Year.",
+          "tag": "Behavioral",
+          "hint": "Northwind Insights. Lead with 1,200 accounts."
+        },
+        {
+          "id": "how-do-you-make-sure-sales-uses-what-you-build",
+          "q": "How do you make sure sales uses what you build?",
+          "a": "S: Reps were losing deals to one competitor; old battlecards sat unread.\nT: Build something they'd use in calls.\nA: Built battlecards with the 40 account executives; updated every quarter from lost-deal notes.\nR: Win rate against that competitor went from 31% to 38%.",
+          "tag": "Behavioral"
+        },
+        {
+          "id": "tell-me-about-a-mistake",
+          "q": "Tell me about a mistake you made.",
+          "a": "S: My first pricing page test ran two weeks before I saw tracking only counted one of two demo forms.\nT: Save the test and the team's trust.\nA: Told my manager the same day, fixed tracking, restarted with a written plan.\nR: The rerun lifted demo requests 18%; the plan became the team template.",
+          "tag": "Behavioral"
+        },
+        {
+          "id": "tell-me-about-a-disagreement-with-another-team",
+          "q": "Tell me about a disagreement with another team.",
+          "a": "S: Product wanted a feature-list launch; sales wanted a cost-savings story.\nT: Land one message both teams would use.\nA: Brought customer quotes to a working session; tested both in two email campaigns.\nR: Cost-savings won on replies; product agreed; kept a feature appendix.",
+          "tag": "Behavioral"
+        }
+      ]
+    },
+    {
+      "id": "technical",
+      "name": "Product marketing technical",
+      "description": "From the B2B SaaS product marketing field primer (sample).",
+      "cards": [
+        {
+          "id": "positioning-vs-messaging",
+          "q": "What's the difference between positioning and messaging?",
+          "a": "Positioning: who it's for, what it's compared with, and why it wins.\nMessaging: the words that bring that positioning to life for each audience.\nExample: Northwind Insights positioning from 25 customer interviews.",
+          "tag": "Field basics"
+        },
+        {
+          "id": "how-do-you-measure-a-launch",
+          "q": "How do you measure whether a launch worked?",
+          "a": "Pick the metrics before launch: adoption, pipeline, win rate.\nExample: Insights, 1,200 paying accounts in two quarters.",
+          "tag": "Field basics"
+        },
+        {
+          "id": "what-is-usage-based-pricing",
+          "q": "What is usage-based pricing?",
+          "a": "Customers pay for what they use instead of per seat.\nA gap for Alex: say so plainly, then the Globex pricing page test and how you'd learn it.",
+          "tag": "Field basics"
+        }
+      ]
+    }
+  ]
+}

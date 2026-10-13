@@ -1,0 +1,38 @@
+{
+  "example": false,
+  "generated": "{{D+0}}",
+  "owner": "Alex Rivera (sample)",
+  "goals": { "applications": 4, "conversations": 2, "mocks": 1 },
+  "week": { "applications": 1, "conversations": 2, "mocks": 1 },
+  "history": [
+    { "week": "{{D-35}}", "applications": 1, "conversations": 0, "mocks": 0 },
+    { "week": "{{D-28}}", "applications": 0, "conversations": 1, "mocks": 0 },
+    { "week": "{{D-21}}", "applications": 1, "conversations": 0, "mocks": 0 },
+    { "week": "{{D-14}}", "applications": 1, "conversations": 1, "mocks": 0 }
+  ],
+  "streak": 6,
+  "activity": [
+    { "date": "{{D-1}}", "text": "Added Vandelay Industries Senior Product Marketing Manager (fit 4)" },
+    { "date": "{{D-2}}", "text": "Talked with Sam Roe at Acme; panel confirmed" },
+    { "date": "{{D-3}}", "text": "Mock interview: behavioral, 4 questions" },
+    { "date": "{{D-4}}", "text": "Umbrella: written offer received" },
+    { "date": "{{D-5}}", "text": "Applied to Initech, Product Marketing Lead (referral)" },
+    { "date": "{{D-6}}", "text": "Pat Lee referred Alex to Initech" }
+  ],
+  "jobs": [
+    { "company": "Acme Corp", "role": "Senior Product Marketing Manager, Analytics", "status": "interviewing", "fit": 5, "priority": "A", "next": "Interview {{D+1}}", "due": "{{D+1}}", "deadline": "", "location": "Denver, CO (hybrid)", "applied": "{{D-21}}", "url": "https://careers.acme.example.com/jobs/R-20481" },
+    { "company": "Initech", "role": "Product Marketing Lead", "status": "screening", "fit": 4, "priority": "A", "next": "Schedule interview", "due": "{{D+0}}", "deadline": "", "location": "Remote (US)", "applied": "{{D-5}}", "url": "https://jobs.initech.example.com/openings/IT-118" },
+    { "company": "Hooli", "role": "Senior Product Marketing Manager", "status": "applied", "fit": 4, "priority": "B", "next": "Follow up with Rae Fox", "due": "{{D+0}}", "deadline": "", "location": "Denver, CO (hybrid)", "applied": "{{D-10}}", "url": "https://jobs.example.com/listing/hooli-spmm-2231" },
+    { "company": "Umbrella", "role": "Product Marketing Manager, Platform", "status": "offer", "fit": 4, "priority": "B", "next": "Respond to offer", "due": "{{D+3}}", "deadline": "{{D+5}}", "location": "Remote (US)", "applied": "{{D-40}}", "url": "https://careers.umbrella.example.com/jobs/PM-3304" },
+    { "company": "Vandelay Industries", "role": "Senior Product Marketing Manager", "status": "interested", "fit": 4, "priority": "B", "next": "Review package and submit", "due": "{{D+0}}", "deadline": "{{D+3}}", "location": "Denver, CO (on-site)", "url": "https://jobs.example.com/listing/vandelay-spmm-77" },
+    { "company": "Umbrella", "role": "Senior Product Marketing Manager, Security", "status": "interested", "fit": 3, "priority": "C", "next": "Decide: apply or skip (date unclear)", "deadline": "", "location": "Remote (US)", "url": "https://careers.umbrella.example.com/jobs/PM-3390" },
+    { "company": "Initech", "role": "Product Marketing Manager, Payments", "status": "rejected", "fit": 4, "priority": "B", "next": "", "due": "", "deadline": "", "location": "Remote (US)", "applied": "{{D-46}}", "heard": true, "url": "https://jobs.initech.example.com/openings/IT-097" },
+    { "company": "Hooli", "role": "Product Marketing Manager, Ads", "status": "withdrawn", "fit": 3, "priority": "C", "next": "", "due": "", "deadline": "", "location": "Austin, TX", "applied": "{{D-35}}", "url": "https://jobs.example.com/listing/hooli-pmm-ads-1902" },
+    { "company": "Vandelay Industries", "role": "Director of Product Marketing", "status": "skipped", "fit": 2, "priority": "C", "next": "", "due": "", "deadline": "", "location": "Denver, CO", "url": "https://jobs.example.com/listing/vandelay-dpm-12" },
+    { "company": "Acme Corp", "role": "Product Marketing Manager, Integrations", "status": "ghosted", "fit": 3, "priority": "C", "next": "", "due": "", "deadline": "", "location": "Remote (US)", "applied": "{{D-55}}", "url": "https://careers.acme.example.com/jobs/R-19877" }
+  ],
+  "contacts": [
+    { "name": "Jordan Kim", "company": "Hooli", "next": "Follow up", "due": "{{D+0}}" },
+    { "name": "Dana Cole", "company": "Vandelay Industries", "next": "Send the connection note", "due": "{{D+1}}" }
+  ]
+}

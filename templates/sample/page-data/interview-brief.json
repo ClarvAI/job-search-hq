@@ -1,0 +1,45 @@
+{
+  "example": false,
+  "company": "Acme Corp",
+  "role": "Senior Product Marketing Manager, Analytics",
+  "when": "{{D+1}} · 10:00 AM (Mountain Time)",
+  "whenISO": "{{D+1}}T10:00",
+  "format": "Panel interview, 45 minutes",
+  "where": "Video call",
+  "link": "https://example.com/meet/acme-pmm",
+  "interviewers": [
+    { "name": "Jane Doe", "title": "Director of Product Marketing", "note": "Hiring manager. Ask how product marketing and sales plan launches together." },
+    { "name": "Sam Roe", "title": "Recruiter", "note": "Owns scheduling and next steps. Decision expected within a week of the panel." }
+  ],
+  "company60": [
+    "Analytics software for operations teams at mid-size companies; about 900 people (sample: Acme is made up).",
+    "This role owns positioning and launches for Acme Analytics, the fastest-growing product line.",
+    "Two to three launches a year, plus battlecards and win/loss work for sales.",
+    "Why now: a new add-on family is coming."
+  ],
+  "pitchSeconds": 90,
+  "pitch": "I'm a product marketer with eight years in B2B software. At Northwind Software I lead launches for our analytics add-on, Insights, which reached 1,200 paying accounts in two quarters, and I run the battlecard program our 40 account executives use. Before that I spent four years at Globex Analytics, where I learned to test messaging with real numbers. I'm looking for a senior role where I own positioning for an analytics product end to end, which is what this role is.",
+  "why": "Acme Analytics is the kind of product I've launched before, and this role owns it end to end.",
+  "map": [
+    { "q": "Walk me through your background.", "story": "Your 90-second pitch (above)", "tag": "behavioral" },
+    { "q": "Tell me about a launch you're proud of.", "story": "Launching Northwind Insights", "tag": "behavioral" },
+    { "q": "How do you make sure sales uses what you build?", "story": "Battlecards that sales used", "tag": "behavioral" },
+    { "q": "Tell me about a disagreement with another team.", "story": "Two teams, one message", "tag": "behavioral" },
+    { "q": "Have you worked with usage-based pricing?", "story": "", "gap": true, "tag": "technical" }
+  ],
+  "weak": [
+    { "gap": "The posting asks for usage-based pricing experience", "answer": "Say no plainly, then the Globex pricing page test (+18% demo requests) and how you'd learn the model in the first 90 days." }
+  ],
+  "ask": [
+    "What does success look like in the first 90 days?",
+    "How do product marketing and sales plan a launch together here?",
+    "What's the biggest positioning question the team is working on now?"
+  ],
+  "comp": "If pay comes up: the posted range is $140,000 to $165,000 base; I'm looking at $150,000 to $160,000 depending on the full package.",
+  "logistics": [
+    "Test your camera, mic and the link the day before",
+    "Log in 10 minutes early with water and these notes",
+    "Have your resume and the job posting open in another tab",
+    "Send thank-you notes within 24 hours (ask your assistant to draft them)"
+  ]
+}
