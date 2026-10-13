@@ -29,7 +29,7 @@ Background for `/tailor-resume`. Researched 2026-10. Evidence is labeled; most r
 ## 3. What actually breaks parsing
 
 Applicant tracking systems (Workday, Greenhouse, iCIMS, Taleo and others) pull text out of the file to fill the candidate record and the search index. When that fails, the recruiter sees garbled fields, and the user may have to retype everything. Common failures (recruiter and vendor testing, consistent across sources; no system publishes its parser):
-- **Two columns or sidebars:** text read straight across both columns, so a skills sidebar interleaves with job history. (The optional designed resume's `sidebar` layout is the one exception here: it puts a short sidebar first in the file, its PDF text reads sidebar then main column, `make-pdf.sh` checks that, and it is never the version uploaded to a form.)
+- **Two columns or sidebars:** text read straight across both columns, so a skills sidebar interleaves with job history. (The optional designed resume's `sidebar` layout is the one exception here: it keeps the main column first in the file and the short sidebar after it, so its PDF text reads the main column, then the sidebar, `make-pdf.sh` checks that, and it is never the version uploaded to a form.)
 - **Headers and footers:** contact details placed in a Word header/footer are often skipped. Keep the name and contact in the body.
 - **Text boxes, tables, icons, images, charts, skill bars:** dropped or scrambled. A phone icon instead of the word or a plain number can lose the phone number.
 - **Scanned or image PDFs:** no text layer at all. Our PDFs are printed from HTML, so they have one; `make-pdf` checks it (`parse:`).

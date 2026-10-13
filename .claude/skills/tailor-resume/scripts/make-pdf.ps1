@@ -196,6 +196,13 @@ try {
   }
   if ($want -and $want -ne $paper) { Write-Output "paper-warning: the file asks for $want but the PDF came out $paper" }
 
+  # The <title> becomes the PDF's title (screen readers announce it); the template's placeholder must not survive.
+  if ($engine -eq 'browser') {
+    $tm = [regex]::Match($raw, '<title>([^<]*)</title>', 'IgnoreCase')
+    $title = if ($tm.Success) { ($tm.Groups[1].Value -replace '\s+', ' ').Trim() } else { '' }
+    if (-not $title -or $title -like '*Your Name*') { Write-Output ('title-warning: the page title is "' + $title + '"; set <title> to the person''s name and "Resume" or "Cover Letter" (it becomes the PDF''s title, which screen readers announce), then make the PDF again') }
+  }
+
   # ---- Parse check
   if (-not (Get-Command pdftotext -ErrorAction SilentlyContinue)) { Write-Output 'parse: skipped (pdftotext not installed)'; exit 0 }
   $txtPath = Join-Path $tmp 'text.txt'

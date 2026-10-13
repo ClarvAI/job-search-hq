@@ -118,6 +118,14 @@
   .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
   /* Hidden stays hidden even when the styling script can't load (offline). */
   [hidden] { display: none !important; }
+  /* Forced colors (Windows contrast themes) drop backgrounds and shadows, so controls, cards and the selected
+     state would vanish: give them real borders and show selection in the system highlight colors. */
+  @media (forced-colors: active) {
+    button, .btn, [role="tab"] { border: 1px solid ButtonText; }
+    [aria-pressed="true"], [aria-selected="true"], [aria-current]:not([aria-current="false"]) { forced-color-adjust: none; background: Highlight; color: HighlightText; border-color: Highlight; }
+    :is([aria-pressed="true"], [aria-selected="true"], [aria-current]:not([aria-current="false"])) * { color: HighlightText; }
+    .pf-top, .pf-card, .pf-stat, .pf-project, :root[data-layout="bento"] .pf-quote { border: 1px solid CanvasText; }
+  }
 
   /* Concept: a public one-pager someone is proud to send a recruiter. One semantic structure (hero, contact,
      highlights, experience, projects, skills, education, testimonials) restyled by data-layout on <html>:
@@ -367,7 +375,7 @@
     :root[data-layout="bento"] .pf-contact { justify-content: flex-start; }
     :root[data-layout="bento"] .pf-contact-note { margin-top: 0; font-size: var(--text-body); line-height: var(--text-body--line-height); color: var(--color-text-on-accent); }
     :root[data-layout="bento"] .pf-contact-body { flex: 1; }
-    :root[data-layout="bento"] .pf-reach { order: -1; padding-block: var(--space-2); border-block: 1px solid color-mix(in oklch, var(--color-text-on-accent) 28%, transparent); }
+    :root[data-layout="bento"] .pf-reach { padding-block: var(--space-2); border-block: 1px solid color-mix(in oklch, var(--color-text-on-accent) 28%, transparent); }
     :root[data-layout="bento"] .pf-actions { margin-top: auto; }
     :root[data-layout="bento"] .pf-section-head { margin-bottom: var(--space-3); padding-inline: var(--space-1); }
     :root[data-layout="bento"] .pf-h2 { font-size: var(--text-heading); line-height: var(--text-heading--line-height); letter-spacing: 0; }
@@ -422,7 +430,9 @@
     }
     @supports (animation-timeline: view()) {
       @media (prefers-reduced-motion: no-preference) {
-        .pf > section { animation: pf-rise linear both; animation-timeline: view(); animation-range: entry 0% entry 55%; animation-duration: 1ms; }
+        /* Sections stay fully opaque (readable mid-scroll, in screenshots and to contrast checkers); only they slide up. */
+        .pf > section { animation: pf-slide linear both; animation-timeline: view(); animation-range: entry 0% entry 55%; animation-duration: 1ms; }
+        @keyframes pf-slide { from { translate: 0 1rem; } }
       }
     }
 

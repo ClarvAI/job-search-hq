@@ -4,7 +4,8 @@
   Assistant: only ever made ALONGSIDE the ATS resume, never instead of it, and only from the same checked
   resume.md text (no new claims). Start from profile/templates/resume-designed-template.html if it exists (it
   carries the user's look); never edit this app copy. Copy it to jobs/<folder>/resume-designed.html and replace
-  everything between the opening and closing main tags, keeping the markup pattern below. Uses the user's page
+  everything between the opening and closing main tags, keeping the markup pattern below, and set the title
+  element to the person's name and "Resume" (it becomes the PDF's title, which screen readers announce). Uses the user's page
   look (colors, fonts) from profile/design.md, printed light. Leave data-layout alone (page-design sets it from
   layout_designed: sidebar or headline; both read the same markup in the same order).
   Still: real selectable text, one reading order, standard headings, no images of text, no hidden or tiny text,
@@ -13,9 +14,12 @@
   Markup pattern:
     header.masthead: h1 (the name); p.headline only if resume.md has a summary or target-role line (use its
       exact words; otherwise delete it); p.contact with items separated by <span class="sep"> · </span>.
-    div.columns holds aside.side FIRST (short sections only: education, skills, certifications, languages),
-      then div.primary (experience, projects). The sidebar layout shows them side by side and the PDF text
-      reads the whole sidebar, then the main column; the headline layout stacks them in the same order.
+    div.columns holds div.primary FIRST (experience, projects), then aside.side (short sections only:
+      education, skills, certifications, languages). The sidebar layout shows the main column on the left
+      and the short sidebar on the right, and the PDF text reads the whole main column, then the sidebar;
+      the headline layout stacks them in the same order, so experience always comes first. A student or new
+      graduate whose education is their strongest section may move the education section to the top of
+      div.primary instead (never above it in the file).
     One section element per heading, its h2 holding only the plain heading text. .entry, p.line rows with a
       left span then span.end (location or dates), span.org on the first row, "line role" on the second,
       then a ul of bullets, exactly as in the ATS resume.
@@ -95,14 +99,14 @@
   .skill-group + .skill-group { margin-top: 0.5em; }
   .tags { text-wrap: pretty; }
 
-  /* ---- Layout: sidebar (default). Short sidebar first on the left, main column right.
-     The PDF text reads the whole sidebar, then the main column. ---- */
+  /* ---- Layout: sidebar (default). Main column left, short sidebar right; the file holds them in that
+     order, so the page, the PDF text and a screen reader all read the main column, then the sidebar. ---- */
   :root[data-layout="sidebar"] .masthead { padding: 0 0 0.9em; margin-bottom: 1.1em; border-bottom: 1pt solid var(--r-line); }
   :root[data-layout="sidebar"] .masthead::before {
     content: ""; display: block; width: 2.4em; height: 3.5pt; margin-bottom: 0.9em;
     border-radius: 2pt; background: var(--r-accent);
   }
-  :root[data-layout="sidebar"] .columns { display: grid; grid-template-columns: 30% minmax(0, 1fr); column-gap: 1.6em; align-items: start; }
+  :root[data-layout="sidebar"] .columns { display: grid; grid-template-columns: minmax(0, 1fr) 30%; column-gap: 1.6em; align-items: start; }
   :root[data-layout="sidebar"] .side {
     background: var(--r-wash); border-radius: 6pt; padding: 1.05em 1em 1.15em;
     font-size: 0.95em;
@@ -135,7 +139,7 @@
   :root[data-layout="headline"] h2::before { content: ""; flex: none; width: 0.6em; height: 0.6em; border-radius: 2pt; background: var(--r-accent); }
   :root[data-layout="headline"] h2::after { content: ""; flex: 1; height: 0; border-top: 0.75pt solid var(--r-line); }
   :root[data-layout="headline"] .columns > * > section:first-child > h2 { margin-top: 0.95em; }
-  :root[data-layout="headline"] .side > section:first-child > h2 { margin-top: 0; }
+  :root[data-layout="headline"] .primary > section:first-child > h2 { margin-top: 0; }
   :root[data-layout="headline"] .skill-group { display: grid; grid-template-columns: 7.5em minmax(0, 1fr); column-gap: 0.8em; align-items: baseline; }
   :root[data-layout="headline"] .skill-group + .skill-group { margin-top: 0.35em; }
   :root[data-layout="headline"] .tags { line-height: 1.75; color: var(--r-muted); }
@@ -143,7 +147,8 @@
      (real text: the PDF reads "a, b, c") sits inside the end of its pill instead of floating between pills. */
   :root[data-layout="headline"] .tags { isolation: isolate; }
   :root[data-layout="headline"] .tags span {
-    display: inline-block; position: relative; line-height: 1.35; margin: 0.1em 0 0.1em 0.55em; color: var(--r-ink);
+    /* Inline (not inline-block) and unbreakable: a line can then wrap only after a tag's comma, never before it. */
+    display: inline; white-space: nowrap; position: relative; line-height: 1.35; margin: 0 0 0 0.55em; color: var(--r-ink);
   }
   :root[data-layout="headline"] .tags span + span { margin-left: 0.95em; }
   :root[data-layout="headline"] .tags span::before {
@@ -180,6 +185,28 @@
   </header>
 
   <div class="columns">
+    <div class="primary">
+      <section>
+        <h2>Experience</h2>
+        <div class="entry">
+          <p class="line"><span class="org">Company</span><span class="end">City, ST</span></p>
+          <p class="line role"><span>Role</span><span class="end">Mon YYYY – Mon YYYY</span></p>
+          <ul>
+            <li>Bullet from the checked resume text, same words as the plain version.</li>
+          </ul>
+        </div>
+      </section>
+      <section>
+        <h2>Projects</h2>
+        <div class="entry">
+          <p class="line"><span class="org">Project Name</span><span class="end">Mon YYYY – Mon YYYY</span></p>
+          <ul>
+            <li>Bullet.</li>
+          </ul>
+        </div>
+      </section>
+    </div>
+
     <aside class="side">
       <section class="edu">
         <h2>Education</h2>
@@ -207,28 +234,6 @@
         </div>
       </section>
     </aside>
-
-    <div class="primary">
-      <section>
-        <h2>Experience</h2>
-        <div class="entry">
-          <p class="line"><span class="org">Company</span><span class="end">City, ST</span></p>
-          <p class="line role"><span>Role</span><span class="end">Mon YYYY – Mon YYYY</span></p>
-          <ul>
-            <li>Bullet from the checked resume text, same words as the plain version.</li>
-          </ul>
-        </div>
-      </section>
-      <section>
-        <h2>Projects</h2>
-        <div class="entry">
-          <p class="line"><span class="org">Project Name</span><span class="end">Mon YYYY – Mon YYYY</span></p>
-          <ul>
-            <li>Bullet.</li>
-          </ul>
-        </div>
-      </section>
-    </div>
   </div>
 </main>
 </body>

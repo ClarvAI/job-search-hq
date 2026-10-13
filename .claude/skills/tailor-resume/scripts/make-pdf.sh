@@ -16,7 +16,8 @@
 # themed copy, templates/resume-designed-template.html).
 #
 # Output lines (first line is the status):
-#   pdf: <path>            then  paper: Letter|A4|...  pages: N  parse: ...  (and maybe parse-note: ...)
+#   pdf: <path>            then  paper: Letter|A4|...  pages: N  parse: ...  (and maybe parse-note: ..., or title-warning: ...
+#                          when the page's <title> is empty or still the template's "Your Name")
 #   no-browser             no Chrome/Edge/Chromium found: fall back to the manual Print -> Save as PDF steps
 #   no-rendercv            RenderCV isn't installed: use the .html route instead
 #   print-failed           no PDF, or one that came out blank (no text) or without the name, email and phone; a
@@ -122,6 +123,14 @@ case "$(printf '%s' "$want" | tr 'A-Z' 'a-z')" in
   letter|us-letter) want="Letter" ;; a4) want="A4" ;; *) want="" ;;
 esac
 [ -n "$want" ] && [ "$want" != "$paper" ] && echo "paper-warning: the file asks for $want but the PDF came out $paper"
+
+# The <title> becomes the PDF's title (screen readers announce it); the template's placeholder must not survive.
+if [ "$engine" = "browser" ]; then
+  title="$(tr '\n' ' ' <"$src" | grep -o -i -E '<title>[^<]*</title>' | head -1 | sed -e 's/<[^>]*>//g' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+  case "$title" in
+    ""|*"Your Name"*) echo "title-warning: the page title is \"$title\"; set <title> to the person's name and \"Resume\" or \"Cover Letter\" (it becomes the PDF's title, which screen readers announce), then make the PDF again" ;;
+  esac
+fi
 
 # ---- Parse check: does the PDF's text layer read back cleanly, in order? ----
 if ! command -v pdftotext >/dev/null 2>&1; then echo "parse: skipped (pdftotext not installed)"; exit 0; fi

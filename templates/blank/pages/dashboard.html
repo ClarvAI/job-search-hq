@@ -110,6 +110,18 @@
   .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
   /* Hidden stays hidden even when the styling script can't load (offline). */
   [hidden] { display: none !important; }
+  /* Forced colors (Windows contrast themes) drop backgrounds and shadows, so controls, cards and the selected
+     state would vanish: give them real borders and show selection in the system highlight colors. */
+  @media (forced-colors: active) {
+    button, .btn, [role="tab"] { border: 1px solid ButtonText; }
+    [aria-pressed="true"], [aria-selected="true"], [aria-current]:not([aria-current="false"]) { forced-color-adjust: none; background: Highlight; color: HighlightText; border-color: Highlight; }
+    :is([aria-pressed="true"], [aria-selected="true"], [aria-current]:not([aria-current="false"])) * { color: HighlightText; }
+    .panel, .celebrate, .hero, .hero-item, .steps li, .tile, .job, .callout { border: 1px solid CanvasText; }
+    .bar, .fbar, .wk i, .seg i, .tracker i { forced-color-adjust: none; background: Canvas; box-shadow: inset 0 0 0 1px CanvasText; }
+    .bar > i, .fbar > i, .wk .now i, .seg i.on, .tracker i.on { background: CanvasText; }
+    .wk .past i { background: GrayText; }
+    .is-sample .fbar > i, .is-sample .bar > i, .is-sample .tracker i.on, .is-sample .seg i.on { background: GrayText; }
+  }
   /* Motion: one signature moment (counters, bars and rings fill in). Everything starts visible. */
   @media (prefers-reduced-motion: no-preference) {
     .btn { transition-property: scale, background-color, box-shadow, color; transition-duration: 150ms; transition-timing-function: ease-out; }
@@ -507,7 +519,7 @@
         <span class="meta" id="board-count"></span>
       </div>
       <div id="board"></div>
-      <p class="meta" style="margin-top: var(--space-3)">A snapshot of your tracker. To move a job, use your board (/pipeline in Claude) or tell your assistant what happened, then ask it to refresh this page.</p>
+      <p class="meta" style="margin-top: var(--space-3)">A snapshot of your tracker. To move a job, tell your assistant what happened (or use the Pipeline board in Claude Code), then ask it to refresh this page.</p>
     </section>
 
     <section class="panel area-due" aria-labelledby="due-title">
@@ -561,14 +573,15 @@
   const isDate = s => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
   const parse = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
   const iso = dt => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
-  const today = isDate(data.generated) ? data.generated : iso(new Date());
+  // A brand-new user's page (example data, no jobs yet) shows the real date, not the date the blank copy was made.
+  const sample = !!data.example && !(Array.isArray(data.jobs) && data.jobs.length);
+  const today = isDate(data.generated) && !sample ? data.generated : iso(new Date());
   const add = (s, n) => { const d = parse(s); d.setDate(d.getDate() + n); return iso(d); };
   const diff = (a, b) => Math.round((parse(a) - parse(b)) / 864e5);
   const fmt = s => isDate(s) ? parse(s).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
   const fmtDay = s => parse(s).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
 
   // ---- Brand-new user: show a labelled sample so the page looks like what it will become. ----
-  const sample = !!data.example && !(Array.isArray(data.jobs) && data.jobs.length);
   const d = n => add(today, n);
   const SAMPLE = {
     jobs: [
@@ -589,8 +602,7 @@
       { date: d(-2), text: 'Offer from Umbrella Health Tech' },
       { date: d(-4), text: 'Coffee chat with Jane Doe (Acme Cloud)' },
       { date: d(-6), text: 'Applied to Initech, Group Product Marketing Manager' }
-    ],
-    streak: 4
+    ]
   };
   const src = sample ? SAMPLE : data;
   if (sample) root.setAttribute('data-first-run', '');
@@ -599,7 +611,7 @@
   const goals = data.goals || {}, week = data.week || {};
   const kWeek = sample ? SAMPLE.week : week;
   const history = (Array.isArray(src.history) ? src.history : []).filter(x => x && isDate(x.week)).sort((a, b) => a.week.localeCompare(b.week)).slice(-8);
-  const streak = num(src.streak);
+  const streak = sample ? 0 : num(src.streak); // never a made-up streak in the header of a new user's page
 
   const markSample = el => {
     if (!sample || !el) return;
@@ -853,7 +865,11 @@
     const all = sortJobs(jobs.filter(j => st.includes(j.status)));
     const closed = title === 'Closed';
     const shown = full ? all : all.slice(0, 3);
-    const head = [h('span', { class: 'dot', style: `--c:var(${c})`, 'aria-hidden': 'true' }), h('h3', { text: title }), chip(String(all.length), '')];
+    // The visible count chip is hidden from screen readers, which hear "To apply, 1 job" (the column's label, or a
+    // hidden phrase inside the collapsible summary) instead of "To apply1".
+    const countChip = chip(String(all.length), ''); countChip.setAttribute('aria-hidden', 'true');
+    const head = [h('span', { class: 'dot', style: `--c:var(${c})`, 'aria-hidden': 'true' }), h('h3', { text: title }), countChip];
+    if (!full) head.push(h('span', { class: 'sr-only', text: `, ${plural(all.length, 'job')}` }));
     const ul = h('ul', {}, shown.map(j => card(j, closed)));
     const body = [all.length ? ul : h('p', { class: 'empty', text: emptyText[title] }), all.length > shown.length ? h('p', { class: 'more', text: `+ ${all.length - shown.length} more` }) : null];
     if (full) return h('section', { class: 'stage', 'aria-label': `${title}, ${plural(all.length, 'job')}` }, h('div', { class: 'stage-head' }, head), body);

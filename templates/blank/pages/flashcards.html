@@ -114,6 +114,17 @@
   .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
   /* Hidden stays hidden even when the styling script can't load (offline). */
   [hidden] { display: none !important; }
+  /* Forced colors (Windows contrast themes) drop backgrounds and shadows, so controls, cards and the selected
+     state would vanish: give them real borders and show selection in the system highlight colors. */
+  @media (forced-colors: active) {
+    button, .btn, [role="tab"] { border: 1px solid ButtonText; }
+    [aria-pressed="true"], [aria-selected="true"], [aria-current]:not([aria-current="false"]) { forced-color-adjust: none; background: Highlight; color: HighlightText; border-color: Highlight; }
+    :is([aria-pressed="true"], [aria-selected="true"], [aria-current]:not([aria-current="false"])) * { color: HighlightText; }
+    .session, .face, .done, .sheet-item, .pile::before, .pile::after { border: 1px solid CanvasText; }
+    .bar { forced-color-adjust: none; background: Canvas; box-shadow: inset 0 0 0 1px CanvasText; }
+    .seg-learned, .dot-learned { forced-color-adjust: none; background: CanvasText; }
+    .seg-due, .dot-due { forced-color-adjust: none; background: GrayText; }
+  }
 
   /* Concept: a deck of cue cards. One calm card at a time, prompt in the middle, the rest of the deck
      peeking below. Tap or Space flips it to the user's notes; rate how it went and the next card is dealt.
@@ -149,7 +160,7 @@
     /* Header */
     .top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--space-3) var(--space-5); }
     .top > div { display: flex; flex-direction: column; gap: var(--space-1); }
-    .streak { display: inline-flex; align-items: center; gap: var(--space-2); margin: 0; padding: 0.375rem 0.875rem 0.375rem 0.625rem; border-radius: var(--radius-full); background: var(--color-bg-surface); box-shadow: var(--shadow-surface); font-size: var(--text-small); font-weight: 600; }
+    .streak { display: inline-flex; align-items: center; gap: var(--space-2); margin: 0; padding: 0.375rem 0.875rem 0.375rem 0.625rem; border-radius: var(--radius-full); background: var(--color-bg-inset); font-size: var(--text-small); font-weight: 600; } /* a status chip: flat, so it never looks like a button */
     .streak .icon { color: var(--color-accent-text); }
     .streak[data-on="false"] { color: var(--color-text-secondary); font-weight: 500; }
 
@@ -829,7 +840,7 @@
       const s = el('span', 'seg-' + k); s.style.width = (v / n * 100) + '%'; bar.append(s);
     });
     const lg = $('legend'); lg.replaceChildren();
-    [['learned', learned, 'learned'], ['due', due, 'due today'], ['new', fresh, 'new']].forEach(([k, v, label]) => {
+    [['learned', learned, 'learned'], ['due', due, 'to review'], ['new', fresh, 'new']].forEach(([k, v, label]) => {
       const li = el('li'); li.append(el('span', 'dot dot-' + k), document.createTextNode(`${v} ${label}`)); lg.append(li);
     });
     return { due, fresh, learned };
@@ -1021,8 +1032,11 @@
     if (e.target.closest('input, textarea, select, [contenteditable], [role="tablist"], summary')) return;
     if (e.metaKey || e.ctrlKey || e.altKey || !order.length) return;
     const onControl = e.target.closest('button, a');
-    if (e.key === ' ' && !onControl) { e.preventDefault(); $('flip').click(); }
-    if (flipped && /^[1-4]$/.test(e.key)) { e.preventDefault(); rate(+e.key); }
+    // The 1-4 rating keys work only while focus is in the practice area (WCAG 2.1.4: a single-character shortcut
+    // must not fire from anywhere, e.g. when speech input says a number). Space moves focus there as it flips.
+    const inPractice = e.target.closest('.stage, #controls, #nav-row');
+    if (e.key === ' ' && !onControl) { e.preventDefault(); $('flip').focus(); $('flip').click(); }
+    if (flipped && inPractice && /^[1-4]$/.test(e.key)) { e.preventDefault(); rate(+e.key); }
     if (e.key === 'ArrowRight') go(1);
     if (e.key === 'ArrowLeft') go(-1);
   });

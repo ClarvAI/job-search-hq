@@ -4,7 +4,9 @@
   Assistant: if profile/templates/resume-template.html exists, start from that
   copy instead (it carries the user's look); never edit this file. Copy it to
   jobs/<folder>/resume.html and replace everything between the opening and
-  closing main tags, keeping the markup pattern below. Set the lang attribute
+  closing main tags, keeping the markup pattern below. Set the title element to
+  the person's name and "Resume" (it becomes the PDF's title, which screen readers
+  announce). Set the lang attribute
   of the html element to the resume's language (for example de); leave
   data-layout alone (page-design sets it from layout_resume in profile/design.md:
   classic, modern or compact; all three read the same markup).

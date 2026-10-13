@@ -15,7 +15,8 @@
 //        sample content in the current theme to pages/.preview/<page>-<layout>.html; changes nothing else
 //   node .claude/skills/page-design/scripts/apply-theme.mjs --regenerate <name,...|all>
 //        after an update changed an app template: rebuild profile/templates/<name> from the new templates/<name>
-//        plus the theme, keeping the old copy as profile/templates/<name minus .html>.previous.html. Pages are not touched.
+//        plus the theme, keeping the old copy as profile/templates/<name minus .html>.previous.html (an earlier .previous.html
+//        that differs is kept as .previous-2.html, -3, ...; nothing is overwritten). Pages are not touched.
 // Options: --preset <default|modern|minimal|high-contrast> (use a preset instead of the design block),
 //          --design <file> (read another design file), --root <folder> (another workspace; used by tests).
 // Maintainers: --build-presets rewrites presets/<name>.md (the precomputed blocks used when Node is missing);
@@ -194,6 +195,8 @@ function targets() {
 function apply({ t, R }, { write }) {
   let updated = 0, same = 0, differs = 0, skipped = 0
   for (const { file, kind } of targets()) {
+    const lp = linkedParent(file)
+    if (lp) { out(`skipped: ${rel(file)} (a link: ${lp}/ points to another folder; only real folders are changed)`); skipped++; continue }
     if (fs.lstatSync(file).isSymbolicLink()) { out(`skipped: ${rel(file)} (a link; only real files are changed)`); skipped++; continue }
     const html = readHtml(file)
     const r = themePage(html, t, R, file)
@@ -217,6 +220,12 @@ function readRecord() { try { const r = JSON.parse(fs.readFileSync(RECORD, 'utf8
 function writeRecord(r) { fs.writeFileSync(RECORD, JSON.stringify(r, null, 2) + '\n') }
 function themeTemplate(html, kind, t, R, name) { return kind === 'designed' ? themeDesigned(html, t, R, name) : themeDoc(html, t, kind, name) }
 function isLink(f) { try { return fs.lstatSync(f).isSymbolicLink() } catch { return false } }
+// The outermost folder between the workspace and this path that is a link (shortcut) to another place, or ''.
+function linkedParent(file) {
+  let found = ''
+  for (let d = path.dirname(path.resolve(file)); d.startsWith(ROOT + path.sep); d = path.dirname(d)) if (isLink(d)) found = rel(d)
+  return found
+}
 function userTemplatesOk() {
   if (isLink(path.join(ROOT, 'profile')) || isLink(USER_TPL)) { out('skipped: profile/templates/ (a link; only real folders are changed)'); return false }
   return true
@@ -288,11 +297,20 @@ function regenerate({ t, R }, which) {
     if (old === r.html) { out(`unchanged: ${rel(mine)}`); continue }
     const handEdited = record[name] !== sha(old)
     const prev = path.join(USER_TPL, previousName(name))
+    // An earlier .previous.html (from a refresh before, perhaps edited since) is never overwritten: if it differs
+    // from the copy being set aside now, it moves to the first free <name>.previous-<n>.html.
+    let older = ''
+    if (fs.existsSync(prev) && !isLink(prev) && readHtml(prev) !== old) {
+      let i = 2, dest
+      do dest = path.join(USER_TPL, name.replace(/\.html$/, `.previous-${i++}.html`)); while (fs.existsSync(dest))
+      fs.renameSync(prev, dest)
+      older = `; the copy from the refresh before that is now ${rel(dest)}`
+    } else if (isLink(prev)) { out(`skipped: ${rel(mine)} (${rel(prev)} is a link; only real files are changed)`); continue }
     writeHtml(prev, old, mine)
     writeHtml(mine, r.html)
     record[name] = sha(r.html); n++
     if (handEdited) kept++
-    out(`refreshed: ${rel(mine)} (the new version of the app's template, with your theme; the earlier copy is ${rel(prev)}${carried ? '; your Custom CSS region was carried over' : ''}${handEdited ? '; it has changes made by hand, so offer to carry the rest over' : ''})`)
+    out(`refreshed: ${rel(mine)} (the new version of the app's template, with your theme; the earlier copy is ${rel(prev)}${older}${carried ? '; your Custom CSS region was carried over' : ''}${handEdited ? '; it has changes made by hand, so offer to carry the rest over' : ''})`)
   }
   writeRecord(record)
   return { n, kept }
@@ -300,7 +318,8 @@ function regenerate({ t, R }, which) {
 
 // ---- Preview -----------------------------------------------------------------------------------
 function sampleData() {
-  const d = new Date(), iso = x => new Date(d.getTime() + x * 86400000).toISOString().slice(0, 10)
+  // Local dates (toISOString is UTC, which put the preview a day ahead in the evening west of Greenwich).
+  const d = new Date(), iso = x => { const t = new Date(d.getFullYear(), d.getMonth(), d.getDate() + x); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}` }
   return {
     example: false, generated: iso(0), owner: 'Theme preview (sample data)',
     goals: { applications: 5, conversations: 3, mocks: 1 }, week: { start: iso(-((d.getDay() + 6) % 7)), applications: 3, conversations: 1, mocks: 1 },
@@ -482,6 +501,12 @@ if (flag('--preview')) {
   // Inside the workspace (pages/.preview/ is the user's own, git-ignored, and removed by a reset), so the
   // built-in browser and the user can open the files; the pages themselves and the templates don't change.
   const dir = path.resolve(opt('--preview') || path.join(ROOT, 'pages', '.preview'))
+  const lp = linkedParent(path.join(dir, 'x'))
+  if (lp) {
+    out(`skipped: ${rel(dir)}/ (a link: ${lp}/ points to another folder; only real folders are changed)`)
+    out(`result: 0 previews written (your pages and templates did not change)`)
+    process.exit(0)
+  }
   const made = args.includes('--layouts') ? previewLayouts(dir, opt('--layouts'), loadTheme(opt('--preset'))) : preview(dir)
   out(`result: ${made.length} previews written to ${rel(dir) || dir} (your pages and templates did not change)`)
   process.exit(0)

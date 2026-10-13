@@ -43,11 +43,11 @@ if (!matchMedia('(prefers-reduced-motion: reduce)').matches) document.querySelec
 ## Scroll-driven reveal (portfolio sections)
 ```css
 @supports (animation-timeline: view()) { @media (prefers-reduced-motion: no-preference) {
-  .reveal { animation: rise linear both; animation-timeline: view(); animation-range: entry 0% entry 65%; animation-duration: 1ms; }
-  @keyframes rise { from { opacity: 0.4; translate: 0 1rem; } to { opacity: 1; translate: 0 0; } }
+  .reveal { animation: slide-up linear both; animation-timeline: view(); animation-range: entry 0% entry 65%; animation-duration: 1ms; }
+  @keyframes slide-up { from { translate: 0 1rem; } to { translate: 0 0; } }
 } }
 ```
-Never move text against scroll, never hijack scrolling, and never start below opacity 0.4.
+Scroll-linked reveals move only; they never fade. A section waiting below the fold would otherwise sit part-transparent in a full-page screenshot, a link preview, a print or a contrast checker (axe flagged it). Never move text against scroll and never hijack scrolling. One-shot entrances on load (the hero) may fade from opacity 0.4 or more.
 
 ## Motion set to "reduced" in profile/design.md
 The token block then carries `--motion: reduced` and one rule that turns off movement (animations, and transitions of anything but color, shadow and opacity) on every page, even when the device allows motion. Scripts that animate on their own (counters, confetti, card deals) read it too:

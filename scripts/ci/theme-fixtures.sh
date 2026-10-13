@@ -99,6 +99,23 @@ else
   grep -q 'fixture-resume' "$W/profile/templates/resume-template.html" && grep -q 'new app version' "$W/profile/templates/resume-template.html" \
     && ok "--regenerate carries the Custom region over" || bad "--regenerate lost the Custom region"
 fi
+# A second refresh never overwrites a .previous.html that differs (e.g. edited by hand): it moves to .previous-2.html.
+P="$W/profile/templates"
+if [ -f "$P/resume-template.previous.html" ]; then
+  printf '\n<!-- hand edit in previous -->\n' >> "$P/resume-template.previous.html"
+  before_regen="$(cat "$P/resume-template.html")"
+  printf '\n<!-- newer app version -->\n' >> "$W/templates/resume-template.html"
+  out="$(node "$AT" --root "$W" --regenerate resume-template.html 2>&1)"
+  grep -q 'hand edit in previous' "$P/resume-template.previous-2.html" 2>/dev/null \
+    && [ "$(cat "$P/resume-template.previous.html")" = "$before_regen" ] && echo "$out" | grep -q 'previous-2.html' \
+    && ok "a second --regenerate keeps the edited .previous.html as .previous-2.html" || bad "second --regenerate overwrote .previous.html: $out"
+  printf '\n<!-- newest app version -->\n' >> "$W/templates/resume-template.html"
+  node "$AT" --root "$W" --regenerate resume-template.html >/dev/null 2>&1
+  [ -f "$P/resume-template.previous-3.html" ] && grep -q 'hand edit in previous' "$P/resume-template.previous-2.html" \
+    && ok "a third --regenerate uses .previous-3.html and leaves -2 alone" || bad "third --regenerate: numbering wrong"
+else
+  bad "no resume-template.previous.html after --regenerate"
+fi
 echo
 [ "$fails" -eq 0 ] && { echo "theme fixtures: all passed"; exit 0; }
 echo "theme fixtures: $fails failed"; exit 1
