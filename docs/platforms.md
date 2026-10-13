@@ -16,7 +16,8 @@ Researched against each app's own documentation on 2026-10-13 (links in each sec
 | Claude Code in VS Code or JetBrains | Works; untested by us | Yes, per Anthropic's docs ([VS Code](https://code.claude.com/docs/en/vs-code)) | VS Code: no (panels don't draw there, so use the chat versions); JetBrains: yes (it runs the terminal version) | Open the folder → `/start` |
 | A regular Claude chat with a folder (Cowork) | **Not supported** | **No** | No | Use the Code tab instead |
 | Claude Code on the web, Codex cloud, Jules, Copilot's cloud agent | **Not supported** | Not for your files | No | They need the folder on a website such as GitHub; don't put your job search there |
-| Cursor, GitHub Copilot, Gemini CLI, Devin (formerly Windsurf), OpenCode, Amp, Factory | **Best effort** | **Don't count on it** | No | Open the folder and ask for "start" |
+| Cursor, GitHub Copilot, Gemini CLI, Devin (formerly Windsurf), OpenCode, Amp, Factory, Grok Build, Muse Code | **Best effort** | **Don't count on it** | No | Open the folder and ask for "start" |
+| Personal assistant apps: Meta Muse, Grok Bot, Instinct, Manus, Perplexity Personal Computer | **Not supported** | **No** | No | Use Claude Code or Codex instead |
 
 ## Claude Code (terminal and desktop Code tab)
 
@@ -77,7 +78,7 @@ What that means for this folder, from Anthropic's documentation (untested by us)
 
 ## Other assistants that read AGENTS.md
 
-**Best effort.** These assistants read `AGENTS.md`, so they get the written rules. Some also find the workflows. None was built or tested for this folder, and **the safety check should be treated as not running**: where an app can run the folder's Claude hooks at all, a hook that fails lets the action go ahead, and we haven't tested whether our check works there. The written rules are then the only protection. If you connect Gmail, a calendar or another service to one of these apps, nothing in this folder can stop it from sending.
+**Best effort.** These assistants read `AGENTS.md`, so they get the written rules. Some also find the workflows. None was built or tested for this folder, and **the safety check should be treated as not running**: some of these apps say they run Claude Code's hooks, but our check was written for Claude Code and Codex: another app may pass it different details or ignore its "block" answer, and most let the action go ahead when a check fails or is slow. The written rules are then the only protection. If you connect Gmail, a calendar or another service to one of these apps, nothing in this folder can stop it from sending.
 
 Two more things to expect:
 - **Workflows may show twice.** This folder keeps its workflows in `.claude/skills` (for Claude) and short copies in `.agents/skills` (for Codex). Apps that read both, like Cursor and VS Code Copilot, may list every workflow twice; either copy works.
@@ -92,9 +93,15 @@ Two more things to expect:
 | **Devin Desktop** (formerly Windsurf) and Devin CLI | `AGENTS.md`; Devin CLI also reads `CLAUDE.md` ([AGENTS.md](https://docs.devin.ai/desktop/cascade/agents-md), [config](https://docs.devin.ai/cli/reference/configuration/read-config-from)) | `.agents/skills`, and `.claude/skills` when Claude config reading is on ([skills](https://docs.devin.ai/desktop/cascade/skills)) | Devin CLI loads `.claude/settings.json` hooks; errors don't block ([hooks](https://docs.devin.ai/cli/extensibility/hooks/overview)). Untested | Open the folder, start a Devin Local agent | Windsurf became Devin Desktop in 2026 ([changelog](https://docs.devin.ai/desktop/changelog)) |
 | **OpenCode** | `AGENTS.md` (then ignores `CLAUDE.md`) ([rules](https://opencode.ai/docs/rules/)) | From `.claude/skills` and `.agents/skills`; it asks for unique names, so the two copies may clash ([skills](https://opencode.ai/docs/skills/)) | No: its own plugins only ([plugins](https://opencode.ai/docs/plugins/)) | `opencode` in the folder | |
 | **Amp** | `AGENTS.md` ([AGENTS.md](https://ampcode.com/docs/customize/agents-md)) | `.agents/skills` wins over `.claude/skills` ([skills](https://ampcode.com/docs/customize/skills)) | No: its own plugins only. Runs tools without asking by default | `amp` in the folder (not in the cloud "Orbs") | |
+| **Grok Build** (xAI's coding assistant for the terminal, beta) | `AGENTS.md` and `CLAUDE.md`, both loaded ([project rules](https://docs.x.ai/build/features/project-rules)) | Says it reads Claude Code skills; which folders isn't documented. Untested | Reads Claude's hook settings, but passes them different details and lets the action through on errors and time-outs ([hooks](https://docs.x.ai/build/features/hooks)). Treat as not running | `grok` in the folder | Its sandbox is off by default |
+| **Muse Code** (Meta's coding assistant for the terminal, beta) | `AGENTS.md`, once you trust the folder ([configuration](https://dev.meta.ai/docs/muse-code/configuration)) | From `.agents/skills`, and also `.claude/skills` and `.codex/skills` ([extending](https://dev.meta.ai/docs/muse-code/extending)); may show more than once | No: its own hook file only | `muse` in the folder, then trust it | |
 | **Factory (Droid)** | `AGENTS.md`, up to 80,000 characters ([AGENTS.md](https://docs.factory.com/cli/configuration/agents-md)) | `.agents/skills` ([skills](https://docs.factory.com/cli/configuration/skills)) | Its own hooks; errors don't block ([hooks](https://docs.factory.com/reference/hooks-reference)) | `droid` in the folder | |
 
 All rows read 2026-10-13; all untested by us. Scripts that need a shell (PDFs, backups, the health check) run only where the app can run commands on your computer.
+
+## Personal assistant apps (Meta Muse, Grok Bot, Instinct and similar)
+
+**Not supported.** Meta Muse ([download](https://ai.meta.com/muse/download/)), xAI's Grok Bot ([docs](https://docs.x.ai/grok-bot/overview)), Instinct, Manus and Perplexity's Personal Computer are personal assistants that work across your email, messages, calendar and files with their own access. They don't read this folder's rules, workflows or safety check, and some can send messages after a single approval. If you connect your email to one, nothing in this folder stops it from sending. Use Claude Code or Codex for your job search; the coding assistants from the same companies (Grok Build, Muse Code) can open the folder, as best effort (above). Read 2026-10-13; untested by us.
 
 ## What changes between apps, in one place
 

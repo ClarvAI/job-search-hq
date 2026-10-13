@@ -12,11 +12,13 @@ The full setup guide, in plain English. The short version is in the [README](../
 
 Using only one app? Follow just its section below.
 
-**Got it as a zip?** Unzip first. Mac: double-click the zip. Windows: right-click it → **Properties** → tick **Unblock** → **OK**, then right-click → **Extract All** (just double-clicking only opens a preview). Move the folder somewhere you'll keep it, like Documents. Always open the folder that has `README.md`, `AGENTS.md` and `CLAUDE.md` directly inside it, never a folder inside it: opened one level down, the assistant doesn't get its rules and the safety checks don't run.
+**Download and unzip it.** On the repository's GitHub page, click the green **Code** button → **Download ZIP** (or download a release zip from **Releases** when there is one; `git clone` works too). Mac: double-click the zip. Windows: right-click it → **Properties** → tick **Unblock** → **OK**, then right-click → **Extract All** (just double-clicking only opens a preview, and Windows can block the folder's scripts if you skip Unblock). Move the folder somewhere you'll keep it, like Documents. Always open the folder that has `README.md`, `AGENTS.md` and `CLAUDE.md` directly inside it: opened one level up or down, the assistant doesn't get its rules and the safety checks don't run. Windows often unzips into a folder inside a folder of the same name; if so, use the inner one.
+
+**Nice to have (optional):** **Google Chrome or Microsoft Edge**, so the assistant can turn resumes and cover letters into PDFs and check they fit on one page (without one, you use Print → Save as PDF yourself, and it walks you through it); and **Node.js** ([nodejs.org](https://nodejs.org), the LTS version), needed only to change the look of your pages (and, in Claude, to publish your dashboard as a Claude Dashboard). `/health` tells you which of these you have.
 
 ### With Claude (adds panels and read-aloud interviews in recent versions)
 
-**You need:** a paid Claude plan (Pro works; see [Cost and plans](../README.md#cost-and-plans)) and the **Claude desktop app** (claude.ai/download), updated to the latest version (the panels need version 2.1.286 or later; the terminal version needs 2.1.287). **Windows only:** first install **Git for Windows** (git-scm.com/download/win; click Next through every screen), then restart. Claude needs it to run this folder's safety checks.
+**You need:** a Claude plan that includes Claude Code (see [Plans and usage](../README.md#plans-and-usage)) and the **Claude desktop app** (claude.ai/download), updated to the latest version (the panels need version 2.1.286 or later; the terminal version needs 2.1.287). **Windows only:** first install **Git for Windows** (git-scm.com/download/win; click Next through every screen), then restart. Claude needs it to run this folder's safety checks.
 
 1. Open the Claude desktop app → **Code** tab → choose **Local** (not Cloud) → **Open folder** → pick this folder.
 2. If Claude asks whether you trust this folder, click **Trust**. That turns on the safety rules and the daily greeting.
@@ -30,7 +32,7 @@ Use the **Code** tab, not a regular Claude chat. A regular chat (even one with a
 
 ### With Codex (ChatGPT)
 
-**You need:** a ChatGPT account (Codex is included in ChatGPT plans; Plus or higher recommended, see [Cost and plans](../README.md#cost-and-plans)), and the **ChatGPT desktop app** (Mac, Windows or Linux), updated to the latest version. Download it from OpenAI's [Codex quickstart](https://learn.chatgpt.com/docs/quickstart) and sign in with your ChatGPT account. On Windows the safety scripts run with PowerShell, so you don't need Git for Windows for Codex.
+**You need:** a ChatGPT account (on a plan that includes Codex; see [Plans and usage](../README.md#plans-and-usage)), and the **ChatGPT desktop app** (Mac, Windows or Linux), updated to the latest version. Download it from OpenAI's [Codex quickstart](https://learn.chatgpt.com/docs/quickstart) and sign in with your ChatGPT account. On Windows the safety scripts run with PowerShell, so you don't need Git for Windows for Codex.
 
 1. In the ChatGPT desktop app, switch to **Codex** and add this folder as a new local project. If the project has more than one folder, make this one the **primary** folder: Codex only reads the rules and settings of the primary folder.
 2. If Codex asks whether to trust this folder, say yes. Without that, Codex skips this folder's settings and safety checks, and if you choose "don't trust" it skips the assistant's rules too.
@@ -40,6 +42,12 @@ Use the **Code** tab, not a regular Claude chat. A regular chat (even one with a
 > **Check:** type `$` and you should see `start`, `today` and the other workflows in the list. If you don't, you opened the wrong folder.
 
 > Prefer the terminal? Install the Codex CLI (linked from that quickstart), open a terminal in this folder, run `codex`, and follow steps 2 to 4.
+
+### What setup is like
+
+A short welcome, then a request for your resume. After that it's a conversation of about 14 short questions: where your search stands, what you're looking for (roles, places, pay, deal-breakers) and a story or two in your own words, plus a starter pack about your field that it builds for you. Before it saves anything about you, it shows you the exact lines and asks "OK to save?". In Claude, a box may also pop up asking to let it edit the file: that's an extra lock, so click Yes if it matches what you approved. It ends with a short plan for your first week. Stop whenever you like; next time it picks up where you left off.
+
+Not ready to share anything yet? Ask for **the sample workspace**: a separate practice copy with a made-up job search (Alex Rivera) to click around in. Your own folder isn't touched.
 
 ### Using both
 
@@ -162,6 +170,8 @@ Keep a backup: say "back up my stuff" (`/my-data`) for a dated zip of everything
 ## If something looks off
 
 - **Something not working?** Type `/health` (Codex: `$health`). It checks the folder, app version, safety checks, panels, Gmail and Calendar, and setup, changes nothing, and tells you the most important fix.
+- **`start` isn't in the list when you type `/` (or `$` in Codex)?** You opened the wrong folder, often the outer one of two folders with the same name. Open the one with `README.md`, `AGENTS.md` and `CLAUDE.md` directly inside it, and trust it.
+- **On Windows, using Claude without Git for Windows?** Then the safety check doesn't run. Install Git for Windows, restart, and reopen the folder. `/health` confirms it, and also finds files Windows blocked because Unblock was skipped (it offers to fix them).
 - **No panels or summary line above the message box in Claude?** Check that you opened the top folder and clicked **Trust**. Panels need a recent version of Claude Code, so updating may help, but you don't need them: say "show my board", "show my outbox" or "mock interview" and Claude does the same things in the chat.
 - **Codex doesn't greet you with today's date and your pipeline?** Its hooks aren't on, and that also means its safety checks are off. Make sure you opened the top folder (the one with `AGENTS.md` in it, not a folder inside it; in the desktop app, the project's primary folder) and that you trusted it, then turn hooks on: type `/hooks` in Codex, trust them, and start a new chat. If you once told Codex not to trust the folder, it also skips the assistant's rules: trust it, then start a new chat.
 - **The assistant asks before changing your master resume or preferences.** That's on purpose, so nothing changes your source of truth without you seeing it. In Claude, the app also asks you before any command that would copy over, move, delete or rewrite those files.
