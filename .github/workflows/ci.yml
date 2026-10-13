@@ -175,7 +175,7 @@ jobs:
   windows:
     name: Windows (PowerShell 5.1, PowerShell 7, Git Bash)
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       # Keep Windows' usual line-ending conversion on, as on users' machines; .gitattributes keeps .sh files LF.
       - uses: actions/checkout@v6
@@ -239,35 +239,6 @@ jobs:
         run: |
           bash scripts/ci/health-fixtures.sh --impl sh
           bash scripts/ci/health-fixtures.sh --impl ps
-      - name: End-to-end, Git Bash (fresh clone, /update, /my-data)
-        shell: bash
-        run: |
-          python scripts/ci/e2e-fresh.py --impl sh
-          python scripts/ci/e2e-update.py --impl sh
-          python scripts/ci/e2e-mydata.py --impl sh
-          python scripts/ci/e2e-sample.py --impl sh
-      - name: End-to-end, Windows PowerShell 5.1 (fresh clone, /update, /my-data)
-        shell: bash
-        env:
-          PS_EXE: powershell
-        run: |
-          python scripts/ci/e2e-fresh.py --impl ps
-          python scripts/ci/e2e-update.py --impl ps
-          python scripts/ci/e2e-mydata.py --impl ps
-          python scripts/ci/e2e-sample.py --impl ps
-      - name: End-to-end, PowerShell 7 (/update, /my-data)
-        shell: bash
-        env:
-          PS_EXE: pwsh
-        run: |
-          python scripts/ci/e2e-update.py --impl ps
-          python scripts/ci/e2e-mydata.py --impl ps
-          python scripts/ci/e2e-sample.py --impl ps
-      - name: End-to-end, theme + git pull (Windows line endings)
-        shell: bash
-        run: |
-          python scripts/ci/e2e-theme-git.py
-          python scripts/ci/check-dashboard-type.py
       - name: Health check (Windows PowerShell 5.1)
         shell: powershell
         run: |
@@ -276,3 +247,54 @@ jobs:
           if (-not ($out -match '^OK: safety check \(PowerShell\)')) { exit 1 }
           if (-not ($out -match '^OK: safety check \(bash\)')) { exit 1 }
           if (-not ($out -match '^OK: Git Bash')) { exit 1 }
+
+  # The end-to-end suites are slow on Windows (Git Bash starts processes slowly): one suite can take
+  # 20 minutes. Each runs in its own job, in parallel, so no single job comes near its time limit.
+  windows-e2e:
+    name: Windows end-to-end (${{ matrix.name }})
+    runs-on: windows-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Git Bash, fresh clone
+            ps: ""
+            run: python scripts/ci/e2e-fresh.py --impl sh
+          - name: Git Bash, /update
+            ps: ""
+            run: python scripts/ci/e2e-update.py --impl sh
+          - name: Git Bash, /my-data and sample workspace
+            ps: ""
+            run: python scripts/ci/e2e-mydata.py --impl sh && python scripts/ci/e2e-sample.py --impl sh
+          - name: Windows PowerShell 5.1, fresh clone
+            ps: powershell
+            run: python scripts/ci/e2e-fresh.py --impl ps
+          - name: Windows PowerShell 5.1, /update
+            ps: powershell
+            run: python scripts/ci/e2e-update.py --impl ps
+          - name: Windows PowerShell 5.1, /my-data and sample workspace
+            ps: powershell
+            run: python scripts/ci/e2e-mydata.py --impl ps && python scripts/ci/e2e-sample.py --impl ps
+          - name: PowerShell 7, /update, /my-data and sample workspace
+            ps: pwsh
+            run: python scripts/ci/e2e-update.py --impl ps && python scripts/ci/e2e-mydata.py --impl ps && python scripts/ci/e2e-sample.py --impl ps
+          - name: theme + git pull with Windows line endings
+            ps: ""
+            run: python scripts/ci/e2e-theme-git.py && python scripts/ci/check-dashboard-type.py
+    steps:
+      # Keep Windows' usual line-ending conversion on, as on users' machines; .gitattributes keeps .sh files LF.
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: ${{ matrix.name }}
+        shell: bash
+        env:
+          PS_EXE: ${{ matrix.ps }}
+        run: ${{ matrix.run }}

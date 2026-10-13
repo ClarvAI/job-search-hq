@@ -20,7 +20,7 @@ bash scripts/ci/run-all.sh
 
 Set `PS_EXE=pwsh` (or `PS_EXE=powershell` on Windows) to include the PowerShell checks; without a PowerShell it skips them and says so. It exits 1 if anything that ran failed. The end-to-end tests (`scripts/ci/e2e-*.py`) need Python 3.8 or newer (standard library only) and work on copies in a temp folder, never on your workspace; each takes `--impl sh|ps|both` and `--keep` (leave the temp folder for debugging).
 
-CI (`.github/workflows/ci.yml`) runs the same scripts on every push and pull request, on Linux, macOS (the system bash 3.2, as on users' Macs) and Windows (Windows PowerShell 5.1, PowerShell 7 and Git Bash). It needs no secrets and no sign-in. The checks:
+CI (`.github/workflows/ci.yml`) runs the same scripts on every push and pull request, on Linux, macOS (the system bash 3.2, as on users' Macs) and Windows (Windows PowerShell 5.1, PowerShell 7 and Git Bash; the end-to-end suites run as separate parallel jobs there, because one can take 20 minutes under Git Bash). It needs no secrets and no sign-in. The checks:
 
 | Check | Script |
 |---|---|
