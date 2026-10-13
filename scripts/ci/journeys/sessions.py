@@ -11,6 +11,8 @@ Claude Code (checked with 2.1.296):
                                  own .claude/settings.json is (hooks, ask/deny rules)
   --strict-mcp-config            no MCP server except the ones in --mcp-config ...
   --mcp-config {journey only}    ... which holds only approver.py (the permission-prompt stand-in)
+                                 and, for evals that need mail or a browser, fakes.py (a local fake
+                                 Gmail / browser fed from a JSON file; no network)
   ENABLE_CLAUDEAI_MCP_SERVERS=false   no claude.ai connectors (Gmail, Calendar, Drive, ...)
   CLAUDE_CODE_DISABLE_AUTO_MEMORY=1   no auto-memory
   --disallowedTools ...          no tools that reach outside the session (push notifications,
@@ -20,6 +22,10 @@ Claude Code (checked with 2.1.296):
   --settings {deny ...}          file tools may not touch the home folder (Read/Edit/Write(~/**))
                                  and shell commands that name it are denied
   --no-session-persistence       nothing written to ~/.claude/projects
+  --settings {env: HOME=<temp>}  the session's shell commands and scripts see a throwaway home folder
+                                 next to the workspace, so a script's default (e.g. my-data export.sh
+                                 saving to ~/Downloads) lands there, not in the real home folder
+                                 (added after an eval run wrote a fictional backup to ~/Downloads)
   inherited CLAUDE*/CODEX* env vars are removed (no link back to the calling session)
   Auth is untouched (OAuth from the keychain), so no throwaway CLAUDE_CONFIG_DIR is needed.
 
@@ -59,6 +65,7 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 APPROVER = os.path.join(HERE, "approver.py")
+FAKES = os.path.join(HERE, "fakes.py")
 
 CLAUDE_DISALLOWED = [
     "AskUserQuestion", "PushNotification", "RemoteTrigger", "CronCreate", "CronDelete",
@@ -123,7 +130,7 @@ class Transcript:
 
 class ClaudeSession:
     def __init__(self, ws, out_dir, model=None, budget=5.0, max_turns=80, timeout=1800,
-                 permission_mode=None, extra_dirs=(), claude="claude"):
+                 permission_mode=None, extra_dirs=(), claude="claude", fakes=()):
         self.ws = ws
         self.out_dir = out_dir
         self.timeout = timeout
@@ -137,14 +144,25 @@ class ClaudeSession:
             "command": sys.executable, "args": ["-I", APPROVER],
             "env": {"JOURNEY_ALLOW_DIRS": os.pathsep.join(allow_dirs),
                     "JOURNEY_LOG": self.approver_log}}}}
+        # Eval-only local stand-ins (fakes.py): a fake Gmail or browser, never a real connector.
+        # Their read/draft/fill tools are pre-allowed (as a user who connected them would have);
+        # anything else, such as the fake send tool, still meets the guard and then the approver.
+        fake_allow = []
+        for fk in fakes:
+            mcp["mcpServers"][fk["name"]] = {
+                "command": sys.executable, "args": ["-I", FAKES],
+                "env": {"FAKE_KIND": fk["kind"], "FAKE_DATA": fk["data_path"], "FAKE_LOG": fk["log_path"]}}
+            fake_allow += ["mcp__%s__%s" % (fk["name"], t) for t in fk.get("allow", ())]
         proj = {}
         try:
             with open(os.path.join(ws, ".claude", "settings.json"), encoding="utf-8") as f:
                 proj = json.load(f)
         except (OSError, ValueError):
             pass
-        settings = {"permissions": {
-            "allow": list((proj.get("permissions") or {}).get("allow") or []),
+        self.fake_home = os.path.join(os.path.dirname(os.path.abspath(ws)), "home")
+        os.makedirs(os.path.join(self.fake_home, "Downloads"), exist_ok=True)
+        settings = {"env": {"HOME": self.fake_home}, "permissions": {
+            "allow": list((proj.get("permissions") or {}).get("allow") or []) + fake_allow,
             "deny": ["Read(~/**)", "Edit(~/**)", "Write(~/**)",
                      "Bash(*~/*)", "Bash(*$HOME*)", "Bash(*/Users/*)"],
         }}
@@ -199,8 +217,13 @@ class ClaudeSession:
         except OSError as e:
             turn["error"] = "write failed: %s" % e
             return turn
+        idle = 0
         while True:
             left = self.deadline - time.time()
+            if turn.get("waiting_bg") and idle >= 600:
+                turn["error"] = turn["error"] or ""
+                self.t.errors.append("background task never reported back within 10 minutes")
+                return turn
             if left <= 0:
                 turn["error"] = "timed out after %ss" % self.timeout
                 self.t.errors.append(turn["error"])
@@ -208,7 +231,9 @@ class ClaudeSession:
                 return turn
             try:
                 line = self.q.get(timeout=min(left, 30))
+                idle = 0
             except queue.Empty:
+                idle += 30
                 continue
             if line is None:
                 turn["error"] = turn["error"] or "claude exited (code %s)" % self.p.poll()
@@ -230,6 +255,11 @@ class ClaudeSession:
             if st == "init":
                 self.t.init = ev
                 self.t.session_id = ev.get("session_id", "")
+            elif st == "background_tasks_changed":
+                # Background subagents (e.g. review agents started with run_in_background): the turn's
+                # "result" can come while they still run; the CLI then continues on its own when they
+                # report back, so keep reading instead of treating the turn as finished.
+                self.bg = len(ev.get("tasks") or [])
             elif st in ("hook_started", "hook_response"):
                 self.t.hooks.append((st, ev.get("hook_name", ""), str(ev.get("output", ""))[:400]))
         elif typ == "assistant":
@@ -264,6 +294,10 @@ class ClaudeSession:
             if ev.get("is_error") or ev.get("subtype") != "success":
                 turn["error"] = "%s %s" % (ev.get("subtype"), ev.get("api_error_status") or "")
                 self.t.errors.append(turn["error"])
+                return True
+            if getattr(self, "bg", 0) > 0:
+                turn["waiting_bg"] = True
+                return False
             return True
         return False
 

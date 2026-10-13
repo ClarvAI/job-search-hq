@@ -4,8 +4,12 @@
 MANUAL ONLY. Not part of run-all.sh or CI: every journey spends model quota on the account
 the CLI is signed in to. Python 3.8+ standard library only.
 
-    python3 scripts/ci/journeys/run.py [--app claude|codex|both] [--model X] [--only a,b] [--keep]
-                                       [--jobs N] [--list]
+    python3 scripts/ci/journeys/run.py [--app claude|codex|both] [--model X[,Y]] [--only a,b] [--keep]
+                                       [--jobs N] [--list] [--suite journeys|evals]
+
+--suite evals runs the skill evals in evals.py instead (Claude only; scenario variants per risky
+skill, some with a local fake Gmail or browser from fakes.py). --model takes a comma-separated
+list (e.g. claude-opus-5-5,claude-haiku-5-5): the canary and every scenario run once per model.
 
 Each journey copies the working tree (make_workspace), sets up fixtures (the fictional Alex
 Rivera persona), runs one or more user turns through `claude -p` (stream-json) or `codex exec
@@ -44,7 +48,9 @@ from sessions import ClaudeSession, CodexSession, write_readable  # noqa: E402
 def parse():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--app", choices=("claude", "codex", "both"), default="both")
-    ap.add_argument("--model", help="model for the sessions (default: the CLI's default)")
+    ap.add_argument("--model", help="model(s) for the sessions, comma-separated (default: the CLI's default)")
+    ap.add_argument("--suite", choices=("journeys", "evals"), default="journeys",
+                    help="journeys (default) or the skill evals in evals.py")
     ap.add_argument("--only", help="comma-separated journey names (the canary always runs first)")
     ap.add_argument("--keep", action="store_true", help="keep the temp workspaces")
     ap.add_argument("--jobs", type=int, default=3, help="journeys to run at once (default 3)")
@@ -54,21 +60,31 @@ def parse():
     return ap.parse_args()
 
 
-def make_session(app, ws, out_dir, j, args, extra_dirs=()):
-    kw = dict(model=args.model, timeout=j.timeout)
+def make_session(app, ws, out_dir, j, args, extra_dirs=(), model=None, fakes=()):
+    kw = dict(model=model, timeout=j.timeout)
     if app == "claude":
         return ClaudeSession(ws, out_dir, budget=j.budget * args.budget_scale,
-                             permission_mode=j.permission_mode, extra_dirs=extra_dirs, **kw)
+                             permission_mode=j.permission_mode, extra_dirs=extra_dirs, fakes=fakes, **kw)
     return CodexSession(ws, out_dir, **kw)
 
 
 def converse(sess, first_turns, j, ws, ctx):
     """Sends the scripted turns, then lets the simulated user answer questions until the journey's
-    stop condition holds or the follow-up allowance runs out."""
+    stop condition holds or the follow-up allowance runs out. An eval's `responder` replaces the
+    simulated user: it returns the next message, or None to end."""
     for text in first_turns:
         turn = sess.send(text)
         if turn["error"] and not turn["texts"]:
             return
+    if getattr(j, "responder", None):
+        for _ in range(j.followups):
+            if sess.t.turns[-1]["error"]:
+                return
+            nxt = j.responder(sess.t, ws, ctx)
+            if not nxt:
+                return
+            sess.send(nxt)
+        return
     for _ in range(j.followups):
         t = sess.t
         last = t.final()
@@ -89,22 +105,23 @@ def save_user_files(ws, dest):
             shutil.copytree(src, os.path.join(dest, top), symlinks=True, dirs_exist_ok=True)
 
 
-def run_one(app, j, args, root, results):
-    """One journey on one app. Returns its result dict."""
-    name = "%s-%s" % (app, j.name)
+def run_one(app, j, args, root, results, model=None):
+    """One journey on one app (and model). Returns its result dict."""
+    name = "%s-%s%s" % (app, ("%s-" % model) if model else "", j.name)
     out = os.path.join(results, name)
     os.makedirs(out, exist_ok=True)
     started = time.time()
-    res = {"app": app, "journey": j.name, "desc": j.desc, "status": "ERROR", "checks": [],
+    res = {"app": app, "model": model or "(CLI default)", "skill": getattr(j, "skill", ""),
+           "journey": j.name, "desc": j.desc, "status": "ERROR", "checks": [],
            "cost_usd": 0.0, "usage": {}, "turns": 0, "seconds": 0, "dir": out, "infra_retries": 0}
     attempts = 0
     while True:
         attempts += 1
         try:
             if j.name == "my-data-backup-restore":
-                checks, tr = run_mydata(app, j, args, root, out, attempts)
+                checks, tr = run_mydata(app, j, args, root, out, attempts, model)
             else:
-                checks, tr = run_simple(app, j, args, root, out, attempts)
+                checks, tr = run_simple(app, j, args, root, out, attempts, model)
         except Exception:  # a harness bug: report it, don't hide it
             res["error"] = traceback.format_exc()
             res["status"] = "ERROR"
@@ -122,8 +139,10 @@ def run_one(app, j, args, root, results):
                 if isinstance(v, int):
                     usage[k] = usage.get(k, 0) + v
                 elif isinstance(v, dict):
-                    usage[k] = {kk: vv for kk, vv in v.items() if kk in ("inputTokens", "outputTokens",
-                                                                         "costUSD")}
+                    prev = usage.get(k) or {}
+                    usage[k] = {kk: prev.get(kk, 0) + vv for kk, vv in v.items()
+                                if kk in ("inputTokens", "outputTokens", "cacheReadInputTokens",
+                                          "cacheCreationInputTokens", "thinkingTokens", "costUSD")}
         res["usage"] = usage
         res["turns"] = sum(len(t.turns) for t in tr)
         res["errors"] = [e for t in tr for e in t.errors]
@@ -135,25 +154,59 @@ def run_one(app, j, args, root, results):
     return res
 
 
-def run_simple(app, j, args, root, out, attempt):
+def run_simple(app, j, args, root, out, attempt, model=None):
     ws_parent = temp_dir("journey-%s-%s-%d" % (app, j.name, attempt))
     ws = make_workspace(ws_parent)
-    ctx = {"app": app, "withheld": j.withheld, "auto": j.permission_mode == "auto"}
+    ctx = {"app": app, "withheld": j.withheld, "auto": j.permission_mode == "auto", "model": model}
     j.setup(ws, ctx)
-    sess = make_session(app, ws, out, j, args)
+    fakes = []
+    for fk in getattr(j, "fakes", ()) or ():
+        data_path = os.path.join(out, "fake-%s-data.json" % fk["name"])
+        log_path = os.path.join(out, "fake-%s-calls.jsonl" % fk["name"])
+        with open(data_path, "w", encoding="utf-8") as f:
+            json.dump(fk["data"](ctx), f, indent=1)
+        if os.path.exists(log_path):
+            os.remove(log_path)
+        fakes.append(dict(fk, data_path=data_path, log_path=log_path))
+    ctx["fake_logs"] = {fk["name"]: fk["log_path"] for fk in fakes}
+    real_dl = os.path.join(os.path.expanduser("~"), "Downloads")
+    started = time.time()
+    sess = make_session(app, ws, out, j, args, model=model, fakes=fakes)
     try:
         converse(sess, j.turns(app), j, ws, ctx)
     finally:
         t = sess.close()
+    leaked = [f for f in (os.listdir(real_dl) if os.path.isdir(real_dl) else [])
+              if f.startswith("job-search") and os.path.getmtime(os.path.join(real_dl, f)) >= started - 1]
+    ctx["fake_calls"] = {}
+    for fk in fakes:
+        calls = []
+        if os.path.exists(fk["log_path"]):
+            with open(fk["log_path"], encoding="utf-8") as f:
+                calls = [json.loads(l) for l in f if l.strip()]
+        ctx["fake_calls"][fk["name"]] = calls
     write_readable(t, os.path.join(out, "transcript.md"))
     save_user_files(ws, os.path.join(out, "workspace-user-files"))
+    try:  # what the responder recorded (turn marks etc.), so rescore.py can re-check without a model
+        with open(os.path.join(out, "ctx.json"), "w", encoding="utf-8") as f:
+            json.dump({k: v for k, v in ctx.items() if k in ("st", "folder", "letter", "last", "sign_by")}, f, indent=1)
+    except (TypeError, ValueError):
+        pass
     c = J.Checks()
-    J.safety_checks(c, t, ws)
+    c.ok("isolation: nothing job-search-related written to the real ~/Downloads during the session", not leaked, leaked)
+    fh = getattr(sess, "fake_home", "")
+    if fh and os.path.isdir(fh):
+        made = [os.path.relpath(os.path.join(dp, f), fh) for dp, _ds, fs in os.walk(fh) for f in fs]
+        if made:
+            c.note("files the session wrote to its stand-in home folder", made[:10])
+    J.safety_checks(c, t, ws, fakes=[fk["name"] for fk in fakes],
+                    draft_status=("draft", "in-gmail-drafts") if any(fk["kind"] == "gmail" for fk in fakes)
+                    else ("draft",))
     j.check(c, t, ws, ctx)
     return c, [t]
 
 
-def run_mydata(app, j, args, root, out, attempt):
+def run_mydata(app, j, args, root, out, attempt, model=None):
     """Session A backs up workspace W1 to a folder outside it; W2 is a copy of W1 reset with the
     app's own reset script; session B restores the backup into W2. The user's files must match."""
     base = temp_dir("journey-%s-mydata-%d" % (app, attempt))
@@ -164,7 +217,7 @@ def run_mydata(app, j, args, root, out, attempt):
     J.mydata_setup(w1, ctx)
     outa = os.path.join(out, "a-backup")
     os.makedirs(outa)
-    sa = make_session(app, w1, outa, j, args, extra_dirs=(backup,))
+    sa = make_session(app, w1, outa, j, args, extra_dirs=(backup,), model=model)
     try:
         converse(sa, [J.cmd(app, "my-data", "Please back up my job search data. Save the backup in this "
                                             "folder: %s" % backup)], j, w1, ctx)
@@ -208,7 +261,7 @@ def run_mydata(app, j, args, root, out, attempt):
     outb = os.path.join(out, "b-restore")
     os.makedirs(outb)
     unpack = os.path.join(backup, "unpacked")
-    sb = make_session(app, w2, outb, j, args, extra_dirs=(backup,))
+    sb = make_session(app, w2, outb, j, args, extra_dirs=(backup,), model=model)
     ctx2 = dict(ctx)
     try:
         converse(sb, [J.cmd(app, "my-data", "I reset this folder and want my data back. My backup zip is %s. "
@@ -249,12 +302,19 @@ def preflight(apps):
 
 def main():
     args = parse()
-    reg = J.registry()
+    if args.suite == "evals":
+        import evals as E
+        reg = [j for j in J.registry() if j.name == "canary-isolation"] + E.registry()
+    else:
+        reg = J.registry()
     if args.list:
         for j in reg:
-            print("%-26s %-14s %s" % (j.name, ",".join(j.apps), j.desc))
+            print("%-30s %-14s %s" % (j.name, ",".join(j.apps), j.desc))
         return 0
     apps = ["claude", "codex"] if args.app == "both" else [args.app]
+    if args.suite == "evals":
+        apps = [a for a in apps if a == "claude"]
+    models = [m.strip() for m in args.model.split(",")] if args.model else [None]
     if not preflight(apps):
         return 2
     keep_temps(args.keep)
@@ -265,24 +325,25 @@ def main():
     only = set(x.strip() for x in args.only.split(",")) if args.only else None
     root = REPO
     summary = {"started": datetime.datetime.now().isoformat(timespec="seconds"), "results_dir": results,
-               "model": args.model or "(CLI default)", "apps": apps, "journeys": []}
+               "model": args.model or "(CLI default)", "suite": args.suite, "apps": apps, "journeys": []}
     canary = [j for j in reg if j.name == "canary-isolation"][0]
     plan = []
-    for app in apps:
-        print("\n== %s: canary (isolation) first" % app, flush=True)
-        res = run_one(app, canary, args, root, results)
-        summary["journeys"].append(res)
-        _print(res)
-        if res["status"] != "PASS":
-            print("ISOLATION NOT PROVEN for %s: no other journey runs on it." % app)
-            continue
-        for j in reg:
-            if j.name == "canary-isolation" or app not in j.apps or (only and j.name not in only):
+    for model in models:
+        for app in apps:
+            print("\n== %s%s: canary (isolation) first" % (app, " / %s" % model if model else ""), flush=True)
+            res = run_one(app, canary, args, root, results, model)
+            summary["journeys"].append(res)
+            _print(res)
+            if res["status"] != "PASS":
+                print("ISOLATION NOT PROVEN for %s: no other journey runs on it." % app)
                 continue
-            plan.append((app, j))
+            for j in reg:
+                if j.name == "canary-isolation" or app not in j.apps or (only and j.name not in only):
+                    continue
+                plan.append((app, j, model))
     print("\n== running %d journeys, %d at a time" % (len(plan), max(1, args.jobs)), flush=True)
     with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, args.jobs)) as ex:
-        futs = {ex.submit(run_one, app, j, args, root, results): (app, j) for app, j in plan}
+        futs = {ex.submit(run_one, app, j, args, root, results, model): (app, j) for app, j, model in plan}
         for fut in concurrent.futures.as_completed(futs):
             res = fut.result()
             summary["journeys"].append(res)
@@ -292,8 +353,13 @@ def main():
     with open(os.path.join(results, "summary.json"), "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2)
     print("\n== summary")
-    for r in summary["journeys"]:
-        print("%-5s %-6s %-26s %6ss  $%s" % (r["status"], r["app"], r["journey"], r["seconds"], r.get("cost_usd")))
+    for r in sorted(summary["journeys"], key=lambda r: (r.get("model", ""), r["journey"])):
+        print("%-5s %-6s %-18s %-30s %6ss  $%s" % (r["status"], r["app"], (r.get("model") or "")[:18], r["journey"],
+                                                 r["seconds"], r.get("cost_usd")))
+    for m in sorted(set(r.get("model", "") for r in summary["journeys"])):
+        rs = [r for r in summary["journeys"] if r.get("model", "") == m]
+        print("model %s: %d passed of %d, $%.2f" % (m, sum(r["status"] == "PASS" for r in rs), len(rs),
+                                                     sum(r.get("cost_usd") or 0 for r in rs)))
     print("claude cost (as reported by the CLI): $%s" % summary["total_cost_usd"])
     print("results: %s" % results)
     bad = [r for r in summary["journeys"] if r["status"] != "PASS"]
@@ -301,11 +367,12 @@ def main():
 
 
 def _print(res):
-    print("%s  %s %s (%ss, $%s)" % (res["status"], res["app"], res["journey"], res["seconds"], res.get("cost_usd")),
-          flush=True)
+    print("%s  %s %s%s (%ss, $%s)" % (res["status"], res["app"],
+                                      ("%s " % res["model"]) if res.get("model") and res["model"][0] != "(" else "",
+                                      res["journey"], res["seconds"], res.get("cost_usd")), flush=True)
     for ch in res.get("checks") or []:
         if ch["ok"] is False:
-            print("      FAIL  %s" % ch["label"])
+            print("      %s  %s" % ("soft" if ch.get("soft") else "FAIL", ch["label"]))
             if ch["evidence"]:
                 print("            | %s" % ch["evidence"][:400].replace("\n", "\n            | "))
     if res.get("error"):
