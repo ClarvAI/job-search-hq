@@ -2,7 +2,8 @@ import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
 import type { Field, FileItem, Job, Kit, Notice, Section } from '../types'
-import { activityLine, addDays, colOf, csvTrouble, dateOrder, isExcelLock, jobKey, localDate, orderFor, pageOf, plain, readCsv, rowKept, toCsv, toIso } from './csvdate'
+import { activityLine, addDays, colOf, csvTrouble, dateOrder, isExcelLock, isIso, jobKey, localDate, orderFor, pageOf, plain, readCsv, rowKept, toCsv, toIso } from './csvdate'
+import type { DateOrder } from './csvdate'
 
 // Apply Kit: while the user fills in an online application form themselves, this pane shows every
 // answer the form will ask for (from profile/ and the job's folder), each with a Copy button.
@@ -15,7 +16,8 @@ const ACTIVITY = 'history/activity.md'
 const RESUME = 'profile/master-resume.md'
 const PREFS = 'profile/preferences.md'
 const BOM = String.fromCharCode(0xfeff)
-const KEYS_HINT = 'Keys: Tab moves between buttons, Enter presses one, Esc goes back to typing.'
+// The same words, in the same place (right under the panel's first line), in every panel.
+const KEYS_HINT = 'Keys: Ctrl+X then Tab moves into this panel. Tab moves between buttons, Enter presses one, Esc goes back to typing.'
 // Jobs per page in the job picker (a panel draws at most 100,000 characters).
 const PICKER_SHOWN = 15
 const MISSING = '[not set] — ask Claude'
@@ -86,7 +88,10 @@ function tidy(v: string | undefined, links: 'url' | 'text' = 'text'): string {
 }
 
 const isUnset = (v: string) => v === '' || /\[ASK/i.test(v) || /^(tbd|n\/a|none yet)$/i.test(v)
-const isSensitive = (label: string, value: string) => SENSITIVE_VALUE.test(value) || (SENSITIVE_KEY.test(label) && ID_LIKE.test(value))
+// Under these labels the value is never shown, whatever it looks like ("Date of birth: May 5, 1995",
+// a password with no "password:" prefix): such details don't belong in these files (AGENTS.md rule 4).
+const ALWAYS_HIDDEN = /date of birth|\bdob\b|birth ?date|password|passcode|\bssn\b|social security|passport number|(?:^|\s)id number|identification number|national insurance number|tax id|account number|routing number|\biban\b/i
+const isSensitive = (label: string, value: string) => ALWAYS_HIDDEN.test(label) || SENSITIVE_VALUE.test(value) || (SENSITIVE_KEY.test(label) && ID_LIKE.test(value))
 
 // Questions only the user can answer: legal certifications and attestations, and anything Claude marked
 // [ASK]. The kit never offers to draft or copy these.
@@ -221,6 +226,19 @@ function eligibilitySection(prefs: string, salaryAnswer = '', posted = ''): Sect
   return { title: 'Eligibility and preferences', note: auth.note, fields }
 }
 
+// How the user chose to answer voluntary self-identification questions: recorded answers, decline,
+// or decide each time / not chosen yet (then the kit offers nothing to copy for them).
+function eeoMode(prefs: string): 'answers' | 'decline' | 'each' | 'unset' {
+  const use = tidy(valueOf(section(prefs, /^voluntary self/i), /^use these/i))
+  if (isUnset(use)) return 'unset'
+  if (/each time|decide/i.test(use)) return 'each'
+  if (/decline|prefer not|^no\b/i.test(use)) return 'decline'
+  return 'answers'
+}
+const SELF_ID = /race|ethnic|gender|\bsex\b|sexual orientation|disabilit|veteran|self-?identif|transgender|pronoun/i
+// A self-identification question, not an essay that mentions one of these words.
+const isSelfId = (label: string) => SELF_ID.test(label) && (label.length <= 40 || /identif|status|are you|do you|select|which best|what is your/i.test(label))
+
 function eeoSection(prefs: string): Section {
   const eeo = section(prefs, /^voluntary self/i)
   const use = tidy(valueOf(eeo, /^use these/i))
@@ -350,7 +368,8 @@ async function filesFor($: any, dir: string, job: Job, name: string, documents: 
   const mtime = (file: string) => listing.find(e => e.name === file)?.mtimeMs ?? 0
   // sources: the formatted .html page the user prints to PDF. draft: the text-only version (Markdown),
   // which is not something to print or upload; it means Claude still has to build the page.
-  const doc = async (label: string, kind: string, sources: string[], command: string, need: 'required' | 'optional' | 'none', draft = '') => {
+  // newer: other files a PDF is made from (resume.md, the RenderCV file); a PDF older than one of them is out of date.
+  const doc = async (label: string, kind: string, sources: string[], command: string, need: 'required' | 'optional' | 'none', draft = '', newer: string[] = []) => {
     const pdf = person ? `${person}-${kind}-${company}.pdf` : ''
     const shown = pdf || `${MISSING} (your name isn't in your profile yet)`
     let source = ''
@@ -359,8 +378,11 @@ async function filesFor($: any, dir: string, job: Job, name: string, documents: 
     const check = pdf ? entry(pdf.replace(/\.pdf$/, '-CHECK.pdf')) : undefined
     if (found) {
       const isStale = source !== '' && mtime(source) > found.mtimeMs
+      const changedText = [draft, ...newer].filter(Boolean).find(f => mtime(f) > found.mtimeMs) ?? ''
       if (found.size < MIN_PDF_BYTES) {
         items.push({ label, name: found.name, status: `This PDF looks empty or broken. ${source ? `Open ${source} in your browser, Print, Save as PDF with this name (replace the old file), and check it.` : 'Ask Claude to make it again.'}`, isReady: false, fix: source ? '' : `${command} ${job.folder || `${job.company} ${job.role}`}` })
+      } else if (changedText !== '' && !isStale) {
+        items.push({ label, name: found.name, status: `This PDF is older than your latest ${label.toLowerCase()} text (${changedText}), so it may be out of date. Ask Claude to rebuild the ${label.toLowerCase()} and its PDF.`, isReady: false, fix: `${command} ${job.folder || `${job.company} ${job.role}`}` })
       } else if (isStale) {
         items.push({ label, name: found.name, status: `This PDF is older than your latest ${label.toLowerCase()} (${source}), so it may be out of date. Open ${source} in your browser, Print, Save as PDF with this name (replace the old file).`, isReady: false, fix: '' })
       } else {
@@ -369,7 +391,8 @@ async function filesFor($: any, dir: string, job: Job, name: string, documents: 
       return
     }
     if (check) {
-      items.push({ label, name: shown, status: `${check.name} needs a look first: the PDF maker couldn't confirm it came out right. Open it; if it looks good, rename it to ${shown}. If not, ask Claude to make it again.`, isReady: false, fix: '' })
+      // Never rename a -CHECK file (tailor-resume): it can look fine and still have no readable text.
+      items.push({ label, name: shown, status: `${check.name} needs a look first: the PDF maker couldn't confirm it came out right (an application system may not be able to read it). Don't rename it: ask Claude to make it again.`, isReady: false, fix: `${command} ${job.folder || `${job.company} ${job.role}`}` })
       return
     }
     if (source) {
@@ -382,7 +405,7 @@ async function filesFor($: any, dir: string, job: Job, name: string, documents: 
       items.push({ label, name: shown, status: need === 'required' ? 'Not made yet, and this job needs one.' : 'Not made yet (optional for this job).', isReady: false, fix: `${command} ${job.folder || `${job.company} ${job.role}`}` })
     }
   }
-  await doc('Resume', 'Resume', ['resume.html'], '/tailor-resume', 'required', 'resume.md')
+  await doc('Resume', 'Resume', ['resume.html'], '/tailor-resume', 'required', 'resume.md', ['resume.rendercv.yaml'])
   const docs = documents.toLowerCase()
   const letterNeed = /cover letter[^,]*optional/.test(docs) ? 'optional' : /cover letter/.test(docs) ? 'required' : 'none'
   await doc('Cover letter', 'Cover-Letter', ['cover-letter.html'], '/cover-letter', letterNeed, 'cover-letter.md')
@@ -466,7 +489,16 @@ async function build($: any, want: string): Promise<Kit> {
     })
     files = dir ? await filesFor($, dir, job, contact.name, p.documents ?? '') : []
   }
-  const salaryAnswer = questions.find(q => /salary|compensation|pay (?:expectation|requirement|range)|expected pay/i.test(q.label) && q.copy !== '')?.copy ?? ''
+  // Your answers to self-identification questions follow your current choice in preferences, even if
+  // they were drafted before you changed it.
+  const mode = eeoMode(prefs)
+  if (mode !== 'answers') {
+    questions = questions.map(q => (isSelfId(q.label) && !q.isYours
+      ? { ...q, value: mode === 'decline' ? 'You chose not to self-identify. Pick "I don\'t wish to answer" (or "Decline to self-identify").' : 'You chose to answer these yourself each time (or haven\'t chosen yet). Answer it on the form.', copy: '', hint: 'Optional.', isMissing: false, isYours: true }
+      : q))
+  }
+  // A question about what you earn now or earned before is not your salary expectation.
+  const salaryAnswer = questions.find(q => /salary|compensation|pay (?:expectation|requirement|range)|expected pay/i.test(q.label) && !/current|previous|prior|last|history|present/i.test(q.label) && q.copy !== '')?.copy ?? ''
   sections.push(contact.section, eligibilitySection(prefs, salaryAnswer, posted), eeoSection(prefs), ...historySections(resume))
   const problem = csvTrouble(readCsv(await readText($, TRACKER)).problem, 'Your tracker (jobs/tracker.csv)')
   return { today, job, jobs, sections, questions, hasAnswers, files, followUpDate: addDays(today, FOLLOW_UP_BUSINESS_DAYS, true), problem }
@@ -477,6 +509,12 @@ async function refresh($: any): Promise<Kit> {
   if (next.job && next.job.key !== (await read($, chosen))) await update($, chosen, () => next.job!.key)
   if (JSON.stringify(await read($, kit)) !== JSON.stringify(next)) await update($, kit, () => next)
   return next
+}
+
+// Moves the keyboard focus onto a button the next drawing shows, after the pressed one went away
+// (the confirm row or the job list opened or closed). Refused when the panel doesn't hold the keyboard.
+function focusOn($: any, key: string): void {
+  void Promise.resolve().then(() => $.ui.focus({ requestId: PANE, key })).catch(() => undefined)
 }
 
 async function say($: any, text: string, isError = false): Promise<void> {
@@ -535,6 +573,8 @@ async function markApplied($: any, job: Job): Promise<void> {
     if (!target) { await say($, 'That job is no longer in your tracker. Press Refresh, or ask Claude to check it.', true); return }
     const o = orderFor(target, order)
     for (const c of DATE_COLS) { const i = find(c); if (i >= 0 && target[i]) target[i] = toIso(target[i], o) }
+    const ni = find('notes')
+    if (ni >= 0 && target[ni]) target[ni] = tidyAlso(target[ni] ?? '', o)
     const get = (c: string) => (target[idx(c)] ?? '').trim()
     const set = (c: string, v: string) => { const i = idx(c); while (target.length <= i) target.push(''); target[i] = plain(v) }
     if (get('status').toLowerCase() !== 'interested') {
@@ -586,6 +626,16 @@ async function markApplied($: any, job: Job): Promise<void> {
   await $.session.append({
     message: { type: 'user', content: [{ type: 'text', text: `[Apply Kit] The user marked ${job.company} (${job.role}) as applied from the Apply Kit. jobs/tracker.csv now has status=applied, date_applied=${today}, next_action=${saved.nextAction}, next_action_date=${saved.nextDate}, followups=0. If they actually applied on another day, ask and correct the dates. Finish what the apply skill does after submitting (e.g. a recruiter question in the Outbox, contacts/contacts.csv if someone referred them). If the dashboard is published (profile/published-pages.md), republish it the next time the user talks to you.` }] },
   }).catch(() => undefined)
+}
+
+// When a save tidies this row's dates into YYYY-MM-DD, the "Also: <step> <date>" at the start of the
+// notes is tidied with the same order. Otherwise the row would lose the date that proved its order,
+// and the Also: date would later be read another way (date_order) or become "date unclear".
+function tidyAlso(notes: string, order: DateOrder): string {
+  const m = /^(\s*Also:\s*[^;|]*?\s*)(\d{1,2}[./]\d{1,2}[./](?:\d{4}|\d{2}))\b/i.exec(notes)
+  if (!m) return notes
+  const iso = toIso(m[2] ?? '', order)
+  return isIso(iso) ? `${m[1] ?? ''}${iso}${notes.slice(m[0].length)}` : notes
 }
 
 function matchArg(jobs: Job[], arg: string): Job | undefined {
@@ -651,8 +701,9 @@ export const register: Register = on => {
     const row = (f: Field) => {
       const isShort = f.value.length <= 60 && !f.value.includes('\n')
       const copyButton = f.copy !== '' && (f.id === firstCopy
-        ? <Button key={`copy:${f.id}`} label="Copy" autoFocus onPress={press => copy(f, press.surface)} />
-        : <Button key={`copy:${f.id}`} label="Copy" onPress={press => copy(f, press.surface)} />)
+        ? <Button key={`copy:${f.id}`} label={`Copy (${f.label})`} autoFocus onPress={press => copy(f, press.surface)}>Copy</Button>
+        : <Button key={`copy:${f.id}`} label={`Copy (${f.label})`} onPress={press => copy(f, press.surface)}>Copy</Button>)
+      // Every Copy button is named after its answer for screen readers ("Copy (Email)"), drawn as "Copy".
       return (
         <Box key={f.id} flexDirection="column">
           {isShort ? (
@@ -684,7 +735,7 @@ export const register: Register = on => {
     const picker = (
       <Box key="picker" flexDirection="column" borderStyle="round" paddingX={1}>
         <Text bold>Which job are you applying to?</Text>
-        {k.jobs.length === 0 && <Text dimColor wrap="wrap">No jobs are waiting for you to apply. Paste a job link to Claude, or type /find-jobs.</Text>}
+        {k.jobs.length === 0 && <Text wrap="wrap">No jobs are waiting for you to apply. Paste a job link to Claude, or type /find-jobs.</Text>}
         {picked.items.map(j => {
           const label = `${j.key === k.job?.key ? 'Current: ' : ''}${j.company} · ${j.role}${j.deadline ? ` · deadline ${j.deadline}` : ''}`
           const pick = async () => {
@@ -693,6 +744,7 @@ export const register: Register = on => {
             await update($, armed, () => false)
             await say($, '')
             await refresh($)
+            focusOn($, 'switch')
           }
           return <Button key={`pick:${j.key}`} label={label} onPress={pick} />
         })}
@@ -715,6 +767,7 @@ export const register: Register = on => {
           <Button key="refresh" label="Refresh" onPress={async () => { await say($, ''); await refresh($) }} />
           <Button key="close" label="Close" role="dismiss" onPress={async () => { await update($, isOpen, () => false); await $.ui.close({ id: PANE }) }} />
         </Box>
+        {e.surface === 'terminal' && <Text>{KEYS_HINT}</Text>}
         {job ? (
           <Box flexDirection="column">
             <Text bold>{`${job.company} · ${job.role}`}</Text>
@@ -724,9 +777,8 @@ export const register: Register = on => {
           <Text dimColor wrap="wrap">Pick a job to see its answers. Your profile answers are below either way.</Text>
         )}
         {k.problem !== '' && <Text color="error" wrap="wrap">{k.problem}</Text>}
-        {e.surface === 'terminal' && <Text dimColor>{KEYS_HINT}</Text>}
         {note.text !== '' && <Text color={note.isError ? 'error' : 'success'} wrap="wrap">{note.isError ? `Not done: ${note.text}` : note.text}</Text>}
-        {(isPicking || !job) ? picker : <Button key="switch" label="Switch job" plain onPress={() => update($, picking, () => true)} />}
+        {(isPicking || !job) ? picker : <Button key="switch" label="Switch job" plain onPress={async () => { await update($, picking, () => true); const first = k.jobs[0]; if (first) focusOn($, `pick:${first.key}`) }} />}
         {k.sections.filter(s => s.title === 'This job').map(block)}
         {job && (
           <Box key="questions" flexDirection="column" borderStyle="round" paddingX={1}>
@@ -746,9 +798,9 @@ export const register: Register = on => {
               <Box key={`file:${f.label}:${f.name}`} flexDirection="column">
                 <Box flexDirection="row" gap={1}>
                   <Text color={f.isReady ? undefined : 'warning'}>{`${f.label}: ${f.name}`}</Text>
-                  {/\.pdf$/.test(f.name) && <Button key={`copy:file:${f.label}`} label="Copy name" onPress={press => copy({ label: `the ${f.label.toLowerCase()} file name`, copy: f.name }, press.surface)} />}
+                  {/\.pdf$/.test(f.name) && <Button key={`copy:file:${f.label}`} label={`Copy name (${f.label} file)`} onPress={press => copy({ label: `the ${f.label.toLowerCase()} file name`, copy: f.name }, press.surface)}>Copy name</Button>}
                 </Box>
-                <Text dimColor wrap="wrap">{f.status}</Text>
+                <Text dimColor={f.isReady} wrap="wrap">{f.status}</Text>
                 {f.fix !== '' && <Button key={`fix:${f.label}`} label={`Ask Claude to make the ${f.label.toLowerCase()}`} plain onPress={() => $.prompt.fill({ text: f.fix })} />}
               </Box>
             ))}
@@ -759,14 +811,14 @@ export const register: Register = on => {
           <Button key="fill-gaps" label="Ask Claude to fill in what's missing" plain onPress={() => $.prompt.fill({ text: `My Apply Kit is missing these details from my profile: ${profileGaps.join(', ')}. Ask me for them one at a time and add them.` })} />
         )}
         {job && job.status === 'interested' && !isArmed && (
-          <Button key="mark-applied" label="Mark applied…" variant="primary" onPress={() => update($, armed, () => true)} />
+          <Button key="mark-applied" label="Mark applied…" variant="primary" onPress={async () => { await update($, armed, () => true); focusOn($, 'confirm-applied') }} />
         )}
         {job && job.status === 'interested' && isArmed && (
           <Box key="confirm" flexDirection="column" borderStyle="round" paddingX={1}>
             <Text bold wrap="wrap">{`Did you submit the application to ${job.company} today? This marks it applied on ${k.today} and sets a follow-up for ${k.followUpDate}. If you applied on another day, tell Claude instead.`}</Text>
             <Box flexDirection="row" gap={1}>
-              <Button key="confirm-applied" label="Yes, I submitted it" variant="primary" onPress={() => markApplied($, job)} />
-              <Button key="cancel-applied" label="Cancel" onPress={() => update($, armed, () => false)} />
+              <Button key="confirm-applied" label="Yes, I submitted it" variant="primary" onPress={async () => { await markApplied($, job); focusOn($, 'refresh') }} />
+              <Button key="cancel-applied" label="Cancel" onPress={async () => { await update($, armed, () => false); focusOn($, 'mark-applied') }} />
             </Box>
           </Box>
         )}

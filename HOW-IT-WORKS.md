@@ -8,6 +8,8 @@ Five minutes of reading, and you'll know where everything lives, what happens on
 
 Everything about your search is kept in a few plain files in this folder. Your assistant (Claude, or Codex from ChatGPT; both work, and you can use both) reads and updates them; the panels and pages show them. When the assistant reads a file, it's sent to the company running it (Anthropic or OpenAI) to process, like any chat. Nothing is shared with employers or posted anywhere unless you do it.
 
+In short: you talk to your assistant; it reads and updates your files (your master resume, job tracker, contacts, drafts and activity log); the panels (in Claude) or the chat (in Codex) let you see and change them; and the pages show them in your browser. The diagram below shows the same thing.
+
 ```
               YOU  ── type, talk, or press buttons ──┐
                                                      ▼
@@ -66,11 +68,11 @@ When you open Claude, a small pop-up tells you what's due today or tomorrow: int
 
 **`/pipeline` is your job board, and it's live.** Each job shows its stage and next step. Press **Update…** to change the stage, the next step, or its due date; **Mark next step done** when you've done it; **Push back a week** when something is waiting on someone else. Every change saves straight to your tracker, and Claude knows about it.
 
-**`/outbox` is drafts waiting for you.** Read each one, then **Create Gmail draft** (it appears in your Gmail drafts, ready to send), **Copy** (for LinkedIn), **Mark sent**, **Ask Claude to edit**, or **Discard**. Nothing is sent unless you press the button.
+**`/outbox` is drafts waiting for you.** Read each one, then **Create Gmail draft** (it appears in your Gmail drafts, ready to send), **Copy** (for LinkedIn), **Mark sent** (it asks which day you sent it), **Ask Claude to edit**, or **Discard**. Nothing is sent unless you press the button.
 
 **`/interview-room` is mock interviews.** During `/mock-interview`, questions appear here and are read aloud, a clock times your answer, and a scorecard fills in. Answer out loud: click the mic in the Desktop app (or type `/voice` once in the terminal, then hold Space).
 
-Long boards show what's due first; press **Show all** for the rest, which comes a page at a time. You can work a panel with the keyboard alone: Tab moves between buttons, Enter presses one, and Esc goes back to typing (the panel shows this hint). If your tracker or contacts file is open in Excel, the panels won't save to it (so Excel can't undo your change later): save and close Excel, then try again. They also won't save to a file that looks damaged, and they show unclear dates as "date unclear" instead of guessing.
+Long boards show what's due first; press **Show all** for the rest, which comes a page at a time. You can work a panel with the keyboard alone: Tab moves between buttons, Enter presses one, and Esc goes back to typing (the panel shows this hint). Close Excel before using a panel. The panels refuse to save while Excel shows it has the file open (so Excel can't undo your change later), but they can only tell when Excel leaves a lock file, and Excel for Mac often doesn't. They also won't save to a file that looks damaged, and they show unclear dates as "date unclear" instead of guessing.
 
 > Don't see panels? They need a recent version of Claude Code and a trusted folder. Updating may help, but you don't need them: everything works in the chat (below).
 

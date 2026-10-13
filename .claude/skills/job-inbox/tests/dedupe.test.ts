@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { dateOrder, isSamePosting, isTracked, normCompany, normLink, parseCsv, plain, records, savedNote, toCsv, toIso, trackerIndex } from '../hooks/leads'
+import { dateOrder, isSamePosting, isTracked, normCompany, normRole, samePlace, normLink, parseCsv, plain, records, savedNote, toCsv, toIso, trackerIndex } from '../hooks/leads'
 
 test('slash dates are read only when the day/month order is certain', async () => {
   expect(toIso('06/10/2026')).toBe('06/10/2026')
@@ -74,4 +74,22 @@ test('the tracker index gives the same answers as comparing every row', async ()
   ]
   const index = trackerIndex(refs)
   for (const l of leads) expect(isTracked(index, l)).toBe(refs.some(r => isSamePosting(l, r)))
+})
+
+test('places compare as whole words from the start: York is not New York; Denver, CO is Denver CO', async () => {
+  expect(samePlace('York, UK', 'New York, NY')).toBe(false)
+  expect(samePlace('New York', 'New York, NY')).toBe(true)
+  expect(samePlace('Denver CO', 'Denver, CO')).toBe(true)
+  expect(samePlace('Columbus OH', 'Columbus, Ohio')).toBe(true)
+  expect(samePlace('', 'Austin TX')).toBe(true)
+  expect(samePlace('Portland, OR', 'Portland, ME')).toBe(true)
+  expect(isSamePosting({ company: 'Acme', role: 'Analyst', location: 'York' }, { company: 'Acme', role: 'Analyst', location: 'New York' })).toBe(false)
+})
+
+test('names in any script and with accents still compare', async () => {
+  expect(normCompany('株式会社ノースウィンド')).not.toBe('')
+  expect(normCompany('Société Générale SA')).toBe(normCompany('Societe Generale'))
+  expect(normRole('Ingénieur Sr. Données')).toBe('ingenieur senior donnees')
+  expect(isSamePosting({ company: 'Ελληνική Εταιρεία', role: 'Αναλυτής' }, { company: 'Ελληνική Εταιρεία', role: 'Αναλυτής' })).toBe(true)
+  expect(isSamePosting({ company: 'Ελληνική Εταιρεία', role: 'Αναλυτής' }, { company: 'Άλλη Εταιρεία', role: 'Αναλυτής' })).toBe(false)
 })

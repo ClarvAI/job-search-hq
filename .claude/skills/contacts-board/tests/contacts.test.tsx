@@ -228,7 +228,8 @@ test('We talked: status talked and a prompt to draft a thank-you; never moves re
   const ui = await open($, 'desktop')
   await ui.press({ key: `${K.pat}:talked` })
   await ui.press({ key: `${K.pat}:confirm-talked` })
-  expect(row(files, 'Pat Lee')).toContain('2026-09-20,,talked,0,')
+  // The talk is the newest contact: last_contact moves to today (J3-08).
+  expect(row(files, 'Pat Lee')).toContain('2026-10-06,,talked,0,')
   expect(filled.join('\n')).toContain('I just talked with Pat Lee (Northwind Traders, Inc.)')
   await ui.press({ key: `${K.dana}:talked` })
   await ui.press({ key: `${K.dana}:confirm-talked` })
@@ -346,5 +347,39 @@ test('the board opens ready for the keyboard, watches its files and refreshes wh
   files['contacts/contacts.csv'] += 'Rae Fox,Initech,Engineer,alum,,,,to-contact,0,,,,\n'
   await ($ as any).classic.FileChanged({ file_path: 'C:\\Users\\alex\\job-search\\contacts\\contacts.csv', event: 'change' })
   expect(JSON.stringify(await ui.drawn())).toContain('Rae Fox')
+  await ui.unmount()
+})
+
+test('accessibility: keys hint in plain text under the first line, buttons named after the person, follow-ups due said in words, Cancel puts the card back', async ($, on) => {
+  const { files } = setup(on)
+  await $.command.run({ command: 'contacts', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'contacts-board', surface: 'terminal', ...PANE } as never)
+  const drawn = JSON.stringify(await ui.drawn())
+  expect(drawn).toMatch(/"role":"dismiss"\},"press":\{[^}]*\}\}\]\},\{"type":"Text","children":\["Keys: Ctrl\+X then Tab moves into this panel\./)
+  expect(drawn).toContain('"label":"We talked… (Jane Doe)"},"press"')
+  expect(drawn).toContain('"children":["We talked…"]')
+  expect(drawn).toContain('"color":"warning"},"children":["Next follow-up: overdue since 2026-10-05"]')
+  await ui.press({ key: `${K.jane}:talked` })
+  expect(JSON.stringify(await ui.drawn())).toContain(`${K.jane}:confirm-talked`)
+  await ui.press({ key: `${K.jane}:cancel` })
+  const back = JSON.stringify(await ui.drawn())
+  expect(back).not.toContain(`${K.jane}:confirm-talked`)
+  expect(files['contacts/contacts.csv']).toContain('Jane Doe,Globex,Project Manager,alum,college alumni list,,,to-contact,0')
+  await ui.unmount()
+})
+
+test('"We talked" sets last_contact to today (a later date stays; an unclear one is never rewritten)', async ($, on) => {
+  const csv = HEAD + '\n'
+    + 'Jane Doe,Globex,Project Manager,alum,college alumni list,2026-09-20,,replied,0,,,jane.doe@globex.example,\n'
+    + 'Pat Lee,Initech,Analyst,alum,meetup,03/04/2026,,contacted,1,,,,\n'
+  const { files } = setup(on, csv)
+  await $.command.run({ command: 'contacts', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'contacts-board', surface: 'terminal', ...PANE } as never)
+  await ui.press({ key: 'jane doe|globex|jane.doe@globex.example:talked' })
+  await ui.press({ key: 'jane doe|globex|jane.doe@globex.example:confirm-talked' })
+  expect(files['contacts/contacts.csv']).toContain('Jane Doe,Globex,Project Manager,alum,college alumni list,2026-10-06,,talked,0')
+  await ui.press({ key: 'pat lee|initech:talked' })
+  await ui.press({ key: 'pat lee|initech:confirm-talked' })
+  expect(files['contacts/contacts.csv']).toContain('Pat Lee,Initech,Analyst,alum,meetup,03/04/2026,,talked,0')
   await ui.unmount()
 })

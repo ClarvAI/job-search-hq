@@ -25,8 +25,8 @@ Leads with `status: new` that are not already in `jobs/tracker.csv` (same compan
 
 Number them, best fit first, one or two lines each:
 
-`1. Example Co · Operations Analyst · Austin TX (hybrid) · $65k-$75k · Strong fit: uses your SAP work`
-`   Watch out: needs 2 years · https://example.com/jobs/123`
+`1. Example Co, Operations Analyst, Austin TX (hybrid), $65k-$75k. Strong fit: uses your SAP work`
+`   Watch out: needs 2 years. Posting: https://example.com/jobs/123`
 
 Leads found more than 30 days ago go last under "Older (may be filled)". Then any `saved` ones under "Saved, not added yet". Nothing new? Say so and offer `find-jobs`.
 

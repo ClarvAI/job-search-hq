@@ -17,7 +17,8 @@ const ACTIVITY = 'history/activity.md'
 const BOM = String.fromCharCode(0xfeff)
 // The files this board reads: when one changes on disk (Claude, Codex, Excel), the board refreshes.
 const WATCHED = ['contacts/contacts.csv', 'jobs/tracker.csv', 'profile/preferences.md']
-const KEYS_HINT = 'Keys: Tab moves between buttons, Enter presses one, Esc goes back to typing.'
+// The same words, in the same place (right under the panel's first line), in every panel.
+const KEYS_HINT = 'Keys: Ctrl+X then Tab moves into this panel. Tab moves between buttons, Enter presses one, Esc goes back to typing.'
 const HEADER = ['name', 'company', 'title', 'relationship', 'how_we_met', 'last_contact', 'next_followup', 'status', 'touches', 'job', 'linkedin', 'email', 'notes']
 const MAX_TOUCHES = 2
 const COLUMNS = [
@@ -152,6 +153,15 @@ async function refresh($: any): Promise<Summary> {
   if (JSON.stringify(before) !== JSON.stringify(next)) await update($, summary, () => next)
   return next
 }
+
+// Moves the keyboard focus onto a button the next drawing shows, after the pressed one went away
+// (a confirm row opened or closed). Refused when the panel doesn't hold the keyboard (a mouse press).
+function focusOn($: any, key: string): void {
+  void Promise.resolve().then(() => $.ui.focus({ requestId: PANE, key })).catch(() => undefined)
+}
+
+// Where the focus goes when a confirm row opens: the first answer, or Cancel for "Mark cold".
+const FIRST_IN_ROW: Record<string, string> = { sent: 'sent-today', replied: 'confirm-replied', talked: 'confirm-talked', referred: 'confirm-referred', cold: 'cancel', followup: 'fu-week' }
 
 async function say($: any, text: string, isError = false): Promise<void> {
   await update($, notice, () => ({ text, isError }))
@@ -330,10 +340,14 @@ async function theyReplied($: any, c: Contact): Promise<void> {
 }
 
 async function weTalked($: any, c: Contact): Promise<void> {
-  const ok = await saveContact($, c.key, (get, set) => {
+  const ok = await saveContact($, c.key, (get, set, today) => {
     const status = normStatus(get('status'))
     const moved = status !== 'referred'
     if (moved) set('status', 'talked')
+    // The talk is the newest contact (recorded the day it happened): last_contact moves to today unless
+    // a later date is already there. An unclear date is left for the user to confirm, never rewritten.
+    const last = get('last_contact')
+    if (last === '' || (isIso(last) && today > last)) set('last_contact', today)
     set('touches', '0')
     set('next_followup', '')
     return {
@@ -453,7 +467,7 @@ export const register: Register = on => {
       <Box key="contacts-band" flexDirection="row" gap={1}>
         <Text color="warning">{line(s)}</Text>
         <Button key="contacts-open" label="Open contacts" plain onPress={() => $.ui.open({ id: PANE, title: 'Contacts', focus: true })} />
-        <Button key="contacts-hide" label="Hide" plain dimColor onPress={() => update($, isHidden, () => true)} />
+        <Button key="contacts-hide" label="Hide (contacts follow-ups)" plain dimColor onPress={() => update($, isHidden, () => true)}>Hide</Button>
       </Box>
     )
     const below: any = await next(e)
@@ -479,8 +493,17 @@ export const register: Register = on => {
       if (firstKey === '') firstKey = c.key
       const isFirst = firstKey === c.key
       const action = target.startsWith(`${c.key}#`) ? target.slice(c.key.length + 1) : ''
-      const arm = (a: string) => async () => { await say($, ''); await update($, armed, () => `${c.key}#${a}`) }
-      const cancel = <Button key={`${c.key}:cancel`} label="Cancel" onPress={() => update($, armed, () => '')} />
+      const arm = (a: string) => async () => {
+        await say($, '')
+        await update($, armed, () => `${c.key}#${a}`)
+        focusOn($, `${c.key}:${a === 'followup' && c.jobOwnsFollowup ? 'cancel' : FIRST_IN_ROW[a] ?? 'cancel'}`)
+      }
+      // Cancel puts the focus back on the button that opened the row; a finished action, on this card.
+      const cancel = <Button key={`${c.key}:cancel`} label="Cancel" onPress={async () => { await update($, armed, () => ''); focusOn($, `${c.key}:${action}`) }} />
+      const then = (run: Promise<unknown>) => run.then(() => focusOn($, `${c.key}:talked`))
+      // Each card's buttons carry the person's name for screen readers (a desktop's native buttons):
+      // "We talked… (Jane Doe)", drawn as "We talked…". The visible words start the name (WCAG 2.5.3).
+      const named = (visible: string) => `${visible} (${c.name})`
       const isDue = isDueContact(c, s.today)
       const waiting = ['to-contact', 'contacted'].includes(c.status)
       const atCap = waiting && c.touches >= MAX_TOUCHES
@@ -502,27 +525,27 @@ export const register: Register = on => {
             <Box flexDirection="column" gap={1}>
               <Text bold wrap="wrap">{`When did you send your message to ${c.name}? Only record it once you have sent it yourself.`}</Text>
               <Box flexDirection="row" gap={1} flexWrap="wrap">
-                <Button key={`${c.key}:sent-today`} label={`Today (${s.today})`} variant="primary" onPress={() => messageSent($, c, s.today)} />
-                <Button key={`${c.key}:sent-yesterday`} label={`Yesterday (${yesterday})`} onPress={() => messageSent($, c, yesterday)} />
+                <Button key={`${c.key}:sent-today`} label={`Today (${s.today})`} variant="primary" onPress={() => then(messageSent($, c, s.today))} />
+                <Button key={`${c.key}:sent-yesterday`} label={`Yesterday (${yesterday})`} onPress={() => then(messageSent($, c, yesterday))} />
                 {cancel}
               </Box>
-              {hasInput && <els.Input key={`${c.key}:sent-date`} label="Another day" value="" placeholder="YYYY-MM-DD" submitLabel="save" onSubmit={(v: string) => messageSent($, c, v)} />}
+              {hasInput && <els.Input key={`${c.key}:sent-date`} label="Another day" value="" placeholder="YYYY-MM-DD" submitLabel="save" onSubmit={(v: string) => then(messageSent($, c, v))} />}
             </Box>
           )}
           {action === 'replied' && (
             <Box flexDirection="column">
               <Text bold wrap="wrap">{`Record that ${c.name} replied? Your unanswered count goes back to 0${c.nextFollowup ? ' and the follow-up date is cleared' : ''}.`}</Text>
               <Box flexDirection="row" gap={1}>
-                <Button key={`${c.key}:confirm-replied`} label="Yes, they replied" variant="primary" onPress={() => theyReplied($, c)} />
+                <Button key={`${c.key}:confirm-replied`} label="Yes, they replied" variant="primary" onPress={() => then(theyReplied($, c))} />
                 {cancel}
               </Box>
             </Box>
           )}
           {action === 'talked' && (
             <Box flexDirection="column">
-              <Text bold wrap="wrap">{`Record that you talked with ${c.name}? Claude will offer to draft a thank-you note and log what you learned.`}</Text>
+              <Text bold wrap="wrap">{`Record that you talked with ${c.name} today? Claude will offer to draft a thank-you note and log what you learned.`}</Text>
               <Box flexDirection="row" gap={1}>
-                <Button key={`${c.key}:confirm-talked`} label="Yes, we talked" variant="primary" onPress={() => weTalked($, c)} />
+                <Button key={`${c.key}:confirm-talked`} label="Yes, we talked" variant="primary" onPress={() => then(weTalked($, c))} />
                 {cancel}
               </Box>
             </Box>
@@ -531,7 +554,7 @@ export const register: Register = on => {
             <Box flexDirection="column">
               <Text bold wrap="wrap">{`Record that ${c.name} referred you${c.job ? ` for ${c.job}` : ''}? Claude will update the job and help you thank them.`}</Text>
               <Box flexDirection="row" gap={1}>
-                <Button key={`${c.key}:confirm-referred`} label="Yes, they referred me" variant="primary" onPress={() => referredMe($, c)} />
+                <Button key={`${c.key}:confirm-referred`} label="Yes, they referred me" variant="primary" onPress={() => then(referredMe($, c))} />
                 {cancel}
               </Box>
             </Box>
@@ -540,7 +563,7 @@ export const register: Register = on => {
             <Box flexDirection="column">
               <Text bold wrap="wrap">{`Mark ${c.name} as cold? They move to the Cold list and drop off your follow-ups. You can still record a reply later.`}</Text>
               <Box flexDirection="row" gap={1}>
-                <Button key={`${c.key}:confirm-cold`} label="Mark cold" variant="primary" onPress={() => markCold($, c)} />
+                <Button key={`${c.key}:confirm-cold`} label="Mark cold" variant="primary" onPress={() => then(markCold($, c))} />
                 {cancel}
               </Box>
             </Box>
@@ -550,13 +573,13 @@ export const register: Register = on => {
               <Text bold wrap="wrap">{c.jobOwnsFollowup ? `Your application (${c.job}) owns this follow-up. Change it on the job board (/pipeline).` : `When should you follow up with ${c.name}?`}</Text>
               {!c.jobOwnsFollowup && (
                 <Box flexDirection="row" gap={1} flexWrap="wrap">
-                  <Button key={`${c.key}:fu-week`} label={`In a week (${addDays(s.today, 7)})`} onPress={() => setFollowup($, c, addDays(s.today, 7))} />
-                  <Button key={`${c.key}:fu-2weeks`} label={`In 2 weeks (${addDays(s.today, 14)})`} onPress={() => setFollowup($, c, addDays(s.today, 14))} />
-                  {c.nextFollowup !== '' && <Button key={`${c.key}:fu-clear`} label="No follow-up" dimColor onPress={() => setFollowup($, c, '')} />}
+                  <Button key={`${c.key}:fu-week`} label={`In a week (${addDays(s.today, 7)})`} onPress={() => then(setFollowup($, c, addDays(s.today, 7)))} />
+                  <Button key={`${c.key}:fu-2weeks`} label={`In 2 weeks (${addDays(s.today, 14)})`} onPress={() => then(setFollowup($, c, addDays(s.today, 14)))} />
+                  {c.nextFollowup !== '' && <Button key={`${c.key}:fu-clear`} label="No follow-up" dimColor onPress={() => then(setFollowup($, c, ''))} />}
                   {cancel}
                 </Box>
               )}
-              {!c.jobOwnsFollowup && hasInput && <els.Input key={`${c.key}:fu-date`} label="Another day" value={c.nextFollowup} placeholder="YYYY-MM-DD" submitLabel="save" onSubmit={(v: string) => setFollowup($, c, v)} />}
+              {!c.jobOwnsFollowup && hasInput && <els.Input key={`${c.key}:fu-date`} label="Another day" value={c.nextFollowup} placeholder="YYYY-MM-DD" submitLabel="save" onSubmit={(v: string) => then(setFollowup($, c, v))} />}
               {c.jobOwnsFollowup && cancel}
             </Box>
           )}
@@ -564,14 +587,14 @@ export const register: Register = on => {
           {action === '' && (
             <Box flexDirection="row" gap={1} flexWrap="wrap">
               {!atCap && c.status !== 'cold' && (isFirst
-                ? <Button key={`${c.key}:sent`} label="Message sent…" autoFocus onPress={arm('sent')} />
-                : <Button key={`${c.key}:sent`} label="Message sent…" onPress={arm('sent')} />)}
-              {['to-contact', 'contacted', 'cold'].includes(c.status) && <Button key={`${c.key}:replied`} label="They replied…" onPress={arm('replied')} />}
-              <Button key={`${c.key}:talked`} label="We talked…" onPress={arm('talked')} />
-              {c.status !== 'referred' && <Button key={`${c.key}:referred`} label="Referred me…" onPress={arm('referred')} />}
-              {!atCap && c.status !== 'cold' && <Button key={`${c.key}:draft`} label="Draft a message" plain onPress={() => $.prompt.fill({ text: draftPrompt(c) })} />}
-              {atCap && <Button key={`${c.key}:cold`} label="Mark cold…" onPress={arm('cold')} />}
-              {c.status !== 'cold' && <Button key={`${c.key}:followup`} label="Set follow-up date…" plain dimColor onPress={arm('followup')} />}
+                ? <Button key={`${c.key}:sent`} label={named('Message sent…')} autoFocus onPress={arm('sent')}>Message sent…</Button>
+                : <Button key={`${c.key}:sent`} label={named('Message sent…')} onPress={arm('sent')}>Message sent…</Button>)}
+              {['to-contact', 'contacted', 'cold'].includes(c.status) && <Button key={`${c.key}:replied`} label={named('They replied…')} onPress={arm('replied')}>They replied…</Button>}
+              <Button key={`${c.key}:talked`} label={named('We talked…')} onPress={arm('talked')}>We talked…</Button>
+              {c.status !== 'referred' && <Button key={`${c.key}:referred`} label={named('Referred me…')} onPress={arm('referred')}>Referred me…</Button>}
+              {!atCap && c.status !== 'cold' && <Button key={`${c.key}:draft`} label={named('Draft a message')} plain onPress={() => $.prompt.fill({ text: draftPrompt(c) })}>Draft a message</Button>}
+              {atCap && <Button key={`${c.key}:cold`} label={named('Mark cold…')} onPress={arm('cold')}>Mark cold…</Button>}
+              {c.status !== 'cold' && <Button key={`${c.key}:followup`} label={named('Set follow-up date…')} plain dimColor onPress={arm('followup')}>Set follow-up date…</Button>}
             </Box>
           )}
         </Box>
@@ -604,11 +627,11 @@ export const register: Register = on => {
           <Button key="refresh" label="Refresh" onPress={() => refresh($)} />
           <Button key="close" label="Close" role="dismiss" onPress={() => $.ui.close({ id: PANE })} />
         </Box>
+        {e.surface === 'terminal' && <Text>{KEYS_HINT}</Text>}
         <Text dimColor>Changes here save straight to your contacts list (contacts/contacts.csv), and Claude is told about them. Record a message only after you've sent it. "Draft a message" writes a request to Claude; press Enter to send it.</Text>
-        {e.surface === 'terminal' && <Text dimColor>{KEYS_HINT}</Text>}
         {note.text !== '' && <Text color={note.isError ? 'error' : 'success'}>{note.isError ? `Not saved: ${note.text}` : note.text}</Text>}
-        {!s.hasFile && <Text dimColor>No contacts file yet. Ask Claude to set one up, or type /network to find people to talk to.</Text>}
-        {s.hasFile && s.contacts.length === 0 && <Text dimColor>No one here yet. Type /network to find people at a company you like, or /import-linkedin to bring in your connections.</Text>}
+        {!s.hasFile && <Text>No contacts file yet. Ask Claude to set one up, or type /network to find people to talk to.</Text>}
+        {s.hasFile && s.contacts.length === 0 && <Text>No one here yet. Type /network to find people at a company you like, or /import-linkedin to bring in your connections.</Text>}
         {s.problem !== '' && <Text color="error" wrap="wrap">{s.problem}</Text>}
         {COLUMNS.map(col => {
           // Due follow-ups first, then by date; long groups are shown a page at a time.
@@ -625,7 +648,7 @@ export const register: Register = on => {
         {other.length > 0 && (
           <Box key="col:other" flexDirection="column" gap={1}>
             <Text bold underline>{`Status not recognized (${other.length})`}</Text>
-            <Text dimColor>Ask Claude to fix the status of these (to-contact, contacted, replied, talked, referred or cold).</Text>
+            <Text>Ask Claude to fix the status of these (to-contact, contacted, replied, talked, referred or cold).</Text>
             {group('other', other)}
           </Box>
         )}

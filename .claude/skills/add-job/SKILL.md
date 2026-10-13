@@ -105,4 +105,4 @@ After you submit, tell your assistant "I applied to <Company> on <date>" so it r
 
 ## 7. Report back
 
-One short block per job: `Fit 4/5 · Acme Corp · Operations Analyst · deadline Nov 15 · package ready → jobs/acme-corp-operations-analyst/READY.md`, or why you skipped prepping it. If several jobs, end with which to do first (soonest deadline × best fit).
+One short block per job, in words, with no file path: `Fit 4 of 5, Acme Corp, Operations Analyst, deadline Nov 15: package ready for your review. Say "show me" to open it.`, or why you skipped prepping it. If several jobs, end with which to do first (soonest deadline × best fit).

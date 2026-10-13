@@ -95,7 +95,7 @@ If your visa depends on having a job, `/today` can count the days left.
 - **`/apply-kit`**: open it next to an application form. Every answer the form asks for, with a **Copy** button, then **Mark applied** when you've submitted.
 - **`/contacts`**: your networking board. Record when you message someone, when they reply, when you talk, and when they refer you.
 - **Due alerts**: when you open Claude, a short pop-up lists what's due today or tomorrow. Nothing to type.
-- **`/interview-room`**: during `/mock-interview`, the interviewer's question appears here and is read out loud, a clock times your answer, and a scorecard fills in.
+- **`/interview-room`**: during `/mock-interview`, the interviewer's question appears here and is read out loud, a clock times your answer (you can turn the clock off), and a scorecard fills in.
 
 In Codex the same things happen in the chat: say **show my board**, **show my outbox**, **show my contacts**, **show my job inbox**, **apply kit for Acme**, or **mock interview**. For mock interviews in the ChatGPT desktop app, start a voice chat and it interviews you out loud; in text mode it can still read questions aloud if you allow it the first time, and it times your answers.
 
@@ -103,7 +103,7 @@ In Codex the same things happen in the chat: say **show my board**, **show my ou
 
 - **Claude desktop app:** click the microphone in the message box. **Claude terminal:** type `/voice` once, then hold **Space** while you talk.
 - **Codex:** in the ChatGPT desktop app, start a **voice chat** for mock interviews (paid plans): it talks and listens like a real interviewer. The terminal doesn't have it. Otherwise use the app's microphone, or your computer's dictation (Mac: the Dictation shortcut set in **System Settings → Keyboard → Dictation**, often **Fn** twice or the microphone key; Windows: **Win + H**).
-- **Mac tip (Claude):** the Interview Room reads questions in your computer's voice. If it sounds robotic: System Settings → Accessibility → **Read & Speak**, click the **ⓘ** button next to **System voice**, download a higher-quality English voice, then choose it as your System voice (Siri voices can't be used for this). On older macOS the section is called Spoken Content.
+- **Mac tip (Claude):** the Interview Room reads questions in your computer's voice. If it sounds robotic: System Settings → Accessibility → **Read & Speak**, click the Info button (a small i in a circle) next to **System voice**, download a higher-quality English voice, then choose it as your System voice (Siri voices can't be used for this). On older macOS the section is called Spoken Content.
 
 Mock interviews are much more useful out loud. That's how the real thing works. Ask for a **one-way video** practice round too: many big companies screen new grads with recorded video interviews.
 
@@ -224,6 +224,35 @@ It's a backstop. The main protection is that the assistant drafts and you send. 
 - **The assistant asks before changing your master resume or preferences.** That's on purpose, so nothing changes your source of truth without you seeing it. In Claude, the app also asks you before any command that would copy over, move, delete or rewrite those files.
 - **Your tracker shows "date unclear" or a damaged-file warning?** Excel changed the dates or saved it with semicolons. Ask the assistant to fix it; it shows you the repaired copy first.
 - **Stuck?** Type "I'm lost, what should I do?" or ask for the menu.
+
+---
+
+## Accessibility
+
+We want everyone to be able to use Job Search HQ, including people who use a screen reader, a keyboard only, dictation, or larger text. We aim for **WCAG 2.2 level AA**. We don't claim full conformance yet, because not everything has been tested with real assistive technology.
+
+**What has been checked (October 2026)**
+
+- **Panels (Claude):** we reviewed each panel's code and fixed what we found. Each panel has automated tests for it.
+  - Every button works from the keyboard. Each panel says how to reach it (**Ctrl+X** then **Tab**) and how to leave it (**Esc**).
+  - Warnings and errors always say what's wrong in words, not only in color.
+  - Buttons that repeat on every card say which card they belong to.
+  - The interview clock can be turned off, and you can ask for more time.
+  - The pop-up that opens with Claude stays up long enough to read slowly, and `/today` shows the same list again.
+- **The conversation:** we read the instructions the assistant follows. It asks one question at a time, you can always type your answer instead of picking from a list, and it avoids jargon. We found a few places to improve, and we're working on them.
+- **Pages and PDFs:** checked separately. The results will be added here.
+
+**Known limits**
+
+- Panels run inside your terminal or the Claude desktop app. How well a screen reader reads them depends on that app, and we haven't yet tested them with VoiceOver or NVDA. Every panel has a chat version that does the same things in plain text. Say "show my board", "show my outbox" or "mock interview".
+- Panels need a recent version of Claude Code. Codex has no panels; there, everything happens in the chat.
+- Some terminal color themes make dim or yellow text hard to read. Switching to a high-contrast theme in your terminal helps.
+- Mock interviews read questions aloud, and that can talk over a screen reader. Press **Stop reading aloud**, or ask Claude to run the interview in the chat.
+- Everything is in English for now.
+
+**Need help, or found a barrier?** Tell the assistant what's in your way ("I use a screen reader", "I can't use the mouse", "please don't time me"), and it will adjust. To report a barrier so we can fix it, open an issue in this repository with **Accessibility** in the title. Say what you were doing, which app you use (Claude or Codex, terminal or desktop) and which assistive technology. Please leave out your personal details.
+
+Last reviewed: 2026-10-12.
 
 ---
 

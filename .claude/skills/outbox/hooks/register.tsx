@@ -42,7 +42,8 @@ const page = atom({ plugin: 'outbox', key: 'page' } as const, 0)
 const waitingPage = atom({ plugin: 'outbox', key: 'waitingPage' } as const, 0)
 // Cards per page: each card shows a whole message, and a panel draws at most 100,000 characters.
 const SHOWN = 8
-const KEYS_HINT = 'Keys: Tab moves between buttons, Enter presses one, Esc goes back to typing.'
+// The same words, in the same place (right under the panel's first line), in every panel.
+const KEYS_HINT = 'Keys: Ctrl+X then Tab moves into this panel. Tab moves between buttons, Enter presses one, Esc goes back to typing.'
 // The files whose change matters at once (the send setting and the signature).
 const WATCHED = ['profile/preferences.md', 'profile/signature.txt']
 
@@ -90,18 +91,18 @@ function parse(file: string, raw: string): Draft | undefined {
   }
 }
 
-function setStatus(raw: string, status: string, stamp: string): string {
+function setStatus(raw: string, status: string, stamp: string, sentOn = ''): string {
   const text = clean(raw)
   const end = text.indexOf('\n---', 3)
   if (!text.startsWith('---\n') || end < 0) return raw
   const lines = text.slice(4, end).split('\n').filter(l => !/^(status|status_at|sent)\s*:/i.test(l))
   lines.push(`status: ${status}`, `status_at: ${stamp}`)
-  if (status === 'sent') lines.push(`sent: ${stamp.slice(0, 10)}`)
+  if (status === 'sent') lines.push(`sent: ${sentOn || stamp.slice(0, 10)}`)
   return `---\n${lines.join('\n')}${text.slice(end)}`
 }
 
 function escapeHtml(text: string): string {
-  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
 // Plain text with a signature, and a matching HTML body: paragraphs on blank
@@ -110,8 +111,9 @@ function compose(body: string, sig: string): { body: string; htmlBody: string } 
   const plain = sig.trim() === '' || body.includes(sig.trim()) ? body.trim() : `${body.trim()}\n\n${sig.trim()}`
   const html = plain.split(/\n{2,}/).map(p => {
     const inner = escapeHtml(p)
-      .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1">$1</a>')
-      .replace(/(^|[\s(])((?:www\.)?linkedin\.com\/in\/[^\s<]+)/g, '$1<a href="https://$2">$2</a>')
+      // A link ends at a space, "<" or a quote mark (escaped above), so the href matches the text.
+      .replace(/(https?:\/\/(?:(?!&quot;)[^\s<])+)/g, '<a href="$1">$1</a>')
+      .replace(/(^|[\s(])((?:www\.)?linkedin\.com\/in\/(?:(?!&quot;)[^\s<])+)/g, '$1<a href="https://$2">$2</a>')
       .replace(/\n/g, '<br>')
     return `<p style="margin:0 0 12px 0">${inner}</p>`
   }).join('')
@@ -146,7 +148,9 @@ async function findGmail($: any, configured: string): Promise<{ server: string; 
   const servers = [...new Set(names.map(n => /^mcp__(.+)__create_draft$/.exec(n)?.[1] ?? '').filter(s => /gmail/i.test(s)))]
   const spelled = configured.replace(/[^A-Za-z0-9_-]/g, '_')
   if (servers.includes(spelled)) return { server: configured, state: 'connected' }
-  if (servers.length > 0) return { server: servers[0] ?? configured, state: 'connected' }
+  // One other Gmail connection: used, and named in every confirmation. Several: never picked silently.
+  if (servers.length === 1) return { server: servers[0] ?? configured, state: 'connected' }
+  if (servers.length > 1) return { server: servers.join(', '), state: 'ambiguous' }
   return { server: configured, state: 'missing' }
 }
 
@@ -192,8 +196,13 @@ async function settings($: any): Promise<void> {
 // text), so a renamed or copied file is caught too. If the file can't be updated afterwards, or the
 // app stops mid-send, or Gmail's answer is an error or never comes, the receipt stays: the draft is
 // held as "not confirmed" until the user has checked Gmail's Sent folder. It is never retried by itself.
-const receiptKey = (file: string) => `send-receipt:${file}`
-const messageKey = (d: { to: string; subject: string; body: string }) => `send-receipt-msg:${hash(`${d.to.trim().toLowerCase()}\n${d.subject.trim()}\n${d.body.trim()}`)}`
+// Keys are per project folder (the store is shared by every folder on this computer). Receipts kept
+// before that change, under the old folder-less keys, are still read, so they keep blocking a repeat send.
+const receiptKey = (file: string, root = '') => `send-receipt:${root ? `${root}|` : ''}${file}`
+const messageKey = (d: { to: string; subject: string; body: string }, root = '') => `send-receipt-msg:${root ? `${root}|` : ''}${hash(`${d.to.trim().toLowerCase()}\n${d.subject.trim()}\n${d.body.trim()}`)}`
+async function rootOf($: any): Promise<string> {
+  return Promise.resolve().then(() => $.session.root()).then((r: unknown) => String(r ?? ''), () => '')
+}
 type Receipt = { at: string; to: string; subject: string; state: 'sending' | 'sent' | 'uncertain'; file?: string }
 
 // A short fingerprint of a message (53-bit cyrb53): enough to tell messages apart, not a secret.
@@ -210,18 +219,23 @@ function hash(text: string): string {
 }
 
 async function receiptOf($: any, d: Draft): Promise<Partial<Receipt> | undefined> {
-  const byFile = await $.store.get(receiptKey(d.file))
-  if (byFile && typeof byFile === 'object') {
-    const r = byFile as Partial<Receipt>
-    if (r.to === d.to && r.subject === d.subject) return r
+  const root = await rootOf($)
+  for (const rt of root ? [root, ''] : ['']) {
+    const byFile = await $.store.get(receiptKey(d.file, rt))
+    if (byFile && typeof byFile === 'object') {
+      const r = byFile as Partial<Receipt>
+      if (r.to === d.to && r.subject === d.subject) return r
+    }
+    const byMessage = await $.store.get(messageKey(d, rt))
+    if (byMessage && typeof byMessage === 'object') return byMessage as Partial<Receipt>
   }
-  const byMessage = await $.store.get(messageKey(d))
-  return byMessage && typeof byMessage === 'object' ? (byMessage as Partial<Receipt>) : undefined
+  return undefined
 }
 
 async function keepReceipt($: any, d: Draft, r: Receipt): Promise<void> {
-  await $.store.set(receiptKey(d.file), r)
-  await $.store.set(messageKey(d), r)
+  const root = await rootOf($)
+  await $.store.set(receiptKey(d.file, root), r)
+  await $.store.set(messageKey(d, root), r)
 }
 
 // '' when this draft may be sent; otherwise why not (it went out already, or a send was never confirmed).
@@ -270,6 +284,19 @@ async function scan($: any): Promise<Draft[]> {
   return found
 }
 
+// Moves the keyboard focus onto a button the next drawing shows, after the pressed one went away
+// (a confirm row opened or closed, a card left). Refused when the panel doesn't hold the keyboard
+// (a mouse press): then nothing happens.
+function focusOn($: any, key: string): void {
+  void Promise.resolve().then(() => $.ui.focus({ requestId: PANE, key })).catch(() => undefined)
+}
+
+// After a card leaves: the first draft's main button, or Refresh when none is left.
+async function focusFirst($: any): Promise<void> {
+  const first = (await read($, drafts))[0] ?? (await read($, waiting))[0]
+  focusOn($, !first ? 'refresh' : first.status === 'in-gmail-drafts' ? `${first.file}:marksent` : first.channel === 'email' ? `${first.file}:approve` : `${first.file}:copy`)
+}
+
 async function say($: any, text: string, isError = false): Promise<void> {
   await update($, notice, () => ({ text, isError }))
 }
@@ -296,6 +323,20 @@ async function logActivity($: any, stamp: string, what: string): Promise<void> {
   } catch { /* the log is a convenience; the draft file already holds the new status */ }
 }
 
+function isRealDay(v: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v)
+  if (!m) return false
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+  return d.getFullYear() === Number(m[1]) && d.getMonth() === Number(m[2]) - 1 && d.getDate() === Number(m[3])
+}
+
+function dayBefore(iso: string): string {
+  const [y = 1970, m = 1, d = 1] = iso.split('-').map(Number)
+  const t = new Date(y, m - 1, d - 1)
+  const p2 = (n: number) => String(n).padStart(2, '0')
+  return `${t.getFullYear()}-${p2(t.getMonth() + 1)}-${p2(t.getDate())}`
+}
+
 async function stampNow($: any): Promise<string> {
   // Local time, not UTC: an evening send in the user's time zone must not be dated tomorrow.
   const d = new Date(await $.clock.now())
@@ -305,7 +346,8 @@ async function stampNow($: any): Promise<string> {
 
 // happened: Gmail already did it (sent, or made the Gmail draft), so the file must record that even
 // if someone edited the draft meanwhile; it is never left looking like a draft to approve again.
-async function mark($: any, draft: Draft, status: string, logText: string, paneText: string, happened = false): Promise<void> {
+// sentOn: the day the user says they sent it themselves (YYYY-MM-DD); blank means today.
+async function mark($: any, draft: Draft, status: string, logText: string, paneText: string, happened = false, sentOn = ''): Promise<void> {
   const path = `${DIR}/${draft.file}`
   const stamp = await stampNow($)
   // Re-read first: the file may have changed in another app since the pane was drawn.
@@ -321,7 +363,7 @@ async function mark($: any, draft: Draft, status: string, logText: string, paneT
   const alreadyRecorded = happened && now !== undefined && (now.status === status || now.status === 'sent')
   try {
     if (!now) throw new Error('missing')
-    if (!alreadyRecorded) await $.fs.write(path, setStatus(current, status, stamp))
+    if (!alreadyRecorded) await $.fs.write(path, setStatus(current, status, stamp, sentOn))
   } catch {
     await update($, armed, () => '')
     const what = status === 'in-gmail-drafts' ? 'The Gmail draft was created' : status === 'sent' ? 'It was sent' : 'That worked'
@@ -333,11 +375,13 @@ async function mark($: any, draft: Draft, status: string, logText: string, paneT
   const editedMeanwhile = happened && changed
     ? ` The file's text was edited in another app while it was being ${status === 'sent' ? 'sent' : 'drafted'}; what went to Gmail is the version the user approved in the panel, not the current file text.`
     : ''
-  await logActivity($, stamp, `${title(draft)}: ${status === 'sent' ? 'sent' :status === 'discarded' ? 'discarded' : 'Gmail draft created (not sent yet)'}`)
+  await logActivity($, stamp, `${title(draft)}: ${status === 'sent' ? (sentOn && sentOn !== stamp.slice(0, 10) ? `sent on ${sentOn}` : 'sent') : status === 'discarded' ? 'discarded' : 'Gmail draft created (not sent yet)'}`)
   await update($, armed, () => '')
   await say($, paneText)
   await scan($)
-  const followUp = status === 'sent'
+  const followUp = status === 'sent' && sentOn !== ''
+    ? ` The user says they sent it on ${sentOn}: use that date. Update contacts/contacts.csv for the contact(s) named in the draft following the playbook rule "When the user sends someone a message" (never move a replied/talked/referred contact back to contacted), update jobs/tracker.csv if it relates to a job, add a line to history/activity.md for those changes (the panel already logged the send), then move the file to outbox/sent/.`
+    : status === 'sent'
     ? ' If it might not have gone out today, ask the user which day they sent it and use that date. Update contacts/contacts.csv for the contact(s) named in the draft following the playbook rule "When the user sends someone a message" (never move a replied/talked/referred contact back to contacted), update jobs/tracker.csv if it relates to a job, add a line to history/activity.md for those changes (the panel already logged the send), then move the file to outbox/sent/.'
     : status === 'discarded' ? ' Move the file to outbox/discarded/.' : ' It is NOT sent yet; do not set follow-up dates until the user marks it sent.'
   const who = [draft.to && `to: ${draft.to}`, draft.contact && `contact: ${draft.contact}`, draft.job && `job: ${draft.job}`].filter(Boolean).join(', ')
@@ -355,9 +399,14 @@ function isBlockedMail(name: string): boolean {
   return isMail && !readOnly
 }
 
+function ambiguousText(servers: string): string {
+  return `More than one Gmail connection is set up (${servers}), so nothing was sent or drafted: the Outbox won't guess which account to use. Ask Claude to set the Outbox's Gmail connector name to the one you want, or press Copy and send it yourself.`
+}
+
 function title(d: Draft): string {
   if (d.channel === 'email') return d.subject || '(no subject)'
-  return `${d.channel === 'linkedin' ? 'LinkedIn' : d.channel} → ${d.to || '(no one named)'}`
+  // Words, not an arrow: a screen reader reads "→" as "right arrow".
+  return `${d.channel === 'linkedin' ? 'LinkedIn message' : d.channel} to ${d.to || '(no one named)'}`
 }
 
 // The Gmail connector's name from the plugin's settings (gmail_server), used when it is connected.
@@ -424,7 +473,11 @@ export const register: Register = (on, options) => {
   }).catch(($, e, next) => (next.called || !isBlockedMail(String(e.tool)) ? next(e) : { deny: MAIL_DENY }))
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
-    const { Box, Text, Button } = $.ui.resolve(e)
+    const els = $.ui.resolve(e) as any
+    const { Box, Text, Button } = els
+    const canType = 'Input' in els
+    const today = (await stampNow($).catch(() => '')).slice(0, 10)
+    const yesterday = dayBefore(today)
     const list = await read($, drafts)
     const held = await read($, waiting)
     const bad = await read($, broken)
@@ -450,7 +503,15 @@ export const register: Register = (on, options) => {
         .filter(Boolean).join('  ·  ')
       const isNote = d.channel === 'linkedin' && d.kind !== 'message'
       const chars = d.body.length
-      const cancel = <Button key={`${d.file}:cancel`} label="Cancel" onPress={() => update($, armed, () => '')} />
+      // Cancel puts the focus back on the button that opened the confirm row.
+      const cancel = <Button key={`${d.file}:cancel`} label="Cancel" onPress={async () => {
+        const was = action
+        await update($, armed, () => '')
+        focusOn($, `${d.file}:${was === 'approve' ? 'approve' : was === 'unstick' ? 'unstick' : was === 'marksent' ? 'marksent' : 'discard'}`)
+      }} />
+      // Each card's buttons carry the draft's name for screen readers (a desktop's native buttons):
+      // "Copy (Follow-up to Globex)", drawn as "Copy". The visible words start the name (WCAG 2.5.3).
+      const named = (visible: string) => `${visible} (${title(d)})`
       return (
         <Box key={d.file} flexDirection="column" borderStyle="round" paddingX={1}>
           <Text bold>{title(d)}</Text>
@@ -469,8 +530,8 @@ export const register: Register = (on, options) => {
           {action === 'approve' && (
             <Box flexDirection="column">
               <Text bold wrap="wrap">{canSend
-                ? `Send "${name}" from your Gmail to ${d.to} now? This can't be undone.`
-                : `Create a Gmail draft to ${d.to}? Nothing is sent; you send it from Gmail when you're ready.`}</Text>
+                ? `Send "${name}" from your Gmail (connection: ${server}) to ${d.to} now? This can't be undone.`
+                : `Create a Gmail draft to ${d.to} in your Gmail (connection: ${server})? Nothing is sent; you send it from Gmail when you're ready.`}</Text>
               <Box flexDirection="row" gap={1}>
                 <Button key={`${d.file}:confirm`} label={canSend ? 'Send email' : 'Create Gmail draft'} variant="primary" onPress={async () => {
                   // Lock synchronously before any await, so a second press can't send twice.
@@ -488,6 +549,14 @@ export const register: Register = (on, options) => {
                     return
                   }
                   const stillSend = (await read($, mode)) === 'send'
+                  // Which Gmail, checked again right before the call: the one shown in the confirmation, or nothing.
+                  const now = await findGmail($, configuredServer).catch(() => ({ server: configuredServer, state: 'unknown' }))
+                  if (now.state === 'ambiguous' || now.server !== server) {
+                    await update($, armed, () => '')
+                    await say($, now.state === 'ambiguous' ? ambiguousText(now.server) : 'Your Gmail connection changed since you opened this. Read it again before approving.', true)
+                    await scan($)
+                    return
+                  }
                   // The signature is part of what the user approved: a changed one means reading it again.
                   const sigNow = await read($, signature)
                   if (!fresh || fresh.status !== 'draft' || fresh.body !== d.body || fresh.to !== d.to || fresh.subject !== d.subject || fresh.cc !== d.cc || stillSend !== canSend || sigNow !== sig) {
@@ -536,9 +605,11 @@ export const register: Register = (on, options) => {
                     await tellClaude($, `[Outbox] Gmail call failed for ${DIR}/${d.file} via "${server}": ${detail}. If the user asks, help them check the Gmail connector.`)
                   } else if (canSend) {
                     await mark($, d, 'sent', `The user sent "${name}" to ${d.to}`, `Sent "${name}" to ${d.to}.`, true)
+                    await focusFirst($)
                   } else {
                     const attach = ATTACHMENT.test(d.body) ? ' This message mentions an attachment: attach the file in Gmail before you send it.' : ''
                     await mark($, d, 'in-gmail-drafts', `"${name}" is now a draft in the user's Gmail (not sent yet; they send it from Gmail)${attach ? '. It mentions an attachment; the user attaches the file in Gmail' : ''}`, `Gmail draft created for "${name}". Open Gmail to send it, then press "Mark sent…" under "Waiting in Gmail".${attach}`, true)
+                    await focusFirst($)
                   }
                   } catch {
                     await update($, armed, () => '')
@@ -556,10 +627,14 @@ export const register: Register = (on, options) => {
               <Text bold wrap="wrap">{`You checked your Gmail Sent folder and "${title(d)}" isn't there? Then it can be sent again from here.`}</Text>
               <Box flexDirection="row" gap={1}>
                 <Button key={`${d.file}:confirm-unstick`} label="It's not there: allow sending again" variant="primary" onPress={async () => {
-                  await Promise.resolve().then(async () => { await $.store.delete(receiptKey(d.file)); await $.store.delete(messageKey(d)) }).catch(() => undefined)
+                  await Promise.resolve().then(async () => {
+                    const root = await rootOf($)
+                    for (const rt of root ? [root, ''] : ['']) { await $.store.delete(receiptKey(d.file, rt)); await $.store.delete(messageKey(d, rt)) }
+                  }).catch(() => undefined)
                   await update($, armed, () => '')
                   await say($, `"${title(d)}" can be sent again. Read it over, then press Send… when you're ready.`)
                   await scan($)
+                  focusOn($, `${d.file}:approve`)
                 }} />
                 {cancel}
               </Box>
@@ -567,25 +642,32 @@ export const register: Register = (on, options) => {
           )}
           {action === 'marksent' && (
             <Box flexDirection="column">
-              <Text bold wrap="wrap">{`Mark "${title(d)}" as sent? Only do this after you've sent it yourself.`}</Text>
-              <Box flexDirection="row" gap={1}>
-                <Button key={`${d.file}:confirm-sent`} label="Mark as sent" variant="primary" onPress={() => mark($, d, 'sent', `The user sent "${title(d)}" to ${d.to} themselves`, `Marked "${title(d)}" as sent.`)} />
+              <Text bold wrap="wrap">{`When did you send "${title(d)}"? Only mark it after you've sent it yourself.`}</Text>
+              <Box flexDirection="row" gap={1} flexWrap="wrap">
+                <Button key={`${d.file}:confirm-sent`} label={`Sent today (${today})`} variant="primary" onPress={async () => { await mark($, d, 'sent', `The user sent "${title(d)}" to ${d.to} themselves`, `Marked "${title(d)}" as sent today.`, false, today); await focusFirst($) }} />
+                <Button key={`${d.file}:confirm-sent-yesterday`} label={`Sent yesterday (${yesterday})`} onPress={async () => { await mark($, d, 'sent', `The user sent "${title(d)}" to ${d.to} themselves on ${yesterday}`, `Marked "${title(d)}" as sent on ${yesterday}.`, false, yesterday); await focusFirst($) }} />
                 {cancel}
               </Box>
+              {canType && <els.Input key={`${d.file}:sent-date`} label="Another day" value="" placeholder="YYYY-MM-DD" submitLabel="save" onSubmit={async (v: string) => {
+                const day = v.trim()
+                if (!isRealDay(day) || day > today) { await say($, 'Type the day you sent it as YYYY-MM-DD (not a future date), for example 2026-10-05.', true); return }
+                await mark($, d, 'sent', `The user sent "${title(d)}" to ${d.to} themselves on ${day}`, `Marked "${title(d)}" as sent on ${day}.`, false, day)
+                await focusFirst($)
+              }} />}
             </Box>
           )}
           {action === 'discard' && (
             <Box flexDirection="column">
               <Text bold wrap="wrap">{`Discard "${title(d)}"? It leaves your Outbox. Ask Claude to restore it if you change your mind.`}</Text>
               <Box flexDirection="row" gap={1}>
-                <Button key={`${d.file}:confirm-discard`} label="Discard draft" variant="primary" onPress={() => mark($, d, 'discarded', `The user discarded the draft "${title(d)}"`, `Discarded "${title(d)}".`)} />
+                <Button key={`${d.file}:confirm-discard`} label="Discard draft" variant="primary" onPress={async () => { await mark($, d, 'discarded', `The user discarded the draft "${title(d)}"`, `Discarded "${title(d)}".`); await focusFirst($) }} />
                 {cancel}
               </Box>
             </Box>
           )}
           {action === '' && d.status === 'draft' && (
             <Box flexDirection="row" gap={1} flexWrap="wrap">
-              {isEmail && <Button key={`${d.file}:approve`} label={canSend ? 'Send…' : 'Create Gmail draft…'} variant="primary" autoFocus={d.file === firstFile ? true : undefined} onPress={async () => {
+              {isEmail && <Button key={`${d.file}:approve`} label={named(canSend ? 'Send…' : 'Create Gmail draft…')} variant="primary" autoFocus={d.file === firstFile ? true : undefined} onPress={async () => {
                 const bad2 = addresses(d.to + ',' + d.cc).filter(a => !EMAIL.test(a))
                 if (addresses(d.to).length === 0 || bad2.length > 0) {
                   await say($, `The recipient address needs fixing (${bad2.join(', ') || 'no "to" address'}). Press "Ask Claude to edit".`, true)
@@ -603,6 +685,10 @@ export const register: Register = (on, options) => {
                   await say($, 'This message mentions an attachment, and the Outbox can\'t attach files. Press Copy and send it from Gmail with the file attached, or ask Claude to edit it.', true)
                   return
                 }
+                if (gmailState === 'ambiguous') {
+                  await say($, ambiguousText(server), true)
+                  return
+                }
                 const blocked = canSend ? await sendBlocked($, d) : ''
                 if (blocked !== '') {
                   await say($, blocked, true)
@@ -610,8 +696,10 @@ export const register: Register = (on, options) => {
                 }
                 await say($, '')
                 await update($, armed, () => `${d.file}|approve`)
-              }} />}
-              <Button key={`${d.file}:copy`} label="Copy" autoFocus={!isEmail && d.file === firstFile ? true : undefined} onPress={async press => {
+                // Sending can't be undone, so its confirm row starts on Cancel; a Gmail draft sends nothing.
+                focusOn($, canSend ? `${d.file}:cancel` : `${d.file}:confirm`)
+              }}>{canSend ? 'Send…' : 'Create Gmail draft…'}</Button>}
+              <Button key={`${d.file}:copy`} label={named('Copy')} autoFocus={!isEmail && d.file === firstFile ? true : undefined} onPress={async press => {
                 if (PLACEHOLDER.test(d.body) || PLACEHOLDER.test(d.to)) {
                   await say($, `This draft still has a placeholder (${(PLACEHOLDER.exec(d.body + d.to) ?? [''])[0]}). Press "Ask Claude to edit" to fill it in.`, true)
                   return
@@ -620,17 +708,17 @@ export const register: Register = (on, options) => {
                 const copied = await $.ui.copy({ text, surface: press.surface })
                 if (copied.isCopied) await say($, isEmail ? 'Copied. Paste and send it yourself, then press "Mark sent…".' : 'Copied. Paste it into LinkedIn and send it yourself, then press "Mark sent…".')
                 else await say($, 'Unable to copy here. Select the text above and copy it.', true)
-              }} />
-              <Button key={`${d.file}:marksent`} label="Mark sent…" onPress={() => update($, armed, () => `${d.file}|marksent`)} />
-              {held3.includes(d.file) && <Button key={`${d.file}:unstick`} label="Not in my Sent folder…" onPress={() => update($, armed, () => `${d.file}|unstick`)} />}
-              <Button key={`${d.file}:edit`} label="Ask Claude to edit" onPress={() => $.prompt.fill({ text: `Revise my outbox draft ${DIR}/${d.file}: ` })} />
-              <Button key={`${d.file}:discard`} label="Discard…" dimColor onPress={() => update($, armed, () => `${d.file}|discard`)} />
+              }}>Copy</Button>
+              <Button key={`${d.file}:marksent`} label={named('Mark sent…')} onPress={async () => { await update($, armed, () => `${d.file}|marksent`); focusOn($, `${d.file}:confirm-sent`) }}>Mark sent…</Button>
+              {held3.includes(d.file) && <Button key={`${d.file}:unstick`} label={named('Not in my Sent folder…')} onPress={async () => { await update($, armed, () => `${d.file}|unstick`); focusOn($, `${d.file}:cancel`) }}>Not in my Sent folder…</Button>}
+              <Button key={`${d.file}:edit`} label={named('Ask Claude to edit')} onPress={() => $.prompt.fill({ text: `Revise my outbox draft ${DIR}/${d.file}: ` })}>Ask Claude to edit</Button>
+              <Button key={`${d.file}:discard`} label={named('Discard…')} dimColor onPress={async () => { await update($, armed, () => `${d.file}|discard`); focusOn($, `${d.file}:cancel`) }}>Discard…</Button>
             </Box>
           )}
           {action === '' && d.status === 'in-gmail-drafts' && (
             <Box flexDirection="row" gap={1} flexWrap="wrap">
-              <Button key={`${d.file}:marksent`} label="Mark sent…" variant="primary" onPress={() => update($, armed, () => `${d.file}|marksent`)} />
-              <Button key={`${d.file}:discard`} label="I deleted it in Gmail" dimColor onPress={() => update($, armed, () => `${d.file}|discard`)} />
+              <Button key={`${d.file}:marksent`} label={named('Mark sent…')} variant="primary" onPress={async () => { await update($, armed, () => `${d.file}|marksent`); focusOn($, `${d.file}:confirm-sent`) }}>Mark sent…</Button>
+              <Button key={`${d.file}:discard`} label={named('I deleted it in Gmail')} dimColor onPress={async () => { await update($, armed, () => `${d.file}|discard`); focusOn($, `${d.file}:cancel`) }}>I deleted it in Gmail</Button>
             </Box>
           )}
         </Box>
@@ -651,14 +739,14 @@ export const register: Register = (on, options) => {
           <Button key="refresh" label="Refresh" onPress={() => scan($)} />
           <Button key="close" label="Close" role="dismiss" onPress={() => $.ui.close({ id: PANE })} />
         </Box>
-        {e.surface === 'terminal' && <Text dimColor>{KEYS_HINT}</Text>}
+        {e.surface === 'terminal' && <Text>{KEYS_HINT}</Text>}
         <Text wrap="wrap">{canSend
           ? 'Mode: send. "Send email" sends from your Gmail after you confirm.'
           : 'Mode: draft only. "Create Gmail draft" puts it in your Gmail drafts; you press Send in Gmail.'}</Text>
         {sendInFile && !canSend && target !== 'mode|confirm' && (
           <Box flexDirection="column">
             <Text color="warning" wrap="wrap">Your preferences say outbox_mode: send, but send mode isn't on yet. Turn it on here once to let this panel send email from your Gmail (you still confirm every message).</Text>
-            <Button key="mode-on" label="Turn on send mode…" onPress={() => update($, armed, () => 'mode|confirm')} />
+            <Button key="mode-on" label="Turn on send mode…" onPress={async () => { await update($, armed, () => 'mode|confirm'); focusOn($, 'mode-keep') }} />
           </Box>
         )}
         {sendInFile && !canSend && target === 'mode|confirm' && (
@@ -671,16 +759,17 @@ export const register: Register = (on, options) => {
                 await say($, ok ? 'Send mode is on.' : 'Unable to save that choice, so the Outbox stays in draft-only mode.', !ok)
                 await scan($)
               }} />
-              <Button key="mode-keep" label="Keep draft-only" onPress={() => update($, armed, () => '')} />
+              <Button key="mode-keep" label="Keep draft-only" onPress={async () => { await update($, armed, () => ''); focusOn($, 'mode-on') }} />
             </Box>
           </Box>
         )}
+        {gmailState === 'ambiguous' && list.some(d => d.channel === 'email') && <Text color="warning" wrap="wrap">{`Needs fixing: more than one Gmail connection is set up (${server}). Ask Claude to set the Outbox's Gmail connector name to the one you want; until then, use Copy.`}</Text>}
         {gmailState === 'missing' && list.some(d => d.channel === 'email') && <Text color="warning" wrap="wrap">{canSend
           ? 'Gmail doesn\'t look connected, so "Send…" may not work. Connect Gmail (desktop app: Settings → Connectors; terminal: claude.ai/customize/connectors, then type /mcp), or press Copy and send it yourself.'
           : 'Gmail doesn\'t look connected, so "Create Gmail draft…" may not work. Connect Gmail (desktop app: Settings → Connectors; terminal: claude.ai/customize/connectors, then type /mcp), or press Copy and send it yourself.'}</Text>}
         {!ownSig && <Text color="warning" wrap="wrap">Your signature isn't set up, so emails go without one. Ask Claude to set it up (part of /start).</Text>}
         {note.text !== '' && <Text color={note.isError ? 'error' : 'success'}>{note.isError ? `Not done: ${note.text}` : note.text}</Text>}
-        {list.length === 0 && held.length === 0 && <Text dimColor>No drafts waiting. Ask Claude to draft a follow-up, thank-you note, or networking message.</Text>}
+        {list.length === 0 && held.length === 0 && <Text>No drafts waiting. Ask Claude to draft a follow-up, thank-you note, or networking message.</Text>}
         {listPage.items.map(card)}
         {pager('drafts', listPage, list.length, to => update($, page, () => to))}
         {held.length > 0 && <Text bold>Waiting in Gmail (press "Mark sent…" after you send each one)</Text>}

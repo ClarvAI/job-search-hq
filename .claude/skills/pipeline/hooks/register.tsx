@@ -31,7 +31,8 @@ const STAGES = [
 const stageLabel = (v: string) => STAGES.find(s => s.value === v)?.label ?? v
 // The files this board reads: when one changes on disk (Claude, Codex, Excel), the board refreshes.
 const WATCHED = ['jobs/tracker.csv', 'profile/preferences.md']
-const KEYS_HINT = 'Keys: Tab moves between buttons, Enter presses one, Esc goes back to typing.'
+// The same words, in the same place (right under the panel's first line), in every panel.
+const KEYS_HINT = 'Keys: Ctrl+X then Tab moves into this panel. Tab moves between buttons, Enter presses one, Esc goes back to typing.'
 
 const summary = atom({ plugin: 'pipeline', key: 'summary' } as const, null as Summary | null)
 const isHidden = atom({ plugin: 'pipeline', key: 'isHidden' } as const, false)
@@ -54,7 +55,8 @@ function friendlyDate(iso: string, today: string): string {
   return `by ${iso}`
 }
 
-const isInterview = (text: string) => /interview/i.test(text) && !/prep|thank/i.test(text)
+// A booked interview, not a step around one (prep, thank-you, the playbook's "Schedule interview"). Same rule as due alerts.
+const isInterview = (text: string) => /interview/i.test(text) && !/prep|thank|schedul|availability|arrange|\bbook/i.test(text)
 // Cards per page: a panel draws at most 100,000 characters, so long lists are paged.
 const SHOWN = 20
 
@@ -148,6 +150,12 @@ async function refresh($: any): Promise<Summary> {
   return next
 }
 
+// Moves the keyboard focus onto a button the next drawing shows, after the pressed one went away.
+// Refused when the panel doesn't hold the keyboard (a mouse press): then nothing happens.
+function focusOn($: any, key: string): void {
+  void Promise.resolve().then(() => $.ui.focus({ requestId: PANE, key })).catch(() => undefined)
+}
+
 async function say($: any, text: string, isError = false): Promise<void> {
   await update($, notice, () => ({ text, isError }))
 }
@@ -161,6 +169,16 @@ async function logActivity($: any, what: string): Promise<void> {
 async function readOrder($: any): Promise<DateOrder> {
   const prefs: string = (await $.fs.exists('profile/preferences.md').catch(() => false)) ? await $.fs.read('profile/preferences.md').catch(() => '') : ''
   return dateOrder(prefs)
+}
+
+// When a save tidies this row's dates into YYYY-MM-DD, the "Also: <step> <date>" at the start of the
+// notes is tidied with the same order. Otherwise the row would lose the date that proved its order,
+// and the Also: date would later be read another way (date_order) or become "date unclear".
+function tidyAlso(notes: string, order: DateOrder): string {
+  const m = /^(\s*Also:\s*[^;|]*?\s*)(\d{1,2}[./]\d{1,2}[./](?:\d{4}|\d{2}))\b/i.exec(notes)
+  if (!m) return notes
+  const iso = toIso(m[2] ?? '', order)
+  return isIso(iso) ? `${m[1] ?? ''}${iso}${notes.slice(m[0].length)}` : notes
 }
 
 type Change = (get: (c: string) => string, set: (c: string, v: string) => void, today: string, order: DateOrder) => string | { what: string; forClaude?: string }
@@ -188,6 +206,8 @@ async function saveJob($: any, key: string, change: Change): Promise<void> {
     // Only this row's dates are tidied, and only when their meaning is certain; other rows stay as they are.
     const o = orderFor(target, order)
     for (const c of DATE_COLS) { const i = colOf(header, c); if (i >= 0 && target[i]) target[i] = toIso(target[i], o) }
+    const ni = colOf(header, 'notes')
+    if (ni >= 0 && target[ni]) target[ni] = tidyAlso(target[ni] ?? '', o)
     const get = (c: string) => (target[idx(c)] ?? '').trim()
     const set = (c: string, v: string) => { const i = idx(c); while (target.length <= i) target.push(''); target[i] = plain(v) }
     const out = change(get, set, today, o)
@@ -299,7 +319,9 @@ async function markDone($: any, job: Job): Promise<void> {
     const also = alsoOf(get('notes'), order)
     if (also && also.date !== '') {
       set('next_action', also.text)
-      set('next_action_date', also.date)
+      // A take-home is worked on before it's due: start it 2 days ahead (never before today).
+      const start = /take-?home/i.test(also.text) ? addDays(also.date, -2) : also.date
+      set('next_action_date', /take-?home/i.test(also.text) && start < today ? today : start)
       set('notes', get('notes').replace(ALSO, ''))
       return `${job.company}: finished "${job.nextAction || 'next step'}"; next step is now "${also.text}"`
     }
@@ -309,11 +331,19 @@ async function markDone($: any, job: Job): Promise<void> {
 }
 
 async function snooze($: any, job: Job, days: number): Promise<void> {
+  // An unclear date is never rewritten (AGENTS.md "Reading dates"): the user says what it means first.
+  if (!isIso(job.nextDate)) {
+    await say($, `The next step's date for ${job.company} is unclear (${job.nextDate || 'blank'}), so it wasn't moved. Press Update… and type the date as YYYY-MM-DD, or tell Claude what it means.`, true)
+    return
+  }
+  let unclear = ''
   await saveJob($, job.key, (get, set, today) => {
     const current = get('next_action_date')
+    if (current !== '' && !isIso(current)) { unclear = current; return `${job.company}: nothing changed (date unclear)` }
     set('next_action_date', addDays(isIso(current) && current > today ? current : today, days))
     return `${job.company}: next step moved to ${get('next_action_date')}`
   })
+  if (unclear !== '') await say($, `The next step's date for ${job.company} is unclear (${unclear}), so it wasn't moved. Press Update… and type the date as YYYY-MM-DD, or tell Claude what it means.`, true)
 }
 
 function line(s: Summary): string {
@@ -388,7 +418,7 @@ export const register: Register = on => {
       <Box key="pipeline-band" flexDirection="row" gap={1}>
         <Text color={s.due.length > 0 ? 'warning' : undefined}>{`Job search: ${line(s)}`}</Text>
         <Button key="board" label="Open pipeline" plain onPress={() => $.ui.open({ id: PANE, title: 'Pipeline', focus: true })} />
-        <Button key="hide" label="Hide" plain dimColor onPress={() => update($, isHidden, () => true)} />
+        <Button key="hide" label="Hide (job search summary)" plain dimColor onPress={() => update($, isHidden, () => true)}>Hide</Button>
       </Box>
     )
     const below: any = await next(e)
@@ -413,6 +443,11 @@ export const register: Register = on => {
 
     const card = (j: Job) => {
       const isOpenJob = OPEN.includes(j.status)
+      // Each card's buttons carry the job's name for screen readers (a desktop's native buttons):
+      // "Update… (Globex, Data Analyst)", drawn as "Update…". The visible words start the name (WCAG 2.5.3).
+      const named = (visible: string) => `${visible} (${j.company}${j.role ? `, ${j.role}` : ''})`
+      // A stage change can move the card to the closed list (hidden): the focus goes to Refresh then.
+      const toStage = async (v: string) => { await setStage($, j, v); focusOn($, OPEN.includes(v) ? `${j.key}:edit` : 'refresh') }
       const isDue = isOpenJob && isIso(j.nextDate) && j.nextDate <= s.today
       const isEditing = open === j.key
       return (
@@ -431,7 +466,7 @@ export const register: Register = on => {
             const left = daysBetween(s.today, j.deadline)
             const isUrgent = (j.status === 'offer' && left <= 3) || (j.status === 'interested' && left >= 0 && left <= 3)
             return (
-              <Text color={isUrgent ? 'warning' : undefined} dimColor={!isUrgent}>
+              <Text color={isUrgent ? 'warning' : undefined}>
                 {`${j.status === 'offer' ? 'Answer the offer by' : 'Application deadline'}: ${j.deadline}${left < 0 ? ' (passed)' : left === 0 ? ' (today)' : ` (in ${left} ${left === 1 ? 'day' : 'days'})`}`}
               </Text>
             )
@@ -439,10 +474,10 @@ export const register: Register = on => {
           {j.status === 'offer' && j.deadline === '' && (
             <Text color="warning" wrap="wrap">No answer-by date recorded for this offer. Ask the employer when they need your answer, then tell Claude.</Text>
           )}
-          {isOpenJob && j.deadline !== '' && !isIso(j.deadline) && <Text dimColor>{`Deadline: date unclear: ${j.deadline}`}</Text>}
+          {isOpenJob && j.deadline !== '' && !isIso(j.deadline) && <Text>{`Deadline: date unclear: ${j.deadline}`}</Text>}
           {isEditing && canEdit && (
             <Box flexDirection="column" gap={1} marginTop={1}>
-              <els.Select key={`${j.key}:stage`} label="Stage" value={j.status || 'interested'} options={STAGES} onSelect={(v: string) => setStage($, j, v)} />
+              <els.Select key={`${j.key}:stage`} label="Stage" value={j.status || 'interested'} options={STAGES} onSelect={toStage} />
               {isOpenJob && <els.Input key={`${j.key}:next`} label="Next step" value={j.nextAction} placeholder="e.g. Follow up with the recruiter" submitLabel="save" onSubmit={(v: string) => setNext($, j, v)} />}
               {isOpenJob && <els.Input key={`${j.key}:date`} label="Due date" value={j.nextDate} placeholder="YYYY-MM-DD" submitLabel="save" onSubmit={(v: string) => setDate($, j, v)} />}
               <Text dimColor>Pick a stage with the arrow keys and Enter. In a text box, type and press Enter to save.</Text>
@@ -450,17 +485,17 @@ export const register: Register = on => {
           )}
           {isEditing && !canEdit && (
             <Box flexDirection="row" gap={1} flexWrap="wrap" marginTop={1}>
-              {STAGES.slice(0, 5).filter(st => st.value !== j.status).map(st => <Button key={`${j.key}:to-${st.value}`} label={`Move to ${st.label}`} onPress={() => setStage($, j, st.value)} />)}
+              {STAGES.slice(0, 5).filter(st => st.value !== j.status).map(st => <Button key={`${j.key}:to-${st.value}`} label={named(`Move to ${st.label}`)} onPress={() => toStage(st.value)}>{`Move to ${st.label}`}</Button>)}
             </Box>
           )}
           <Box flexDirection="row" gap={1} flexWrap="wrap">
             {j.key === firstKey
-              ? <Button key={`${j.key}:edit`} label={isEditing ? 'Done editing' : 'Update…'} autoFocus onPress={() => update($, editing, () => (isEditing ? '' : j.key))} />
-              : <Button key={`${j.key}:edit`} label={isEditing ? 'Done editing' : 'Update…'} onPress={() => update($, editing, () => (isEditing ? '' : j.key))} />}
-            {isOpenJob && j.nextAction !== '' && <Button key={`${j.key}:done`} label="Mark next step done" onPress={() => markDone($, j)} />}
-            {isOpenJob && j.nextDate !== '' && <Button key={`${j.key}:week`} label="Push back a week" onPress={() => snooze($, j, 7)} />}
-            {j.status === 'interested' && <Button key={`${j.key}:apply`} label="Start application" plain onPress={() => $.prompt.fill({ text: `/apply ${j.folder || `${j.company} ${j.role}`}` })} />}
-            {j.status === 'interviewing' && <Button key={`${j.key}:prep`} label="Prep for interview" plain onPress={() => $.prompt.fill({ text: `/interview-prep ${j.folder || `${j.company} ${j.role}`}` })} />}
+              ? <Button key={`${j.key}:edit`} label={named(isEditing ? 'Done editing' : 'Update…')} autoFocus onPress={() => update($, editing, () => (isEditing ? '' : j.key))}>{isEditing ? 'Done editing' : 'Update…'}</Button>
+              : <Button key={`${j.key}:edit`} label={named(isEditing ? 'Done editing' : 'Update…')} onPress={() => update($, editing, () => (isEditing ? '' : j.key))}>{isEditing ? 'Done editing' : 'Update…'}</Button>}
+            {isOpenJob && j.nextAction !== '' && <Button key={`${j.key}:done`} label={named('Mark next step done')} onPress={async () => { await markDone($, j); focusOn($, `${j.key}:edit`) }}>Mark next step done</Button>}
+            {isOpenJob && isIso(j.nextDate) && <Button key={`${j.key}:week`} label={named('Push back a week')} onPress={() => snooze($, j, 7)}>Push back a week</Button>}
+            {j.status === 'interested' && <Button key={`${j.key}:apply`} label={named('Start application')} plain onPress={() => $.prompt.fill({ text: `/apply ${j.folder || `${j.company} ${j.role}`}` })}>Start application</Button>}
+            {j.status === 'interviewing' && <Button key={`${j.key}:prep`} label={named('Prep for interview')} plain onPress={() => $.prompt.fill({ text: `/interview-prep ${j.folder || `${j.company} ${j.role}`}` })}>Prep for interview</Button>}
           </Box>
         </Box>
       )
@@ -482,11 +517,11 @@ export const register: Register = on => {
           <Button key="refresh" label="Refresh" onPress={() => refresh($)} />
           <Button key="close" label="Close" role="dismiss" onPress={() => $.ui.close({ id: PANE })} />
         </Box>
+        {e.surface === 'terminal' && <Text>{KEYS_HINT}</Text>}
         <Text dimColor>Changes here save straight to your tracker (jobs/tracker.csv), and Claude is told about them. "Start application" and "Prep for interview" write a message to Claude; press Enter to send it.</Text>
-        {e.surface === 'terminal' && <Text dimColor>{KEYS_HINT}</Text>}
         {note.text !== '' && <Text color={note.isError ? 'error' : 'success'}>{note.isError ? `Not saved: ${note.text}` : note.text}</Text>}
         {s.problem !== '' && <Text color="error" wrap="wrap">{s.problem}</Text>}
-        {s.problem === '' && s.active.length === 0 && <Text dimColor>No open applications yet. Type /find-jobs, or paste a job link to Claude.</Text>}
+        {s.problem === '' && s.active.length === 0 && <Text>No open applications yet. Type /find-jobs, or paste a job link to Claude.</Text>}
         {activePage.items.map(card)}
         {pager('active', activePage, s.active.length, to => update($, page, () => to))}
         {s.closed.length > 0 && (

@@ -25,6 +25,7 @@ declare module 'claude-code' {
       isVoice: boolean
       voiceNote: string
       voiceTip: string
+      isTimed: boolean
     }
   }
 }

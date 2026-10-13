@@ -1,4 +1,5 @@
 import { expect, mock, test } from 'claude-code/testing'
+import { isBookedInterview, isCertDay, visaDaysLeft } from '../hooks/register'
 
 // All dates are local. "Today" in these tests is Tuesday 2026-10-06, 9:00 in the morning.
 const NOW = new Date(2026, 9, 6, 9, 0).getTime()
@@ -10,6 +11,7 @@ type Files = Record<string, string>
 
 function setup(on: any, files: Files, opts: { now?: number; store?: Record<string, unknown> } = {}) {
   const toasts: string[] = []
+  const timeouts: number[] = []
   const time = mock.clock(on, { now: opts.now ?? NOW } as never)
   mock.store(on, opts.store ?? {})
   const rel = (p: string) => p.replace(/^.*\/due-alerts\//, '')
@@ -20,9 +22,10 @@ function setup(on: any, files: Files, opts: { now?: number; store?: Record<strin
     const names = Object.keys(files).filter(f => f.startsWith(dir) && !f.slice(dir.length).includes('/')).map(f => f.slice(dir.length))
     return { value: names.map(name => ({ name, kind: 'file' })) } as never
   })
-  on('ui.toast', (_$: any, e: any) => { toasts.push(e.text); return { value: undefined } as never })
+  on('ui.toast', (_$: any, e: any) => { toasts.push(e.text); timeouts.push(Number(e.timeoutMs)); return { value: undefined } as never })
   on('session.start', (_$: any, e: any) => ({ cwd: e.cwd }) as never)
-  return { toasts, time }
+  on('session.root', () => ({ value: '/project' }) as never)
+  return { toasts, time, timeouts }
 }
 
 const tracker = (...rows: string[]) => ({ 'jobs/tracker.csv': [HEAD, ...rows].join('\n') + '\n' })
@@ -151,14 +154,14 @@ test('most urgent first, at most 3 lines, then a pointer to /today', async ($, o
 
 test('an alert already shown today is not shown again', async ($, on) => {
   const files = tracker('Acme Corp,Sales & Marketing Associate,applied,2026-10-01,Follow up,,A,5,TX,2026-09-15,2026-09-16,,,,,,,0,acme-sma,')
-  const { toasts } = setup(on, files, { store: { shown: { date: '2026-10-06', ids: ['next|acme corp|sales & marketing associate|acme-sma|2026-10-01|follow up'] } } })
+  const { toasts } = setup(on, files, { store: { 'shown:/project': { date: '2026-10-06', ids: ['next|acme corp|sales & marketing associate|acme-sma|2026-10-01|follow up'] } } })
   await $.session.start(START as never)
   expect(toasts).toEqual([])
 })
 
 test('a stale memory from yesterday does not hide today\'s alerts', async ($, on) => {
   const files = tracker('Acme Corp,Sales & Marketing Associate,applied,2026-10-01,Follow up,,A,5,TX,2026-09-15,2026-09-16,,,,,,,0,acme-sma,')
-  const { toasts } = setup(on, files, { store: { shown: { date: '2026-10-05', ids: ['next|acme corp|sales & marketing associate|acme-sma|2026-10-01|follow up'] } } })
+  const { toasts } = setup(on, files, { store: { 'shown:/project': { date: '2026-10-05', ids: ['next|acme corp|sales & marketing associate|acme-sma|2026-10-01|follow up'] } } })
   await $.session.start(START as never)
   expect(toasts).toEqual(['Acme Corp (Sales & Marketing Associate): Follow up, overdue since 2026-10-01.'])
 })
@@ -251,4 +254,77 @@ test('an impossible date never raises an alert (it is "date unclear", not anothe
   ) })
   await $.session.start(START as never)
   expect(toasts).toEqual([])
+})
+
+test('accessibility: the pop-up stays long enough to read slowly (15 s to 60 s by length), in words with no symbols', async ($, on) => {
+  const { toasts, timeouts } = setup(on, { ...US, ...tracker(
+    'Globex,Project Manager,interviewing,2026-10-06,Interview 2026-10-06 2pm,,A,5,CO,2026-09-15,2026-09-16,,,,,,,0,globex-pm1,',
+    'Umbrella Health,Nurse Educator,interviewing,2026-10-05,Interview 10/7 10am,,B,4,Denver CO,2026-09-15,2026-09-16,,,,,,,0,umbrella-ne,',
+    'Initech,Data Analyst,interviewing,2026-10-07,Onsite interview,,B,4,Columbus OH,2026-09-15,2026-09-16,,,,,,,0,initech-da,',
+    'Acme Corp,Sales Associate,applied,2026-10-01,Follow up,,B,4,Austin TX,2026-09-10,2026-09-20,,,,,,,0,acme-sa,',
+  ) })
+  await $.session.start(START as never)
+  expect(toasts.length).toBe(1)
+  const words = (toasts[0] ?? '').split(/\s+/).filter(Boolean).length
+  expect(timeouts[0]).toBe(Math.min(60000, Math.max(15000, words * 600)))
+  expect(timeouts[0]).toBeGreaterThan(15000)
+  expect(toasts[0]).toContain('Type /today to see everything.')
+  expect(toasts[0]).not.toMatch(/[●○✓✗→⚠]/)
+})
+
+test('"Schedule interview" (reply with availability) is not called an interview; a booked one still is', async ($, on) => {
+  const { toasts } = setup(on, { ...US, ...tracker(
+    'Acme Corp,Sales Associate,screening,2026-10-06,Schedule interview,,B,4,Austin TX,2026-09-10,2026-09-20,,,,,,,0,acme-sa,',
+    'Globex,Planner,interviewing,2026-10-07,Phone interview,,B,4,Denver CO,2026-09-10,2026-09-20,,,,,,,0,globex-pl,',
+  ) })
+  await $.session.start(START as never)
+  const lines = (toasts[0] ?? '').split('\n')
+  expect(lines).toContain('Interview tomorrow with Globex (Planner). Open your prep: /interview-prep globex-pl')
+  expect(toasts[0]).not.toContain('Interview today with Acme')
+  expect(lines).toContain('Acme Corp (Sales Associate): Schedule interview, due today.')
+})
+
+test('a biweekly certification day ("every other Monday from ...") fires on its weeks only; "every Monday" fires each Monday', async ($, on) => {
+  const MON = new Date(2026, 9, 12, 9, 0).getTime()
+  const a = setup(on, { 'profile/preferences.md': 'benefits_cert_day: every other Monday from 2026-10-12\n' }, { now: MON })
+  await $.session.start(START as never)
+  expect(a.toasts[0] ?? '').toContain('Today is your benefits certification day.')
+  // One week later: not a certification Monday. Two weeks later: it is.
+  for (let i = 0; i < 7; i++) await a.time.advance(86400000)
+  expect(a.toasts.length).toBe(1)
+  for (let i = 0; i < 7; i++) await a.time.advance(86400000)
+  expect(a.toasts.length).toBe(2)
+})
+
+test('cert-day and booked-interview rules', async () => {
+  expect(isCertDay('every Monday', '2026-10-12')).toBe(true)
+  expect(isCertDay('Monday', '2026-10-12')).toBe(true)
+  expect(isCertDay('every other Monday from 2026-10-12', '2026-10-19')).toBe(false)
+  expect(isCertDay('every other Monday from 2026-10-12', '2026-10-26')).toBe(true)
+  expect(isCertDay('every other Monday from 2026-10-12', '2026-09-28')).toBe(false)
+  expect(isCertDay('UK journal: before each work coach appointment', '2026-10-12')).toBe(false)
+  expect(isBookedInterview('Schedule interview')).toBe(false)
+  expect(isBookedInterview('Reply with interview availability')).toBe(false)
+  expect(isBookedInterview('Interview 2026-10-07 2pm')).toBe(true)
+})
+
+test('a blank visa_days_used is unknown, not 0: no countdown is guessed', async ($, on) => {
+  expect(visaDaysLeft('visa_clock_start: 2026-08-01\nvisa_days_allowed: 90\nvisa_days_used:\n', '2026-10-06')).toBeUndefined()
+  expect(visaDaysLeft('visa_clock_start: 2026-08-01\nvisa_days_allowed: 90\nvisa_days_used: 0\n', '2026-10-06')).toBe(23)
+  // The documented example: allowed 90, 12 used on 2026-10-01, clock from 2026-09-20, today 2026-10-09: 70 left.
+  expect(visaDaysLeft('visa_clock_start: 2026-09-20\nvisa_days_allowed: 90\nvisa_days_used: 12\nvisa_days_used_as_of: 2026-10-01\n', '2026-10-09')).toBe(70)
+  const { toasts } = setup(on, { 'profile/preferences.md': 'visa_clock_start: 2026-08-01\nvisa_days_allowed: 90\nvisa_days_used:\n' })
+  await $.session.start(START as never)
+  expect(toasts.join('\n')).not.toContain('visa')
+})
+
+test('alerts behind "...and N more" are not marked shown, so they come back next time; what was shown is kept per folder', async ($, on) => {
+  const rows = ['Acme Corp', 'Globex', 'Initech', 'Northwind', 'Contoso'].map((c, i) => `${c},Analyst,applied,2026-10-0${i + 1},Follow up,,B,4,Austin TX,2026-09-10,2026-09-20,,,,,,,0,${c.toLowerCase().replace(/ /g, '-')}-an,`)
+  const store: Record<string, unknown> = {}
+  const { toasts } = setup(on, { ...US, ...tracker(...rows) }, { store })
+  await $.session.start(START as never)
+  expect(toasts[0]).toContain('...and 2 more.')
+  await $.session.start(START as never)
+  expect(toasts.length).toBe(2)
+  expect(toasts[1]?.split('\n').length).toBe(2)
 })

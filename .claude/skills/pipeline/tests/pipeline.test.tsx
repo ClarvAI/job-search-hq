@@ -389,7 +389,8 @@ test('"Mark next step done" reads a second commitment with date_order, as the bo
   const ui = await $.ui.mount({ plugin: 'pipeline', surface: 'terminal', ...PANE } as never)
   expect(JSON.stringify(await ui.drawn())).toContain('Also: Interview 12/10/2026')
   await ui.press({ key: 'globex|planner|globex-pl:done' })
-  expect(files['jobs/tracker.csv']).toContain('Globex,Planner,interviewing,2026-10-12,Interview 12/10/2026,')
+  // The save tidies the row's dates to YYYY-MM-DD and the Also: date with them (same order, same meaning).
+  expect(files['jobs/tracker.csv']).toContain('Globex,Planner,interviewing,2026-10-12,Interview 2026-10-12,')
   await ui.unmount()
 })
 
@@ -427,5 +428,78 @@ test('a line another app adds to the activity log while saving is kept', async (
   await ui.press({ key: 'globex|project manager|globex-pm1:week' })
   expect(files['history/activity.md']).toContain('Codex · Initech: applied')
   expect(files['history/activity.md']).toContain('Pipeline panel (Claude) · Globex: next step moved to 2026-10-16')
+  await ui.unmount()
+})
+
+test('accessibility: the keys hint comes right under the first line in plain text, card buttons are named after the job, due words never rely on color, and the empty board is plain text', async ($, on) => {
+  setup(on)
+  await $.command.run({ command: 'pipeline', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'pipeline', surface: 'terminal', ...PANE } as never)
+  const drawn = JSON.stringify(await ui.drawn())
+  expect(drawn).toContain('"key":"close","label":"Close","role":"dismiss"},"press":{"plugin":"pipeline","handle":')
+  expect(drawn).toMatch(/"role":"dismiss"\},"press":\{[^}]*\}\}\]\},\{"type":"Text","children":\["Keys: Ctrl\+X then Tab moves into this panel\./)
+  expect(drawn).toContain('"label":"Update… (Globex, Project Manager)"},"press"')
+  expect(drawn).toContain('"children":["Update…"]')
+  // The overdue/due step says so in words, beside the warning color.
+  expect(drawn).toContain('"color":"warning"},"children":["Next: Tailor resume (due today)"]')
+  await ui.unmount()
+})
+
+test('accessibility: an empty tracker says so in plain (not dim) text', async ($, on) => {
+  setup(on, 'company,role,status,next_action_date,next_action\n')
+  await $.command.run({ command: 'pipeline', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'pipeline', surface: 'terminal', ...PANE } as never)
+  expect(JSON.stringify(await ui.drawn())).toContain('{"type":"Text","children":["No open applications yet.')
+  await ui.unmount()
+})
+
+test('an unclear next-step date is never pushed back: no button, and the save refuses if it became unclear meanwhile', async ($, on) => {
+  const csv = HEAD + '\n' + 'Globex,Planner,interviewing,03/04/2026,Follow up,,A,5,CO,,,globex-pl,\n'
+  const { files } = setup(on, csv)
+  await $.command.run({ command: 'pipeline', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'pipeline', surface: 'terminal', ...PANE } as never)
+  const drawn = JSON.stringify(await ui.drawn())
+  expect(drawn).toContain('date unclear: 03/04/2026')
+  expect(drawn).not.toContain('globex|planner|globex-pl:week')
+  expect(files['jobs/tracker.csv']).toBe(csv)
+  await ui.unmount()
+})
+
+test('a clear date shown on the board but changed to an unclear one in the file is left alone by "Push back a week"', async ($, on) => {
+  const csv = HEAD + '\n' + 'Globex,Planner,interviewing,2026-10-08,Follow up,,A,5,CO,,,globex-pl,\n'
+  const { files } = setup(on, csv)
+  await $.command.run({ command: 'pipeline', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'pipeline', surface: 'terminal', ...PANE } as never)
+  files['jobs/tracker.csv'] = csv.replace('2026-10-08', '03/04/2026')
+  await ui.press({ key: 'globex|planner|globex-pl:week' })
+  expect(files['jobs/tracker.csv']).toContain('Globex,Planner,interviewing,03/04/2026,Follow up')
+  expect(JSON.stringify(await ui.drawn())).toContain('is unclear (03/04/2026), so it wasn')
+  await ui.unmount()
+})
+
+test('saving a row keeps its Also: date readable: the date that proved the row\'s order is tidied together with it', async ($, on) => {
+  // 25/10/2026 proves day-first for this row; date_order is not set.
+  const csv = HEAD + '\n' + 'Globex,Planner,interviewing,25/10/2026,Follow up,,A,5,CO,,,globex-pl,Also: Interview 04/11/2026\n'
+  const { files } = setup(on, csv)
+  await $.command.run({ command: 'pipeline', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'pipeline', surface: 'terminal', ...PANE } as never)
+  await ui.press({ key: 'globex|planner|globex-pl:week' })
+  const saved = files['jobs/tracker.csv']
+  expect(saved).toContain('Globex,Planner,interviewing,2026-11-01,Follow up')
+  expect(saved).toContain('Also: Interview 2026-11-04')
+  await ui.unmount()
+})
+
+test('a take-home promoted to the next step starts 2 days before it is due (never before today)', async ($, on) => {
+  const csv = HEAD + '\n'
+    + 'Globex,Planner,interviewing,2026-10-06,Phone screen,,A,5,CO,,,globex-pl,Also: Take-home due 2026-10-12\n'
+    + 'Initech,Analyst,interviewing,2026-10-06,Phone screen,,A,5,CO,,,initech-an,Also: Take-home due 2026-10-07\n'
+  const { files } = setup(on, csv)
+  await $.command.run({ command: 'pipeline', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'pipeline', surface: 'terminal', ...PANE } as never)
+  await ui.press({ key: 'globex|planner|globex-pl:done' })
+  await ui.press({ key: 'initech|analyst|initech-an:done' })
+  expect(files['jobs/tracker.csv']).toContain('Globex,Planner,interviewing,2026-10-10,Take-home due 2026-10-12,')
+  expect(files['jobs/tracker.csv']).toContain('Initech,Analyst,interviewing,2026-10-06,Take-home due 2026-10-07,')
   await ui.unmount()
 })

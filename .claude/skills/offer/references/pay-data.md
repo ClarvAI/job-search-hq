@@ -19,7 +19,7 @@ Look in the job folder before fetching: `posting.md` (`pay_range`), `fit.md` and
 
 ### US: government wage data (BLS OEWS)
 
-Percentiles of base wages by occupation and area, from employer surveys. **Limits:** the data is about a year old when published (May 2025 data came out May 2026), it is base wages only (no bonus, equity, or benefits), and it mixes every experience level in the occupation.
+Percentiles of base wages by occupation and area, from employer surveys. **Limits:** the data is about a year old when published (May 2025 data came out May 2026), it counts straight-time gross pay: base pay plus commissions, production bonuses and tips, but not overtime, year-end or other non-production bonuses, equity or benefits (BLS OEWS FAQ, https://www.bls.gov/oes/oes_ques.htm, read 2026-10-12), and it mixes every experience level in the occupation.
 
 - **Easiest (verified working):** O*NET's local wages page gives the state and every metro in it, with P10 / P25 / median / P75 / P90 annual wages:
   `https://www.onetonline.org/link/localwages/<SOC>.00?st=<state code>` (e.g. `.../localwages/13-1161.00?st=TX`). The occupation's summary page (`https://www.onetonline.org/link/summary/<code>`) shows the national median.
@@ -56,7 +56,7 @@ OEWS percentiles mix all experience levels. As a rough guide: entry level / new 
 
 ## 4. Base vs. total comp
 
-Keep them separate. OEWS, H-1B filings and most posted ranges are **base**. Levels.fyi headlines are usually **total comp** (base + bonus + equity). Never compare a total-comp number with a base offer. When the offer has a bonus or equity, compare base to base, then show total separately.
+Keep them separate. H-1B filings and most posted ranges are **base**; OEWS is close to base (it also counts commissions and production bonuses), so treat it as base for comparing. Levels.fyi headlines are usually **total comp** (base + bonus + equity). Never compare a total-comp number with a base offer. When the offer has a bonus or equity, compare base to base, then show total separately.
 
 ## 5. Write it down (and cache it)
 
@@ -71,13 +71,13 @@ Put this block in the job folder (in `fit.md` when evaluating, in `offer.md` for
 | Other postings (N) | $…-$… base | <month year> | <metro> | <links> |
 | H-1B filings, <employer> | $…-$… base (N filings) | FY<year> | <city> | <link> |
 | Levels.fyi (N data points) | median $… total comp | <date> | <area> | <link> |
-Market range for <title, level> in <place>: about $A-$B base. OEWS P25-median for <metro> is $…-$… (May <year>, base only); posted ranges from N postings: $…-$…. <one line on total comp if relevant>
+Market range for <title, level> in <place>: about $A-$B base. OEWS P25-median for <metro> is $…-$… (May <year>, straight-time pay, no overtime or year-end bonus); posted ranges from N postings: $…-$…. <one line on total comp if relevant>
 ```
 
 ## Rules
 
 - **Always cite and date.** Each figure gets its source, year or period, geography and link. If you couldn't verify a figure, leave it out rather than estimate it.
 - **Never present one number as the truth.** Give a range and say which source it leans on. Sources disagree; say so when they do.
-- **Say what's missing:** "OEWS is base only and about a year old" and "crowd data is self-reported, N data points".
+- **Say what's missing:** "OEWS is straight-time pay (no overtime, year-end bonus or equity) and about a year old" and "crowd data is self-reported, N data points".
 - **Don't over-precise.** Round the synthesis to the nearest thousand (or the local equivalent).
 - A posted range or an actual offer outranks any market estimate for that job.

@@ -9,7 +9,8 @@ import type { Clock, Line, Room, Score } from '../types'
 // answers out loud (dictation), and keeps a scorecard.
 
 const PANE = 'interview-room'
-const KEYS_HINT = 'Keys: Tab moves between buttons, Enter presses one, Esc goes back to typing.'
+// The same words, in the same place (right under the panel's first line), in every panel.
+const KEYS_HINT = 'Keys: Ctrl+X then Tab moves into this panel. Tab moves between buttons, Enter presses one, Esc goes back to typing.'
 // Told to Claude when the room can't be seen (a narrow window, or an app that shows no panels).
 const NOT_SHOWN = ' The Interview Room is not visible in this window (it needs a wider window, or this app shows no panels). Tell the user once that they can widen the window or type /interview-room to see it, and also write each interviewer line in your reply so they can read it. Reading aloud, the clock and the scorecard still work.'
 
@@ -21,6 +22,9 @@ const scores = atom({ plugin: 'interview-room', key: 'scores' } as const, [] as 
 const isVoice = atom({ plugin: 'interview-room', key: 'isVoice' } as const, true)
 const voiceNote = atom({ plugin: 'interview-room', key: 'voiceNote' } as const, '')
 const voiceTip = atom({ plugin: 'interview-room', key: 'voiceTip' } as const, '')
+// The answer clock can be turned off (WCAG 2.2.1 and 2.2.2): then no countdown is drawn, nothing
+// redraws every second, and no beeps or notices come. The user's choice is kept across sessions.
+const isTimed = atom({ plugin: 'interview-room', key: 'isTimed' } as const, true)
 
 let ticker: { cancel: () => void } | undefined
 
@@ -63,9 +67,17 @@ function micHint(surface: string): string {
     : 'Speak your answer: click the microphone (or Mac: your Dictation shortcut; Windows: Win + H). Situation, Task, Action, Result.'
 }
 
+// A picture of the score, always drawn after the number in words ("3 out of 5"), so a screen reader
+// reads the meaning first and the symbols never carry it alone.
 function dots(score: number): string {
   const n = Math.max(0, Math.min(5, Math.round(score)))
   return '●'.repeat(n) + '○'.repeat(5 - n)
+}
+
+// Moves the keyboard focus onto a button the next drawing shows (after the pressed one went away).
+// Refused when the panel doesn't hold the keyboard (a mouse press): then nothing happens.
+function focusOn($: any, key: string): void {
+  void Promise.resolve().then(() => $.ui.focus({ requestId: PANE, key })).catch(() => undefined)
 }
 
 // One sound and one on-screen notice at each turning point of an answer (never one every second):
@@ -110,7 +122,7 @@ async function tick($: any): Promise<void> {
   const at = await $.clock.now()
   await update($, now, () => at)
   const c = await read($, clock)
-  if (!c || c.stoppedAt !== 0 || at < c.startedAt) return
+  if (!c || c.stoppedAt !== 0 || at < c.startedAt || !(await read($, isTimed))) return
   const prepMs = (c.prep ?? 0) * 1000
   const total = at - c.startedAt
   const left = c.limit * 1000 - Math.max(0, total - prepMs)
@@ -133,7 +145,28 @@ async function startClock($: any, limit: number, prep = 0, from = 0): Promise<vo
   await update($, now, () => at)
   cues = new Set<string>()
   ticker?.cancel()
-  ticker = $.clock.every(1000, () => void tick($).catch(() => undefined))
+  ticker = undefined
+  // With the clock off nothing ticks: the start time is still kept, so "Done answering" works.
+  if (await read($, isTimed)) ticker = $.clock.every(1000, () => void tick($).catch(() => undefined))
+}
+
+async function setTimed($: any, on: boolean): Promise<void> {
+  await update($, isTimed, () => on)
+  await Promise.resolve().then(() => $.store.set('isTimed', on)).catch(() => undefined)
+  ticker?.cancel()
+  ticker = undefined
+  const c = await read($, clock)
+  if (on && c !== null && c.stoppedAt === 0) {
+    // Turning the clock back on mid-answer plays no catch-up beeps for turning points already past.
+    const at = await $.clock.now()
+    const prepMs = (c.prep ?? 0) * 1000
+    const left = c.limit * 1000 - Math.max(0, at - c.startedAt - prepMs)
+    if (at - c.startedAt >= prepMs) cues.add('start')
+    if (left <= 30000) cues.add('30')
+    if (left <= 0) cues.add('time')
+    await tick($).catch(() => undefined)
+    ticker = $.clock.every(1000, () => void tick($).catch(() => undefined))
+  }
 }
 
 async function stopClock($: any): Promise<number> {
@@ -222,14 +255,16 @@ async function speakAloud($: any, text: string): Promise<boolean> {
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'interview-room', description: 'Open the mock interview room (start one with /mock-interview)' })
+    const saved = await $.store.get('isVoice')
+    if (typeof saved === 'boolean') await update($, isVoice, () => saved)
+    const timed = await Promise.resolve().then(() => $.store.get('isTimed')).catch(() => undefined)
+    if (typeof timed === 'boolean') await update($, isTimed, () => timed)
     // After a reload mid-answer the clock's ticker is gone but the clock is still running: start it again.
     const running = await read($, clock)
-    if (running !== null && running.stoppedAt === 0) {
+    if (running !== null && running.stoppedAt === 0 && (await read($, isTimed))) {
       ticker?.cancel()
       ticker = $.clock.every(1000, () => void tick($).catch(() => undefined))
     }
-    const saved = await $.store.get('isVoice')
-    if (typeof saved === 'boolean') await update($, isVoice, () => saved)
     await $.tool.register({
       name: 'interview_start',
       description: 'Mock interviews only. Opens the Interview Room for the user and sets the scene. Call once at the start of /mock-interview.',
@@ -315,10 +350,13 @@ export const register: Register = on => {
     }
     const isAsking = kind === 'question' || kind === 'followup'
     const hidden = opened.isPlaced ? '' : ' The room is not visible in this window: write this line in your reply so the user can read it.'
+    const untimed = await read($, isTimed)
+      ? ''
+      : ' The user turned the answer clock off: never mention time or answer length, and give them as long as they need.'
     return {
       result: isAsking
-        ? `Shown and read aloud; the user's clock is running. Stop here and wait for their answer. Do not add commentary in this message.${hidden}`
-        : `Shown and read aloud.${hidden}`,
+        ? `Shown and read aloud; ${untimed ? 'the clock is off' : "the user's clock is running"}. Stop here and wait for their answer. Do not add commentary in this message.${hidden}${untimed}`
+        : `Shown and read aloud.${hidden}${untimed}`,
     }
   }).catch(($, e, next) => (next.called ? next(e) : { result: 'The Interview Room could not show this line. Write it in your reply and carry on in chat.' }))
 
@@ -354,7 +392,10 @@ export const register: Register = on => {
     if (at < c.startedAt) return next(e)
     const took = await stopClock($)
     const answered = Math.max(0, took - (c.prep ?? 0) * 1000)
-    return next({ ...e, context: [...(e.context ?? []), `[Interview Room] The user's answer took about ${mmss(answered)} (target ${mmss(c.limit * 1000)}).`] })
+    const said = (await read($, isTimed))
+      ? `[Interview Room] The user's answer took about ${mmss(answered)} (target ${mmss(c.limit * 1000)}).`
+      : '[Interview Room] The user has the answer clock turned off: do not comment on how long the answer was.'
+    return next({ ...e, context: [...(e.context ?? []), said] })
   }).catch(($, e, next) => next(e))
 
   on('command.run', { command: 'interview-room' }, async $ => {
@@ -378,6 +419,7 @@ export const register: Register = on => {
     const voice = await read($, isVoice)
     const note = await read($, voiceNote)
     const tip = await read($, voiceTip)
+    const timed = await read($, isTimed)
 
     const toggle = (
       <Button key="voice" label={voice ? 'Stop reading aloud' : 'Read questions aloud'} onPress={async () => {
@@ -386,6 +428,12 @@ export const register: Register = on => {
         await $.store.set('isVoice', nextValue)
       }} />
     )
+    // Same key either way, so the focus stays on it after a press.
+    const clockToggle = (
+      <Button key="timer" label={timed ? 'Turn off the clock' : 'Turn on the clock'} onPress={() => setTimed($, !timed)} />
+    )
+    const keys = e.surface === 'terminal' && <Text>{KEYS_HINT}</Text>
+    const clockOff = <Text bold>Clock off. Take the time you need, then send your answer.</Text>
 
     if (r === null) {
       const isTicking = c !== null && c.stoppedAt === 0
@@ -394,19 +442,20 @@ export const register: Register = on => {
       return (
         <Box flexDirection="column" gap={1}>
           <Text bold>Interview Room</Text>
-          {e.surface === 'terminal' && <Text dimColor>{KEYS_HINT}</Text>}
-          <Text>Type /mock-interview and pick a job. Claude plays the interviewer, reads each question aloud, and times your answer.</Text>
+          {keys}
+          <Text>Type /mock-interview and pick a job. Claude plays the interviewer, reads each question aloud, and times your answer. You can turn the clock off.</Text>
           <Box flexDirection="column">
             <Text bold>How to answer out loud</Text>
             {micSteps(e.surface).map((s, i) => <Text key={`mic-${i}`} wrap="wrap">{s}</Text>)}
           </Box>
-          <Box flexDirection="row" gap={1}>
-            {isTicking
-              ? <Button key="stop" label="Stop clock" variant="primary" onPress={() => stopClock($)} />
-              : <Button key="practice" label="Start 2-minute practice clock" onPress={() => startClock($, 120)} />}
+          <Box flexDirection="row" gap={1} flexWrap="wrap">
+            {timed && (isTicking
+              ? <Button key="stop" label="Stop clock" variant="primary" onPress={async () => { await stopClock($); focusOn($, 'practice') }} />
+              : <Button key="practice" label="Start 2-minute practice clock" onPress={async () => { await startClock($, 120); focusOn($, 'stop') }} />)}
+            {clockToggle}
             {toggle}
           </Box>
-          {c !== null && <Text bold color={free < 0 ? 'error' : free < 30000 ? 'warning' : 'success'}>{`${mmss(spent)} / ${mmss(c.limit * 1000)}${free < 0 ? '   wrap it up' : free < 30000 && c.limit > 30 ? '   under 30 seconds left' : ''}`}</Text>}
+          {timed && c !== null && <Text bold color={free < 0 ? 'error' : free < 30000 ? 'warning' : 'success'}>{`Time: ${mmss(spent)} of ${mmss(c.limit * 1000)}${free < 0 ? '. Time is up: wrap it up' : free < 30000 && c.limit > 30 ? '. Under 30 seconds left' : ''}`}</Text>}
         </Box>
       )
     }
@@ -425,6 +474,7 @@ export const register: Register = on => {
     return (
       <Box flexDirection="column" gap={1}>
         <Text dimColor>{`${r.company} · ${r.role} · ${r.style}`}</Text>
+        {keys}
         <Text dimColor>{r.isOver ? 'Interview over' : `Question ${Math.max(1, r.asked)} of ${r.total} · ${r.interviewer}`}</Text>
         {l !== null && (
           <Box flexDirection="column" borderStyle="round" paddingX={1}>
@@ -432,16 +482,17 @@ export const register: Register = on => {
             <Text bold wrap="wrap">{l.text}</Text>
           </Box>
         )}
-        {c !== null && !r.isOver && isListening && (
+        {!timed && isQuestion && !r.isOver && clockOff}
+        {timed && c !== null && !r.isOver && isListening && (
           <Text bold color="suggestion">Listen to the question. Your clock starts when it ends.</Text>
         )}
-        {c !== null && !r.isOver && isPrep && (
+        {timed && c !== null && !r.isOver && isPrep && (
           <Text bold color="suggestion">{r.style === 'one-way'
             ? `Think time: ${mmss(prepMs - total)} left. Your answer clock starts automatically (on the real platform, recording starts then). Turn on dictation yourself when it starts.`
             : `Think time: ${mmss(prepMs - total)} left. Your answer clock starts automatically.`}</Text>
         )}
-        {c !== null && !r.isOver && !isListening && !isPrep && (
-          <Text bold color={color}>{`${mmss(elapsed)} / ${mmss(c.limit * 1000)}${left < 0 ? '   wrap it up' : left < 30000 && c.limit > 30 ? '   under 30 seconds left' : ''}`}</Text>
+        {timed && c !== null && !r.isOver && !isListening && !isPrep && (
+          <Text bold color={color}>{`Time: ${mmss(elapsed)} of ${mmss(c.limit * 1000)}${left < 0 ? '. Time is up: wrap it up' : left < 30000 && c.limit > 30 ? '. Under 30 seconds left' : ''}`}</Text>
         )}
         {!r.isOver && list.length === 0 && (
           <Box flexDirection="column">
@@ -452,26 +503,34 @@ export const register: Register = on => {
         {isQuestion && isRunning && !isListening && !isPrep && list.length > 0 && <Text dimColor>{micHint(e.surface)}</Text>}
         {note !== '' && <Text color="warning">{note}</Text>}
         {note === '' && voice && tip !== '' && <Text dimColor wrap="wrap">{tip}</Text>}
-        {!r.isOver && <Text dimColor>"Ask for a hint" and "Ask to end interview" write a message to Claude. Press Enter to send it.</Text>}
-        {e.surface === 'terminal' && <Text dimColor>{KEYS_HINT}</Text>}
+        {!r.isOver && <Text>"Ask for a hint", "Ask for more time" and "Ask to end interview" write a message to Claude. Press Enter to send it.</Text>}
         <Box flexDirection="row" gap={1} flexWrap="wrap">
-          {isRunning && !isListening && <Button key="done" label="Done answering" variant="primary" onPress={async () => {
+          {timed && isRunning && !isListening && <Button key="done" label="Done answering" variant="primary" onPress={async () => {
             const took = await stopClock($)
             await $.prompt.fill({ text: `[answered in ${mmss(Math.max(0, took - prepMs))}] `, mode: 'insert' })
           }} />}
-          {isQuestion && voice && note === '' && <Button key="repeat" label="Read question again" onPress={async () => { await speak($, l.text) }} />}
+          {isQuestion && voice && note === '' && <Button key="repeat" label="Read question again" onPress={async () => {
+            // The answer clock pauses while the question is read again: the replay's time is added back.
+            const began = await $.clock.now()
+            const until = await speak($, l.text)
+            await update($, clock, c => (c === null || c.stoppedAt !== 0 ? c
+              : began < c.startedAt ? { ...c, startedAt: Math.max(c.startedAt, until) }
+              : { ...c, startedAt: c.startedAt + Math.max(0, until - began) }))
+          }} />}
           {!r.isOver && <Button key="hint" label="Ask for a hint" onPress={() => $.prompt.fill({ text: 'I\'m stuck on this one. Give me a one-line hint (not the answer), then let me try again.' })} />}
+          {!r.isOver && <Button key="more-time" label="Ask for more time" onPress={() => $.prompt.fill({ text: 'I need more time for my answers. Give me longer from now on, or turn off the time target.' })} />}
           {!r.isOver && <Button key="end" label="Ask to end interview" onPress={() => $.prompt.fill({ text: 'Let\'s end the interview here. Score what I answered and give me my debrief.' })} />}
+          {clockToggle}
           {toggle}
           <Button key="close" label="Close" role="dismiss" onPress={() => $.ui.close({ id: PANE })} />
         </Box>
         {list.length > 0 && (
           <Box flexDirection="column">
-            <Text bold>{`Scorecard   ${dots(avg)}  ${avg.toFixed(1)} / 5`}</Text>
+            <Text bold>{`Scorecard: average ${avg.toFixed(1)} out of 5   ${dots(avg)}`}</Text>
             {!r.isOver && <Text dimColor>Notes on each answer appear when the interview ends.</Text>}
             {list.map(s => (
               <Box key={`score-${s.n}`} flexDirection="column">
-                <Text>{`${dots(s.score)} ${s.score}/5  Q${s.n}: ${s.question}`}</Text>
+                <Text>{`Question ${s.n}: ${s.score} out of 5. ${s.question}   ${dots(s.score)}`}</Text>
                 {r.isOver && <Text dimColor wrap="wrap">{`      ${s.note}`}</Text>}
               </Box>
             ))}

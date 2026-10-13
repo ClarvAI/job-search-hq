@@ -23,7 +23,7 @@ Fill one column per offer in `jobs/<folder>/offer.md` (or a shared `jobs/offer-c
 | Probation (length, notice during it; common outside the US) | | |
 | Offer deadline | | |
 | Contingencies (background check, drug screen, references, degree completion) | | |
-| **First-year cash** (base + sign-on + relocation net) | | |
+| **First-year cash, gross** (base + sign-on + cash relocation, before tax; note on a separate line if relocation is taxed or grossed up) | | |
 | Cost of living vs. the user's home base (estimate, labeled) | | |
 | What they'd actually do day to day | | |
 | Growth: training, mentor, scope, brand | | |

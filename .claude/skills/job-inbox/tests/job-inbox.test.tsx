@@ -201,3 +201,28 @@ test('where panels can\'t show, /job-inbox says so; the inbox watches its files 
   const start: any = await ($ as any).classic.SessionStart({ source: 'startup', cwd: '/home/alex/job-search' })
   expect(start.watchPaths).toEqual(['/home/alex/job-search/jobs/leads.csv', '/home/alex/job-search/jobs/tracker.csv'])
 })
+
+test('accessibility: keys hint in plain text under the first line, card buttons named after the lead, the first Save takes the focus, a warning is said in words, and Cancel closes the reasons', async ($, on) => {
+  const { files } = setup(on, { 'jobs/leads.csv': LEADS, 'jobs/tracker.csv': TRACKER })
+  await $.command.run({ command: 'job-inbox', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'job-inbox', surface: 'terminal', ...PANE } as never)
+  const drawn = JSON.stringify(await ui.drawn())
+  expect(drawn).toMatch(/"role":"dismiss"\},"press":\{[^}]*\}\}\]\},\{"type":"Text","children":\["Keys: Ctrl\+X then Tab moves into this panel\./)
+  expect(drawn).toContain('"key":"L-20261005-01:save","label":"Save (Northwind Traders, Inc., Operations Analyst)","variant":"primary","autoFocus":true}')
+  expect(drawn).toContain('"label":"Skip (Initech, Marketing Coordinator)"}')
+  expect(drawn).toContain('"color":"warning"},"children":["Watch out: Needs 2 years"]')
+  await ui.press({ key: 'L-20261005-02:nope' })
+  expect(JSON.stringify(await ui.drawn())).toContain('"label":"Too senior (Initech, Marketing Coordinator)"')
+  await ui.press({ key: 'L-20261005-02:cancel' })
+  expect(JSON.stringify(await ui.drawn())).toContain('L-20261005-02:nope')
+  expect(row(files, 'L-20261005-02')).toContain(',new,')
+  await ui.unmount()
+})
+
+test('accessibility: an empty inbox says so in plain (not dim) text', async ($, on) => {
+  setup(on, { 'jobs/leads.csv': HEAD + '\n', 'jobs/tracker.csv': TRACKER })
+  await $.command.run({ command: 'job-inbox', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'job-inbox', surface: 'terminal', ...PANE } as never)
+  expect(JSON.stringify(await ui.drawn())).toContain('{"type":"Text","children":["No new leads right now.')
+  await ui.unmount()
+})

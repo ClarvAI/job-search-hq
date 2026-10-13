@@ -394,3 +394,127 @@ test('where panels can\'t show, /outbox says so and points to the chat', async (
   expect(String(out.text)).toContain("can't show in this window")
   expect(JSON.stringify(out.context)).toContain('chat version of the outbox skill')
 })
+
+test('accessibility: the keys hint and the empty state are plain text, each card\'s buttons are named after the draft, a LinkedIn draft is named in words, and Cancel keeps the panel usable', async ($, on) => {
+  const files: Record<string, string> = {
+    'outbox/c.md': '---\nchannel: email\nto: lee@initech.example\nsubject: Quick question\n---\nHi Lee.\n',
+    'outbox/d.md': '---\nchannel: linkedin\nkind: connection-note\nto: Sam Roe\n---\nHi Sam, glad to connect.\n',
+  }
+  setup(on, files)
+  await $.command.run({ command: 'outbox', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'outbox', surface: 'terminal', ...PANE } as never)
+  const drawn = JSON.stringify(await ui.drawn())
+  expect(drawn).toContain('{"type":"Text","children":["Keys: Ctrl+X then Tab moves into this panel.')
+  // Accessible name = visible words + the draft's name; the drawn text stays short.
+  expect(drawn).toContain('"label":"Copy (Quick question)"},"press"')
+  expect(drawn).toContain('"label":"Discard… (Quick question)"')
+  expect(drawn).toContain('LinkedIn message to Sam Roe')
+  expect(drawn).not.toContain('→')
+  await ui.press({ key: 'c.md:discard' })
+  expect(JSON.stringify(await ui.drawn())).toContain('c.md:confirm-discard')
+  await ui.press({ key: 'c.md:cancel' })
+  const back = JSON.stringify(await ui.drawn())
+  expect(back).not.toContain('c.md:confirm-discard')
+  expect(back).toContain('"key":"c.md:discard"')
+  expect(files['outbox/c.md']).not.toContain('discarded')
+  await ui.unmount()
+
+  for (const f of Object.keys(files)) delete files[f]
+  await $.command.run({ command: 'outbox', args: '' } as never)
+  const empty = await $.ui.mount({ plugin: 'outbox', surface: 'terminal', ...PANE } as never)
+  expect(JSON.stringify(await empty.drawn())).toContain('{"type":"Text","children":["No drafts waiting.')
+  await empty.unmount()
+})
+
+test('two Gmail connections and neither configured: nothing is drafted or sent, and the panel says why; one connection is named in the confirmation', async ($, on) => {
+  const files: Record<string, string> = { 'outbox/c.md': '---\nchannel: email\nto: lee@initech.example\nsubject: Quick question\n---\nHi Lee.\n', 'profile/signature.txt': 'Alex Rivera' }
+  const { calls } = setup(on, files, { tools: ['mcp__Gmail_work__create_draft', 'mcp__Gmail_home__create_draft'] })
+  await $.command.run({ command: 'outbox', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'outbox', surface: 'terminal', ...PANE } as never)
+  expect(JSON.stringify(await ui.drawn())).toContain('Needs fixing: more than one Gmail connection is set up (Gmail_work, Gmail_home)')
+  await ui.press({ key: 'c.md:approve' })
+  const drawn = JSON.stringify(await ui.drawn())
+  expect(drawn).toContain("the Outbox won't guess which account to use")
+  expect(drawn).not.toContain('c.md:confirm')
+  expect(calls.length).toBe(0)
+  await ui.unmount()
+})
+
+test('one other Gmail connection is used, and the confirmation names it', async ($, on) => {
+  const files: Record<string, string> = { 'outbox/c.md': '---\nchannel: email\nto: lee@initech.example\nsubject: Quick question\n---\nHi Lee.\n', 'profile/signature.txt': 'Alex Rivera' }
+  const { calls } = setup(on, files, { tools: ['mcp__Gmail_work__create_draft'] })
+  await $.command.run({ command: 'outbox', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'outbox', surface: 'terminal', ...PANE } as never)
+  await ui.press({ key: 'c.md:approve' })
+  expect(JSON.stringify(await ui.drawn())).toContain('in your Gmail (connection: Gmail_work)')
+  await ui.press({ key: 'c.md:confirm' })
+  expect(calls.length).toBe(1)
+  expect(JSON.stringify(calls[0])).toContain('Gmail_work')
+  await ui.unmount()
+})
+
+test('Mark sent asks which day: yesterday is recorded as yesterday, a typed day as that day, a future day is refused', async ($, on) => {
+  const files: Record<string, string> = {
+    'outbox/a.md': '---\nchannel: email\nto: pat@northwind.example\nsubject: Thanks\nstatus: in-gmail-drafts\n---\nThanks, Pat.\n',
+    'outbox/b.md': '---\nchannel: email\nto: dana@contoso.example\nsubject: Hello\nstatus: in-gmail-drafts\n---\nHi Dana.\n',
+  }
+  setup(on, files)
+  await $.command.run({ command: 'outbox', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'outbox', surface: 'terminal', ...PANE } as never)
+  await ui.press({ key: 'a.md:marksent' })
+  expect(JSON.stringify(await ui.drawn())).toContain('Sent today (2026-10-06)')
+  await ui.press({ key: 'a.md:confirm-sent-yesterday' })
+  expect(files['outbox/a.md']).toContain('sent: 2026-10-05')
+  await ui.press({ key: 'b.md:marksent' })
+  await ui.input({ key: 'b.md:sent-date', text: '2026-10-09' } as never)
+  expect(files['outbox/b.md']).not.toContain('status: sent')
+  expect(JSON.stringify(await ui.drawn())).toContain('not a future date')
+  await ui.input({ key: 'b.md:sent-date', text: '2026-10-02' } as never)
+  expect(files['outbox/b.md']).toContain('sent: 2026-10-02')
+  await ui.unmount()
+})
+
+test('send receipts are kept per folder: the same message in another folder is not blocked, an old folder-less receipt still blocks', async ($, on) => {
+  const prefsSend = 'outbox_mode: send\n- 2026-10-01: user turned on send mode\n'
+  const draft = '---\nchannel: email\nto: lee@initech.example\nsubject: Quick question\n---\nHi Lee.\n'
+  const mark = 'outbox_mode: send\n- 2026-10-01: user turned on send mode'
+  const store: Record<string, unknown> = {
+    'send-mode:/other': { value: 'send', at: 1, mark },
+    'send-receipt:/project|c.md': { at: '2026-10-05 10:00', to: 'lee@initech.example', subject: 'Quick question', state: 'sent', file: 'c.md' },
+  }
+  const { calls } = setup(on, { 'outbox/c.md': draft, 'profile/signature.txt': 'Alex Rivera', 'profile/preferences.md': prefsSend }, { store, root: '/other' })
+  await $.command.run({ command: 'outbox', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'outbox', surface: 'terminal', ...PANE } as never)
+  await ui.press({ key: 'c.md:approve' })
+  await ui.press({ key: 'c.md:confirm' })
+  expect(calls.length).toBe(1)
+  await ui.unmount()
+})
+
+test('an old receipt saved before receipts were kept per folder still blocks a second send', async ($, on) => {
+  const prefsSend = 'outbox_mode: send\n- 2026-10-01: user turned on send mode\n'
+  const mark = 'outbox_mode: send\n- 2026-10-01: user turned on send mode'
+  const store: Record<string, unknown> = {
+    'send-mode:/project': { value: 'send', at: 1, mark },
+    'send-receipt:c.md': { at: '2026-10-05 10:00', to: 'lee@initech.example', subject: 'Quick question', state: 'sent', file: 'c.md' },
+  }
+  const { calls } = setup(on, { 'outbox/c.md': '---\nchannel: email\nto: lee@initech.example\nsubject: Quick question\n---\nHi Lee.\n', 'profile/signature.txt': 'Alex Rivera', 'profile/preferences.md': prefsSend }, { store })
+  await $.command.run({ command: 'outbox', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'outbox', surface: 'terminal', ...PANE } as never)
+  await ui.press({ key: 'c.md:approve' })
+  expect(JSON.stringify(await ui.drawn())).toContain('already sent from the Outbox')
+  expect(calls.length).toBe(0)
+  await ui.unmount()
+})
+
+test('quote marks are escaped in the Gmail HTML and a link stops at a quote mark', async ($, on) => {
+  const files: Record<string, string> = { 'outbox/q.md': '---\nchannel: email\nto: lee@initech.example\nsubject: Link\n---\nMy portfolio is at "https://alex.example/work" if useful.\n', 'profile/signature.txt': 'Alex Rivera' }
+  const { calls } = setup(on, files)
+  await $.command.run({ command: 'outbox', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'outbox', surface: 'terminal', ...PANE } as never)
+  await ui.press({ key: 'q.md:approve' })
+  await ui.press({ key: 'q.md:confirm' })
+  const html = String(calls[0]?.args?.htmlBody ?? JSON.stringify(calls[0]))
+  expect(html).toContain('&quot;<a href="https://alex.example/work">https://alex.example/work</a>&quot;')
+  await ui.unmount()
+})

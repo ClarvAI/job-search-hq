@@ -20,19 +20,34 @@ export function normLink(url: string): string {
 }
 
 // Company names compare without punctuation or legal suffixes: "Northwind Traders, Inc." = "northwind traders".
+// Letters of every script count (not only a-z), and accents are dropped, so "Société Générale" =
+// "Societe Generale" and names in Japanese, Greek or Arabic don't end up empty.
+const letters = (t: string) => t.normalize('NFD').replace(/\p{M}+/gu, '').toLowerCase().replace(/&/g, ' and ').replace(/[^\p{L}\p{N} ]+/gu, ' ')
+
 export function normCompany(name: string): string {
-  return name.toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9 ]+/g, ' ')
+  return letters(name)
     .replace(/\b(inc|incorporated|llc|ltd|limited|corp|corporation|co|company|plc|gmbh|ag|sa|lp|the)\b/g, ' ')
     .replace(/\s+/g, ' ').trim()
 }
 
 export function normRole(title: string): string {
-  return title.toLowerCase().replace(/&/g, ' and ').replace(/\bsr\b\.?/g, 'senior').replace(/\bjr\b\.?/g, 'junior')
-    .replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim()
+  return letters(title.replace(/\bsr\b\.?/gi, 'senior').replace(/\bjr\b\.?/gi, 'junior'))
+    .replace(/\s+/g, ' ').trim()
 }
 
 export function normPlace(loc: string): string {
-  return loc.toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim()
+  return letters(loc).replace(/\s+/g, ' ').trim()
+}
+
+// Same place when the city parts match word for word from the start: "Denver, CO" = "Denver CO" =
+// "Denver"; "New York, NY" = "New York"; but "York" is not "New York" (whole words, not substrings).
+export function samePlace(a: string, b: string): boolean {
+  const pa = normPlace(a), pb = normPlace(b)
+  if (pa === '' || pb === '' || pa === pb) return true
+  const city = (t: string) => normPlace(t.split(/[,;(]/)[0] ?? '').split(' ').filter(Boolean)
+  const prefix = (x: string[], y: string[]) => x.length > 0 && x.length <= y.length && x.every((w, i) => w === y[i])
+  const ca = city(a), cb = city(b), wa = pa.split(' '), wb = pb.split(' ')
+  return prefix(ca, cb) || prefix(cb, ca) || prefix(wa, wb) || prefix(wb, wa) || prefix(ca, wb) || prefix(cb, wa)
 }
 
 export type JobRef = { company: string; role: string; location?: string; link?: string; applyLink?: string; jobId?: string }
@@ -50,8 +65,7 @@ export function isSamePosting(a: JobRef, b: JobRef): boolean {
   if (sameLink) return true
   if (!sameCompany) return false
   if (normRole(a.role) === '' || normRole(a.role) !== normRole(b.role)) return false
-  const pa = normPlace(a.location ?? ''), pb = normPlace(b.location ?? '')
-  return pa === '' || pb === '' || pa === pb || pa.includes(pb) || pb.includes(pa)
+  return samePlace(a.location ?? '', b.location ?? '')
 }
 
 // The tracker, normalized once and indexed by link and by company, so checking many leads against

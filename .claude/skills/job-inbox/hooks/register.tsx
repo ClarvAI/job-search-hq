@@ -19,7 +19,8 @@ const BOM = String.fromCharCode(0xfeff)
 const noBom = (t: string) => (t.startsWith(BOM) ? t.slice(1) : t)
 // The files this inbox reads: when one changes on disk (find-jobs, Codex, Excel), it refreshes.
 const WATCHED = ['jobs/leads.csv', 'jobs/tracker.csv']
-const KEYS_HINT = 'Keys: Tab moves between buttons, Enter presses one, Esc goes back to typing.'
+// The same words, in the same place (right under the panel's first line), in every panel.
+const KEYS_HINT = 'Keys: Ctrl+X then Tab moves into this panel. Tab moves between buttons, Enter presses one, Esc goes back to typing.'
 const OLDER_THAN_DAYS = 30
 const LOG_AFTER_MS = 5 * 60 * 1000
 
@@ -100,6 +101,12 @@ async function refresh($: any): Promise<Inbox> {
   const next = await load($)
   if (JSON.stringify(await read($, inbox)) !== JSON.stringify(next)) await update($, inbox, () => next)
   return next
+}
+
+// Moves the keyboard focus onto a button the next drawing shows, after the pressed one went away
+// (a card left, a row of reasons opened or closed). Refused when the panel doesn't hold the keyboard.
+function focusOn($: any, key: string): void {
+  void Promise.resolve().then(() => $.ui.focus({ requestId: PANE, key })).catch(() => undefined)
 }
 
 async function say($: any, text: string, isError = false, undoId = '', undoStatus = ''): Promise<void> {
@@ -351,7 +358,15 @@ export const register: Register = on => {
     const pg = pageOf(all, await read($, page), SHOWN)
     const firstOld = pg.items.findIndex(x => x.isOld)
 
+    // After a decision the card leaves: the focus moves to the next card's Save (or the one before, or Refresh).
+    const ids = pg.items.map(x => x.l.id)
+    const after = (id: string) => { const i = ids.indexOf(id); return ids[i + 1] ?? ids[i - 1] ?? '' }
+    const decided = (l: Lead, run: Promise<unknown>) => { const to = after(l.id); return run.then(() => focusOn($, to ? `${to}:save` : 'refresh')) }
+
     const card = (l: Lead, isOld: boolean) => {
+      // Each card's buttons carry the lead's name for screen readers (a desktop's native buttons):
+      // "Save (Globex, Data Analyst)", drawn as "Save". The visible words start the name (WCAG 2.5.3).
+      const named = (visible: string) => `${visible} (${l.company}${l.role ? `, ${l.role}` : ''})`
       const where = [l.location, l.remote && !l.location.toLowerCase().includes(l.remote) ? l.remote : ''].filter(Boolean).join(' · ')
       const meta = [where, l.pay && `Pay: ${l.pay}`, l.posted && `Posted ${l.posted}`].filter(Boolean).join('  ·  ')
       const isAsking = open === l.id || open === `${l.id}|other`
@@ -369,23 +384,23 @@ export const register: Register = on => {
               <Text bold>Why is it not for you? This helps the next search.</Text>
               <Box flexDirection="row" gap={1} flexWrap="wrap">
                 {REASONS.map(r => (
-                  <Button key={`${l.id}:why-${r.value}`} label={r.label} onPress={() => (r.value === 'other' && canType ? update($, asking, () => `${l.id}|other`) : decide($, l, 'not-for-me', r.value))} />
+                  <Button key={`${l.id}:why-${r.value}`} label={named(r.label)} onPress={() => (r.value === 'other' && canType ? update($, asking, () => `${l.id}|other`).then(() => focusOn($, `${l.id}:why-text`)) : decided(l, decide($, l, 'not-for-me', r.value)))}>{r.label}</Button>
                 ))}
-                <Button key={`${l.id}:cancel`} label="Cancel" dimColor onPress={() => update($, asking, () => '')} />
+                <Button key={`${l.id}:cancel`} label="Cancel" dimColor onPress={async () => { await update($, asking, () => ''); focusOn($, `${l.id}:nope`) }} />
               </Box>
             </Box>
           )}
           {open === `${l.id}|other` && canType && (
             <Box flexDirection="column">
-              <els.Input key={`${l.id}:why-text`} label="In a few words" placeholder="e.g. needs a security clearance" submitLabel="save" autoFocus onSubmit={(v: string) => decide($, l, 'not-for-me', v.trim() ? `other: ${v.trim()}` : 'other')} />
-              <Button key={`${l.id}:cancel`} label="Cancel" dimColor onPress={() => update($, asking, () => '')} />
+              <els.Input key={`${l.id}:why-text`} label="In a few words" placeholder="e.g. needs a security clearance" submitLabel="save" autoFocus onSubmit={(v: string) => decided(l, decide($, l, 'not-for-me', v.trim() ? `other: ${v.trim()}` : 'other'))} />
+              <Button key={`${l.id}:cancel`} label="Cancel" dimColor onPress={async () => { await update($, asking, () => ''); focusOn($, `${l.id}:nope`) }} />
             </Box>
           )}
           {!isAsking && (
             <Box flexDirection="row" gap={1} flexWrap="wrap">
-              <Button key={`${l.id}:save`} label="Save" variant="primary" onPress={() => decide($, l, 'saved')} />
-              <Button key={`${l.id}:skip`} label="Skip" onPress={() => decide($, l, 'skipped')} />
-              <Button key={`${l.id}:nope`} label="Not for me…" onPress={async () => { await say($, ''); await update($, asking, () => l.id) }} />
+              <Button key={`${l.id}:save`} label={named('Save')} variant="primary" autoFocus={l.id === ids[0] ? true : undefined} onPress={() => decided(l, decide($, l, 'saved'))}>Save</Button>
+              <Button key={`${l.id}:skip`} label={named('Skip')} onPress={() => decided(l, decide($, l, 'skipped'))}>Skip</Button>
+              <Button key={`${l.id}:nope`} label={named('Not for me…')} onPress={async () => { await say($, ''); await update($, asking, () => l.id); focusOn($, `${l.id}:why-${REASONS[0]?.value ?? 'other'}`) }}>Not for me…</Button>
             </Box>
           )}
         </Box>
@@ -400,17 +415,17 @@ export const register: Register = on => {
           <Button key="refresh" label="Refresh" onPress={() => refresh($)} />
           <Button key="close" label="Close" role="dismiss" onPress={async () => { await flushLog($).catch(() => undefined); await $.ui.close({ id: PANE }) }} />
         </Box>
+        {e.surface === 'terminal' && <Text>{KEYS_HINT}</Text>}
         <Text dimColor>Save sends a lead to Claude to add to your tracker. Skip or Not for me hides it, and it won't be suggested again.</Text>
-        {e.surface === 'terminal' && <Text dimColor>{KEYS_HINT}</Text>}
         {note.text !== '' && (
           <Box flexDirection="row" gap={1}>
             <Text color={note.isError ? 'error' : 'success'}>{note.isError ? `Not saved: ${note.text}` : note.text}</Text>
-            {note.undoId !== '' && <Button key="undo" label="Undo" plain onPress={() => undo($, note.undoId, note.undoStatus)} />}
+            {note.undoId !== '' && <Button key="undo" label="Undo" plain onPress={async () => { const id = note.undoId; await undo($, id, note.undoStatus); focusOn($, `${id}:save`) }} />}
           </Box>
         )}
         {s.fresh.length === 0 && s.older.length === 0 && (
           <Box flexDirection="column">
-            <Text dimColor>{s.hasFile ? 'No new leads right now. Type /find-jobs and Claude will look for openings that fit you.' : 'No leads yet. Type /find-jobs and Claude will look for openings that fit you.'}</Text>
+            <Text>{s.hasFile ? 'No new leads right now. Type /find-jobs and Claude will look for openings that fit you.' : 'No leads yet. Type /find-jobs and Claude will look for openings that fit you.'}</Text>
             <Button key="find" label="Find jobs" plain onPress={() => $.prompt.fill({ text: '/find-jobs' })} />
           </Box>
         )}

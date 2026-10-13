@@ -13,7 +13,7 @@ Read every `outbox/*.md` file except ones starting with `_` (examples). Read the
 
 Show three short numbered groups, oldest first:
 
-- **Ready for you** (`status: draft` or blank): `1. Email to Jane Doe (Example Co) · "Thank you, Operations Analyst interview" · written Oct 6`. For LinkedIn add the type and length: `LinkedIn note to Alex Rivera · 182/200 characters`.
+- **Ready for you** (`status: draft` or blank): `1. Email to Jane Doe (Example Co), "Thank you, Operations Analyst interview", written Oct 6`. For LinkedIn add the type and length: `LinkedIn note to Alex Rivera, 182 of 200 characters`.
 - **Waiting in Gmail** (`status: in-gmail-drafts`): "In your Gmail drafts. Tell me when you've sent it."
 - **Needs fixing**: files with no readable header, an email with no subject or no `to:`, a placeholder (like `[Name]`, `{First name}`, `{{name}}`, `<Name>`, `___`, or `Your Name`), or a LinkedIn connection note over 200 characters. Say what's wrong and offer to fix it.
 

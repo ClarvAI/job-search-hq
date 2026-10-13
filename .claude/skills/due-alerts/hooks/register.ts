@@ -69,6 +69,12 @@ function dateIn(text: string, today: string, order: DateOrder = ''): string {
   return ''
 }
 
+// A booked interview ("Interview 2026-10-07", "Onsite interview"), not a step around one: preparing,
+// thanking, or the playbook's "Schedule interview" (reply with your availability) aren't interviews.
+export function isBookedInterview(text: string): boolean {
+  return /interview/i.test(text) && !/prep|thank|schedul|availability|arrange|\bbook/i.test(text)
+}
+
 function when(date: string, today: string): string {
   if (date < today) return `overdue since ${date}`
   if (date === today) return 'due today'
@@ -109,15 +115,37 @@ function pref(prefs: string, key: string): string {
 
 const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
 
+// Whether today is the benefits certification day written in preferences: a weekday ("Tuesday",
+// "every Monday") or every other weekday from a first date ("every other Monday from 2026-10-12").
+// Same rules as the startup summary (.claude/hooks/summary.sh). Anything else ("UK journal: before
+// each work coach appointment") is not a date and raises no alert.
+export function isCertDay(raw: string, today: string): boolean {
+  const cd = raw.toLowerCase().trim()
+  const [y = 1970, m = 1, d = 1] = today.split('-').map(Number)
+  const wd = (WEEKDAYS[new Date(y, m - 1, d).getDay()] ?? '').slice(0, 3)
+  if (wd === '' || cd === '') return false
+  const other = /every other ([a-z]+) from (\d{4}-\d{2}-\d{2})/.exec(cd)
+  if (other) {
+    const first = other[2] ?? ''
+    return (other[1] ?? '').slice(0, 3) === wd && isIso(first) && first <= today && daysBetween(first, today) % 14 === 0
+  }
+  const weekly = /^(?:every )?(mon|tue|wed|thu|fri|sat|sun)[a-z]*(?:[ ,.;(]|$)/.exec(cd)
+  return weekly !== null && weekly[1] === wd
+}
+
 // Days left on a visa unemployment clock, by the one formula in evaluate-job's visa-checks.md:
 // used = visa_days_used + days from the later of visa_clock_start and the day after
-// visa_days_used_as_of, through today, counting both ends. undefined when a number is missing.
+// visa_days_used_as_of, through today, counting both ends. undefined when a number is missing:
+// "All four numbers are needed: if any is missing, don't estimate" (a blank visa_days_used is not 0;
+// /today and the startup summary name the missing number). visa_days_used_as_of may be blank.
 export function visaDaysLeft(prefs: string, today: string): number | undefined {
   const start = toIso(pref(prefs, 'visa_clock_start'))
-  const allowed = Number(pref(prefs, 'visa_days_allowed'))
+  const allowedText = pref(prefs, 'visa_days_allowed')
   const usedText = pref(prefs, 'visa_days_used')
-  const used = usedText === '' ? 0 : Number(usedText)
-  if (!isIso(start) || !Number.isFinite(allowed) || allowed <= 0 || !Number.isFinite(used)) return undefined
+  if (!/^\d+/.test(allowedText) || !/^\d+/.test(usedText)) return undefined
+  const allowed = parseInt(allowedText, 10)
+  const used = parseInt(usedText, 10)
+  if (!isIso(start) || allowed <= 0) return undefined
   const asOf = toIso(pref(prefs, 'visa_days_used_as_of'))
   const from = isIso(asOf) && addDays(asOf, 1) > start ? addDays(asOf, 1) : start
   const running = from > today ? 0 : daysBetween(from, today) + 1
@@ -135,13 +163,8 @@ export async function collect($: any, today: string): Promise<Alert[]> {
   if (left !== undefined && left <= 30) {
     alerts.push({ id: `visa|${today}`, rank: RANK.visa, date: today, text: `About ${Math.max(0, left)} days left on your visa unemployment clock (your own count; the official counter or your DSO has the real number). Type /today for details.` })
   }
-  const certDay = pref(prefs, 'benefits_cert_day').toLowerCase()
-  if (certDay !== '') {
-    const [y = 1970, m = 1, d = 1] = today.split('-').map(Number)
-    const weekday = WEEKDAYS[new Date(y, m - 1, d).getDay()] ?? ''
-    if (weekday !== '' && certDay.slice(0, 3) === weekday.slice(0, 3)) {
-      alerts.push({ id: `benefits|${today}`, rank: RANK.benefits, date: today, text: 'Today is your benefits certification day. Type /today for this period\'s work-search count.' })
-    }
+  if (isCertDay(pref(prefs, 'benefits_cert_day'), today)) {
+    alerts.push({ id: `benefits|${today}`, rank: RANK.benefits, date: today, text: 'Today is your benefits certification day. Type /today for this period\'s work-search count.' })
   }
   if (/^search_status:\s*closed/m.test(prefs)) return alerts.sort((a, b) => a.rank - b.rank)
 
@@ -175,9 +198,9 @@ export async function collect($: any, today: string): Promise<Alert[]> {
     // A second commitment kept at the start of the notes ("Also: Interview 2026-10-12").
     const also = alsoOf(get('notes'), rowOrder)
 
-    const isInterviewStep = /interview/i.test(next) && !/prep|thank/i.test(next)
+    const isInterviewStep = isBookedInterview(next)
     const interviewDate = isInterviewStep ? dateIn(next, today, rowOrder) || (isIso(nextDate) ? nextDate : '') : ''
-    const alsoInterview = also && /interview/i.test(also.text) && !/prep|thank/i.test(also.text) ? also.date : ''
+    const alsoInterview = also && isBookedInterview(also.text) ? also.date : ''
     const soonest = [interviewDate, alsoInterview].filter(d => d === today || d === tomorrow).sort()[0]
     if (soonest) {
       const day = soonest === today ? 'today' : 'tomorrow'
@@ -243,19 +266,32 @@ export function message(alerts: Alert[]): string {
   return lines.join('\n')
 }
 
+// How long the pop-up stays: long enough to read slowly (about 100 words a minute, WCAG 2.2.1),
+// never under 15 seconds or over a minute. The pointer over it holds it, a click takes it off, and
+// /today always shows the same list again, so nothing is lost when it goes.
+export function showFor(text: string): number {
+  const words = text.split(/\s+/).filter(Boolean).length
+  return Math.min(60000, Math.max(15000, words * 600))
+}
+
 // Show what's due that hasn't been shown yet today. Quiet when there's nothing new.
 async function check($: any): Promise<void> {
   const today = localDate(await $.clock.now())
   const alerts = await collect($, today)
   let seen: string[] = []
+  // The plugin's store is shared by every folder on this computer, so what was shown is kept per folder.
+  const root: string = await Promise.resolve().then(() => $.session.root()).catch(() => '')
+  const key = `shown:${root}`
   try {
-    const stored = (await $.store.get('shown')) as Seen | undefined
+    const stored = (await $.store.get(key)) as Seen | undefined
     if (stored && stored.date === today && Array.isArray(stored.ids)) seen = stored.ids
   } catch { /* no memory available: show it anyway */ }
   const fresh = alerts.filter(a => !seen.includes(a.id))
   if (fresh.length === 0) return
-  try { await $.store.set('shown', { date: today, ids: [...seen, ...fresh.map(a => a.id)] }) } catch { /* best effort */ }
-  $.ui.toast(message(fresh), { timeoutMs: 15000 })
+  // Only the alerts the pop-up names count as shown; the ones behind "...and N more" come back next time.
+  try { await $.store.set(key, { date: today, ids: [...seen, ...fresh.slice(0, MAX_LINES).map(a => a.id)] }) } catch { /* best effort */ }
+  const text = message(fresh)
+  $.ui.toast(text, { timeoutMs: showFor(text) })
 }
 
 export const register: Register = on => {
