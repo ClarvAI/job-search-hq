@@ -1,5 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "autoMemoryEnabled": false,
   "attribution": {
     "commit": "",
     "pr": "",
@@ -168,7 +169,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh\"",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/session-start.sh\"",
             "timeout": 30
           }
         ]
@@ -180,7 +181,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard.sh\" || { echo 'Safety check could not run, so this was blocked to be safe. Tell the user the safety check in .claude/hooks/guard.sh is not working.' >&2; exit 2; }",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/guard.sh\" || { echo 'Safety check could not run, so this was blocked to be safe. Tell the user the safety check in .claude/hooks/guard.sh is not working.' >&2; exit 2; }",
             "timeout": 30,
             "onFailure": "block"
           }
@@ -193,7 +194,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/after-write.sh\"",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/after-write.sh\"",
             "timeout": 10
           }
         ]

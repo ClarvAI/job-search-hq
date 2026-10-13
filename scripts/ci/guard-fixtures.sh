@@ -473,8 +473,11 @@ if [ "$IMPL" = sh ]; then
   RUN="$SC" check "settings.json cmd, real guard, git $PU public -> deny" deny "$(shelljson "$TN/pub" "git $PU")"
   rm "$T/proj/.claude/hooks/guard.sh"
   RUN="$SC" check "settings.json cmd, guard missing -> block" block2 '{"tool_name":"WebFetch","tool_input":{"url":"https://x.com"}}'
-  RUN="set +u; unset CLAUDE_PROJECT_DIR; $SC" check "settings.json cmd, CLAUDE_PROJECT_DIR unset -> block" block2 '{"tool_name":"WebFetch","tool_input":{"url":"https://x.com"}}'
   mkdir -p "$T/cproj/.claude/hooks/sub" "$T/noagents" && touch "$T/cproj/AGENTS.md" && cp "$T/m/guard.sh" "$T/cproj/.claude/hooks/guard.sh"
+  # Without CLAUDE_PROJECT_DIR (another app reading Claude's hooks) the command uses the current folder's guard:
+  # none there -> block; the real one there -> it decides.
+  RUN="set +u; unset CLAUDE_PROJECT_DIR; cd \"$T/noagents\" && $SC" check "settings.json cmd, CLAUDE_PROJECT_DIR unset, no guard here -> block" block2 '{"tool_name":"WebFetch","tool_input":{"url":"https://x.com"}}'
+  RUN="set +u; unset CLAUDE_PROJECT_DIR; cd \"$T/cproj\" && $SC" check "settings.json cmd, CLAUDE_PROJECT_DIR unset, real guard here, gmail send -> deny" deny '{"tool_name":"mcp__claude_ai_Gmail__send_message","tool_input":{}}'
   RUN="cd \"$T/cproj/.claude/hooks/sub\" && $CC" check "codex cmd from a subfolder, gmail send -> block" block2 '{"tool_name":"mcp__gmail__send_email","tool_input":{}}'
   if grep -q 'only reads job email' "$T/stderr.txt" && ! grep -q 'could not run' "$T/stderr.txt"; then pass=$((pass + 1)); echo "PASS  codex cmd block gives the guard's own reason on stderr"
   else fail=$((fail + 1)); echo "FAIL  codex cmd block reason: $(head -c 300 "$T/stderr.txt")"; fi

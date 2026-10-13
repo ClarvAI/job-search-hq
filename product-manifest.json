@@ -57,7 +57,7 @@
     ".claude/hooks/session-start.sh": "f495628701649f1201c864c8981af029f68afc58c02be141252a4739c81f8ceb",
     ".claude/hooks/statusline.sh": "cb4ddea433740cbb033547c89f243802e79b3de220a9352bca309c1f6aa7e9f8",
     ".claude/hooks/summary.sh": "be75f946b3d591ea566d17ec9934f4ecb2f1339487a3357089b76a3119986612",
-    ".claude/settings.json": "b33df47199a59e850f9204bd1ca3f41e57d231b6110cddc7f4e737618bb4d8d1",
+    ".claude/settings.json": "ce079ec8496349af66ee9692b93ba635cf95814dd36600081424a11b7cb8077b",
     ".claude/skills/add-job/SKILL.md": "f4dd6f8bc06273e4040873bdb27218cfbaa7ff491aa9b02c47ed3f803e4a73d9",
     ".claude/skills/apply-kit/.claude-plugin/plugin.json": "d77f7a1aeca5cc568bc55cd0a7872403ce72d5f2d2f247441a3a8fbcd4606beb",
     ".claude/skills/apply-kit/hooks/CLAUDE.md": "4976266a3723ad6adbda2b8a9d60cdaa494b18b6d2a1339dd01c7faadf768625",
