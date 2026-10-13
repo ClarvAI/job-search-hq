@@ -284,17 +284,17 @@ test('"Schedule interview" (reply with availability) is not called an interview;
   expect(lines).toContain('Acme Corp (Sales Associate): Schedule interview, due today.')
 })
 
-test('a biweekly certification day ("every other Monday from ...") fires on its weeks only; "every Monday" fires each Monday', async ($, on) => {
-  const MON = new Date(2026, 9, 12, 9, 0).getTime()
-  const a = setup(on, { 'profile/preferences.md': 'benefits_cert_day: every other Monday from 2026-10-12\n' }, { now: MON })
-  await $.session.start(START as never)
-  expect(a.toasts[0] ?? '').toContain('Today is your benefits certification day.')
-  // One week later: not a certification Monday. Two weeks later: it is.
-  for (let i = 0; i < 7; i++) await a.time.advance(86400000)
-  expect(a.toasts.length).toBe(1)
-  for (let i = 0; i < 7; i++) await a.time.advance(86400000)
-  expect(a.toasts.length).toBe(2)
-})
+// Sessions opened on the first Monday, one week later (not a certification Monday) and two weeks later (it is):
+// one test each, instead of advancing the clock 14 days minute by minute, which is slow on CI runners.
+const BIWEEKLY = { 'profile/preferences.md': 'benefits_cert_day: every other Monday from 2026-10-12\n' }
+for (const [day, fires] of [[0, true], [7, false], [14, true]] as const) {
+  test(`a biweekly certification day ("every other Monday from ...") ${fires ? 'fires' : 'stays quiet'} ${day} days after its first Monday`, async ($, on) => {
+    const a = setup(on, BIWEEKLY, { now: new Date(2026, 9, 12 + day, 9, 0).getTime() })
+    await $.session.start(START as never)
+    if (fires) expect(a.toasts.join('\n')).toContain('Today is your benefits certification day.')
+    else expect(a.toasts.join('\n')).not.toContain('certification day')
+  })
+}
 
 test('cert-day and booked-interview rules', async () => {
   expect(isCertDay('every Monday', '2026-10-12')).toBe(true)

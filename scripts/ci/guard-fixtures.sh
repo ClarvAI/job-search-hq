@@ -48,10 +48,12 @@ cleanup() { if [ -n "$MOCKPID" ]; then kill "$MOCKPID" 2>/dev/null && wait "$MOC
 trap cleanup EXIT
 
 # ---- mock GitHub API ----
-"$PY" "$HERE/mock-github.py" "$T/port" & MOCKPID=$!
-i=0; while [ ! -s "$T/port" ] && [ $i -lt 100 ]; do sleep 0.1; i=$((i + 1)); done
+# A fresh CI runner can take several seconds to start Python the first time: wait up to 60 s,
+# stop early if the mock exits, and show what it printed.
+"$PY" "$HERE/mock-github.py" "$T/port" 2>"$T/mock.err" & MOCKPID=$!
+i=0; while [ ! -s "$T/port" ] && [ $i -lt 600 ] && kill -0 "$MOCKPID" 2>/dev/null; do sleep 0.1; i=$((i + 1)); done
 PORT="$(cat "$T/port" 2>/dev/null)"
-[ -n "$PORT" ] || { echo "mock GitHub API did not start" >&2; exit 2; }
+[ -n "$PORT" ] || { echo "mock GitHub API did not start after $i tries:" >&2; cat "$T/mock.err" >&2; exit 2; }
 API="http://127.0.0.1:$PORT/repos/"
 
 # Copies of the scripts under test, pointed at the mock. mock_copy <src> <dest> [api-base]
