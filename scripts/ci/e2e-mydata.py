@@ -7,7 +7,8 @@ is never touched.
 
 sh drives export.sh / reset.sh / restore.sh / init-data.sh; ps drives their .ps1 twins (PowerShell
 from $PS_EXE). Restore follows .claude/skills/my-data/references/restore.md the way an agent on that
-platform would: unzip -n (sh) or Expand-Archive without -Force (ps) into a new empty folder outside the
+platform would: unzip -n (sh, except on Windows) or Expand-Archive without -Force (ps, and sh on
+Windows) into a new empty folder outside the
 workspace, then restore --dry-run, restore, and the first-run script.
 """
 import sys; sys.dont_write_bytecode = True  # noqa: E702
@@ -84,8 +85,9 @@ EXTRA = {
 }
 STARTER_EDITS = ("profile/master-resume.md", "profile/story-bank.md", "profile/voice.md",
                  "profile/references.md", "profile/published-pages.md", "profile/design.md",
-                 "jobs/tracker.csv", "jobs/leads.csv", "contacts/contacts.csv", "history/activity.md",
+                 "profile/setup-progress.md", "jobs/tracker.csv", "jobs/leads.csv", "contacts/contacts.csv", "history/activity.md",
                  "pages/dashboard.html", "knowledge/field/field-primer.md", "knowledge/field/background.md")
+PROGRESS = b"resume, status, preferences, field-pack"
 THROWAWAY = ("jobs/acme-operations-analyst/resume.check.pdf", "jobs/.DS_Store", "outbox/.DS_Store",
              "pages/Thumbs.db", "pages/.publish/dashboard.html", "pages/.preview/dashboard-ocean.html")
 LOCKS = ("jobs/~$tracker.csv", "jobs/acme-operations-analyst/~$cover-letter.docx")
@@ -258,6 +260,10 @@ def populate(ws, outside, links_ok, locks=True):
     wbytes(p, text + b"\nE2E-MARKER-PREFERENCES name: Alex Rivera\n")
     for r in STARTER_EDITS:
         f = J(ws, r)
+        if r == "profile/setup-progress.md":   # the setup checklist: sections finished so far
+            text = rbytes(f)
+            wbytes(f, text.replace(b"\nsetup_progress:", b"\nsetup_progress: " + PROGRESS, 1))
+            continue
         if r.endswith(".csv"):
             add = b"Acme Corp,Operations Analyst,applied,2026-10-01\r\n"
         elif r == "history/activity.md":
@@ -561,6 +567,9 @@ def scenario_main(R, impl, base, pristine, outside, links_ok, blank):
              act[len(bl):].decode("utf-8", "replace")) is not None, act[len(bl):])
     R.ok("%s preferences say SETUP: not done" % tag,
          b"\nSETUP: not done" in users.get("profile/preferences.md", ("", b""))[1])
+    sp = users.get("profile/setup-progress.md", ("", b""))[1]
+    R.ok("%s the setup checklist is back to blank (no sections listed)" % tag,
+         re.findall(rb"(?m)^setup_progress:.*$", sp) in ([b"setup_progress:"], [b"setup_progress:\r"]), sp[-300:])
     R.ok("%s folder guides (README.md, .gitkeep) are kept byte-identical" % tag,
          all(s2.get(g) == s1.get(g) for g in GUIDES), [g for g in GUIDES if s2.get(g) != s1.get(g)])
     R.ok("%s .backup/ (update copies) is removed" % tag, not os.path.lexists(J(ws, ".backup")))
@@ -598,7 +607,8 @@ def unpack(R, impl, tag, zp, unpack_parent, what):
          and any(k.startswith("jobs/") for k in z["files"]), "tops=%s" % z["tops"])
     unpack_dir = os.path.join(unpack_parent, "job-search-restore-" + time.strftime("%Y-%m-%d"))
     os.makedirs(unpack_dir)  # a new, empty folder outside the workspace
-    if impl == "sh":
+    # Windows always unpacks with Expand-Archive (restore.md step 3): Git Bash's unzip garbles accented names.
+    if impl == "sh" and os.name != "nt":
         rc, out = run([find_bash(), "-c", 'command -v unzip >/dev/null || exit 99; unzip -n "$1" -d "$2"', "_",
                        bpath(zp), bpath(unpack_dir)])
         if rc == 99:
@@ -667,6 +677,9 @@ def restore_after_reset(R, impl, base, ws, zp, exp, blank, outside, out0, links_
     R.ok("%s restore after a reset brings back preferences, master resume, tracker, contacts, field pack and pages "
          "(files that also have a starter copy)" % tag, not bad_coll,
          "%d of %d still hold the blank starter instead of the backup: %s" % (len(bad_coll), len(coll), bad_coll))
+    sp = users.get("profile/setup-progress.md") or b""
+    R.ok("%s restore brings back the setup checklist with the sections finished before the reset" % tag,
+         re.search(rb"(?m)^setup_progress: " + re.escape(PROGRESS) + rb"\r?$", sp) is not None, sp[:300])
     reset_log = s_reset["history/activity.md"][1]
     bl = rbytes(J(ws, "templates/blank/history/activity.md"))
     act = users.get("history/activity.md") or b""

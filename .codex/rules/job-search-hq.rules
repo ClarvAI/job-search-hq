@@ -1,0 +1,36 @@
+# Codex rules for this folder (they load only after you trust the folder).
+# Making a resume PDF or checking its length starts Chrome/Edge in headless mode, which Codex's sandbox
+# blocks on macOS, so Codex would ask before every PDF. These two scripts only read the page you name and
+# write the PDF next to it, so they may run outside the sandbox without asking. Nothing else is allowed here.
+# Claude's matching allow-list entries are in .claude/settings.json.
+
+prefix_rule(
+    pattern = ["bash", ".claude/skills/tailor-resume/scripts/make-pdf.sh"],
+    decision = "allow",
+    justification = "Makes the resume or cover-letter PDF with headless Chrome/Edge; reads the named page, writes the PDF beside it.",
+    match = [
+        ["bash", ".claude/skills/tailor-resume/scripts/make-pdf.sh", "jobs/acme-analyst/resume.html", "Alex Rivera", "Acme"],
+    ],
+    not_match = [
+        ["bash", ".claude/skills/tailor-resume/scripts/other.sh"],
+        ["bash", "-c", "rm -rf jobs"],
+    ],
+)
+
+prefix_rule(
+    pattern = ["bash", ".claude/skills/tailor-resume/scripts/page-count.sh"],
+    decision = "allow",
+    justification = "Counts the pages of a resume with headless Chrome/Edge; reads the named page only.",
+    match = [
+        ["bash", ".claude/skills/tailor-resume/scripts/page-count.sh", "jobs/acme-analyst/resume.html"],
+    ],
+)
+
+prefix_rule(
+    pattern = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", ".claude\\skills\\tailor-resume\\scripts\\make-pdf.ps1"],
+    decision = "allow",
+    justification = "Windows: makes the PDF, or checks its length with -CheckOnly, with headless Chrome/Edge.",
+    match = [
+        ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", ".claude\\skills\\tailor-resume\\scripts\\make-pdf.ps1", "jobs\\acme-analyst\\resume.html", "-CheckOnly"],
+    ],
+)
