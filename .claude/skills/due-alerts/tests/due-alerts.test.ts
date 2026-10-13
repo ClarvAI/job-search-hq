@@ -340,3 +340,29 @@ test('the 2-message cap is for people who have not replied: a reminder for someo
   expect(toasts.join('\n')).not.toContain('Sam Roe')
   expect(toasts.join('\n')).not.toContain('Robin Fox')
 })
+
+test('a tidied row: an interview date in the text that date_order would misread gives way to the clear next_action_date (review J5-11)', async ($, on) => {
+  // The panel tidied 25/10 -> ISO; the text still says 7/10 (day-first, as that row was written). date_order MDY would
+  // read it as July 10; the clear column 2026-10-07 is one of its two readings, so it wins.
+  const { toasts } = setup(on, { ...US, ...tracker('Umbrella Health,Nurse Educator,interviewing,2026-10-07,Interview 7/10/2026 10am,2026-10-25,B,4,Leeds,2026-09-15,2026-09-16,,,,,,,0,umbrella-ne,') })
+  await $.session.start(START as never)
+  expect(toasts[0]).toBe('Interview tomorrow with Umbrella Health (Nurse Educator). Open your prep: /interview-prep umbrella-ne')
+})
+
+test('a column date that is neither reading of the text does not override it', async ($, on) => {
+  // The text 10/9 read as Oct 9 under MDY; the column (Oct 7) is not a reading of 10/9, so the text stands: no alert today/tomorrow.
+  const { toasts } = setup(on, { ...US, ...tracker('Umbrella Health,Nurse Educator,interviewing,2026-10-07,Interview 10/9/2026 10am,,B,4,Leeds,2026-09-15,2026-09-16,,,,,,,0,umbrella-ne,') })
+  await $.session.start(START as never)
+  expect(toasts.join(' ')).not.toContain('Interview tomorrow')
+})
+
+test('a signed contract\'s end reminder ("Decide next step" on an accepted row) alerts; other accepted rows never do (review J2-12)', async ($, on) => {
+  const { toasts } = setup(on, tracker(
+    'Acme Staffing,Contract Analyst,accepted,2026-10-06,Decide next step,,A,5,Remote,2026-03-01,2026-03-02,,,,,,,0,acme-ca,contract 6 months',
+    'Globex,Planner,accepted,2026-10-05,Start work,,A,5,CO,2026-08-01,2026-08-02,,,,,,,0,globex-pl,',
+  ))
+  await $.session.start(START as never)
+  const all = toasts.join(' ')
+  expect(all).toContain('Acme Staffing (Contract Analyst): Decide next step')
+  expect(all).not.toContain('Globex')
+})

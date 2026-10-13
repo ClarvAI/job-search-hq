@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Fixture tests for the health check (.claude/skills/health/scripts/health.sh, or health.ps1 with
 # --impl ps) on scratch copies of the workspace: an edited app template, a missing VERSION file, a
-# startup-hook time stamp from another app, and Windows line endings in a skill script.
+# startup-hook time stamp from another app (or an old one in Codex), Claude's disableAllHooks seen from Codex, and
+# Windows line endings in a skill script.
 # Usage: bash scripts/ci/health-fixtures.sh [--impl sh|ps]   (PowerShell from $PS_EXE, else pwsh)
 set -u
 IMPL="sh"
@@ -52,9 +53,10 @@ if rel in d:
 json.dump(d, open(p, "w", encoding="utf-8"), indent=2)
 PY
 done
-run() {
-  if [ "$IMPL" = ps ]; then (cd "$W" && "$PS" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .claude/skills/health/scripts/health.ps1 -App claude 2>&1)
-  else (cd "$W" && CLAUDE_CODE_SESSION_ID='' bash .claude/skills/health/scripts/health.sh claude 2>&1); fi
+run() {  # run [claude|codex]
+  local app="${1:-claude}"
+  if [ "$IMPL" = ps ]; then (cd "$W" && "$PS" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .claude/skills/health/scripts/health.ps1 -App "$app" 2>&1)
+  else (cd "$W" && CLAUDE_CODE_SESSION_ID='' bash .claude/skills/health/scripts/health.sh "$app" 2>&1); fi
 }
 has() {
   if printf '%s\n' "$OUT" | grep -qE -- "$2"; then pass=$((pass + 1)); printf 'PASS  %s\n' "$1"
@@ -74,6 +76,21 @@ has "edited template noted" '^NOTE: app templates: .*templates/resume-template.h
 has "marker from the other app is not proof" '^NOTE: hooks running: not confirmed for claude'
 has "CRLF in a skill script found" '^FIX: script line endings: .*demo.sh'
 has "fresh-copy advice when VERSION is missing" 'fresh copy'
+
+# Codex has no session id: only a marker from the last few minutes counts as proof for this chat (review J1-03).
+printf '%s codex\n' "$(date +%s)" > "$W/.claude/.health/last-session-start"
+OUT="$(run codex)"
+has "codex: a marker from just now is OK" '^OK: hooks running: the startup hook last ran just now \(codex\)'
+printf '%s codex\n' "$(( $(date +%s) - 7200 ))" > "$W/.claude/.health/last-session-start"
+OUT="$(run codex)"
+has "codex: a marker from 2 hours ago is not proof for this chat" '^NOTE: hooks running: not confirmed for this chat: .*2 hours ago'
+# Claude's disableAllHooks is a note about Claude when health runs in Codex, and a fix in Claude (review J1-04).
+printf '{ "disableAllHooks": true }\n' > "$W/.claude/settings.local.json"
+OUT="$(run codex)"
+has "codex: Claude's disableAllHooks is a note about Claude only" '^NOTE: hook setup: .*Note for Claude Code only: hooks are switched off'
+OUT="$(run claude)"
+has "claude: disableAllHooks is a fix" '^FIX: hook setup: hooks are switched off in .*settings.local.json'
+rm -f "$W/.claude/settings.local.json"
 
 echo
 echo "health fixtures ($IMPL): passed $pass, failed $fail"

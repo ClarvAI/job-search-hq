@@ -2,7 +2,7 @@ import { expect, test } from 'claude-code/testing'
 
 // The same test file sits next to every copy of csvdate.ts (Pipeline, Contacts, Apply Kit, Job Inbox,
 // Due Alerts), so all five copies are held to the same rules.
-import { activityLine, addDays, alsoOf, appendLine, colOf, columnsOf, csvTrouble, dateOrder, fingerprint, isExcelLock, isIso, jobKey, openInExcel, orderFor, pageOf, parseCsv, plain, readCsv, rowKept, rowKey, rowOrder, saveRow, toCsv, toIso } from '../hooks/csvdate'
+import { activityLine, addDays, alsoOf, appendLine, colOf, columnsOf, csvTrouble, dateOrder, fingerprint, isExcelLock, isIso, jobKey, openInExcel, orderFor, pageOf, parseCsv, plain, readCsv, rowKept, rowKey, rowOrder, saveRow, tidyTextDates, toCsv, toIso } from '../hooks/csvdate'
 import type { FileIo } from '../hooks/csvdate'
 
 test('a quote mark only opens a quoted cell at the start of the cell', async () => {
@@ -204,3 +204,36 @@ test('an empty contacts file starts from its header; the Excel lock check and th
   expect(log['history/activity.md']).toBe('# Recent activity\n- line one\n- from Codex\n- line two\n')
 })
 test('columnsOf finds columns like colOf', async () => { const col = columnsOf([' Company ', 'role', 'role']); expect(col('company')).toBe(0); expect(col('role')).toBe(1); expect(col('x')).toBe(-1) })
+
+test('a date inside free text is tidied only when the order is known and needed; an unclear one stays as written', async () => {
+  expect(tidyTextDates('Interview 11/12/2026 2pm', 'dmy')).toBe('Interview 2026-12-11 2pm')
+  expect(tidyTextDates('Interview 11/12/2026 2pm', 'mdy')).toBe('Interview 2026-11-12 2pm')
+  expect(tidyTextDates('Call 3/4 at noon', 'dmy')).toBe('Call Apr 3 at noon')
+  expect(tidyTextDates('Interview 11/12/2026', '')).toBe('Interview 11/12/2026')
+  // Already certain by itself (a part over 12, both parts equal, dotted, ISO): left alone.
+  expect(tidyTextDates('Interview 25/10/2026', 'mdy')).toBe('Interview 25/10/2026')
+  expect(tidyTextDates('Interview 3/3/2026', 'dmy')).toBe('Interview 3/3/2026')
+  expect(tidyTextDates('Interview 11.12.2026 and 2026-11-12', 'mdy')).toBe('Interview 11.12.2026 and 2026-11-12')
+  // Not a real day, or part of a longer number or path: left alone.
+  expect(tidyTextDates('Interview 2/30/2026', 'mdy')).toBe('Interview 2/30/2026')
+  expect(tidyTextDates('Room 1/2/3/4', 'mdy')).toBe('Room 1/2/3/4')
+  expect(tidyTextDates('Two dates 1/2/2026 and 3/4/2026', 'dmy')).toBe('Two dates 2026-02-01 and 2026-04-03')
+})
+
+test('two saves to the same file from one panel run one after the other: the second sees the first and is refused, never interleaved (review J5-01)', async () => {
+  const csv = 'company,role,status,folder\nGlobex,Planner,interested,globex-pl\nInitech,Clerk,interested,initech-cl\n'
+  const files: Record<string, string> = { 'jobs/tracker.csv': csv }
+  // A slow disk: every read and write waits a little, so unqueued saves would overlap.
+  const slow = memory(files)
+  const io: FileIo = { ...slow, read: async p => { await new Promise(r => setTimeout(r, 5)); return slow.read(p) }, write: async (p, t) => { await new Promise(r => setTimeout(r, 5)); return slow.write(p, t) } }
+  const initech = SAVE(fingerprint(csv), { find: (header: string[], rows: string[][]) => rows.find(r => rowKey(header, r, jobKey) === 'initech|clerk|initech-cl') })
+  const [a, b] = await Promise.all([saveRow(io, 'jobs/tracker.csv', SAVE(fingerprint(csv))), saveRow(io, 'jobs/tracker.csv', initech)])
+  expect(a.ok).toBe(true)
+  expect(b.ok ? 'ok' : b.why).toBe('changed')
+  expect(files['jobs/tracker.csv']).toContain('Globex,Planner,applied')
+  expect(files['jobs/tracker.csv']).toContain('Initech,Clerk,interested')
+  // Log lines added at the same moment are all kept, in order.
+  const lines = ['- a\n', '- b\n', '- c\n']
+  await Promise.all(lines.map(l => appendLine(io, 'history/activity.md', l)))
+  expect(files['history/activity.md']).toBe('# Recent activity\n- a\n- b\n- c\n')
+})

@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
 import type { Job, Notice, Summary } from '../types'
-import { activityLine, addDays, alsoOf, appendLine, colOf, columnsOf, csvTrouble, dateOrder, daysBetween, fingerprint, isIso, jobKey, localDate, orderFor, pageOf, readCsv, rowKey, saveRow, toIso } from './csvdate'
+import { activityLine, addDays, alsoOf, appendLine, colOf, columnsOf, csvTrouble, dateOrder, daysBetween, fingerprint, isIso, jobKey, localDate, orderFor, pageOf, readCsv, rowKey, saveRow, tidyTextDates, toIso } from './csvdate'
 import type { DateOrder, FileIo } from './csvdate'
 
 // Pipeline: the user's interactive job board. It reads jobs/tracker.csv (the single source of truth),
@@ -16,6 +16,9 @@ const BOM = String.fromCharCode(0xfeff)
 // A byte-order mark only counts at the very start of a file.
 const noBom = (t: string) => (t.startsWith(BOM) ? t.slice(1) : t)
 const OPEN = ['interested', 'applied', 'screening', 'interviewing', 'offer']
+// An accepted contract whose next step is the end-of-contract reminder, with a date (freelance guide, section 5).
+const isContractReminder = (j: { status: string; nextAction: string; nextDate: string }) =>
+  j.status === 'accepted' && /^\s*decide next step/i.test(j.nextAction) && isIso(j.nextDate)
 const STAGES = [
   { value: 'interested', label: 'To apply' },
   { value: 'applied', label: 'Applied' },
@@ -107,8 +110,10 @@ async function load($: any): Promise<Summary> {
   const rank = (j: Job) => !isDue(j) ? 9 : j.status === 'offer' ? 0 : isInterview(j.nextAction) || isInterview(j.also) ? 1 : j.status === 'interested' && isIso(j.deadline) ? 2 : 3
   const firstDate = (j: Job) => [j.nextDate, j.alsoDate].filter(isIso).sort()[0] ?? '9999'
   const byUrgency = (a: Job, b: Job) => rank(a) - rank(b) || firstDate(a).localeCompare(firstDate(b))
-  const active = jobs.filter(j => OPEN.includes(j.status)).sort(byUrgency)
-  const closed = jobs.filter(j => !OPEN.includes(j.status))
+  // A signed contract's end reminder ("Decide next step" on an accepted row; knowledge/freelance-and-contract.md)
+  // stays on the board with the open jobs while it has a date, so it shows up as due like any next step.
+  const active = jobs.filter(j => OPEN.includes(j.status) || isContractReminder(j)).sort(byUrgency)
+  const closed = jobs.filter(j => !OPEN.includes(j.status) && !isContractReminder(j))
   const due = active.filter(isDue)
   let drafts = 0
   if (await $.fs.exists('outbox')) {
@@ -190,6 +195,9 @@ async function saveJob($: any, key: string, change: Change): Promise<void> {
       for (const c of DATE_COLS) { const i = colOf(header, c); if (i >= 0 && target[i]) target[i] = toIso(target[i], o) }
       const ni = colOf(header, 'notes')
       if (ni >= 0 && target[ni]) target[ni] = tidyAlso(target[ni] ?? '', o)
+      // A date inside the next step ("Interview 11/12/2026") is tidied with the same order, for the same reason.
+      const ai = colOf(header, 'next_action')
+      if (ai >= 0 && target[ai]) target[ai] = tidyTextDates(target[ai] ?? '', o)
       const out = change(get, set, today, o)
       return typeof out === 'string' ? { what: out } : out
     },
@@ -209,18 +217,30 @@ async function saveJob($: any, key: string, change: Change): Promise<void> {
   }).catch(() => undefined)
 }
 
+// Business days to the first follow-up after applying (playbook "Follow-up cadence"; the Apply Kit and the apply skill
+// use the same rule): 7, or 4 for an hourly or shift job (posting.md's `employment:` is part-time, temporary or
+// seasonal, or its pay is posted per hour).
+function followUpDays(posting: string): number {
+  const head = /^\s*---\r?\n([\s\S]*?)\r?\n---/.exec(posting)?.[1] ?? ''
+  const value = (k: string) => (new RegExp(`^${k}:[ \\t]*(.*)$`, 'mi').exec(head)?.[1] ?? '').toLowerCase()
+  const hourly = /part[\s-]?time|temporary|seasonal/.test(value('employment')) || /(?:\/|\bper|\ban|\ba)\s*(?:hour|hr)\b|hourly/.test(value('pay_range'))
+  return hourly ? 4 : 7
+}
+
 async function setStage($: any, job: Job, status: string): Promise<void> {
   if (status === job.status) return
+  const posting: string = status === 'applied' && job.folder ? String(await $.fs.read(`jobs/${job.folder}/posting.md`).catch(() => '')) : ''
+  const days = followUpDays(posting)
   await saveJob($, job.key, (get, set, today) => {
     set('status', status)
     let extra = ''
     const asks: string[] = []
     if (status === 'applied' && get('date_applied') === '') {
-      // Same as the Apply Kit's "Mark applied": follow up in 7 business days (playbook, "Follow-up cadence").
+      // Same as the Apply Kit's "Mark applied": follow up in 7 business days, 4 for an hourly or shift job.
       const contact = get('contact').split(/[;,]/)[0]?.trim() ?? ''
       set('date_applied', today)
       set('next_action', contact ? `Follow up with ${contact}` : 'Follow up')
-      set('next_action_date', addDays(today, 7, true))
+      set('next_action_date', addDays(today, days, true))
       if (get('followups') === '') set('followups', '0')
       extra = `; follow-up set for ${get('next_action_date')}`
     }
@@ -408,7 +428,7 @@ export const register: Register = on => {
       const named = (visible: string) => `${visible} (${j.company}${j.role ? `, ${j.role}` : ''})`
       // A stage change can move the card to the closed list (hidden): the focus goes to Refresh then.
       const toStage = async (v: string) => { await setStage($, j, v); focusOn($, OPEN.includes(v) ? `${j.key}:edit` : 'refresh') }
-      const isDue = isOpenJob && isIso(j.nextDate) && j.nextDate <= s.today
+      const isDue = (isOpenJob || isContractReminder(j)) && isIso(j.nextDate) && j.nextDate <= s.today
       const isEditing = open === j.key
       return (
         <Box key={j.key} flexDirection="column" borderStyle="round" paddingX={1}>

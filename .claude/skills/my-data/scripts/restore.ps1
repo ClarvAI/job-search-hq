@@ -112,7 +112,10 @@ function Get-Tree([string]$base, [string]$top) {
 
 # Excel and Word leave a ~$<name> lock file next to an open file; writing under them loses the change.
 $locks = New-Object System.Collections.Generic.List[string]
-foreach ($x in $Dirs) { foreach ($e in @(Get-Tree $Root $x)) { if ((Split-Path -Leaf $e.rel) -like '~$*') { $locks.Add($e.rel) } } }
+# A folder that can't be read throws (ErrorActionPreference Stop): stop before anything is changed, as restore.sh does.
+try {
+  foreach ($x in $Dirs) { foreach ($e in @(Get-Tree $Root $x)) { if ((Split-Path -Leaf $e.rel) -like '~$*') { $locks.Add($e.rel) } } }
+} catch { Fail "could not look through the user folders here for open files (a folder can't be read; nothing was changed)" }
 $lockList = [string[]]$locks.ToArray(); [Array]::Sort($lockList, [StringComparer]::Ordinal)
 foreach ($l in $lockList) { Write-Output "open: $l" }
 if ($lockList.Count -gt 0 -and -not $DryRun) { Fail "a file is open in Excel or Word (see the open: lines; each ~`$ file is its lock). Close it, then run the restore again. (nothing was changed)" }
@@ -127,10 +130,12 @@ foreach ($t in $tops) { if ($known -notcontains $t) { Write-Output "ignored: $t"
 if (Test-Link $kn) { Write-Output "skipped link: knowledge" }
 
 $entries = New-Object System.Collections.Generic.List[object]
-foreach ($x in $Dirs) {
-  if ($x -like 'knowledge/*' -and (Test-Link $kn)) { continue }
-  foreach ($e in @(Get-Tree $B $x)) { $entries.Add($e) }
-}
+try {
+  foreach ($x in $Dirs) {
+    if ($x -like 'knowledge/*' -and (Test-Link $kn)) { continue }
+    foreach ($e in @(Get-Tree $B $x)) { $entries.Add($e) }
+  }
+} catch { Fail "could not list the backup's files (a folder in it can't be read; nothing was changed)" }
 $keys = [string[]]@($entries | ForEach-Object { $_.rel }); $items = $entries.ToArray()
 [Array]::Sort($keys, $items, [StringComparer]::Ordinal)
 

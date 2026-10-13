@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
 import type { Field, FileItem, Job, Kit, Notice, Section } from '../types'
-import { activityLine, addDays, appendLine, colOf, columnsOf, csvTrouble, dateOrder, fingerprint, isIso, jobKey, localDate, orderFor, pageOf, readCsv, rowKey, saveRow, toIso } from './csvdate'
+import { activityLine, addDays, appendLine, colOf, columnsOf, csvTrouble, dateOrder, fingerprint, isIso, jobKey, localDate, orderFor, pageOf, readCsv, rowKey, saveRow, tidyTextDates, toIso } from './csvdate'
 import type { DateOrder, FileIo } from './csvdate'
 
 // Apply Kit: while the user fills in an online application form themselves, this pane shows every
@@ -32,6 +32,21 @@ const ID_LIKE = /\d(?:[\s./-]?\d){4,}/
 const SENSITIVE_VALUE = /\b\d{3}-\d{2}-\d{4}\b|\bpass(?:word|wd)?\s*[:=]\s*\S/i
 // Follow-up timing from knowledge/job-search-playbook.md: applied online, no response -> 7-10 business days.
 const FOLLOW_UP_BUSINESS_DAYS = 7
+// An hourly or shift job is followed up sooner (playbook "Follow-up cadence": 3-5 business days, the app sets 4):
+// posting.md's `employment:` is part-time, temporary or seasonal, or its pay is posted per hour (apply step 6).
+const HOURLY_FOLLOW_UP_BUSINESS_DAYS = 4
+function followUpDays(head: Record<string, string>): number {
+  const employment = (head.employment ?? '').toLowerCase()
+  const pay = (head.pay_range ?? '').toLowerCase()
+  const hourly = /part[\s-]?time|temporary|seasonal/.test(employment) || /(?:\/|\bper|\ban|\ba)\s*(?:hour|hr)\b|hourly/.test(pay)
+  return hourly ? HOURLY_FOLLOW_UP_BUSINESS_DAYS : FOLLOW_UP_BUSINESS_DAYS
+}
+// A resume page counts as checked only once resume-notes.md beside it holds the requirement coverage: tailor-resume
+// writes that only after the truth, voice and recruiter checks, while resume.html already exists from before them.
+function hasCoverage(notes: string): boolean {
+  const text = notes.replace(/<!--[\s\S]*?-->/g, '')
+  return /coverage/i.test(text) && /\b(?:not met|partly(?: met)?|met)\b/i.test(text)
+}
 
 const kit = atom({ plugin: 'apply-kit', key: 'kit' } as const, null as Kit | null)
 const chosen = atom({ plugin: 'apply-kit', key: 'chosen' } as const, '')
@@ -374,7 +389,9 @@ async function filesFor($: any, dir: string, job: Job, name: string, documents: 
   // sources: the formatted .html page the user prints to PDF. draft: the text-only version (Markdown),
   // which is not something to print or upload; it means Claude still has to build the page.
   // newer: other files a PDF is made from (resume.md, the RenderCV file); a PDF older than one of them is out of date.
-  const doc = async (label: string, kind: string, sources: string[], command: string, need: 'required' | 'optional' | 'none', draft = '', newer: string[] = []) => {
+  // checked: whether a page that exists has passed its checks (else it isn't offered as ready to print).
+  // A PDF counts as current only when it is newer than every source file that exists (the pages, the text, RenderCV).
+  const doc = async (label: string, kind: string, sources: string[], command: string, need: 'required' | 'optional' | 'none', draft = '', newer: string[] = [], checked: () => Promise<boolean> = async () => true) => {
     const pdf = person ? `${person}-${kind}-${company}.pdf` : ''
     const shown = pdf || `${MISSING} (your name isn't in your profile yet)`
     let source = ''
@@ -383,7 +400,7 @@ async function filesFor($: any, dir: string, job: Job, name: string, documents: 
     const check = pdf ? entry(pdf.replace(/\.pdf$/, '-CHECK.pdf')) : undefined
     if (found) {
       const isStale = source !== '' && mtime(source) > found.mtimeMs
-      const changedText = [draft, ...newer].filter(Boolean).find(f => mtime(f) > found.mtimeMs) ?? ''
+      const changedText = [draft, ...newer, ...sources.filter(x => x !== source)].filter(Boolean).find(f => mtime(f) > found.mtimeMs) ?? ''
       if (found.size < MIN_PDF_BYTES) {
         items.push({ label, name: found.name, status: `This PDF looks empty or broken. ${source ? `Open ${source} in your browser, Print, Save as PDF with this name (replace the old file), and check it.` : 'Ask Claude to make it again.'}`, isReady: false, fix: source ? '' : `${command} ${job.folder || `${job.company} ${job.role}`}` })
       } else if (changedText !== '' && !isStale) {
@@ -400,7 +417,9 @@ async function filesFor($: any, dir: string, job: Job, name: string, documents: 
       items.push({ label, name: shown, status: `${check.name} needs a look first: the PDF maker couldn't confirm it came out right (an application system may not be able to read it). Don't rename it: ask Claude to make it again.`, isReady: false, fix: `${command} ${job.folder || `${job.company} ${job.role}`}` })
       return
     }
-    if (source) {
+    if (source && !(await checked())) {
+      items.push({ label, name: shown, status: `The ${label.toLowerCase()} page (${source}) is built, but its checks aren't finished yet, so don't print it. Ask Claude to finish the checks and make the PDF.`, isReady: false, fix: `${command} ${job.folder || `${job.company} ${job.role}`}` })
+    } else if (source) {
       items.push({ label, name: shown, status: `Ready to save: open ${source} in your browser, Print, Save as PDF with this name.`, isReady: true, fix: '' })
     } else if (draft && (await exists(draft))) {
       items.push({ label, name: shown, status: `The ${label.toLowerCase()} text is drafted. Ask Claude to finish its checks, build the formatted ${label.toLowerCase()}, and create the PDF.`, isReady: false, fix: `${command} ${job.folder || `${job.company} ${job.role}`}` })
@@ -410,7 +429,9 @@ async function filesFor($: any, dir: string, job: Job, name: string, documents: 
       items.push({ label, name: shown, status: need === 'required' ? 'Not made yet, and this job needs one.' : 'Not made yet (optional for this job).', isReady: false, fix: `${command} ${job.folder || `${job.company} ${job.role}`}` })
     }
   }
-  await doc('Resume', 'Resume', ['resume.html'], '/tailor-resume', 'required', 'resume.md', ['resume.rendercv.yaml'])
+  // An academic or Europass CV is cv.html (tailor-resume, "Other formats"); its PDF keeps the -Resume- name.
+  const notes = async () => { try { return hasCoverage(String(await $.fs.read(`${dir}/resume-notes.md`))) } catch { return false } }
+  await doc('Resume', 'Resume', ['resume.html', 'cv.html'], '/tailor-resume', 'required', 'resume.md', ['resume.rendercv.yaml'], notes)
   const docs = documents.toLowerCase()
   const letterNeed = /cover letter[^,]*optional/.test(docs) ? 'optional' : /cover letter/.test(docs) ? 'required' : 'none'
   await doc('Cover letter', 'Cover-Letter', ['cover-letter.html'], '/cover-letter', letterNeed, 'cover-letter.md')
@@ -467,11 +488,13 @@ async function build($: any, want: string): Promise<Kit> {
   let hasAnswers = false
   let files: FileItem[] = []
   let posted = ''
+  let days = FOLLOW_UP_BUSINESS_DAYS
   if (job) {
     const dir = job.folder ? `jobs/${job.folder}` : ''
     const posting = frontmatter(dir ? await readText($, `${dir}/posting.md`) : '')
     const p = posting.head
     posted = p.pay_range ?? ''
+    days = followUpDays(p)
     sections.push({
       title: 'This job',
       note: dir ? '' : 'This job has no folder yet, so there are no drafted answers or files. Paste the posting link to Claude to set it up.',
@@ -509,7 +532,7 @@ async function build($: any, want: string): Promise<Kit> {
   // The tracker as it is now: its problems, and the fingerprint "Mark applied" checks before saving.
   const rawTracker: string = (await $.fs.exists(TRACKER).catch(() => false)) ? await $.fs.read(TRACKER).then(String, () => '') : ''
   const problem = csvTrouble(readCsv(rawTracker).problem, 'Your tracker (jobs/tracker.csv)')
-  return { today, job, jobs, sections, questions, hasAnswers, files, followUpDate: addDays(today, FOLLOW_UP_BUSINESS_DAYS, true), problem, sig: fingerprint(rawTracker) }
+  return { today, job, jobs, sections, questions, hasAnswers, files, followUpDate: addDays(today, days, true), problem, sig: fingerprint(rawTracker) }
 }
 
 async function refresh($: any): Promise<Kit> {
@@ -543,6 +566,7 @@ function io($: any): FileIo {
 async function markApplied($: any, job: Job): Promise<void> {
   const today = localDate(await $.clock.now())
   const order = dateOrder(await readText($, PREFS))
+  const days = followUpDays(frontmatter(job.folder ? await readText($, `jobs/${job.folder}/posting.md`) : '').head)
   const seen = (await read($, kit))?.sig ?? ''
   const nextAction = (contact: string) => (contact ? `Follow up with ${contact}` : 'Follow up')
   let already = ''
@@ -558,7 +582,10 @@ async function markApplied($: any, job: Job): Promise<void> {
       for (const c of DATE_COLS) { const i = colOf(header, c); if (i >= 0 && target[i]) target[i] = toIso(target[i], o) }
       const ni = colOf(header, 'notes')
       if (ni >= 0 && target[ni]) target[ni] = tidyAlso(target[ni] ?? '', o)
-      const out = { nextAction: nextAction(get('contact').split(/[;,]/)[0]?.trim() ?? ''), nextDate: addDays(today, FOLLOW_UP_BUSINESS_DAYS, true) }
+      // A date inside the next step ("Interview 11/12/2026") is tidied with the same order, for the same reason.
+      const ai = colOf(header, 'next_action')
+      if (ai >= 0 && target[ai]) target[ai] = tidyTextDates(target[ai] ?? '', o)
+      const out = { nextAction: nextAction(get('contact').split(/[;,]/)[0]?.trim() ?? ''), nextDate: addDays(today, days, true) }
       set('status', 'applied')
       set('date_applied', today)
       set('next_action', out.nextAction)

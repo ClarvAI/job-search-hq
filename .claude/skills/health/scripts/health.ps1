@@ -113,8 +113,13 @@ if (-not ($settings.Contains('guard.sh') -and $settings.Contains('session-start.
         # disableAllHooks turns every hook off; allowManagedHooksOnly turns off this folder's own hooks.
         if ((Read-Text $f) -match '"(disableAllHooks|allowManagedHooksOnly)"\s*:\s*true') { $managed = $f }
     }
-    if ($managed) {
+    # These are Claude Code settings: in Codex (which has its own hooks, .codex/hooks.json) they are a note about Claude.
+    if ($managed -and $App -eq 'codex') {
+        Say-Note 'hook setup' "Codex's safety checks are set up. Note for Claude Code only: this computer's managed settings ($managed) switch off this folder's hooks there, so if you also use Claude Code, don't connect Gmail in it."
+    } elseif ($managed) {
         Say-Fix 2 'hook setup' "this computer's managed settings ($managed) switch off this folder's hooks, so in Claude Code nothing blocks email sending. Only whoever manages this computer can change that; until then, don't connect Gmail in Claude Code."
+    } elseif ($off -and $App -eq 'codex') {
+        Say-Note 'hook setup' "Codex's safety checks are set up. Note for Claude Code only: hooks are switched off there in $off (`"disableAllHooks`": true); if you also use Claude Code, remove that line and restart it."
     } elseif ($off) {
         Say-Fix 2 'hook setup' "hooks are switched off in $off (`"disableAllHooks`": true), so nothing blocks email sending. Remove that line, then restart the app."
     } else {
@@ -149,6 +154,13 @@ if (-not ((Read-Text (Join-Path $root '.claude/hooks/session-start.sh')).Contain
         Say-Ok 'hooks running' "the startup hook ran in this session ($ago)"
     } elseif ($hereSid -and $sid -and $age -le 720) {
         Say-Note 'hooks running' "not confirmed for this session: the startup hook last ran $ago in another session. If this chat didn't open with the daily greeting, hooks aren't running, so the safety checks are off too. Reopen this folder and click Trust."
+    } elseif (-not $hereSid -and $age -le 10) {
+        if (-not $who) { $who = 'unknown app' }
+        Say-Ok 'hooks running' "the startup hook last ran $ago ($who)"
+    } elseif (-not $hereSid -and $age -le 720) {
+        # No session id to compare (Codex has none): a marker from hours ago may be another chat or another Codex client.
+        if (-not $who) { $who = 'unknown app' }
+        Say-Note 'hooks running' "not confirmed for this chat: the startup hook last ran $ago ($who), maybe in another chat. If this chat didn't open with the daily greeting, hooks aren't running here, so the safety checks are off too. $hooksOff"
     } elseif ($age -le 720) {
         if (-not $who) { $who = 'unknown app' }
         Say-Ok 'hooks running' "the startup hook last ran $ago ($who)"

@@ -41,11 +41,16 @@ export function normPlace(loc: string): string {
 
 // Same place when the city parts match word for word from the start: "Denver, CO" = "Denver CO" =
 // "Denver"; "New York, NY" = "New York"; but "York" is not "New York" (whole words, not substrings).
+// When both name a region after the comma, the regions must agree too (one may add words: "CO" = "CO, USA"):
+// "Cambridge, UK" is not "Cambridge, MA", so a second lead there is shown, not hidden as already tracked.
 export function samePlace(a: string, b: string): boolean {
   const pa = normPlace(a), pb = normPlace(b)
   if (pa === '' || pb === '' || pa === pb) return true
   const city = (t: string) => normPlace(t.split(/[,;(]/)[0] ?? '').split(' ').filter(Boolean)
   const prefix = (x: string[], y: string[]) => x.length > 0 && x.length <= y.length && x.every((w, i) => w === y[i])
+  const region = (t: string) => { const i = t.search(/[,;(]/); return i < 0 ? [] : normPlace(t.slice(i + 1)).split(' ').filter(Boolean) }
+  const ra = region(a), rb = region(b)
+  if (ra.length > 0 && rb.length > 0 && !prefix(ra, rb) && !prefix(rb, ra)) return false
   const ca = city(a), cb = city(b), wa = pa.split(' '), wb = pb.split(' ')
   return prefix(ca, cb) || prefix(cb, ca) || prefix(wa, wb) || prefix(wb, wa) || prefix(ca, wb) || prefix(cb, wa)
 }

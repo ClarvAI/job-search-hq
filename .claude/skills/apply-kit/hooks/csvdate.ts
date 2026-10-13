@@ -196,6 +196,26 @@ export function monthDay(a: number, b: number, order: DateOrder): [number, numbe
   return mo >= 1 && mo <= 12 && da >= 1 && da <= 31 ? [mo, da] : undefined
 }
 
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+// A date written inside free text (a next step like "Interview 11/12/2026 2pm" or "Call 3/4"), rewritten so that
+// it no longer depends on the row's order evidence: when a save tidies the row's date cells into YYYY-MM-DD, the
+// day-first cell that proved the order is gone, and the text would later be read with date_order instead.
+// Only slash dates whose order needs `order` (both parts 12 or under and different) change: with a year they
+// become YYYY-MM-DD, without one "Mon D" (a month name, so the year is never guessed here). With `order` blank,
+// or a date that isn't real, the text stays exactly as written ("date unclear" is never rewritten).
+export function tidyTextDates(text: string, order: DateOrder): string {
+  if (order === '') return text
+  return text.replace(/(^|[^\d/.])(\d{1,2})\/(\d{1,2})(?:\/(\d{4}|\d{2}))?(?![\d/])/g, (all, pre: string, a: string, b: string, y?: string) => {
+    const x = Number(a), z = Number(b)
+    if (x === z || x > 12 || z > 12) return all
+    const md = monthDay(x, z, order)
+    if (!md) return all
+    if (y) { const iso = build(y, md[0], md[1]); return iso ? `${pre}${iso}` : all }
+    return md[1] <= new Date(2024, md[0], 0).getDate() ? `${pre}${MONTH_NAMES[md[0] - 1]} ${md[1]}` : all
+  })
+}
+
 // "Also: Interview 2026-10-12" (or another commitment with a date) at the start of a job's notes:
 // the second dated commitment, kept there while next_action holds the earlier one.
 export function alsoOf(notes: string, order: DateOrder = ''): { text: string; date: string } | undefined {
@@ -277,10 +297,26 @@ export async function openInExcel(io: FileIo, path: string): Promise<boolean> {
   } catch { return false }
 }
 
+// One write at a time per file inside this panel: a second save or log line to the same file waits until the
+// first has finished (re-read, compare, write, check), so two quick presses never interleave between one save's
+// read and its write. Other panels and apps still can (there is no file lock in the panel API); saveRow's checks
+// catch those.
+const queues = new Map<string, Promise<unknown>>()
+export function oneAtATime<T>(path: string, run: () => Promise<T>): Promise<T> {
+  const next = (queues.get(path) ?? Promise.resolve()).then(run, run)
+  const tail = next.then(() => undefined, () => undefined)
+  queues.set(path, tail)
+  void tail.then(() => { if (queues.get(path) === tail) queues.delete(path) })
+  return next
+}
+
 // One line added to the end of history/activity.md. The file is re-read right before the write and
 // checked afterwards, so a line another app added meanwhile is kept and this one is not lost.
 // The log is a convenience: a failure here never blocks the save it describes.
-export async function appendLine(io: FileIo, path: string, lineOut: string): Promise<boolean> {
+export function appendLine(io: FileIo, path: string, lineOut: string): Promise<boolean> {
+  return oneAtATime(path, () => appendNow(io, path, lineOut))
+}
+async function appendNow(io: FileIo, path: string, lineOut: string): Promise<boolean> {
   const readNow = async (): Promise<string> => ((await io.exists(path)) ? String(await io.read(path)) : '# Recent activity\n\n')
   let wrote = false
   try {
@@ -336,7 +372,7 @@ export function saveTrouble(why: SaveWhy, name: string, problem = '', label = na
 //   edit:  changes that row in place through get/set; returns the result, or undefined to refuse (the
 //          panel then says why itself).
 //   blank: the header to start an empty file with (contacts), else an empty file is 'missing'.
-export async function saveRow<R>(io: FileIo, path: string, opts: {
+type SaveOpts<R> = {
   seen: string
   name: string
   label: string
@@ -344,7 +380,11 @@ export async function saveRow<R>(io: FileIo, path: string, opts: {
   edit: (row: string[], get: (c: string) => string, set: (c: string, v: string) => void, header: string[]) => R | undefined
   clean?: (v: string) => string
   blank?: string[]
-}): Promise<SaveResult<R>> {
+}
+export function saveRow<R>(io: FileIo, path: string, opts: SaveOpts<R>): Promise<SaveResult<R>> {
+  return oneAtATime(path, () => saveNow(io, path, opts))
+}
+async function saveNow<R>(io: FileIo, path: string, opts: SaveOpts<R>): Promise<SaveResult<R>> {
   const BOM_ = String.fromCharCode(0xfeff)
   const fail = (why: SaveWhy, problem = ''): SaveResult<R> => ({ ok: false, why, text: saveTrouble(why, opts.name, problem, opts.label) })
   let original: string

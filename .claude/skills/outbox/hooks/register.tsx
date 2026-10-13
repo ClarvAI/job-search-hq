@@ -337,7 +337,15 @@ async function tellClaude($: any, text: string): Promise<void> {
 }
 
 // One line in history/activity.md (same format as the other panels), so Codex or a later session sees the change.
-async function logActivity($: any, stamp: string, what: string): Promise<void> {
+// One log line at a time inside this panel, so two quick actions never interleave their read and write (other
+// apps still can; the re-read and check below keep their lines).
+let logQueue: Promise<unknown> = Promise.resolve()
+function logActivity($: any, stamp: string, what: string): Promise<void> {
+  const next = logQueue.then(() => logNow($, stamp, what), () => logNow($, stamp, what))
+  logQueue = next.then(() => undefined, () => undefined)
+  return next
+}
+async function logNow($: any, stamp: string, what: string): Promise<void> {
   const lineOut = `- ${stamp} · Outbox panel (Claude) · ${what.replace(/[\r\n]+/g, ' ')}\n`
   // Re-read right before the write and check afterwards, so a line another app added meanwhile is kept.
   const readNow = async (): Promise<string> => ((await $.fs.exists(ACTIVITY)) ? String(await $.fs.read(ACTIVITY)) : '# Recent activity\n\n')
@@ -428,7 +436,10 @@ async function mark($: any, draft: Draft, status: string, logText: string, paneT
 const MAIL_DENY = 'The user sends and manages their mail themselves. Save the message as a draft file in outbox/ and tell the user to type /outbox to review it.'
 function isBlockedMail(name: string): boolean {
   const last = (name.split('__').pop() ?? name).replace(/^(gmail|google_?mail|outlook_email|outlook_calendar|outlook|google_?calendar|gcal|superhuman|email|mail|calendar)_/i, '')
-  const isMail = /mail|outlook|superhuman/i.test(name)
+  // A calendar tool (an Outlook calendar connector too: its name holds "outlook") is not mail: the shared guard's
+  // calendar rule judges it (own calendar, no attendees). One that sends, replies to or forwards mail still counts as mail.
+  const isCalendar = (/calendar|gcal/i.test(name) || /(^|_)events?(_|$)/i.test(last)) && !/mail|message|reply|forward/i.test(last)
+  const isMail = /mail|outlook|superhuman/i.test(name) && !isCalendar
   const readOnly = /^(batch_read|batch_get|search|list|get|read|fetch|find|query|count|lookup|view|show|download)/i.test(last) || /^(create|update)(_or_update)?_?draft/i.test(last)
   return isMail && !readOnly
 }

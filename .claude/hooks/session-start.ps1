@@ -255,6 +255,21 @@ if (-not $hasTracker) {
             if ($folderKey -ne '') { $jobStatus[$folderKey] = $status }   # a contact tied to this job folder follows its status
             if ($counts.ContainsKey($status)) { $counts[$status]++ } else { $counts[$status] = 1 }
             if ((& $get 'next_action') -match '^\s*send withdrawal') { $withdraw.Add("$company ($(& $get 'role'))") }
+            # A finished search keeps one reminder: a signed contract's "Decide next step" about four weeks before it
+            # ends (knowledge/freelance-and-contract.md); due like any next step, but not an open application (like summary.sh).
+            if ($status -eq 'accepted' -and (& $get 'next_action') -match '^\s*decide next step') {
+                $script:rowOrder = ''
+                foreach ($cell in $row) {
+                    $o = Get-SlashOrder ([string]$cell)
+                    if ($o -eq '') { continue }
+                    if ($script:rowOrder -eq '' -or $script:rowOrder -eq $o) { $script:rowOrder = $o } else { $script:rowOrder = '?'; break }
+                }
+                if ($script:rowOrder -eq '?') { $script:rowOrder = '' }
+                $cd = Get-Iso (& $get 'next_action_date')
+                if ($script:ambiguous) { $unclear.Add("$company ($(& $get 'role')): next step $cd") }
+                elseif ((Test-Iso $cd) -and $cd -le $todayIso) { $due.Add([pscustomobject]@{ Rank = 2; Date = $cd; Order = $due.Count; Text = "$company ($(& $get 'role')): $(& $get 'next_action') [due $cd]" }) }
+                continue
+            }
             if ($status -notin $open) { continue }
             $openCount++
             $role = & $get 'role'; $act = & $get 'next_action'

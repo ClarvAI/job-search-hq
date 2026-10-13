@@ -144,6 +144,14 @@ function row(   co, role, st, act, d, dl, k, o, rank, text, extra, nd, fo) {
   fo = tolower(trim(col("folder"))); if (fo != "") JS[fo] = st      # a contact tied to this job folder follows its status
   total++; count[st]++
   if (act ~ /^[ \t]*[Ss]end withdrawal/) addList("withdraw", co " (" role ")")
+  # A finished search keeps one reminder: "Decide next step" on a signed contract, about four weeks before it ends
+  # (knowledge/freelance-and-contract.md). It is due like any next step, but the row is not an open application.
+  if (st == "accepted" && act ~ /^[ \t]*[Dd]ecide next step/) {
+    roworder(); d = iso(col("next_action_date"))
+    if (amb) addList("unclear", co " (" role "): next step " d)
+    else if (isodate(d) && d <= today) addDue(2, d, co " (" role "): " act " [due " d "]")
+    return
+  }
   if (st !~ /^(interested|applied|screening|interviewing|offer)$/) return
   open++
   rowo = ""

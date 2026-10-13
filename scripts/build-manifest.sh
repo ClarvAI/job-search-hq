@@ -71,6 +71,18 @@ src="$(sed -n 's/^update_source:[[:space:]]*//p' VERSION | head -1 | tr -d '\r')
 case "$ver" in [0-9]*.[0-9]*.[0-9]*) ;; *) die "VERSION has no version: line like 1.2.3" ;; esac
 jstr() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
 
+# "themed": app templates a user may have a themed copy of in profile/templates/ (D1: the app copies stay on the
+# Default look); /update rebuilds that copy when one of these changes. The one list is TEMPLATES in apply-theme.mjs
+# (the templates page-design themes), so a template added there is refreshed by /update with no second edit here.
+THEME_JS=".claude/skills/page-design/scripts/apply-theme.mjs"
+[ -f "$THEME_JS" ] || die "$THEME_JS not found (it holds the list of themed templates)"
+themed="$(awk '/^const TEMPLATES = \[/ { t = 1 } t { print } t && /\]\][[:space:]]*$/ { exit }' "$THEME_JS" \
+  | grep -o "\['[A-Za-z0-9._-]*\.html'" | sed "s/^\['//; s/'\$//" | LC_ALL=C sort -u)"
+[ -n "$themed" ] || die "could not read the TEMPLATES list in $THEME_JS"
+for t in $themed; do
+  [ -f "templates/$t" ] || die "apply-theme.mjs themes templates/$t, which doesn't exist"
+done
+
 tmp="$(mktemp 2>/dev/null || mktemp -t jshqman)" || die "cannot make a temporary file"
 trap 'rm -f "$tmp"' EXIT
 {
@@ -79,13 +91,11 @@ trap 'rm -f "$tmp"' EXIT
   printf '  "version": "%s",\n' "$(jstr "$ver")"
   printf '  "update_source": "%s",\n' "$(jstr "$src")"
   echo '  "hash": "sha256 of the file with carriage returns removed",'
-  # "themed": app templates a user may have a themed copy of in profile/templates/ (D1: the app copies stay on the
-  # Default look); /update rebuilds that copy when one of these changes.
   echo '  "themed": ['
-  echo '    "templates/cover-letter-template.html",'
-  echo '    "templates/resume-designed-template.html",'
-  echo '    "templates/resume-template.html"'
-  echo '  ],'
+  sep=""
+  for t in $themed; do printf '%s    "templates/%s"' "$sep" "$t"; sep=",
+"; done
+  printf '\n  ],\n'
   echo '  "files": {'
   first=1
   while IFS= read -r f; do

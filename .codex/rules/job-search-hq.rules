@@ -2,6 +2,10 @@
 # Making a resume PDF or checking its length starts Chrome/Edge in headless mode, which Codex's sandbox
 # blocks on macOS, so Codex would ask before every PDF. These two scripts only read the page you name and
 # write the PDF next to it, so they may run outside the sandbox without asking. Nothing else is allowed here.
+# The scripts keep their own limits, since this rule lets them run unsandboxed: they print only a plain file inside
+# jobs/ (the page check also profile/templates/, pages/ and templates/), never a link, a ".." path or a file://
+# address; and they print a copy of the page with no scripts, frames or outside requests (only Google Fonts), so a
+# tampered page can't send its text anywhere or print another file of the computer into the PDF.
 # Claude's matching allow-list entries are in .claude/settings.json.
 
 prefix_rule(

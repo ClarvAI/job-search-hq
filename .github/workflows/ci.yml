@@ -87,6 +87,7 @@ jobs:
           python scripts/ci/e2e-update.py --impl sh
           python scripts/ci/e2e-mydata.py --impl sh
           python scripts/ci/e2e-sample.py --impl sh
+          python scripts/ci/e2e-pdf.py --impl sh
           python scripts/ci/e2e-theme-git.py
       - name: Published dashboard copies and the Claude Dashboard page
         run: python scripts/ci/check-dashboard-type.py
@@ -98,6 +99,7 @@ jobs:
           python scripts/ci/e2e-update.py --impl ps
           python scripts/ci/e2e-mydata.py --impl ps
           python scripts/ci/e2e-sample.py --impl ps
+          python scripts/ci/e2e-pdf.py --impl ps
       - name: Install Claude Code (the version the panels were last tested with)
         run: |
           npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_TESTED}"
@@ -173,6 +175,7 @@ jobs:
           python3 scripts/ci/e2e-update.py --impl sh
           python3 scripts/ci/e2e-mydata.py --impl sh
           python3 scripts/ci/e2e-sample.py --impl sh
+          python3 scripts/ci/e2e-pdf.py --impl sh
           python3 scripts/ci/e2e-theme-git.py
           python3 scripts/ci/check-dashboard-type.py
 
@@ -289,6 +292,9 @@ jobs:
           - name: theme + git pull with Windows line endings
             ps: ""
             run: python scripts/ci/e2e-theme-git.py && python scripts/ci/check-dashboard-type.py
+          - name: PDFs (Git Bash and Windows PowerShell 5.1)
+            ps: powershell
+            run: python scripts/ci/e2e-pdf.py --impl sh && python scripts/ci/e2e-pdf.py --impl ps
     steps:
       # Keep Windows' usual line-ending conversion on, as on users' machines; .gitattributes keeps .sh files LF.
       - uses: actions/checkout@v6

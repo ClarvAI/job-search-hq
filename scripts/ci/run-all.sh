@@ -38,6 +38,7 @@ if [ -n "$PY" ]; then
   step "e2e: /update install, check, rollback, refusals (bash)" "$PY" "$HERE/e2e-update.py" --impl sh
   step "e2e: /my-data export, reset, restore (bash)" "$PY" "$HERE/e2e-mydata.py" --impl sh
   step "e2e: sample workspace (bash)" "$PY" "$HERE/e2e-sample.py" --impl sh
+  step "e2e: PDF scripts' limits and locked-down print (bash)" "$PY" "$HERE/e2e-pdf.py" --impl sh
   if command -v node >/dev/null 2>&1; then
     step "e2e: theme, then git pull stays clean" "$PY" "$HERE/e2e-theme-git.py"
     step "published dashboard data and Claude Dashboard page" "$PY" "$HERE/check-dashboard-type.py"
@@ -60,6 +61,7 @@ if [ -n "$PS" ]; then
     step "e2e: /update (PowerShell)" "$PY" "$HERE/e2e-update.py" --impl ps
     step "e2e: /my-data (PowerShell)" "$PY" "$HERE/e2e-mydata.py" --impl ps
     step "e2e: sample workspace (PowerShell)" "$PY" "$HERE/e2e-sample.py" --impl ps
+    step "e2e: PDF script limits and locked-down print (PowerShell)" "$PY" "$HERE/e2e-pdf.py" --impl ps
   fi
 else
   echo; echo "######## PowerShell checks skipped (no pwsh or powershell; set PS_EXE)"

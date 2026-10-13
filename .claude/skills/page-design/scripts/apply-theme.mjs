@@ -31,8 +31,11 @@
 //
 // Files it themes: pages/*.html and jobs/*/interview-brief.html (the token block between
 // "/* ---- Design tokens" and "/* ---- End design tokens ---- */", plus the Google Fonts line), and the user's
-// template copies in profile/templates/: resume-template.html and cover-letter-template.html (the document theme
-// block only) and resume-designed-template.html (the designed resume block and the fonts line).
+// template copies in profile/templates/: resume-template.html, cover-letter-template.html, cv-academic-template.html,
+// resume-federal-template.html and cv-europass-template.html (the document theme block only) and
+// resume-designed-template.html (the designed resume block and the fonts line). The list is TEMPLATES below;
+// scripts/build-manifest.sh reads it for product-manifest.json's "themed" list (what /update refreshes), so keep
+// its one-entry-per-['name.html', 'kind'] shape.
 // The app's own templates/*.html are never written (they stay on the Default look, so git pull and /update never
 // meet a changed app file). When the theme makes a template differ from the app's copy and the user has no copy yet,
 // the themed copy is created in profile/templates/. tailor-resume and cover-letter use profile/templates/<name>

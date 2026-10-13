@@ -514,3 +514,54 @@ test('a take-home promoted to the next step starts 2 days before it is due (neve
   expect(files['jobs/tracker.csv']).toContain('Initech,Analyst,interviewing,2026-10-06,Take-home due 2026-10-07,')
   await ui.unmount()
 })
+
+test('saving a row tidies a date inside the next step with the same order, so it keeps its meaning (review J5-11)', async ($, on) => {
+  // 25/10/2026 proves day-first; date_order says MDY. Once the cell is ISO, "11/12/2026" must not be read month-first.
+  const csv = HEAD + '\n' + 'Globex,Planner,interviewing,25/10/2026,Interview 11/12/2026 2pm,,A,5,CO,,,globex-pl,\n'
+    + 'Initech,Analyst,applied,25/10/2026,Call recruiter 3/4,,A,5,CO,,,initech-an,\n'
+  const { files } = setup(on, csv)
+  files['profile/preferences.md'] = 'date_order: MDY\n'
+  await $.command.run({ command: 'pipeline', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'pipeline', surface: 'terminal', ...PANE } as never)
+  await ui.press({ key: 'globex|planner|globex-pl:week' })
+  await ui.press({ key: 'initech|analyst|initech-an:week' })
+  const saved = files['jobs/tracker.csv']
+  expect(saved).toContain('Globex,Planner,interviewing,2026-11-01,Interview 2026-12-11 2pm,')
+  expect(saved).toContain('Initech,Analyst,applied,2026-11-01,Call recruiter Apr 3,')
+  await ui.unmount()
+})
+
+test('a date inside the next step whose order is unknown is left exactly as written', async ($, on) => {
+  const csv = HEAD + '\n' + 'Globex,Planner,interviewing,2026-10-20,Interview 11/12/2026,,A,5,CO,,,globex-pl,\n'
+  const { files } = setup(on, csv)
+  await $.command.run({ command: 'pipeline', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'pipeline', surface: 'terminal', ...PANE } as never)
+  await ui.press({ key: 'globex|planner|globex-pl:week' })
+  expect(files['jobs/tracker.csv']).toContain('Globex,Planner,interviewing,2026-10-27,Interview 11/12/2026,')
+  await ui.unmount()
+})
+
+test('moving an hourly or shift job to Applied sets the follow-up 4 business days out (review J2-11)', async ($, on) => {
+  const { files } = setup(on)
+  files['jobs/northwind-oa1/posting.md'] = '---\ncompany: Northwind Traders, Inc.\ntitle: Operations Analyst\nemployment: part-time\npay_range: $19/hour\n---\nPosting.\n'
+  await $.command.run({ command: 'pipeline', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'pipeline', surface: 'terminal', ...PANE } as never)
+  await ui.press({ key: 'northwind traders, inc.|operations analyst|northwind-oa1:edit' })
+  await (ui as any).select({ key: 'northwind traders, inc.|operations analyst|northwind-oa1:stage', value: 'applied' } as never)
+  expect(files['jobs/tracker.csv']).toContain('"Northwind Traders, Inc.",Operations Analyst,applied,2026-10-12,Follow up')
+  await ui.unmount()
+})
+
+test('a signed contract keeps its end reminder on the board as due (review J2-12); other accepted jobs stay closed', async ($, on) => {
+  const csv = HEAD + '\n'
+    + 'Acme Staffing,Contract Analyst,accepted,2026-10-05,Decide next step,,A,5,Remote,,2026-04-01,acme-ca,contract 6 months\n'
+    + 'Globex,Planner,accepted,,,,A,5,CO,,2026-09-01,globex-pl,\n'
+  setup(on, csv)
+  await $.command.run({ command: 'pipeline', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'pipeline', surface: 'terminal', ...PANE } as never)
+  const drawn = JSON.stringify(await ui.drawn())
+  expect(drawn).toContain('Acme Staffing · Contract Analyst')
+  expect(drawn).toContain('1 due')
+  expect(drawn).not.toContain('Globex · Planner')
+  await ui.unmount()
+})

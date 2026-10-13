@@ -99,8 +99,13 @@ else
     # disableAllHooks turns every hook off; allowManagedHooksOnly turns off this folder's own hooks.
     grep -qE '"(disableAllHooks|allowManagedHooksOnly)"[[:space:]]*:[[:space:]]*true' "$f" 2>/dev/null && managed="$f"
   done
-  if [ -n "$managed" ]; then
+  # These are Claude Code settings: in Codex (which has its own hooks, .codex/hooks.json) they are a note about Claude.
+  if [ -n "$managed" ] && [ "$APP" = codex ]; then
+    say_note "hook setup" "Codex's safety checks are set up. Note for Claude Code only: this computer's managed settings ($managed) switch off this folder's hooks there, so if you also use Claude Code, don't connect Gmail in it."
+  elif [ -n "$managed" ]; then
     say_fix 2 "hook setup" "this computer's managed settings ($managed) switch off this folder's hooks, so in Claude Code nothing blocks email sending. Only whoever manages this computer can change that; until then, don't connect Gmail in Claude Code."
+  elif [ -n "$off" ] && [ "$APP" = codex ]; then
+    say_note "hook setup" "Codex's safety checks are set up. Note for Claude Code only: hooks are switched off there in $off (\"disableAllHooks\": true); if you also use Claude Code, remove that line and restart it."
   elif [ -n "$off" ]; then
     say_fix 2 "hook setup" "hooks are switched off in $off (\"disableAllHooks\": true), so nothing blocks email sending. Remove that line, then restart the app."
   else
@@ -132,6 +137,11 @@ else
     say_ok "hooks running" "the startup hook ran in this session ($ago)"
   elif [ -n "$here_sid" ] && [ -n "$sid" ] && [ "$age" -le 720 ]; then
     say_note "hooks running" "not confirmed for this session: the startup hook last ran $ago in another session. If this chat didn't open with the daily greeting, hooks aren't running, so the safety checks are off too. Reopen this folder and click Trust."
+  elif [ -z "$here_sid" ] && [ "$age" -le 10 ]; then
+    say_ok "hooks running" "the startup hook last ran $ago (${who:-unknown app})"
+  elif [ -z "$here_sid" ] && [ "$age" -le 720 ]; then
+    # No session id to compare (Codex has none): a marker from hours ago may be another chat or another Codex client.
+    say_note "hooks running" "not confirmed for this chat: the startup hook last ran $ago (${who:-unknown app}), maybe in another chat. If this chat didn't open with the daily greeting, hooks aren't running here, so the safety checks are off too. Claude: reopen this folder and click Trust. Codex: type /hooks, trust them, then start a new chat."
   elif [ "$age" -le 720 ]; then
     say_ok "hooks running" "the startup hook last ran $ago (${who:-unknown app})"
   else

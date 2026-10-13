@@ -242,8 +242,10 @@ async function messageSent($: any, c: Contact, value: string): Promise<void> {
     const jobStatus = job ? jobs[job.toLowerCase()] ?? '' : ''
     const owned = APPLIED_OR_LATER.includes(jobStatus)
     const last = get('last_contact')
-    // last_contact is the newest message; recording an older one doesn't move it back.
-    if (!isIso(last) || date >= last) set('last_contact', date)
+    // last_contact is the newest message; recording an older one doesn't move it back. A date that is unclear
+    // (even after this save tidied the row's dates) is never rewritten: the user says what it means first.
+    const lastUnclear = last !== '' && !isIso(last)
+    if (last === '' || (isIso(last) && date >= last)) set('last_contact', date)
     if (waiting) set('touches', String(touches))
     // Status moves to contacted only from to-contact or blank: never backwards from replied, talked or referred (or out of cold).
     const moved = waiting && status !== 'contacted'
@@ -267,6 +269,10 @@ async function messageSent($: any, c: Contact, value: string): Promise<void> {
       extra = `; follow up on ${get('next_followup')} if no reply`
     }
     forClaude += ' If an Outbox draft to this person matches this message, set it to sent (sent: ' + date + ') and move it to outbox/sent/.'
+    if (lastUnclear) {
+      extra += `; last contact left as written (${last}, date unclear)`
+      forClaude += ` Their last_contact (${last}) is unclear, so it was left as written: ask the user what it means, then set it to the newer of that date and ${date}.`
+    }
     return {
       what: `${who(c)}: message sent ${date}${moved ? ', now Contacted' : ''}${waiting ? `; ${touches} with no reply` : ''}${extra}`,
       forClaude: forClaude.trim(),

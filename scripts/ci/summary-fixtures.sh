@@ -101,6 +101,17 @@ OUT="$(run closed)"
 has  "closed search still lists withdrawals" "Withdrawal notes still to send: Acme (Eng)."
 has  "closed search still counts drafts" "1 draft(s) still waiting in the Outbox."
 
+# A signed contract keeps its end reminder (review J2-12): an accepted row whose next step is "Decide next step" is due
+# like any next step; other accepted rows and a reminder not yet due stay out of the due list.
+{ printf '%s\n' "$HDR"
+  printf 'Gig,Contract,accepted,2000-01-03,Decide next step (contract ends 2000-01-31),,A,4,X,,,,,,,,,0,gig,contract 6 months\n'
+  printf 'Later,Contract,accepted,2099-01-01,Decide next step,,A,4,X,,,,,,,,,0,later,\n'
+  printf 'Done,Eng,accepted,2000-01-02,Start work,,A,4,X,,,,,,,,,0,done,\n'; } | ws contract ""
+OUT="$(run contract)"
+has  "accepted contract reminder is due" "Gig (Contract): Decide next step (contract ends 2000-01-31) [due 2000-01-03]"
+hasnt "reminder not yet due stays out" "Later (Contract)"
+hasnt "other accepted rows stay out" "Done (Eng)"
+
 # A BOM in front of a quoted header still reads (the BOM is stripped before the quote opens).
 { printf '\357\273\277'; printf '%s\n' '"company","role","status","next_action_date","next_action"'; printf '%s\n' 'Acme,Eng,applied,2099-01-01,Follow up'; } | ws bomq ""
 OUT="$(run bomq)"

@@ -10,6 +10,9 @@
 # Output: same lines as make-pdf.sh: "pdf: ...", "engine: ...", "paper: ...", "pages: N", "parse: ...", maybe
 # "parse-note: ...", or a status: no-browser, no-rendercv, print-failed (a blank PDF, or one without the name, email
 # and phone, is saved as <final name>-CHECK.pdf and a "check:" line says where), render-failed, not-found: <path>, usage: ...
+# or "refused: ..." (exit 2): like make-pdf.sh and page-count.sh, it prints only a plain file (not a link, no ".." part,
+# not an address such as file://...) inside jobs\ (with -CheckOnly also profile\templates\, pages\ or templates\), since
+# it may run outside Codex's sandbox. The page is printed from a copy with no scripts, frames or outside requests.
 param(
   [Parameter(Position = 0)] [string]$Source,
   [Parameter(Position = 1)] [string]$Name,
@@ -47,18 +50,94 @@ function Find-Browser {
   return $null
 }
 
+# The real folder behind a path: every link (symbolic link, junction) on the way is followed.
+# (Windows PowerShell 5.1 has no ResolvedTarget.)
+function Get-RealPath([string]$Path) {
+  $cur = [IO.Path]::GetPathRoot($Path)
+  $todo = New-Object System.Collections.Generic.List[string]
+  $todo.AddRange([string[]]@($Path.Substring($cur.Length) -split '[\\/]' | Where-Object { $_ -ne '' }))
+  $hops = 0
+  while ($todo.Count -gt 0) {
+    $part = $todo[0]; $todo.RemoveAt(0)
+    if ($part -eq '.') { continue }
+    if ($part -eq '..') { $up = [IO.Path]::GetDirectoryName($cur.TrimEnd('\', '/')); if ($up) { $cur = $up }; continue }
+    $next = Join-Path $cur $part
+    $item = Get-Item -LiteralPath $next -Force -ErrorAction SilentlyContinue
+    if ($item -and ($item.LinkType -eq 'SymbolicLink' -or $item.LinkType -eq 'Junction') -and $hops -lt 40) {
+      $hops++
+      $t = [string](@($item.Target)[0])
+      if (-not [IO.Path]::IsPathRooted($t)) { $t = Join-Path $cur $t }
+      $t = [IO.Path]::GetFullPath($t)
+      $cur = [IO.Path]::GetPathRoot($t)
+      $todo.InsertRange(0, [string[]]@($t.Substring($cur.Length) -split '[\\/]' | Where-Object { $_ -ne '' }))
+    } else { $cur = $next }
+  }
+  return $cur.TrimEnd('\', '/')
+}
+
+# Test-Source: $null when the file may be printed, else the "refused: ..." line (same rules as pdf-common.sh
+# check_source): no address, no ".." part, not a link, and its real folder inside one of $Places of the workspace.
+function Test-Source([string]$f, [string[]]$Places) {
+  if ($f -match '://' -or $f -match '^(?i)file:') { return "refused: $f is an address, not a file; give the path of a file in this folder (e.g. jobs\<folder>\resume.html)" }
+  if (@($f -split '[\\/]' | Where-Object { $_ -eq '..' }).Count -gt 0) { return "refused: $f has a `"..`" part; give the plain path of the file (e.g. jobs\<folder>\resume.html)" }
+  $it = Get-Item -LiteralPath $f -Force -ErrorAction SilentlyContinue
+  if ($it -and ($it.LinkType -eq 'SymbolicLink' -or $it.LinkType -eq 'Junction')) { return "refused: $f is a link (shortcut); print the real file in its job folder instead" }
+  try { $root = Get-RealPath (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..\..\..') -ErrorAction Stop).ProviderPath } catch { return 'refused: cannot find the workspace folder' }
+  $real = Get-RealPath (Split-Path -Parent (Resolve-Path -LiteralPath $f).ProviderPath)
+  foreach ($p in $Places) {
+    $pr = Get-RealPath (Join-Path $root $p)
+    if (-not (Test-Path -LiteralPath $pr -PathType Container)) { continue }
+    foreach ($sep in @('\', '/')) { if (($real + $sep).StartsWith($pr + $sep, [StringComparison]::OrdinalIgnoreCase)) { return $null } }
+  }
+  return ("refused: $f is not inside " + (($Places | ForEach-Object { ($_ -replace '\\', '/') + '/' }) -join ' or ') + ' of this folder; these scripts only print files there')
+}
+
+function Get-FileUrl([string]$full) {
+  # Percent-encode every folder name (spaces, #, %, [, accents...), keeping / and a drive's C:.
+  # A folder named "Job Search #1" would otherwise break the address.
+  $enc = (($full.Replace('\', '/').Split('/')) | ForEach-Object { if ($_ -match '^[A-Za-z]:$') { $_ } else { [Uri]::EscapeDataString($_) } }) -join '/'
+  if ($enc.StartsWith('/')) { return 'file://' + $enc } else { return 'file:///' + $enc }   # //server/share stays file:////server/share
+}
+
+# The page's content rules, set first thing in the printed copy (same as PRINT_CSP in pdf-common.sh): styles, fonts and
+# images from files (or Google Fonts), nothing else; no frames or objects (a frame could show another file on this
+# computer in the PDF), no scripts.
+$PrintCsp = "default-src 'none'; style-src 'unsafe-inline' file: data: https://fonts.googleapis.com; font-src file: data: https://fonts.gstatic.com; img-src file: data:; script-src 'none'; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; connect-src 'none'; media-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'none'"
+# Flags that keep a printed page from reaching the network (same as LOCKDOWN_FLAGS in pdf-common.sh): every request goes
+# to a proxy that isn't there, except Google Fonts (the documents' Lato font); names don't resolve.
+$LockdownFlags = @('--proxy-server=127.0.0.1:9', '--proxy-bypass-list=<-loopback>;fonts.googleapis.com;fonts.gstatic.com',
+  '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE fonts.googleapis.com, EXCLUDE fonts.gstatic.com',
+  '--dns-prefetch-disable', '--disable-background-networking', '--disable-sync', '--disable-component-update', '--no-service-autorun')
+
+# Write-PrintCopy: the copy that is printed (same as print_copy in pdf-common.sh): the page's own charset, a <base> at
+# the page's folder, and $PrintCsp first; any <base> and <meta http-equiv="refresh"> taken out.
+function Write-PrintCopy([string]$src, [string]$out) {
+  $latin1 = [Text.Encoding]::GetEncoding(28591)
+  $s = $latin1.GetString([IO.File]::ReadAllBytes($src))
+  if ($s.StartsWith([string][char]0xEF + [char]0xBB + [char]0xBF)) { $s = $s.Substring(3) }
+  $m = [regex]::Match($s, '(?i)<meta\b[^>]*?charset\s*=\s*["'']?\s*([A-Za-z0-9._:-]+)')
+  $cs = if ($m.Success) { $m.Groups[1].Value } else { 'utf-8' }
+  $s = [regex]::Replace($s, '(?i)<meta\b[^>]*?http-equiv\s*=\s*["'']?\s*refresh\b[^>]*>', '')
+  $s = [regex]::Replace($s, '(?i)<base\b[^>]*>', '')
+  $base = (Get-FileUrl (Split-Path -Parent $src)) + '/'
+  $head = '<meta charset="' + $cs + '"><base href="' + $base + '"><meta http-equiv="Content-Security-Policy" content="' + $PrintCsp + '">'
+  $rx = New-Object regex('\A\s*(?:<!--.*?-->\s*)*<!doctype\b[^>]*>', ([Text.RegularExpressions.RegexOptions]'IgnoreCase, Singleline'))
+  if ($rx.IsMatch($s)) { $s = '<!DOCTYPE html>' + $head + $rx.Replace($s, '', 1) } else { $s = $head + $s }
+  [IO.File]::WriteAllBytes($out, $latin1.GetBytes($s))
+}
+
 function Quote-Arg([string]$a) { if ($a -match '[\s"]') { return '"' + ($a -replace '"', '\"') + '"' } else { return $a } }
 
 function Invoke-Print([string]$browser, [string]$html, [string]$pdf) {
   if (Test-Path -LiteralPath $pdf) { Remove-Item -LiteralPath $pdf -Force }
   $full = (Resolve-Path -LiteralPath $html).ProviderPath
-  # Percent-encode every folder name (spaces, #, %, [, accents...), keeping / and a drive's C:.
-  # A folder named "Job Search #1" would otherwise break the address.
-  $enc = (($full.Replace('\', '/').Split('/')) | ForEach-Object { if ($_ -match '^[A-Za-z]:$') { $_ } else { [Uri]::EscapeDataString($_) } }) -join '/'
-  if ($enc.StartsWith('/')) { $url = 'file://' + $enc } else { $url = 'file:///' + $enc }   # //server/share stays file:////server/share
-  $argList = @('--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--disable-extensions',
-    '--no-pdf-header-footer', '--print-to-pdf-no-header', '--virtual-time-budget=3000', '--generate-pdf-document-outline',
-    ('--print-to-pdf=' + $pdf), $url) | ForEach-Object { Quote-Arg $_ }
+  # Print a locked-down copy next to the PDF (Write-PrintCopy); the page itself only if the copy can't be written.
+  $copy = $pdf -replace '\.pdf$', '.print.html'
+  $url = Get-FileUrl $full
+  try { Write-PrintCopy $full $copy; $url = Get-FileUrl $copy } catch { }
+  $argList = @(@('--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--disable-extensions') + $LockdownFlags +
+    @('--no-pdf-header-footer', '--print-to-pdf-no-header', '--virtual-time-budget=3000', '--generate-pdf-document-outline',
+    ('--print-to-pdf=' + $pdf), $url)) | ForEach-Object { Quote-Arg $_ }
   $so = $pdf + '.out.log'; $se = $pdf + '.err.log'
   if ($OnWindows) { $proc = Start-Process -FilePath $browser -ArgumentList $argList -PassThru -WindowStyle Hidden -RedirectStandardOutput $so -RedirectStandardError $se }
   else { $proc = Start-Process -FilePath $browser -ArgumentList $argList -PassThru -RedirectStandardOutput $so -RedirectStandardError $se }
@@ -110,6 +189,9 @@ if (-not $Source -or (-not $CheckOnly -and (-not $Name -or -not $Company))) {
   exit 2
 }
 if (-not (Test-Path -LiteralPath $Source -PathType Leaf)) { Write-Output "not-found: $Source"; exit 1 }
+$places = if ($CheckOnly) { @('jobs', 'profile\templates', 'pages', 'templates') } else { @('jobs') }
+$refused = Test-Source $Source $places
+if ($refused) { Write-Output $refused; exit 2 }
 $srcFull = (Resolve-Path -LiteralPath $Source).ProviderPath
 $dir = Split-Path -Parent $srcFull
 $base = Split-Path -Leaf $srcFull
@@ -146,23 +228,23 @@ try {
   # under the final name (the Apply Kit offers that name for uploads).
   $raw0 = [IO.File]::ReadAllText($srcFull)
   $bad = ''
-  if (Get-Command pdftotext -ErrorAction SilentlyContinue) {
-    $chk = Join-Path $tmp 'check.txt'
-    & pdftotext -enc UTF-8 $tmpPdf $chk 2>$null
-    if (Test-Path -LiteralPath $chk) {
-      $ct = [IO.File]::ReadAllText($chk, [Text.Encoding]::UTF8)
-      if (($ct -replace '\s', '') -eq '') { $bad = 'it has no text' }
-      else {
-        $seen = $ct.ToLowerInvariant().Contains($Name.ToLowerInvariant())
-        $em0 = [regex]::Match($raw0, '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}')
-        if ($em0.Success -and $ct.ToLowerInvariant().Contains($em0.Value.ToLowerInvariant())) { $seen = $true }
-        $ph = [regex]::Match($raw0, '\+?\(?[0-9][0-9 ().-]{7,}[0-9]')
-        if ($ph.Success) {
-          $pd = $ph.Value -replace '[^0-9]', ''
-          if ($pd.Length -ge 7 -and ($ct -replace '[^0-9]', '').Contains($pd.Substring($pd.Length - 7))) { $seen = $true }
-        }
-        if (-not $seen) { $bad = 'the name, email and phone are all missing from its text' }
+  $chk = Join-Path $tmp 'check.txt'
+  if (Get-Command pdftotext -ErrorAction SilentlyContinue) { & pdftotext -enc UTF-8 $tmpPdf $chk 2>$null }
+  # The text check needs pdftotext's output; without it (no pdftotext, or one that wrote nothing) fall back to looking
+  # for a font in the PDF, as make-pdf.sh does.
+  if (Test-Path -LiteralPath $chk -PathType Leaf) {
+    $ct = [IO.File]::ReadAllText($chk, [Text.Encoding]::UTF8)
+    if (($ct -replace '\s', '') -eq '') { $bad = 'it has no text' }
+    else {
+      $seen = $ct.ToLowerInvariant().Contains($Name.ToLowerInvariant())
+      $em0 = [regex]::Match($raw0, '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}')
+      if ($em0.Success -and $ct.ToLowerInvariant().Contains($em0.Value.ToLowerInvariant())) { $seen = $true }
+      $ph = [regex]::Match($raw0, '\+?\(?[0-9][0-9 ().-]{7,}[0-9]')
+      if ($ph.Success) {
+        $pd = $ph.Value -replace '[^0-9]', ''
+        if ($pd.Length -ge 7 -and ($ct -replace '[^0-9]', '').Contains($pd.Substring($pd.Length - 7))) { $seen = $true }
       }
+      if (-not $seen) { $bad = 'the name, email and phone are all missing from its text' }
     }
   } elseif (-not (Get-PdfLatin1 $tmpPdf).Contains('/Font')) { $bad = 'it has no text' }
   $checkPdf = $final -replace '\.pdf$', '-CHECK.pdf'

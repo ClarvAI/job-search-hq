@@ -24,6 +24,9 @@
 #                          bad PDF is saved as <final name>-CHECK.pdf (never under the final name) and a "check:" line
 #                          says where
 #   render-failed / not-found: <path> / usage: ...
+#   refused: ...           (exit 2) the file isn't inside jobs/, is a link, has a ".." part, or is an address
+#                          (file://...); nothing is printed. Pages are printed with JavaScript and outside requests
+#                          off, and with no frames (pdf-common.sh print_html).
 set -u
 here="$(cd "$(dirname "$0")" && pwd)"
 . "$here/pdf-common.sh"
@@ -33,6 +36,8 @@ if [ -z "$src" ] || [ -z "$person" ] || [ -z "$company" ]; then
   echo 'usage: make-pdf.sh <resume.html|cover-letter.html|resume.rendercv.yaml> "First Last" "Company"'; exit 2
 fi
 [ -f "$src" ] || { echo "not-found: $src"; exit 1; }
+# Only a file in a job folder (jobs/): this script may run outside Codex's sandbox and writes the PDF next to it.
+check_source "$src" jobs || exit 2
 
 # File-name pieces: letters (accented ones kept), digits and hyphens only ("Bluth & Sons Labs" -> "Bluth-Sons-Labs",
 # "O'Neil" with a straight or curly apostrophe -> "O-Neil"), the same rule the Apply Kit panel uses to find the file
@@ -81,7 +86,10 @@ esac
 lower() { tr 'A-Z' 'a-z'; }
 email="$(grep -o -E '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' "$src" 2>/dev/null | head -1)"
 bad=""
-if command -v pdftotext >/dev/null 2>&1 && pdftotext -enc UTF-8 "$tmp_pdf" "$tmpdir/check.txt" 2>/dev/null; then
+# The text check needs pdftotext's output; without it (no pdftotext, one that failed, or one that wrote nothing) fall
+# back to looking for a font in the PDF (make-pdf.ps1 does the same).
+if command -v pdftotext >/dev/null 2>&1 && pdftotext -enc UTF-8 "$tmp_pdf" "$tmpdir/check.txt" 2>/dev/null \
+   && [ -f "$tmpdir/check.txt" ]; then
   if [ -z "$(tr -d '[:space:]' < "$tmpdir/check.txt")" ]; then bad="it has no text"
   else
     seen=""

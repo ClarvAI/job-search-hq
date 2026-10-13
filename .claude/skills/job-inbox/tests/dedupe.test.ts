@@ -82,7 +82,8 @@ test('places compare as whole words from the start: York is not New York; Denver
   expect(samePlace('Denver CO', 'Denver, CO')).toBe(true)
   expect(samePlace('Columbus OH', 'Columbus, Ohio')).toBe(true)
   expect(samePlace('', 'Austin TX')).toBe(true)
-  expect(samePlace('Portland, OR', 'Portland, ME')).toBe(true)
+  // Two named regions that differ are two places (review J5-14; this used to count as the same city).
+  expect(samePlace('Portland, OR', 'Portland, ME')).toBe(false)
   expect(isSamePosting({ company: 'Acme', role: 'Analyst', location: 'York' }, { company: 'Acme', role: 'Analyst', location: 'New York' })).toBe(false)
 })
 
@@ -92,4 +93,13 @@ test('names in any script and with accents still compare', async () => {
   expect(normRole('Ingénieur Sr. Données')).toBe('ingenieur senior donnees')
   expect(isSamePosting({ company: 'Ελληνική Εταιρεία', role: 'Αναλυτής' }, { company: 'Ελληνική Εταιρεία', role: 'Αναλυτής' })).toBe(true)
   expect(isSamePosting({ company: 'Ελληνική Εταιρεία', role: 'Αναλυτής' }, { company: 'Άλλη Εταιρεία', role: 'Αναλυτής' })).toBe(false)
+})
+
+test('the same city name in different regions is a different place (review J5-14); a region with extra words is the same', async () => {
+  expect(samePlace('Cambridge, UK', 'Cambridge, MA')).toBe(false)
+  expect(samePlace('Portland, OR', 'Portland, ME')).toBe(false)
+  expect(samePlace('Denver, CO', 'Denver, CO, USA')).toBe(true)
+  expect(samePlace('Denver, CO', 'Denver')).toBe(true)
+  expect(samePlace('Denver, CO', 'Denver CO')).toBe(true)
+  expect(isSamePosting({ company: 'Globex', role: 'Analyst', location: 'Cambridge, UK' }, { company: 'Globex', role: 'Analyst', location: 'Cambridge, MA' })).toBe(false)
 })

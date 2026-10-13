@@ -66,8 +66,10 @@ $out = Join-Path $Dest "$name.zip"
 
 $tmp = Join-Path ([IO.Path]::GetTempPath()) ("jshq-" + [guid]::NewGuid().ToString('N'))
 $stage = Join-Path $tmp $name
+$zipStarted = $false
 # Copies a folder tree. Links (symbolic links, junctions) point outside the backup; they are left
-# out and reported, like export.sh, rather than copying whatever they point to.
+# out and reported, like export.sh, rather than copying whatever they point to. A folder or file that
+# can't be read throws ($ErrorActionPreference = 'Stop'), which fails the whole backup, as in export.sh.
 function Copy-Tree([string]$From, [string]$To) {
   $item = Get-Item -LiteralPath $From -Force
   if ($item.LinkType -eq 'SymbolicLink' -or $item.LinkType -eq 'Junction') {
@@ -136,6 +138,7 @@ try {
   $count = (Get-ChildItem -LiteralPath $stage -Recurse -Force -File | Measure-Object).Count
   # Not Compress-Archive: it leaves out hidden files, and in Windows PowerShell 5.1 can write backslash paths.
   Add-Type -AssemblyName System.IO.Compression.FileSystem
+  $zipStarted = $true
   [IO.Compression.ZipFile]::CreateFromDirectory($stage, $out, [IO.Compression.CompressionLevel]::Optimal, $true)
   if (-not (Test-Path -LiteralPath $out)) { throw "the backup file was not created" }
   $kb = [math]::Ceiling((Get-Item -LiteralPath $out).Length / 1KB)
@@ -143,7 +146,9 @@ try {
   Write-Output "size: ${kb}K"
   Write-Output "saved: $out"
 } catch {
-  Fail $_.Exception.Message
+  # A zip that failed part-way is removed, so no broken backup looks saved (export.sh does the same).
+  if ($zipStarted -and (Test-Path -LiteralPath $out)) { Remove-Item -LiteralPath $out -Force -ErrorAction SilentlyContinue }
+  Fail ($_.Exception.Message + " (nothing was saved)")
 } finally {
   if (Test-Path -LiteralPath $tmp) { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue }
 }

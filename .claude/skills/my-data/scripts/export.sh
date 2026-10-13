@@ -7,7 +7,9 @@
 # Never includes .claude/ .agents/ .codex/ .git/; templates/ and imports/ only when asked.
 # Links (shortcuts) are left out, each reported as "skipped link: <path>".
 # Output: last line "saved: <path>" on success; "error: ..." and exit 1 otherwise.
+# A folder that can't be read (find or cp fails anywhere) fails the whole backup: no zip, "error: ...".
 set -u
+set -o pipefail  # a find that fails on the left of a pipe must fail the copy, not vanish (bash 3.2 has it)
 
 die() { echo "error: $*"; exit 1; }
 
@@ -58,12 +60,14 @@ stage="$tmp/$name"; mkdir -p "$stage" || die "cannot make a temporary folder"
 # Copies folders and plain files only. Links (shortcuts) point outside the backup, so they are left out and
 # named; copying them first fails on Windows (Git Bash can't recreate a link) and would lose the whole backup.
 # (NUL-separated, so a name with a line break in it can't turn into another path.)
+# Every step's status counts (pipefail): an unreadable subfolder makes find exit non-zero, and the backup
+# must then fail rather than be reported "saved:" with files missing.
 copy_tree() {
-  (cd "$ROOT" && find "$1" -type l -print0) | while IFS= read -r -d '' l; do echo "skipped link: $l"; done
+  (cd "$ROOT" && find "$1" -type l -print0) | while IFS= read -r -d '' l; do echo "skipped link: $l"; done || return 1
   (cd "$ROOT" && find "$1" \( -type d -o -type f \) -print0) | while IFS= read -r -d '' p; do
     if [ -d "$ROOT/$p" ]; then mkdir -p "$stage/$p" || exit 1
     else cp -p "$ROOT/$p" "$stage/$p" || exit 1; fi
-  done
+  done || return 1
 }
 dirs="profile jobs contacts outbox interviews history knowledge/field pages"
 [ -n "$with_imports" ] && dirs="$dirs imports"
@@ -158,16 +162,18 @@ for my $p (sort @items) {
   close $fh;
 }
 $z->close or die "zip: $ZipError\n";'
+# A zip tool that fails part-way leaves a half-written file: remove it, so no broken backup looks saved.
+zip_fail() { rm -f -- "$out"; die "zip failed (nothing was saved)"; }
 if [ -n "$py" ]; then
-  (cd "$tmp" && "$py" -I -c "$py_zip" "$out" "$name") || die "zip failed"
+  (cd "$tmp" && "$py" -I -c "$py_zip" "$out" "$name") || zip_fail
 elif command -v perl >/dev/null 2>&1 && perl -MIO::Compress::Zip -e 1 >/dev/null 2>&1; then
-  (cd "$tmp" && perl -e "$perl_zip" "$out" "$name") || die "zip failed"
+  (cd "$tmp" && perl -e "$perl_zip" "$out" "$name") || zip_fail
 elif command -v zip >/dev/null 2>&1; then
-  (cd "$tmp" && zip -q -r -X "$out" "$name") || die "zip failed"
+  (cd "$tmp" && zip -q -r -X "$out" "$name") || zip_fail
 else
   die "no zip tool found (on Windows, use export.ps1 instead)"
 fi
-[ -s "$out" ] || die "the backup file was not created"
+[ -s "$out" ] || { rm -f -- "$out"; die "the backup file was not created"; }
 chmod 600 "$out" 2>/dev/null
 size="$(du -h "$out" | cut -f1 | tr -d ' ')"
 echo "files: $count"

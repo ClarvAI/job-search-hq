@@ -402,3 +402,19 @@ test('a save is refused when contacts.csv changed in another app since the board
   expect(row(files, 'Robin Fox')).toContain('Robin Fox,Globex')
   await ui.unmount()
 })
+
+test('Message sent never rewrites an unclear last-contact date, and an older message never moves a clear one back (review J5-12)', async ($, on) => {
+  // 03/04/2026 has two readings and nothing settles it (no date_order, no other date in the row).
+  const csv = CSV.replace('Jane Doe,Globex,Project Manager,alum,college alumni list,,,to-contact', 'Jane Doe,Globex,Project Manager,alum,college alumni list,03/04/2026,,to-contact')
+  const { files } = setup(on, csv)
+  const ui = await open($, 'terminal')
+  await ui.press({ key: `${K.jane}:sent` })
+  await ui.input({ key: `${K.jane}:sent-date`, text: '2026-10-02' })
+  expect(row(files, 'Jane Doe')).toContain(',03/04/2026,2026-10-09,contacted,1,')
+  expect(files['history/activity.md']).toContain('last contact left as written (03/04/2026, date unclear)')
+  // A clear, newer last contact stays; the older message still counts as a touch.
+  await ui.press({ key: `${K.alex}:sent` })
+  await ui.input({ key: `${K.alex}:sent-date`, text: '2026-09-25' })
+  expect(row(files, 'Alex Kim')).toContain(',2026-09-28,')
+  await ui.unmount()
+})

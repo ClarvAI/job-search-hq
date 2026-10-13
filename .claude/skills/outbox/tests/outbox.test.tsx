@@ -25,6 +25,18 @@ test('connector names with an app prefix are judged like the shared guard does',
   }
 })
 
+test('an Outlook calendar tool is left to the calendar rule, not refused as mail; Outlook mail sends still are (review J4-02)', async ($, on) => {
+  on('tool.call', () => ({ result: { ok: true } }) as never)
+  for (const tool of ['mcp__outlook_calendar__create_event', 'mcp__claude_ai_Outlook__create_event', 'mcp__claude_ai_Google_Calendar__create_event']) {
+    const ran = await $.tool.call({ tool, summary: 'Interview with Globex', attendees: [] } as never)
+    expect(ran.deny).toBeUndefined()
+  }
+  for (const tool of ['mcp__outlook_calendar__send_mail', 'mcp__claude_ai_Outlook__send_message', 'mcp__outlook_email__reply_to_message']) {
+    const ran = await $.tool.call({ tool } as never)
+    expect(ran.deny ?? '').toContain('The user sends and manages their mail themselves')
+  }
+})
+
 test('the empty Outbox pane draws on terminal and desktop', async $ => {
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount({

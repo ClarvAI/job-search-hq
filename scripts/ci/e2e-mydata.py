@@ -983,6 +983,62 @@ def scenario_export_edges(R, impl, base, pristine, outside, links_ok):
          "rc=%s\n%s" % (rc, out))
 
 
+def scenario_unreadable(R, impl, base, pristine):
+    """A folder that can't be read must fail the backup (no zip, nothing reported saved) and stop the restore
+    before anything changes (review J5-02: find on the left of a pipe used to fail silently)."""
+    tag = "[%s]" % impl
+    if IS_WINDOWS or (hasattr(os, "geteuid") and os.geteuid() == 0):
+        print("NOTE  %s unreadable-folder checks not run: needs a non-admin account on Mac or Linux" % tag)
+        return
+    R.section("%s a folder that can't be read" % impl)
+    ws = clone(pristine, os.path.join(base, "unreadable"))
+    p = J(ws, "profile/preferences.md")
+    wbytes(p, rbytes(p).replace(b"SETUP: not done", b"SETUP: done 2026-10-01", 1))
+    locked = J(ws, "jobs/globex-analyst")
+    wbytes(J(locked, "posting.md"), b"Globex posting\n")
+    wbytes(J(ws, "jobs/acme-operations-analyst/posting.md"), b"Acme posting\n")
+
+    dest = os.path.join(base, "unreadable backups")
+    os.chmod(locked, 0)
+    try:
+        rc, out = drive(impl, ws, "export", [dest])
+    finally:
+        os.chmod(locked, 0o755)
+    R.ok("%s export with an unreadable folder in jobs/ fails ('error: ...', exit 1) and leaves no zip" % tag,
+         rc != 0 and last_line(out).startswith("error:") and "saved:" not in out
+         and not (os.path.isdir(dest) and zips_in(dest)), "rc=%s\n%s" % (rc, out))
+    rc, out = drive(impl, ws, "export", [dest])
+    zp = export_ok(R, tag, "export once the folder is readable again", rc, out, dest)
+    R.ok("%s ...and that backup holds the folder's file" % tag,
+         zp is not None and "jobs/globex-analyst/posting.md" in read_zip(zp)["files"])
+
+    # restore: an unreadable folder inside the unpacked backup
+    bk = os.path.join(base, "unreadable restore", "job-search-backup-2026-10-13")
+    wbytes(J(bk, "READ-ME.txt"), b"Job search backup made 2026-10-13.\n")
+    wbytes(J(bk, "jobs/initech-analyst/posting.md"), b"Initech posting\n")
+    wbytes(J(bk, "profile/a-new-note.md"), b"note\n")
+    wbytes(J(bk, "jobs/locked-in-backup/posting.md"), b"Northwind posting\n")
+    s0 = snap(ws)
+    os.chmod(J(bk, "jobs/locked-in-backup"), 0)
+    try:
+        rc, out = drive(impl, ws, "restore", [bk])
+    finally:
+        os.chmod(J(bk, "jobs/locked-in-backup"), 0o755)
+    R.ok("%s restore from a backup with an unreadable folder stops ('can't be read') and changes nothing" % tag,
+         rc != 0 and last_line(out).startswith("error:") and "can't be read" in out and snap(ws) == s0,
+         "rc=%s\n%s\n%s" % (rc, out, diff(s0, snap(ws))))
+
+    # restore: an unreadable folder here (the open-file check can't look inside it)
+    os.chmod(locked, 0)
+    try:
+        rc, out = drive(impl, ws, "restore", [bk])
+    finally:
+        os.chmod(locked, 0o755)
+    R.ok("%s restore with an unreadable user folder here stops before changing anything" % tag,
+         rc != 0 and last_line(out).startswith("error:") and "can't be read" in out and snap(ws) == s0,
+         "rc=%s\n%s\n%s" % (rc, out, diff(s0, snap(ws))))
+
+
 def scenario_reset_refusals(R, impl, base, pristine, outside, links_ok):
     tag = "[%s]" % impl
     R.section("%s reset refusals (each on a fresh copy; nothing may change)" % impl)
@@ -1094,6 +1150,7 @@ def main():
         if unpack_dir:
             scenario_restore_more(R, impl, base, pristine, zp, exp, unpack_dir, outside, links_ok)
         scenario_export_edges(R, impl, base, pristine, outside, links_ok)
+        scenario_unreadable(R, impl, base, pristine)
         scenario_reset_refusals(R, impl, base, pristine, outside, links_ok)
         print("\n[%s] took %.1fs" % (impl, time.time() - t0))
     R.finish()

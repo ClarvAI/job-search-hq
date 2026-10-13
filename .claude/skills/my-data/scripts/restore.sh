@@ -17,7 +17,9 @@
 # templates/, app files, READ-ME.txt and resume.json are never copied ("ignored: <name>" for unexpected top-level items).
 # Refuses while an Office lock file (~$...) is in a user folder, or if a user folder here is a link.
 # Output: last line "restore: done (N restored, N replaced starter, N merged, N differ)" or "error: ..." and exit 1.
+# A folder that can't be read (here or in the backup) stops the restore before anything is changed.
 set -u
+set -o pipefail  # a find that fails on the left of a pipe must stop the restore, not vanish (bash 3.2 has it)
 
 die() { echo "error: $*"; exit 1; }
 
@@ -67,7 +69,9 @@ for x in $DIRS knowledge outbox/sent outbox/discarded; do
   [ -L "$ROOT/$x" ] && die "$x is a link to another folder; restore only works on real folders (nothing was changed)"
 done
 # Excel and Word leave a ~$<name> lock file next to an open file; writing under them loses the change.
-locks="$(cd "$ROOT" && for x in $DIRS; do [ -d "$x" ] && find "$x" -name '~$*' -print; done | LC_ALL=C sort)"
+locks="$(cd "$ROOT" && for x in $DIRS; do
+  if [ -d "$x" ]; then find "$x" -name '~$*' -print || exit 1; fi
+done | LC_ALL=C sort)" || die "could not look through the user folders here for open files (a folder can't be read; nothing was changed)"
 if [ -n "$locks" ]; then
   printf '%s\n' "$locks" | sed 's/^/open: /'
   [ -n "$dry" ] || die "a file is open in Excel or Word (see the open: lines; each ~\$ file is its lock). Close it, then run the restore again. (nothing was changed)"
@@ -90,8 +94,8 @@ list="$(mktemp 2>/dev/null || mktemp -t jshq)" || die "cannot make a temporary f
 trap 'rm -f "$list"' EXIT
 (cd "$B" && for x in $DIRS; do
   if [ "${x%%/*}" = knowledge ] && [ -L knowledge ]; then continue; fi
-  if [ -e "$x" ] || [ -L "$x" ]; then find "$x" \( -type f -o -type l \) -print0; fi
-done | LC_ALL=C sort -z) > "$list" || die "could not list the backup's files (nothing was changed)"
+  if [ -e "$x" ] || [ -L "$x" ]; then find "$x" \( -type f -o -type l \) -print0 || exit 1; fi
+done | LC_ALL=C sort -z) > "$list" || die "could not list the backup's files (a folder in it can't be read; nothing was changed)"
 
 same_text() { [ "$(tr -d '\r' < "$1" | cksum)" = "$(tr -d '\r' < "$2" | cksum)" ]; }
 parent_state() {  # "link" if a folder between the workspace and this file is a link, "file" if one is a file

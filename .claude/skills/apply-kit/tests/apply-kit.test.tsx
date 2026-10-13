@@ -114,6 +114,8 @@ const FULL = () => ({
   'jobs/globex-pm1/posting.md': POSTING,
   'jobs/globex-pm1/application-answers.md': ANSWERS,
   'jobs/globex-pm1/resume.html': '<html></html>',
+  // Written by tailor-resume only after the checks: the sign that resume.html may be printed.
+  'jobs/globex-pm1/resume-notes.md': '# Resume notes\n\n## Requirement coverage\n- Project scheduling: Met\n- PMP: Not met\n',
 })
 
 for (const surface of ['terminal', 'desktop'] as const) {
@@ -544,5 +546,80 @@ test('availability, hours and shifts are copyable when filled in, and left out w
   expect(drawn).toContain('25-30 a week')
   expect(drawn).toContain('"key":"copy:availability"')
   expect(drawn).not.toContain('"key":"copy:shifts"')
+  await ui.unmount()
+})
+
+for (const [label, line] of [['part-time', 'employment: part-time'], ['seasonal', 'employment: seasonal'], ['paid per hour', 'pay_range: $18/hour']]) {
+  test(`Mark applied on an hourly or shift job (${label}) sets the follow-up 4 business days out (playbook), not 7`, async ($, on) => {
+    const { files } = setup(on, { ...FULL(), 'jobs/globex-pm1/posting.md': POSTING.replace('saved: 2026-10-02', `${line}\nsaved: 2026-10-02`) })
+    await $.command.run({ command: 'apply-kit', args: '' } as never)
+    const ui = await $.ui.mount({ plugin: 'apply-kit', surface: 'terminal', ...PANE } as never)
+    await ui.press({ key: 'mark-applied' })
+    expect(JSON.stringify(await ui.drawn())).toContain('sets a follow-up for 2026-10-12')
+    await ui.press({ key: 'confirm-applied' })
+    expect(files['jobs/tracker.csv']).toContain('Globex,Project Manager,applied,2026-10-12,Follow up with Jane Doe,')
+    await ui.unmount()
+  })
+}
+
+test('a full-time salaried job keeps the 7-business-day follow-up', async ($, on) => {
+  const { files } = setup(on, { ...FULL(), 'jobs/globex-pm1/posting.md': POSTING.replace('saved: 2026-10-02', 'employment: full-time\npay_range: $70,000-$85,000 a year\nsaved: 2026-10-02') })
+  await $.command.run({ command: 'apply-kit', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'apply-kit', surface: 'terminal', ...PANE } as never)
+  await ui.press({ key: 'mark-applied' })
+  await ui.press({ key: 'confirm-applied' })
+  expect(files['jobs/tracker.csv']).toContain('Globex,Project Manager,applied,2026-10-15,')
+  await ui.unmount()
+})
+
+test('a resume page is offered for printing only after its checks (requirement coverage in resume-notes.md)', async ($, on) => {
+  const files = FULL() as Record<string, string>
+  delete files['jobs/globex-pm1/resume-notes.md']
+  setup(on, files)
+  await $.command.run({ command: 'apply-kit', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'apply-kit', surface: 'terminal', ...PANE } as never)
+  let drawn = await drawnKit($, ui)
+  expect(drawn).not.toContain('open resume.html in your browser')
+  expect(drawn).toContain("its checks aren't finished yet")
+  // Notes without the coverage (a stop before step 7) still don't count.
+  files['jobs/globex-pm1/resume-notes.md'] = '# Resume notes\n\nWhat changed: reordered bullets.\n'
+  await ui.press({ key: 'refresh' })
+  drawn = await drawnKit($, ui)
+  expect(drawn).toContain("its checks aren't finished yet")
+  files['jobs/globex-pm1/resume-notes.md'] = '## Requirement coverage\n- Budgeting: Partly met\n'
+  await ui.press({ key: 'refresh' })
+  expect(await drawnKit($, ui)).toContain('open resume.html in your browser')
+  await ui.unmount()
+})
+
+test('an academic or Europass CV (cv.html) is found, and a PDF must be newer than every source that exists', async ($, on) => {
+  const files = FULL() as Record<string, string>
+  delete files['jobs/globex-pm1/resume.html']
+  files['jobs/globex-pm1/cv.html'] = '<html></html>'
+  files['jobs/globex-pm1/resume.md'] = '# Alex Rivera'
+  const pdf = (mtimeMs: number) => ({ name: 'Alex-Rivera-Resume-Globex.pdf', kind: 'file', size: 48000, mtimeMs, isLink: false })
+  const f = (name: string, mtimeMs: number) => ({ name, kind: 'file', size: 900, mtimeMs, isLink: false })
+  let listing: unknown[] = []
+  setup(on, files, { list: p => (p === 'jobs/globex-pm1' ? listing : []) })
+  await $.command.run({ command: 'apply-kit', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'apply-kit', surface: 'terminal', ...PANE } as never)
+  expect(await drawnKit($, ui)).toContain('open cv.html in your browser')
+  listing = [pdf(300), f('cv.html', 400), f('resume.md', 100)]
+  await ui.press({ key: 'refresh' })
+  expect(await drawnKit($, ui)).toContain('This PDF is older than your latest resume (cv.html)')
+  listing = [pdf(300), f('cv.html', 200), f('resume.md', 400)]
+  await ui.press({ key: 'refresh' })
+  expect(await drawnKit($, ui)).toContain('older than your latest resume text (resume.md)')
+  // Both pages exist: the PDF is out of date if either one is newer.
+  files['jobs/globex-pm1/resume.html'] = '<html></html>'
+  listing = [pdf(300), f('resume.html', 200), f('cv.html', 400), f('resume.md', 100)]
+  await ui.press({ key: 'refresh' })
+  let drawn = await drawnKit($, ui)
+  expect(drawn).toContain('(cv.html)')
+  expect(drawn).not.toContain('Upload this file')
+  listing = [pdf(500), f('resume.html', 200), f('cv.html', 400), f('resume.md', 100), f('resume.rendercv.yaml', 450)]
+  await ui.press({ key: 'refresh' })
+  drawn = await drawnKit($, ui)
+  expect(drawn).toContain('Upload this file')
   await ui.unmount()
 })

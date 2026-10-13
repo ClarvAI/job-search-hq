@@ -71,6 +71,20 @@ function dateIn(text: string, today: string, order: DateOrder = ''): string {
   return ''
 }
 
+// The day of a booked interview from its next step and next_action_date. A slash date in the text whose order isn't
+// settled by itself (both parts 12 or under, and different) was read with the row's evidence or date_order; when the
+// row's next_action_date is a clear date that is one of that text's two readings, the clear column wins (a save may
+// have tidied the day-first cell that proved the order: review J5-11). Otherwise the text's date, then the column.
+function interviewDay(next: string, nextDate: string, today: string, order: DateOrder): string {
+  const fromText = dateIn(next, today, order)
+  if (isIso(nextDate) && fromText !== nextDate && !/\d{4}-\d{1,2}-\d{1,2}/.test(next)) {
+    const m = /\b(\d{1,2})\/(\d{1,2})(?:\/(\d{4}|\d{2}))?\b/.exec(next)
+    const a = Number(m?.[1]), b = Number(m?.[2])
+    if (m && a !== b && a <= 12 && b <= 12 && (dateIn(next, today, 'mdy') === nextDate || dateIn(next, today, 'dmy') === nextDate)) return nextDate
+  }
+  return fromText || (isIso(nextDate) ? nextDate : '')
+}
+
 // A booked interview ("Interview 2026-10-07", "Onsite interview"), not a step around one: preparing,
 // thanking, or the playbook's "Schedule interview" (reply with your availability) aren't interviews.
 export function isBookedInterview(text: string): boolean {
@@ -191,7 +205,10 @@ export async function collect($: any, today: string): Promise<Alert[]> {
     const status = get('status').toLowerCase()
     const folder = get('folder')
     if (folder && JOB_OWNS_FOLLOWUP.includes(status)) ownedFolders.add(folder.toLowerCase())
-    if (!OPEN.includes(status)) continue
+    // A signed contract keeps one reminder: "Decide next step" about four weeks before it ends
+    // (knowledge/freelance-and-contract.md). It alerts like any next step; other closed rows never do.
+    const contractReminder = status === 'accepted' && /^\s*decide next step/i.test(get('next_action'))
+    if (!OPEN.includes(status) && !contractReminder) continue
     const key = `${company}|${role}|${folder || get('job_id') || get('link')}`.toLowerCase()
     const name = role ? `${company} (${role})` : company
     const next = get('next_action')
@@ -201,7 +218,7 @@ export async function collect($: any, today: string): Promise<Alert[]> {
     const also = alsoOf(get('notes'), rowOrder)
 
     const isInterviewStep = isBookedInterview(next)
-    const interviewDate = isInterviewStep ? dateIn(next, today, rowOrder) || (isIso(nextDate) ? nextDate : '') : ''
+    const interviewDate = isInterviewStep ? interviewDay(next, nextDate, today, rowOrder) : ''
     const alsoInterview = also && isBookedInterview(also.text) ? also.date : ''
     const soonest = [interviewDate, alsoInterview].filter(d => d === today || d === tomorrow).sort()[0]
     if (soonest) {

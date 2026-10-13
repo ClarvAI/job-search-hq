@@ -19,6 +19,7 @@ CONTRIBUTING.md) is proven three ways:
 """
 import sys; sys.dont_write_bytecode = True
 import hashlib
+import json
 import os
 import re
 import shutil
@@ -279,6 +280,17 @@ def build_base(t, r):
     have = [k for k in snapshot(base) if is_maint(k)]
     r.ok("base copy: the working tree has maintainer-only files, and the manifest lists none of them",
          have and not [p for p in listed if is_maint(p)], "\n".join(p for p in listed if is_maint(p)))
+    # "themed" (what /update refreshes in profile/templates/) is every template apply-theme.mjs themes (review J5-15:
+    # the academic CV, federal resume and Europass CV were missing, so their themed copies were never refreshed).
+    with open(J(base, ".claude/skills/page-design/scripts/apply-theme.mjs"), encoding="utf-8") as f:
+        m = re.search(r"^const TEMPLATES = \[(.*?)\]\]\s*$", f.read(), re.S | re.M)
+    themes = sorted("templates/" + n for n in re.findall(r"\['([A-Za-z0-9._-]+\.html)'", m.group(1) + "]")) if m else []
+    with open(J(base, "product-manifest.json"), encoding="utf-8") as f:
+        themed = sorted(json.load(f).get("themed", []))
+    r.ok("base copy: the manifest's themed list is exactly apply-theme.mjs's TEMPLATES (6, incl. academic, federal, "
+         "Europass)", themed == themes and len(themed) == 6 and "templates/cv-academic-template.html" in themed
+         and "templates/resume-federal-template.html" in themed and "templates/cv-europass-template.html" in themed,
+         "manifest: %s\napply-theme: %s" % (themed, themes))
     return base
 
 
