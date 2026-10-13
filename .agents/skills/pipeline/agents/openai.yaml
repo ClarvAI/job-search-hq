@@ -1,0 +1,4 @@
+# Codex app display name and short description for this skill (see learn.chatgpt.com/docs/build-skills).
+interface:
+  display_name: "Job board"
+  short_description: "Every application by stage, with next steps"

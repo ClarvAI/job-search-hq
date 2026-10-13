@@ -1,6 +1,6 @@
 ---
 name: update
-description: "Use when the user says \"update\", \"is there a new version\", \"install the new version\", \"I downloaded the new release\", \"what's new\", \"undo the update\" or \"roll back\", or drops a release zip in the folder. Installs a new version of the job-search workspace (the app's skills, safety checks, panels and templates) without touching the user's own files, shows what changed, brings their files up to date where a release needs it, or undoes the last update."
+description: "Use when the user says \"update\", \"is there a new version\", \"I downloaded the new release\", \"what's new\", \"undo the update\" or \"roll back\", or drops a release zip in the folder. Installs a new version of the app's files (never the user's), shows what changed, or undoes the last update."
 ---
 
 # update (Codex)

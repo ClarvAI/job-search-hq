@@ -22,6 +22,10 @@ The user can list up to 5 target job titles, locations (including remote), job t
 
 **Does the green frame hurt?** Evidence vs. opinion: LinkedIn says members with the public frame get noticeably more recruiter messages (its own data, not independently checked). The "it looks desperate" view is a recurring social-media argument; when HR Brew asked recruiters, most said they use the frame to find people. Reasonable advice: employed → recruiters only; not employed → either is fine, and the profile itself matters more.
 
+## Share profile updates (searching quietly)
+
+The setting is **Share profile updates**: Me → Settings & Privacy → Visibility → "Visibility of your LinkedIn activity". When on, LinkedIn may tell the user's network about job changes, education changes and work anniversaries (job updates can take up to 2 hours to go out). Some edits never send a notice, and anyone viewing the profile sees changes as soon as they're saved (LinkedIn Help 86236, checked 2026-10-13). Employed users editing their profile should turn it off first.
+
 ## Creator mode and the Follow button
 
 Creator mode was retired in 2024; its tools are now on by default. Profiles can make "Follow" the main button instead of "Connect" (in Settings & Privacy). For a job search, keep "Connect" as the main button so recruiters and alumni can connect easily.
@@ -33,6 +37,7 @@ LinkedIn's recruiter tools now include an AI "Hiring Assistant" that searches fr
 ## Sources
 
 - LinkedIn Help, Open to Work visibility: https://www.linkedin.com/help/linkedin/answer/67405
+- LinkedIn Help, Share profile updates: https://www.linkedin.com/help/linkedin/answer/86236
 - LinkedIn Help, personalized invitations (200 characters; free members 3 a month): https://www.linkedin.com/help/linkedin/answer/46662
 - Top skills in About section: https://www.socialmediatoday.com/news/linkedin-adds-new-ways-for-job-seekers-highlight-key-skills-and-competencies/690461/
 - Character limits round-up: https://authoredup.com/blog/linkedin-character-limit

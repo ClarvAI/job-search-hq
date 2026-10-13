@@ -1,0 +1,4 @@
+# Codex app display name and short description for this skill (see learn.chatgpt.com/docs/build-skills).
+interface:
+  display_name: "Improve my LinkedIn"
+  short_description: "Headline, About and experience, matched to your resume"

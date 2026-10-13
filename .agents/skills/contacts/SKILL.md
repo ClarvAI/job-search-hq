@@ -5,7 +5,7 @@ description: "Show the user's networking board in chat (everyone in their contac
 
 # Contacts (chat version)
 
-The chat version of the Claude Contacts panel (`/contacts`). `contacts/contacts.csv` is the only source of truth: read it fresh every time, and change only the rows of the people the user is talking about. Columns, statuses and the rules below come from `knowledge/job-search-playbook.md` ("Tracker"); if they ever disagree, the playbook wins.
+The chat version of the Claude Contacts panel (`/contacts`). `contacts/contacts.csv` is the only source of truth: read it fresh every time, and change only the rows of the people the user is talking about. The file has no lock, so one writer at a time (the playbook's "One writer at a time" says why and what to tell the user). Columns, statuses and the rules below come from `knowledge/job-search-playbook.md` ("Tracker"); if they ever disagree, the playbook wins.
 
 ## Show the board
 
@@ -41,3 +41,7 @@ Change only that person's row. Get the date right ("I messaged her yesterday" me
 - Re-read `contacts/contacts.csv` right before each change and edit only that row with a targeted edit; never rewrite the file from an older copy (the other app may have changed it). If Excel has it open, ask the user to save and close it first.
 - Follow the CSV rules in the playbook ("Tracker"; quoting, plain punctuation, and no cell starting with `=`, `+`, `-`, `@` or a tab).
 - After saving: re-read the row to confirm it saved, add one line to `history/activity.md` (date and time from the computer, which app, what changed; no private details), and tell the user in one sentence what changed and when the next follow-up is.
+
+## The Claude panel (Claude Code only; Codex: skip)
+
+In Claude Code the board is the `/contacts` panel (by status; cold collapsed). The user records Message sent (with date), They replied, We talked, Referred me, Mark cold, or sets a follow-up date; it applies the playbook contact rules (touches, never-backwards status, job row owns the follow-up once applied), adds a line to `history/activity.md`, and leaves a `[Contacts]` note. Don't re-apply a change the note already made. "We talked" and "Referred me" also pre-fill a request for a thank-you and job update: offer to draft them.

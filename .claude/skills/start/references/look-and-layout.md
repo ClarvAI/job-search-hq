@@ -1,0 +1,14 @@
+# start: Your look and layout (optional, two quick questions; skip both if the user is short on time or anything is urgent)
+
+Part of the `start` skill (how to ask, saving and progress tracking: its SKILL.md).
+
+Section 7a of setup; its name in `setup_progress:` is `look`.
+
+16. **[choices]** "Nearly done, and optional: do you have a brand or design system you'd like your pages to use?" Options: "Yes, a design system in Claude" (only offer this in Claude Code when the Artifact tool is available) · "Yes, my website or portfolio" · "Yes, a brand guide file" · "No, show me the looks" · "Skip, keep the default". (Figma only if a Figma connector is connected: add "Yes, in Figma".)
+   - Follow the matching route in `.claude/skills/page-design/references/importing-a-design-system.md`: it maps their colors and fonts into `profile/design.md`, shows them the exact lines before saving, applies the theme to every page and checks contrast (fixing any color that's too light by changing its lightness, and saying so in one line). The resume and cover letter only take the safe parts.
+   - "Skip" or no answer: keep the Default look and say "You can change the look any time; just ask."
+   - Whatever they pick, set `paper:` in the `documents` block of `profile/design.md` from their country (`Letter` for the US and Canada, `A4` for most others), with the same "OK to save?" step.
+17. **[choices]** (skip if they skipped 16) "Two things other people see have a few layouts: your portfolio site and your resume. Want to pick, or keep the defaults?" Options: "Show me the options" · "Keep the defaults".
+   - "Show me the options": run `node .claude/skills/page-design/scripts/apply-theme.mjs --preview --layouts portfolio,resume` (sample content in their new look; nothing of theirs changes) and open the previews the way page-design step 5 says (without Node, describe them instead). Portfolio: **profile** (a card with your name, contact buttons and highlights; the default), **editorial** (no boxes, big name, clean rows like a printed page), **bento** (a grid of tiles, more visual). Resume: **classic** (the default; the safest for application systems), **modern** (your name and headings in your accent color, no rule lines), **compact** (tighter, for a full one-pager). All three resumes are equally readable by application systems; the cover letter matches the resume. Ask which they like for each, one question at a time.
+   - Save the picks as `layout_portfolio:` (design block) and `layout_resume:` (documents block) in `profile/design.md`, with the same "OK to save?" step, then run apply-theme. The dashboard, flashcards, brief and designed resume keep their default layouts; say in one line that those have layouts too and they can ask any time ("make my dashboard a board").
+   - "Keep the defaults" or no answer: leave the layout lines blank (the defaults).

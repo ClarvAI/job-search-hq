@@ -34,8 +34,9 @@ title: Operations Analyst
 job_id: R-512345
 location: Austin, TX
 work_type: on-site            # on-site | hybrid | remote | unknown
-employment: full-time         # full-time | part-time | rotational program | contract | internship
-pay_range: $70,000-$85,000    # only if the posting states it
+employment: full-time         # full-time | part-time | temporary | seasonal | contract | contract-to-hire | freelance | rotational program | internship
+pay_range: $70,000-$85,000    # only if the posting states it, with its unit (/hour, /day, /year, per project)
+schedule:                     # shifts, hours or availability asked for, only if stated (e.g. weekends, overnight, 20-30 hrs/week)
 posted: 2026-10-01            # YYYY-MM-DD, blank if unknown
 deadline: 2026-11-15          # YYYY-MM-DD; blank if "open until filled"
 link: https://www.indeed.com/viewjob?jk=...      # what the user gave
@@ -60,6 +61,7 @@ saved: 2026-10-06
 - **Closes early?** If the posting says applications are reviewed on a rolling basis, "may close early", or closes after a set number of applications, write `rolling review` (or the cap) in the tracker `notes` and treat it as urgent in step 5.
 - **Start date:** does the job's start timing work with the user's earliest start date in `profile/preferences.md`? Use the start-date check in `/evaluate-job` (postings that clearly need someone before the user can start score 2 at most; unstated timing is "ask the recruiter", not a skip).
 - **Fit:** run the evaluation from `/evaluate-job` and write `fit.md` (verdict, requirement-by-requirement match with evidence from `profile/master-resume.md`, gaps, red flags, best stories, angle).
+- **Kind of job:** hourly or shift, contract or agency, or academic postings follow the matching file in the playbook's "Special situations" for what to capture and check (availability and certifications; rate, length and W-2/1099 or IR35; the document list and the deadline). If the user is employed, application answers never offer the current employer as a reference before an offer (`knowledge/searching-while-employed.md`).
 - **Pay:** record a posted range exactly as written in `pay_range` (note hourly vs. annual, and whether it says base). If none is posted, get a quick market range only for priority A/B jobs (`.claude/skills/offer/references/pay-data.md`; government data plus a few current postings is enough) and save the "Market pay" block in `fit.md`. Keep market estimates out of `pay_range` and the tracker's `salary_range`; those hold posted figures only.
 
 ## 4. Decide what happens to it (screen before adding work)

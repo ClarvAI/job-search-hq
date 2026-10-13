@@ -43,7 +43,7 @@ Re-read the file right before each change. For each lead they name, change only 
 | not for me (+ why) | `status=not-for-me`, `reason` from the list above (ask once for a reason if they gave none; offer the choices: too senior, too junior, wrong location, not my field, the company, pay, something else), `decided_date=today` |
 | undo / put it back | `status=new`, clear `reason` and `decided_date` |
 
-Accept loose answers: "save 1,3; skip the rest", "all of them", "not 4, wrong city". If a number is unclear, ask.
+Accept loose answers: "save 1,3; skip the rest", "all of them", "not 4, wrong city", and the same in the user's own language (match by meaning; the saved `status` and `reason` values stay in English, as listed). If a number is unclear, ask.
 
 Then:
 - Add **one** line to `history/activity.md` for the whole batch, e.g. `- 2026-10-06 14:05 · Codex · Job leads reviewed: saved 2 (Acme Corp - Data Analyst; Globex - Marketing Coordinator), skipped 1, not for me 1 (too senior)` (time from the computer).
@@ -54,3 +54,7 @@ Then:
 
 - Never apply, sign in, or contact anyone from here. Saving a lead only adds it to the user's list.
 - Don't delete rows; skipped and not-for-me rows keep `find-jobs` from suggesting the same posting again.
+
+## The Claude panel (Claude Code only; Codex: skip)
+
+In Claude Code the leads show as cards in the `/job-inbox` panel. The user presses Save, Skip, or Not for me (with a reason); it writes `jobs/leads.csv` and adds one line per sitting to `history/activity.md`. On each Save it leaves a `[Job Inbox]` note: run `add-job` on the saved leads (together) when the user next talks to you; `add-job` marks each lead added.

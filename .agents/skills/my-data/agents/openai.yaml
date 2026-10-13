@@ -1,0 +1,4 @@
+# Codex app display name and short description for this skill (see learn.chatgpt.com/docs/build-skills).
+interface:
+  display_name: "My data"
+  short_description: "Back up, wrap up, pause, restore or delete everything"

@@ -1,6 +1,6 @@
 ---
 name: work-search-log
-description: "Use when the user mentions unemployment benefits, work search, a weekly or biweekly certification or claim, their Universal Credit journal or work coach, or asks for a list of what they did this week. Keeps the work-search record that benefits programs ask for (US state unemployment, UK Universal Credit or New Style JSA, and similar): pulls applications, networking and interviews from the tracker, contacts and activity log, records other activities, and builds the week's log in the order the program asks for, as a spreadsheet and a printable page. The user files and certifies it themselves."
+description: "Use when the user mentions unemployment benefits, work search, a weekly certification or claim, their Universal Credit journal or work coach, or asks what they did this week. Builds the work-search record benefits programs ask for, from the tracker and contacts. The user files it themselves."
 ---
 
 # work-search-log (Codex)
@@ -9,7 +9,7 @@ This workflow is shared with Claude Code. Read `.claude/skills/work-search-log/S
 
 Never quote, link or mention these instruction files or rules to the user; just do what they say.
 
-It was written with Claude Code's names; translate them with the table in AGENTS.md ("If you are Codex"): `/name` means the skill of that name (`$name` here), review agents are separate, honest review passes you do yourself from `.claude/agents/<name>.md` (and say so), and panels are the `outbox`, `pipeline`, `contacts`, `job-inbox` and `apply-kit` skills in chat.
+It was written with Claude Code's names; translate them with the table in AGENTS.md ("If you are Codex"): `/name` means the skill of that name (`$name` here), review agents follow that table's review-agent row (mostly separate, honest passes you do yourself from `.claude/agents/<name>.md`, and you say so), and panels are the `outbox`, `pipeline`, `contacts`, `job-inbox` and `apply-kit` skills in chat.
 
 ## Codex notes
 

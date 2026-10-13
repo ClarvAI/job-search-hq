@@ -53,6 +53,7 @@ Show the user this menu (adapt lightly; keep it scannable). Start with the tip, 
 - Visa clock: if your visa depends on having a job, `/today` can count the days left (ask to set it up)
 
 **Your workspace**
+- Try it first: say "try it with sample data" for a separate practice copy filled with a made-up job search (your own folder isn't touched)
 - `/pages`: dashboard, flashcards, portfolio site, printable interview brief
 - Change the look: say "show me the looks", "use my brand colors", "bigger text" or "less motion"; every page changes together
 - `/my-data`: save a backup of everything, wrap up or pause your search, or wipe it and start over

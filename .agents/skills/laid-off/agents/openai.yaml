@@ -1,0 +1,4 @@
+# Codex app display name and short description for this skill (see learn.chatgpt.com/docs/build-skills).
+interface:
+  display_name: "I was laid off"
+  short_description: "A dated first-week plan after losing a job"

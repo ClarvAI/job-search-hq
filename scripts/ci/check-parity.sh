@@ -9,6 +9,7 @@
 #  5. the five copies of the panels' csvdate.ts are identical, and so are their csvdate.test.ts copies;
 #  6. every review agent in .claude/agents/ has a .codex/agents/ twin with the identical description;
 #  7. AGENTS.md stays within its size budget (30000 bytes).
+#  8. Codex skill-picker metadata is well formed; the blank preferences keep their language: line.
 # Usage: bash scripts/ci/check-parity.sh      Exits 1 on any problem.
 set -u
 REPO="$(cd "$(dirname "$0")/../.." && pwd -P)"
@@ -211,5 +212,30 @@ if size > BUDGET:
     fail("AGENTS.md is %d bytes; keep it at %d or less (move detail into the skills or the playbook)" % (size, BUDGET))
 else:
     print("ok    AGENTS.md: %d bytes (budget %d)" % (size, BUDGET))
+
+# 9. Codex skill-picker metadata (.agents/skills/<name>/agents/openai.yaml): a quoted display_name and a
+#    quoted short_description of 25-64 characters, for a skill that exists.
+YAML_KEY = re.compile(r'^\s+(display_name|short_description):\s*"([^"]*)"\s*$', re.M)
+metas = 0
+for name in sorted(os.listdir(".agents/skills")):
+    y = os.path.join(".agents/skills", name, "agents", "openai.yaml")
+    if not os.path.isfile(y):
+        continue
+    metas += 1
+    keys = dict(YAML_KEY.findall(open(y, encoding="utf-8").read()))
+    sd = keys.get("short_description", "")
+    if not keys.get("display_name"):
+        fail("%s: needs a quoted display_name" % y)
+    elif not 25 <= len(sd) <= 64:
+        fail("%s: short_description should be 25-64 characters (has %d)" % (y, len(sd)))
+    else:
+        print("ok    codex metadata %s" % name)
+
+# 10. The blank preferences keep the conversation-language line that start fills in.
+prefs = open("templates/blank/profile/preferences.md", encoding="utf-8").read()
+if not re.search(r"^language:", prefs, re.M):
+    fail("templates/blank/profile/preferences.md has no 'language:' line")
+else:
+    print("ok    blank preferences have a language: line")
 sys.exit(1 if bad else 0)
 PY

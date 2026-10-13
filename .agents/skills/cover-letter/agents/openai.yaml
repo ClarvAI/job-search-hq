@@ -1,0 +1,4 @@
+# Codex app display name and short description for this skill (see learn.chatgpt.com/docs/build-skills).
+interface:
+  display_name: "Write a cover letter"
+  short_description: "A short cover letter from your real experience"

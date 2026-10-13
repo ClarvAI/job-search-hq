@@ -80,7 +80,7 @@ Shared link first, no mention of jobs, a general interest, the ask as a question
 > Thank you,
 > Alex
 
-(Outbox drafts can't carry attachments. Keep "My resume is attached" only when the user will attach the PDF in Gmail before sending; tell them which file. Otherwise write "Happy to send my resume if that helps.")
+(Keep "My resume is attached" only when the job folder has a checked resume PDF: name it in the draft's `attach:` header, and the Claude Outbox's **Create Gmail draft…** attaches it (the panel's Send never sends attachments; in chat or Codex, tell the user which file to attach in Gmail). Otherwise write "Happy to send my resume if that helps.")
 
 ## Follow-up after no reply (one gentle bump, 5–7 business days later, then stop)
 

@@ -1,6 +1,6 @@
 ---
 name: work-search-log
-description: "Use when the user mentions unemployment benefits, work search, a weekly or biweekly certification or claim, their Universal Credit journal or work coach, or asks for a list of what they did this week. Keeps the work-search record that benefits programs ask for (US state unemployment, UK Universal Credit or New Style JSA, and similar): pulls applications, networking and interviews from the tracker, contacts and activity log, records other activities, and builds the week's log in the order the program asks for, as a spreadsheet and a printable page. The user files and certifies it themselves."
+description: "Use when the user mentions unemployment benefits, work search, a weekly certification or claim, their Universal Credit journal or work coach, or asks what they did this week. Builds the work-search record benefits programs ask for, from the tracker and contacts. The user files it themselves."
 ---
 
 # /work-search-log: the record unemployment benefits ask for

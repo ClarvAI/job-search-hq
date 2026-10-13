@@ -6,7 +6,7 @@ is never touched.
     python3 scripts/ci/e2e-mydata.py [--impl sh|ps|both] [--keep]
 
 sh drives export.sh / reset.sh / restore.sh / init-data.sh; ps drives their .ps1 twins (PowerShell
-from $PS_EXE). Restore follows .claude/skills/my-data/SKILL.md section 4 the way an agent on that
+from $PS_EXE). Restore follows .claude/skills/my-data/references/restore.md the way an agent on that
 platform would: unzip -n (sh) or Expand-Archive without -Force (ps) into a new empty folder outside the
 workspace, then restore --dry-run, restore, and the first-run script.
 """
@@ -581,7 +581,7 @@ def scenario_main(R, impl, base, pristine, outside, links_ok, blank):
     R.ok("%s after reset the first-run script has nothing to do (like a fresh download after first run)" % tag,
          rc == 0 and last_line(out) == "init: nothing to do", out)
 
-    # ---- bring the backup back (SKILL.md section 4)
+    # ---- bring the backup back (my-data references/restore.md)
     unpack_dir = None
     if zp2:
         unpack_dir = restore_after_reset(R, impl, base, ws, zp2, exp2, blank, outside, out0, links_ok)
@@ -589,7 +589,7 @@ def scenario_main(R, impl, base, pristine, outside, links_ok, blank):
 
 
 def unpack(R, impl, tag, zp, unpack_parent, what):
-    """SKILL.md section 4 steps 1 and 3. Returns the unpacked folder (the new folder), or None."""
+    """my-data references/restore.md steps 1 and 3. Returns the unpacked folder (the new folder), or None."""
     z = read_zip(zp)
     top = next(iter(z["tops"])) if len(z["tops"]) == 1 else ""
     R.ok("%s %s step 1: the zip is one job-search-backup-<date>/ folder with READ-ME.txt, profile/, jobs/" % (tag, what),
@@ -619,7 +619,7 @@ def unpack(R, impl, tag, zp, unpack_parent, what):
 
 
 def restore(R, impl, tag, ws, unpack_dir, what, extra=()):
-    """SKILL.md section 4 step 4 (preview, then run) and step 5. Returns the restore output."""
+    """my-data references/restore.md step 4 (preview, then run) and step 5. Returns the restore output."""
     s0 = snap(ws)
     rc, out = drive(impl, ws, "restore", ["--dry-run"] + list(extra) + [unpack_dir])
     R.ok("%s %s step 4 preview: ends 'restore: dry-run (...; nothing changed)' and changes nothing" % (tag, what),

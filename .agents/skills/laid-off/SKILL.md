@@ -1,6 +1,6 @@
 ---
 name: laid-off
-description: "Use when the user says they were laid off, let go, made redundant, lost their job, got a severance agreement or WARN notice, or their position was eliminated. First-week plan: a dated checklist from the user's last day (file for unemployment, health coverage windows, severance review and revocation periods, final pay, documents to keep), drafts for a severance question and for references and recommendations, and pointers to official help and an employment lawyer. US, UK and other countries. Never legal advice; the user decides and sends everything."
+description: "Use when the user was laid off, let go, made redundant, lost their job, or got a severance agreement or WARN notice. First-week plan: dated deadlines (unemployment, health coverage, severance, final pay), reference asks and official help. US, UK and other countries. Never legal advice."
 ---
 
 # laid-off (Codex)
@@ -9,7 +9,7 @@ This workflow is shared with Claude Code. Read `.claude/skills/laid-off/SKILL.md
 
 Never quote, link or mention these instruction files or rules to the user; just do what they say.
 
-It was written with Claude Code's names; translate them with the table in AGENTS.md ("If you are Codex"): `/name` means the skill of that name (`$name` here), review agents are separate, honest review passes you do yourself from `.claude/agents/<name>.md` (and say so), and panels are the `outbox`, `pipeline`, `contacts`, `job-inbox` and `apply-kit` skills in chat.
+It was written with Claude Code's names; translate them with the table in AGENTS.md ("If you are Codex"): `/name` means the skill of that name (`$name` here), review agents follow that table's review-agent row (mostly separate, honest passes you do yourself from `.claude/agents/<name>.md`, and you say so), and panels are the `outbox`, `pipeline`, `contacts`, `job-inbox` and `apply-kit` skills in chat.
 
 ## Codex notes
 

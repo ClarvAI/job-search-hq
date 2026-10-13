@@ -1,6 +1,6 @@
 ---
 name: laid-off
-description: "Use when the user says they were laid off, let go, made redundant, lost their job, got a severance agreement or WARN notice, or their position was eliminated. First-week plan: a dated checklist from the user's last day (file for unemployment, health coverage windows, severance review and revocation periods, final pay, documents to keep), drafts for a severance question and for references and recommendations, and pointers to official help and an employment lawyer. US, UK and other countries. Never legal advice; the user decides and sends everything."
+description: "Use when the user was laid off, let go, made redundant, lost their job, or got a severance agreement or WARN notice. First-week plan: dated deadlines (unemployment, health coverage, severance, final pay), reference asks and official help. US, UK and other countries. Never legal advice."
 ---
 
 # /laid-off: the first week after losing a job

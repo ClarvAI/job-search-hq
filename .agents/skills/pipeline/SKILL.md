@@ -5,7 +5,7 @@ description: "Show the user's job board in chat (every application by stage, wit
 
 # Pipeline (chat version)
 
-The chat version of the Claude Pipeline panel. `jobs/tracker.csv` is the only source of truth: read it fresh every time, and change it only in the rows the user is talking about.
+The chat version of the Claude Pipeline panel. `jobs/tracker.csv` is the only source of truth: read it fresh every time, and change it only in the rows the user is talking about. The file has no lock, so one writer at a time (the playbook's "One writer at a time" says why and what to tell the user).
 
 ## Show the board
 
@@ -43,3 +43,7 @@ After saving: re-read the row to confirm it saved, add one line to `history/acti
 - Re-read the tracker right before each change and edit only the affected row; never rewrite the file from an older copy (the other app may have changed it).
 - Don't mark something applied or sent unless the user says it happened.
 - If the dashboard page is published (`profile/published-pages.md`), offer to refresh it afterwards (in Codex: refresh the local file; republishing the link needs Claude).
+
+## The Claude panel (Claude Code only; Codex: skip)
+
+In Claude Code the board is the `/pipeline` panel. The user changes stage, next step and due date there; it writes `jobs/tracker.csv`, adds a line to `history/activity.md`, and leaves a `[Pipeline]` note. The change is already saved: don't re-apply it; take it into account, and republish the dashboard if the note asks. A one-line band above the prompt shows the pipeline summary, plus Contacts follow-ups due and new Job Inbox leads when there are any.

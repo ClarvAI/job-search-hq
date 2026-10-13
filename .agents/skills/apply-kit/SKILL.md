@@ -44,3 +44,7 @@ Only when they say it happened, and with the real date they applied ("yesterday"
 - `followups=0`
 
 Then add one line to `history/activity.md` (`date '+%Y-%m-%d %H:%M'` for the time; Windows PowerShell: `Get-Date -Format 'yyyy-MM-dd HH:mm'`; e.g. `- 2026-10-06 14:05 · Codex · Acme Corp (Operations Analyst): marked applied on 2026-10-06; follow-up set for 2026-10-15`), re-read the row to confirm, and tell the user in one sentence when the follow-up is. Finish the rest of the `apply` skill's step 6 (a recruiter question in the Outbox, a referral noted in `contacts/contacts.csv`). If the save fails because Excel has the file open, ask them to save and close it, then try again.
+
+## The Claude panel (Claude Code only; Codex: skip)
+
+In Claude Code the same kit is the `/apply-kit` panel: every answer for one job with a Copy button (contact details, work authorization and sponsorship per country, start date, relocation, the job's salary answer, their self-identification choice, education, each job, the job's questions from `application-answers.md`, PDF file names). The salary floor from preferences shows only as "Your minimum — don't type this", with no Copy button. It is read-only except **Mark applied…**: that sets the row to applied today, follow-up in 7 business days, `followups=0`, adds a line to `history/activity.md`, and leaves an `[Apply Kit]` note. Don't re-apply that change; finish the rest of `apply` step 6 (a recruiter question, a referral in contacts). If they applied on another day, fix the dates.

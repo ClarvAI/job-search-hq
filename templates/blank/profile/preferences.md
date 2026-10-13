@@ -42,6 +42,8 @@ field:
 <!-- the user's field or industry in their own words, e.g. "medical devices", "B2B SaaS marketing", "public school teaching" -->
 home_base:
 <!-- city / region -->
+language:
+<!-- The language the user wants the assistant to talk with them in, e.g. "English", "Deutsch", "español". Blank = the language the user writes in. Set by /start; the user can change it any time just by asking. Only the conversation follows it: files keep their fixed formats, application documents follow application_languages below, and the panels' buttons stay in English. -->
 application_languages:
 <!-- Languages the user can read well enough to check an application in, with a level, e.g. "English (native), German (B2)". Application documents are written only in these (about B2 or above); anything else gets an English gloss and "Needs a native-speaker check before sending." Set by /start, or the first time the user applies in another language. -->
 
@@ -61,6 +63,10 @@ application_languages:
 - Earliest start date: **[ASK]**
 - Hours per week for the search: **[ASK]** (sets the weekly goals)
 - Willing to travel for work: **[ASK]**
+- Availability:
+- Hours wanted:
+- Shifts:
+<!-- Optional, only for hourly, shift or part-time work (knowledge/hourly-and-shift-work.md): the days and hours the user can work (e.g. "Mon-Fri after 3pm, weekends any time"), hours a week wanted ("20-30 a week" or "full-time"), and shift limits ("no overnights"). Blank = not asked; never promise hours the user can't keep. -->
 
 ## Benefits and visa clocks (optional; leave blank if they don't apply)
 

@@ -1,0 +1,4 @@
+# Codex app display name and short description for this skill (see learn.chatgpt.com/docs/build-skills).
+interface:
+  display_name: "Work search log"
+  short_description: "The weekly record unemployment benefits ask for"

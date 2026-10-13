@@ -1,0 +1,4 @@
+# Codex app display name and short description for this skill (see learn.chatgpt.com/docs/build-skills).
+interface:
+  display_name: "Should I apply?"
+  short_description: "Fit, gaps and red flags for a saved job"

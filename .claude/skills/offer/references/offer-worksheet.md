@@ -64,7 +64,9 @@ Ask the user to weight what matters most (money, growth, the work, location) bef
 (Ask for a modest extension, usually 1–2 weeks. For students and new grads, check whether the school's career center publishes an employer offer-timeline policy, and mention it only if it exists. Fill in the brackets with something real before sending.)
 
 **Closing the ask (makes it easy to say yes; only if the user really would sign):**
-> If you're able to get to [$X / that sign-on], I'm ready to accept today.
+> If you're able to get to [$X / that sign-on], that would make this an easy decision for me.
+
+(A counteroffer never says "accept", not even "accept with one change". The user accepts separately, in writing, once the final terms are in writing.)
 
 ## Fine print checklist (read before accepting)
 
