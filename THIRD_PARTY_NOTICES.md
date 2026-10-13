@@ -1,6 +1,6 @@
 # Third-party notices
 
-Job Search HQ is released under the MIT License (see `LICENSE`). It does not bundle third-party code. The pages it makes load a few open-source libraries and fonts from public CDNs when you open them in a browser, and some features can use optional tools you install yourself. Their licenses are listed here.
+Job Search HQ is released under the PolyForm Noncommercial License 1.0.0 (see `LICENSE`); that license covers only Job Search HQ itself, not the pieces listed here, which keep their own licenses. It does not bundle third-party code. The pages it makes load a few open-source libraries and fonts from public CDNs when you open them in a browser, and some features can use optional tools you install yourself. Their licenses are listed here.
 
 ## Libraries loaded by the pages (from cdn.jsdelivr.net)
 

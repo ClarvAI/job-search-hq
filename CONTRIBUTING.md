@@ -6,6 +6,10 @@ Thanks for helping improve Job Search HQ. This page is for people changing the a
 
 Develop in a clean copy of the app that has never held anyone's real job search. Your own `profile/`, `jobs/`, `contacts/`, `outbox/` and the other user-owned folders ([DATA_CONTRACT.md](DATA_CONTRACT.md)) are git-ignored, but don't rely on that alone: no real resumes, names, email addresses, phone numbers or contact lists in commits, issues, test fixtures or screenshots. Use made-up people at `example.com` and 555 phone numbers. To report a security problem, follow [SECURITY.md](SECURITY.md) instead of opening an issue.
 
+## Licensing of contributions
+
+Job Search HQ is licensed under the PolyForm Noncommercial License 1.0.0 (see [LICENSE](LICENSE)), and Sam Clarvit also offers it under commercial licenses. By sending a contribution (a pull request, patch or suggested text), you agree that it is licensed under the same PolyForm Noncommercial terms, and that Sam Clarvit may also license it to others under other terms, including commercial ones. Only send work you have the right to give on these terms.
+
 ## Run the checks
 
 From the top folder:

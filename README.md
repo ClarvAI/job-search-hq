@@ -219,7 +219,7 @@ It's a backstop. The main protection is that the assistant drafts and you send. 
 
 ## License and fine print
 
-- [LICENSE](LICENSE): MIT. Free to use, change and share.
+- [LICENSE](LICENSE): PolyForm Noncommercial 1.0.0. Free for your own job search and any other noncommercial use, and free for schools, career centers, charities and public bodies. You can change it and share it, as long as the license and its `Required Notice` line go with it. Selling it, building it into a paid product, or using it to serve paying clients (for example as a career coach) needs a commercial license from Sam Clarvit; ask through this repository. Because of that limit it is source-available rather than "open source".
 - [DISCLAIMER.md](DISCLAIMER.md): not professional advice; AI output can be wrong; you're responsible for what you send.
 - [SECURITY.md](SECURITY.md): what the safety checks do and don't cover, and how to report a problem privately.
 - [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md): fonts, libraries and other outside pieces the pages use.
