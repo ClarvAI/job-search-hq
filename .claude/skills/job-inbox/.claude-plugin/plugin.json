@@ -1,5 +1,6 @@
 {
   "name": "job-inbox",
+  "displayName": "Job Inbox",
   "version": "0.1.0",
   "author": { "name": "Job Search HQ contributors" },
   "description": "Go through new job leads from /find-jobs: save, skip, or say why one isn't for you. The line above the prompt shows how many are waiting.",

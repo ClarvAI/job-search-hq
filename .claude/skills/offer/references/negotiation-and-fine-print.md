@@ -55,6 +55,16 @@ Background for `/offer`. Scripts live in `offer-worksheet.md`; market numbers co
 
 Accepting and then backing out burns the relationship, and schools commonly restrict career-services or job-board access for students who do it (some notify the department). If the user is truly considering it, talk it through, check the offer letter for repayment terms, and if they go ahead, tell the employer promptly, by phone first, with an apology and no excuses.
 
+## 9. Offers outside the US
+
+Sections 6 and 7 are US-specific (401(k) match, health premiums, the FCRA). Elsewhere, look up the job country's rules and compare these instead (checked 2026-10-12; confirm on the official page before quoting):
+- **Notice period:** the user's current contract sets how much notice they must give, and in the UK and much of Europe it is often one to three months, so it decides the realistic start date. Agree the start date in writing before resigning (UK: "check your employment contract", https://www.gov.uk/handing-in-your-notice).
+- **Probation:** common outside the US. In Germany an agreed probation (*Probezeit*) lasts at most six months, and either side can end the job with two weeks' notice during it (§ 622(3) BGB, https://www.gesetze-im-internet.de/bgb/__622.html). Note its length and notice terms in the comparison.
+- **Pay structure:** monthly salary × 12, or × 13-14 where the offer states a 13th or 14th month; holiday pay; collective-agreement (tariff) pay grades. Compare annual gross base to annual gross base.
+- **Paid leave:** a legal minimum applies (at least four weeks in the EU, under the Working Time Directive 2003/88/EC; 5.6 weeks in the UK, https://www.gov.uk/holiday-entitlement-rights); compare the days above the minimum.
+- **Pension:** in the UK, automatic enrolment means at least 8% of qualifying earnings in total, at least 3% from the employer (https://www.gov.uk/workplace-pensions/what-you-your-employer-and-the-government-pay); an employer paying more is worth a line in the table. Health cover is usually not tied to the job; note private health cover only as a perk.
+- **Non-compete and garden leave:** rules differ a lot (in Germany a post-employment non-compete needs compensation of at least half the last pay, § 74 HGB, https://www.gesetze-im-internet.de/hgb/__74.html). Flag any clause and suggest a local employment lawyer or union before signing; don't judge enforceability.
+
 ## Sources
 
 - Pew Research Center, "When negotiating starting salaries, most U.S. women and men don't ask for higher pay" (2023): https://www.pewresearch.org/short-reads/2023/04/05/when-negotiating-starting-salaries-most-us-women-and-men-dont-ask-for-higher-pay/

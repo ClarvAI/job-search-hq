@@ -1,6 +1,7 @@
 ---
 name: apply
 description: "Prepare a complete job application package and checklist, then update the tracker. Use when the user says they want to apply to a job, are ready to submit, or ask what they need for an application."
+argument-hint: "[job folder or job name]"
 ---
 
 # /apply

@@ -1,6 +1,6 @@
 ---
 name: offer
-description: "Help the user evaluate, compare, and negotiate job offers (total compensation, cost of living, growth), and draft negotiation or acceptance messages. Use when the user gets an offer or is deciding between offers."
+description: "Use when the user gets a job offer, is deciding between offers, asks whether to accept, wants to negotiate salary, or asks for a counteroffer. Helps evaluate and compare offers (total compensation, cost of living, growth) and drafts negotiation or acceptance messages. The user accepts or declines themselves."
 ---
 
 # offer (Codex)

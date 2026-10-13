@@ -1,6 +1,7 @@
 ---
 name: page-review
 description: "One-pass quality review of the user's visual pages and print templates (pages/*.html, jobs/*/interview-brief.html, templates/*.html) and of the Claude panels (Outbox, Pipeline, Contacts, Job Inbox, Apply Kit, Interview Room, due alerts), covering accessibility, layout, readability, color contrast, motion, print, and interface copy. Use after any change to how one of them looks or behaves, or when the user asks whether a page looks right."
+user-invocable: false
 ---
 
 # Page review

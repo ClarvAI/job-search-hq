@@ -3,6 +3,7 @@ name: job-scout
 description: Searches the public web for current job postings matching the user's career stage, target roles, and locations, and returns a de-duplicated, structured list. Use from /find-jobs or when asked to look for openings.
 tools: WebSearch, WebFetch, Read
 model: sonnet
+maxTurns: 15
 color: green
 ---
 

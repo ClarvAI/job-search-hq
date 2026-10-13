@@ -1,6 +1,7 @@
 ---
 name: find-jobs
 description: "Search the web for new job postings that fit the user (at the level that matches their career stage, former employers always included). Use when the user asks to find jobs, look for openings, see what's out there, or search a company or role they haven't picked a posting for yet. When they already have specific links, use add-job."
+argument-hint: "[optional focus, such as a company or role]"
 ---
 
 # /find-jobs
@@ -25,7 +26,7 @@ Focus: `$ARGUMENTS` (blank = their preferences).
    - `link`: where it was found; `apply_link`: the employer's own application page if known. `job_id`: the requisition number if shown. `source`: e.g. `greenhouse feed`, `company site`, `indeed`.
    - `fit_guess`: `A` / `B` / `C`. `why`: why it fits, 12 words or fewer. `concerns`: short, e.g. `stretch: asks 2 years`, `starts before you can`, `may not sponsor`, `needs a license you don't list`, `pay below your floor` (top of the posted range under the salary floor in preferences; a note, not a skip), `possible scam`, `staffing agency`, `only on job boards`, `former employer: ask your manager`. When judging a lead's concerns, use `.claude/skills/evaluate-job/references/reading-postings.md` (knockouts and "Real?" signals) so leads and add-job agree. A posting older than 30 days gets `posted 30+ days ago` only as a note, not a skip.
    - `status`: `new`; `reason` and `decided_date` blank.
-   - Plain characters (`-` not en/em dashes, straight quotes; keep letters as written, accents included), and the playbook's CSV rules ("Tracker"): quote any value with a comma, double quote or line break, doubling any `"` inside it; never start a cell with `=`, `+`, `-`, `@` or a tab (reword it instead).
+   - Follow the CSV rules in the playbook ("Tracker"; quoting, plain punctuation, and no cell starting with `=`, `+`, `-`, `@` or a tab).
    Then add one line to `history/activity.md` (e.g. `Found 8 new job leads`).
 5. Show the user a short ranked summary (best first), one line each (fictional example):
    `A | Acme Corp | Operations Analyst | Austin TX | posted 3 days ago | why it fits in 6 words`

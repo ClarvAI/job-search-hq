@@ -1,5 +1,6 @@
 {
   "name": "pipeline",
+  "displayName": "Pipeline",
   "version": "0.1.0",
   "author": { "name": "Job Search HQ contributors" },
   "description": "Your job board: a one-line summary above the prompt, and a /pipeline board where you change a job's stage, next step, or due date.",

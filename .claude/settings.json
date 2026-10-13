@@ -1,7 +1,11 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
+  },
   "permissions": {
-    "defaultMode": "acceptEdits",
     "allow": [
       "Read",
       "Glob",
@@ -18,11 +22,17 @@
       "Bash(bash .claude/skills/health/scripts/health.sh)",
       "Bash(bash .claude/skills/health/scripts/health.sh *)",
       "Bash(powershell -NoProfile -ExecutionPolicy Bypass -File .claude\\skills\\health\\scripts\\health.ps1)",
+      "PowerShell(powershell -NoProfile -ExecutionPolicy Bypass -File .claude\\skills\\health\\scripts\\health.ps1)",
       "Bash(powershell -NoProfile -ExecutionPolicy Bypass -File .claude\\skills\\health\\scripts\\health.ps1 *)",
+      "PowerShell(powershell -NoProfile -ExecutionPolicy Bypass -File .claude\\skills\\health\\scripts\\health.ps1 *)",
       "Bash(powershell -NoProfile -ExecutionPolicy Bypass -File .claude\\skills\\update\\scripts\\update.ps1 -Status)",
+      "PowerShell(powershell -NoProfile -ExecutionPolicy Bypass -File .claude\\skills\\update\\scripts\\update.ps1 -Status)",
       "Bash(powershell -NoProfile -ExecutionPolicy Bypass -File .claude\\skills\\update\\scripts\\update.ps1 -Check)",
+      "PowerShell(powershell -NoProfile -ExecutionPolicy Bypass -File .claude\\skills\\update\\scripts\\update.ps1 -Check)",
       "Bash(powershell -NoProfile -ExecutionPolicy Bypass -File .claude\\skills\\update\\scripts\\update.ps1 -Check *)",
+      "PowerShell(powershell -NoProfile -ExecutionPolicy Bypass -File .claude\\skills\\update\\scripts\\update.ps1 -Check *)",
       "Bash(powershell -NoProfile -ExecutionPolicy Bypass -File .claude\\skills\\start\\scripts\\init-data.ps1)",
+      "PowerShell(powershell -NoProfile -ExecutionPolicy Bypass -File .claude\\skills\\start\\scripts\\init-data.ps1)",
       "Bash(bash .claude/skills/start/scripts/init-data.sh)",
       "Bash(bash .claude/skills/start/scripts/init-data.sh *)",
       "Bash(bash .claude/skills/update/scripts/update.sh --status)",
@@ -120,17 +130,28 @@
       "Bash(rm -rf:*)",
       "Bash(git push:*)",
       "Bash(curl:*)",
-      "Bash(wget:*)"
+      "Bash(wget:*)",
+      "mcp__claude_ai_Gmail__send_message",
+      "mcp__claude_ai_Gmail__reply",
+      "mcp__claude_ai_Gmail__forward",
+      "mcp__claude_ai_Gmail__trash_message",
+      "mcp__claude_ai_Gmail__trash_thread",
+      "mcp__claude_ai_Superhuman_Mail__send_draft",
+      "mcp__claude_ai_Superhuman_Mail__undo_send",
+      "mcp__claude_ai_Google_Calendar__delete_event",
+      "mcp__claude_ai_Google_Calendar__respond_to_event",
+      "mcp__claude_ai_Google_Calendar__update_event"
     ]
   },
   "hooks": {
     "SessionStart": [
       {
+        "matcher": "startup|resume|clear",
         "hooks": [
           {
             "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh\"",
-            "timeout": 10
+            "timeout": 30
           }
         ]
       }
@@ -142,7 +163,8 @@
           {
             "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard.sh\" || { echo 'Safety check could not run, so this was blocked to be safe. Tell the user the safety check in .claude/hooks/guard.sh is not working.' >&2; exit 2; }",
-            "timeout": 15
+            "timeout": 30,
+            "onFailure": "block"
           }
         ]
       }

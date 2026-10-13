@@ -9,7 +9,7 @@ The chat version of the Claude Job Inbox panel: same file, same rules. `jobs/lea
 
 ## The file
 
-Columns (plain characters: `-` not long dashes, straight quotes, accents kept; the playbook's CSV rules: quote any value with a comma, double quote or line break, doubling any `"` inside it, and never start a cell with `=`, `+`, `-`, `@` or a tab (reword it instead); dates `YYYY-MM-DD`; it may come from Excel, so tolerate a byte-order mark, Windows line endings and dates like `10/14/2026`, read as AGENTS.md says in "Reading dates someone else wrote", asking the user when a date is still unclear and never rewriting it until they say):
+Columns (follow the CSV rules in the playbook ("Tracker"; quoting, plain punctuation, and no cell starting with `=`, `+`, `-`, `@` or a tab); dates `YYYY-MM-DD`; it may come from Excel, so tolerate a byte-order mark, Windows line endings and dates like `10/14/2026`, read as AGENTS.md says in "Reading dates someone else wrote", asking the user when a date is still unclear and never rewriting it until they say):
 
 ```
 id,found_date,company,role,location,remote,pay,posted,link,apply_link,job_id,source,fit_guess,why,concerns,status,reason,decided_date

@@ -1,6 +1,6 @@
 ---
 name: health
-description: "Check that the user's job-search workspace is set up and working: right folder, app version, safety checks, hooks, panels, Gmail and Calendar connections, Excel, optional tools (Chrome or Edge, Node.js, pdftotext), setup and starter files. Read-only: it changes nothing and offers fixes. Use when the user says something isn't working, the panels or the daily greeting are missing, a command does nothing, right after installing, moving or updating the folder, or asks \"is everything working\", \"check my setup\", \"health check\" or \"run a checkup\"."
+description: "Use when the user says something isn't working, the panels or the daily greeting are missing, a command does nothing, or right after installing, moving or updating the folder, or asks \"is everything working\", \"check my setup\", \"health check\" or \"run a checkup\". Read-only check of the job-search workspace: right folder, app version, safety checks, hooks, panels, Gmail and Calendar connections, Excel, optional tools, setup and starter files. It changes nothing and offers fixes."
 ---
 
 # health (Codex)

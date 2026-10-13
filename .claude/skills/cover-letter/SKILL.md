@@ -1,6 +1,7 @@
 ---
 name: cover-letter
 description: "Write a short, specific, human-sounding cover letter for a job from the user's real experience. Use when the user asks for a cover letter or an application requires one."
+argument-hint: "[job folder or job name]"
 ---
 
 # /cover-letter

@@ -1,6 +1,6 @@
 ---
 name: add-job
-description: "Add one or more job postings to the user's tracker from links (Indeed, LinkedIn, Handshake, company career sites, Workday/iCIMS/Greenhouse pages) or pasted text. Captures every detail needed to apply (deadline, job ID, apply link, pay, required documents, application questions), checks fit and scams, and preps the full application package for good fits so it's ready for the user's review. Use whenever the user shares a job link or posting, says \"add this job\", or pastes several links."
+description: "Use whenever the user shares a job link or posting, says \"add this job\", or pastes several links. Adds one or more postings to the tracker from links (Indeed, LinkedIn, Handshake, company career sites, Workday/iCIMS/Greenhouse pages) or pasted text, captures every detail needed to apply (deadline, job ID, apply link, pay, required documents, application questions), checks fit and scams, and preps the application package for good fits."
 ---
 
 # add-job (Codex)

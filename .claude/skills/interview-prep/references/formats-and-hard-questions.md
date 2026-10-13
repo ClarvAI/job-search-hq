@@ -22,7 +22,7 @@ Background for `/interview-prep` and `/mock-interview`. Use what fits the user's
 
 **One-way recorded video (HireVue-style).** No human live; usually 3–6 questions, 30 seconds to think, 1–3 minutes to answer. HireVue's own 2025 explainability statement says its scoring uses only a transcript of what the candidate says, not facial expressions, tone or background. So content is what's scored: complete the story, say the result plainly, and use the posting's real terms where they're true. Camera and lighting still matter if a human watches later.
 
-**AI interviewer (live bot by phone, video avatar, or chat).** Now common at the screening stage: in a May 2026 Greenhouse survey of about 2,950 job seekers in the US, UK, Germany, Australia and Ireland (a hiring-software vendor's survey), 63% said they'd had one, and 70% said they weren't clearly told up front. How to handle it:
+**AI interviewer (live bot by phone, video avatar, or chat).** Now common at the screening stage: in a May 2026 Greenhouse survey (a hiring-software vendor's survey of about 2,950 job seekers in the US, UK, Germany, Australia and Ireland), 63% of the 1,200 US respondents said they'd had one, and 70% said they weren't clearly told up front. How to handle it:
 - Treat it as a structured interview: answer each question completely in one turn, with a specific example and a number. There's no small talk to read, so don't wait for encouragement.
 - Speak clearly and a little slower; it transcribes you. If a question was unclear, ask it to repeat.
 - Don't paste or read AI-written answers. Employers often ban it, it's easy to spot, and it can disqualify the user.
@@ -42,9 +42,11 @@ Background for `/interview-prep` and `/mock-interview`. Use what fits the user's
 
 **Questions they shouldn't ask (US).** Employers shouldn't ask about age, marital status, children or family plans, religion, national origin, or disability before an offer (they *can* ask whether the user can do the job's essential tasks, and whether they're legally authorized to work in the country). The user can choose: answer if comfortable; answer the underlying concern ("I can meet the travel and schedule this role needs"); or decline politely ("I'd rather keep the focus on the job; happy to talk about the schedule"). Note it afterward; it's a signal about the employer.
 
+**UK and elsewhere.** In Great Britain the Equality Act 2010 protects age, disability, gender reassignment, marriage and civil partnership, pregnancy and maternity, race, religion or belief, sex and sexual orientation, and employers generally shouldn't ask about health or disability before a job offer except to arrange adjustments (Acas, "Following discrimination law - Recruitment", https://www.acas.org.uk/recruitment/follow-discrimination-law). Other countries have their own equality laws; look up the job country's rule before telling the user a question was unlawful. The same three ways to respond work everywhere.
+
 ## 4. Salary questions
 
-- **Where pay-history questions are banned** (about 20 states plus DC and many cities as of 2026; check the current list for the job's location), the user never has to share past pay. Elsewhere they still may decline.
+- **Where pay-history questions are banned** (about 20 US states plus DC and many cities as of 2026, and EU countries as they bring in the EU Pay Transparency Directive, which also lets applicants ask for the range before the interview; check the current rule for the job's location), the user never has to share past pay. Elsewhere they still may decline.
 - **Order of preference:** if a range is posted, work from it (script in the skill). If not, ask for theirs first: "I'd love to hear the range you've budgeted for this role." If pressed, give a researched **range** whose bottom is at or above their floor, with its source: "Based on [sources] for this role in [city], I'm looking at about $A to $B, depending on the whole package." Never a single number, and never a number from memory.
 - **Pay history, if asked where it's allowed:** "I'd rather focus on what this role is worth. Based on market data for it, I'm looking at $A to $B."
 - Negotiating happens after an offer, not in the interview (`/offer`).
@@ -68,9 +70,10 @@ The best ones ask what the job really takes. From a long-running hiring-manager 
 - AP, "Your next job interview could be with an AI bot" (May 2026): https://wtop.com/news/2026/05/one-tech-tip-your-next-job-interview-could-be-with-an-ai-bot/
 - Illinois Artificial Intelligence Video Interview Act: https://www.kelleydrye.com/viewpoints/blogs/ad-law-access/employers-beware-the-illinois-artificial-intelligence-video-interview-act-is-now-in-effect
 - NYC Local Law 144 final rules: https://www.perkinscoie.com/insights/update/new-york-city-adopts-final-rules-law-governing-automated-employment-decision-tools
-- ADA still applies to AI hiring tools after EEOC removed its guidance (Jan 2025): https://coggno.com/blog/eeoc-ai-employment-decisions-2026-manager-training-adverse-impact-ada-accommodations/
+- The ADA covers every part of hiring, including tests and interviews, whatever tool the employer uses (US EEOC, "Job Applicants and the ADA"): https://www.eeoc.gov/laws/guidance/job-applicants-and-ada
 - Pre-employment inquiries (EEOC-based summary): https://www.mtas.tennessee.edu/reference/inappropriate-pre-employment-inquiries
 - Salary-history bans by state: https://www.paycor.com/resource-center/articles/states-with-salary-history-bans/
+- EU Pay Transparency Directive 2023/970, Article 5 (range before interview, no pay-history questions; national laws from 7 June 2026, several countries late): https://eur-lex.europa.eu/eli/dir/2023/970/oj
 - patio11, "Salary Negotiation: Make More Money, Be More Valued": https://www.kalzumeus.com/2012/01/23/salary-negotiation/
 - Ask a Manager, best questions to ask: https://www.askamanager.org/2020/01/these-are-the-best-questions-to-ask-your-job-interviewer.html
 - Case formats (interviewer-led vs candidate-led): https://www.preplounge.com/en/consulting-forum/are-mckinsey-interviews-all-interview-led-2536

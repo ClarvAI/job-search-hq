@@ -1,6 +1,6 @@
 ---
 name: laid-off
-description: "First-week plan after a layoff or job loss: a dated checklist built from the user's last day (file for unemployment, health coverage windows, severance review and revocation periods, final pay, documents to keep), drafts for a severance question and for references and recommendations before colleagues scatter, and pointers to official help and an employment lawyer. US, UK and other countries. Never legal advice; the user decides and sends everything. Use when the user says they were laid off, let go, made redundant, lost their job, got a severance agreement or WARN notice, or their position was eliminated."
+description: "Use when the user says they were laid off, let go, made redundant, lost their job, got a severance agreement or WARN notice, or their position was eliminated. First-week plan: a dated checklist from the user's last day (file for unemployment, health coverage windows, severance review and revocation periods, final pay, documents to keep), drafts for a severance question and for references and recommendations, and pointers to official help and an employment lawyer. US, UK and other countries. Never legal advice; the user decides and sends everything."
 ---
 
 # /laid-off: the first week after losing a job
@@ -62,7 +62,7 @@ Show the user the dated deadlines (not the whole file) and say which one is firs
 
 ## 5. Then the search
 
-Close with one next step, usually: "Want me to draft those reference notes now?" Then `/today` each session; the plan's dates show there until they're done. If they sound overwhelmed, give just the first deadline and one small task. If they express hopelessness or thoughts of self-harm, respond with care first and point them to local crisis resources (US: call or text 988; UK: Samaritans, 116 123) before anything job-related.
+Close with one next step, usually: "Want me to draft those reference notes now?" Then `/today` each session; the plan's dates show there until they're done. If they sound overwhelmed, give just the first deadline and one small task. If they express hopelessness or thoughts of self-harm, respond with care first and point them to local crisis resources (US: call or text 988; UK and Ireland: Samaritans, 116 123; anywhere else: findahelpline.com lists free local helplines by country) before anything job-related.
 
 ## Safety lines (never cross)
 

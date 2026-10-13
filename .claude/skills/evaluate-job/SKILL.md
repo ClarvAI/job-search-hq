@@ -1,6 +1,7 @@
 ---
 name: evaluate-job
 description: "Decide whether a job the user already saved is worth applying to: re-checks fit, whether the start timing works with the user's earliest start date, requirement-by-requirement match, gaps and red flags, and gives an apply/skip call. Use whenever the user asks \"should I bother applying\", \"is this worth it\", or \"should I still apply\" about a job they've saved or mentioned before, or when new information comes in (the recruiter said something, the posting changed). For a brand-new job link or pasted posting, use add-job instead."
+argument-hint: "[job link, pasted posting, or job folder]"
 ---
 
 # /evaluate-job

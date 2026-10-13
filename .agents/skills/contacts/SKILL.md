@@ -39,5 +39,5 @@ Change only that person's row. Get the date right ("I messaged her yesterday" me
 
 - Record what actually happened. A draft is not a sent message; only count a message once the user says it went out (or the Outbox panel or `sync-inbox` reports it).
 - Re-read `contacts/contacts.csv` right before each change and edit only that row with a targeted edit; never rewrite the file from an older copy (the other app may have changed it). If Excel has it open, ask the user to save and close it first.
-- Keep letters as written, accents included; only change curly quotes to straight ones and long dashes to `-`. Follow the playbook's CSV rules ("Tracker"): quote any value with a comma, double quote or line break, doubling any `"` inside it; never start a cell with `=`, `+`, `-`, `@` or a tab (reword it instead).
+- Follow the CSV rules in the playbook ("Tracker"; quoting, plain punctuation, and no cell starting with `=`, `+`, `-`, `@` or a tab).
 - After saving: re-read the row to confirm it saved, add one line to `history/activity.md` (date and time from the computer, which app, what changed; no private details), and tell the user in one sentence what changed and when the next follow-up is.

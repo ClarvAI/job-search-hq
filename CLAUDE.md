@@ -4,6 +4,12 @@
 
 Everything in `AGENTS.md` applies. This part covers what only Claude Code has. Skip AGENTS.md's "If you are Codex" section.
 
+## Open the top folder, on a current version
+
+Start Claude Code in the top folder (the one holding `CLAUDE.md` and `.claude/`). Started inside `profile/` or `jobs/`, Claude doesn't load the shared settings, the safety guard or the panels, and nothing warns you. If `/health` says the session started in a subfolder, reopen the top folder.
+
+Use Claude Code 2.1.287 or later in the terminal, and 2.1.286 or later in the Desktop app's Code tab (type `/status` there: the Desktop app runs its own copy). Before 2.1.295 a guard that times out lets the action go ahead; update when you can.
+
 ## Slash commands
 
 Every workflow in AGENTS.md is a slash command here: `/start`, `/today`, `/add-job`, `/find-jobs`, `/evaluate-job`, `/tailor-resume`, `/cover-letter`, `/apply`, `/network`, `/follow-up`, `/thank-you`, `/interview-prep`, `/mock-interview`, `/offer`, `/linkedin`, `/resume-review`, `/weekly-review`, `/import-linkedin`, `/sync-inbox`, `/career-fair`, `/laid-off`, `/work-search-log`, `/pages`, `/my-data`, `/health`, `/update`, `/tour` (offer it after `/start` and whenever the user seems unsure), `/menu`. `outbox`, `pipeline`, `contacts`, `job-inbox` and `apply-kit` are panels here (below), opened with `/outbox`, `/pipeline`, `/contacts`, `/job-inbox` and `/apply-kit`. Point the user to them when they fit; they can also just ask.
@@ -23,11 +29,11 @@ Each panel is a plugin in `.claude/skills/<name>/` (`.claude-plugin/plugin.json`
 
 All the panels that save (Pipeline, Contacts, Job Inbox, Apply Kit) read dates and CSVs by the rules in AGENTS.md: unclear dates show as "date unclear" and are never rewritten, and they refuse to save a file that looks damaged (an unclosed quote, or saved with semicolons) or that Excel has open (a `~$` lock file next to it). Long lists show what's due first and hide the rest behind **Show all**.
 
-If the panels aren't available in the user's app (the `interview_start` tool is missing), use the same flows in chat: the `outbox`, `pipeline`, `contacts`, `job-inbox` and `apply-kit` skills in `.agents/skills/`, and the chat version in `.agents/skills/mock-interview/SKILL.md`.
+If a panel says it can't show here, or the `interview_start` tool is missing, use the same flows in chat: the `outbox`, `pipeline`, `contacts`, `job-inbox` and `apply-kit` skills in `.agents/skills/`, and the chat version in `.agents/skills/mock-interview/SKILL.md`.
 
 What the Outbox's main button does depends on `outbox_mode`:
 - `draft-only` (default): **Create Gmail draft…** puts a formatted draft (with `profile/signature.txt`) in their Gmail; they press Send there. The draft then shows under **Waiting in Gmail** until the user presses **Mark sent…** (or `/sync-inbox` finds it in Sent).
-- `send`: **Send…** sends from their Gmail after a confirm step. The first time the panel sees `send`, it asks the user to confirm send mode inside the panel and keeps making Gmail drafts until they do; it asks again if the setting is turned off and back on. It can't attach files: a draft that mentions an attachment goes through **Create Gmail draft…** so the user can attach it there.
+- `send`: **Send…** sends from their Gmail after a confirm step. The first time the panel sees `send`, it asks the user to confirm send mode inside the panel and keeps making Gmail drafts until they do; the confirmation counts only for this folder, and it asks again whenever a new dated "turned on send mode" note appears in preferences (so turning it off and back on means confirming again). It can't attach files: a draft that mentions an attachment goes through **Create Gmail draft…** so the user can attach it there.
 Other buttons: **Copy**, **Ask Claude to edit**, **Discard**. When a draft is ready, tell the user it's in `/outbox`.
 
 ## Mock interviews and voice
@@ -40,4 +46,9 @@ Other buttons: **Copy**, **Ask Claude to edit**, **Discard**. When a draft is re
 - The Claude desktop app has a **built-in browser** (no setup, keeps the user's sign-ins); Claude in Chrome is the alternative.
 - Design system import (Claude only): with the Artifact tool, `/start` and `page-design` can list the user's Claude design systems (`action: "list"`, `type: "Design System"`), read the chosen one and map its tokens into `profile/design.md` (see `.claude/skills/page-design/references/importing-a-design-system.md`). Read only; never publish or edit it. `apply-theme.mjs --preview` writes sample dashboards to `pages/.preview/` inside the folder (git-ignored), which the built-in browser can open.
 - Publishing pages as private claude.ai links follows the `pages` skill and `profile/published-pages.md`, and works only in sessions that have the Artifact tool; without it, open the pages locally and say so.
+- Claude Dashboard (Claude only): when the Artifact tool lists the Dashboard type and Node is installed, `pages` can publish the dashboard as a private Claude Dashboard instead of the themed page (numbers that show their source, a warning after 72 hours, Claude's look instead of the user's theme). It asks once before the first publish, records the yes in `profile/published-pages.md`, updates the same link afterwards, and never shares or pins it. Both routes publish only the user's own job list and counts. Steps: `.claude/skills/pages/references/claude-dashboard.md`.
 - Pages and panels follow `page-design` and get a `page-review` pass before the user sees them.
+
+## Commits
+
+Commits made in this folder carry no Claude or AI attribution (the `attribution` key in `.claude/settings.json`). Don't add `Co-authored-by`, `Claude-Session` or "Generated with" lines to commit messages or pull request descriptions yourself.

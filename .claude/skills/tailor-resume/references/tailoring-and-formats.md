@@ -72,6 +72,6 @@ Applicant tracking systems (Workday, Greenhouse, iCIMS, Taleo and others) pull t
 - Functional vs hybrid resumes (recruiter opinion): https://www.jobscan.co/blog/recruiters-functional-resume-format/
 - Parsing failures by system (vendor testing; directional): https://www.techinterview.org/post/3233474603/ats-friendly-resume-formatting-engineers/
 - OpenResume parser (single-column English resumes): https://www.open-resume.com/resume-parser
-- Why agencies ask for Word: https://quantnet.com/threads/recruitment-agencies-asking-for-resume-in-word-format.8359/
+- Why agencies ask for Word (forum thread; anecdote): https://quantnet.com/threads/recruitment-agencies-asking-for-resume-in-word-format.8359/
 - NYC Local Law 144 rules: https://perkinscoie.com/en/news-insights/nyc-adopts-final-rules-for-law-governing-automated-employment-decision-tools.html
 - career-ops (open-source job search system): "reformulates your CV; it must never fabricate it", fact-check gate before PDF: https://github.com/santifer/career-ops

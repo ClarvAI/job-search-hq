@@ -12,7 +12,7 @@ Background for `/apply`. Researched 2026-10. Most of this is practitioner advice
 
 - If the field is optional, leaving it blank or writing "Negotiable" is fine.
 - If it requires a number, give a researched figure at or above the user's floor, as a range if the field accepts text (from the posted range or the "Market pay" block in `fit.md`). Don't enter 0, 1 or 999999: recruiters warn these can be read literally by a filter or look careless to a person.
-- Expected pay and past pay are different. Many US states and cities ban asking about salary history; where they do, the user can skip or decline it (look up the current rule for the job's location). Expectations are allowed everywhere.
+- Expected pay and past pay are different. Many US states and cities ban asking about salary history; where they do, the user can skip or decline it (look up the current rule for the job's location). In the EU, the EU Pay Transparency Directive (2023/970, Article 5) gives applicants the right to the starting pay or its range "in a published job vacancy notice, prior to the job interview or otherwise", and bars employers from asking about pay history. Member states had to make it national law by 7 June 2026; by mid-2026 only a few had fully done so (for example Slovakia, Lithuania, Italy and Malta) and others, such as Ireland and Denmark, announced delays (law-firm trackers, May-June 2026), so check the country's current law before telling the user they can skip it. Expectations are allowed everywhere.
 
 ## "Why us?", "Why this role?" and other free text
 
@@ -49,10 +49,11 @@ Background for `/apply`. Researched 2026-10. Most of this is practitioner advice
 ## Sources
 
 - Harvard Business School *Hidden Workers* report: https://www.hrdive.com/news/report-applicant-tracking-systems-may-exclude-whole-segments-of-candidates/606614/
-- Knockout questions: https://hiretruffle.com/blog/knockout-questions
+- Knockout questions (hiring-software vendor blog; practitioner opinion): https://hiretruffle.com/blog/knockout-questions
 - Salary field advice (iHire career advisor): https://www.ihireengineering.com/resourcecenter/jobseeker/pages/ask-a-career-advisor-desired-salary-on-job-applications
 - Greenhouse 2025 AI in Hiring Report: https://www.greenhouse.com/newsroom/an-ai-trust-crisis-70-of-hiring-managers-trust-ai-to-make-faster-and-better-hiring-decisions-only-8-of-job-seekers-call-it-fair
 - Applying on the employer's site (College Recruiter via University of Washington Career Center, 2026): https://careers.uw.edu/blog/2026/07/02/why-diverse-job-seekers-should-apply-on-the-employers-career-site-and-not-via-easy-apply-buttons-on-job-search-sites/
 - Burks, Cowgill, Hoffman & Housman, "The Value of Hiring through Employee Referrals" (QJE 2015): https://experts.umn.edu/en/publications/the-value-of-hiring-through-employee-referrals/
-- Referral after applying depends on the employer's setup (Workday is configurable): https://www.froghire.ai/blog/referral-after-applying-can-employee-still-refer-you
+- Referral after applying depends on the employer's setup (Workday is configurable; recruiting-software vendor blog, opinion): https://www.froghire.ai/blog/referral-after-applying-can-employee-still-refer-you
+- EU Pay Transparency Directive 2023/970 (Article 5: range before interview, no pay-history questions): https://eur-lex.europa.eu/eli/dir/2023/970/oj ; implementation status (Littler, mid-2026): https://www.littler.com/news-analysis/asap/did-member-states-meet-deadline-status-implementation-eu-pay-transparency
 - NYC Local Law 144 final rules: https://perkinscoie.com/en/news-insights/nyc-adopts-final-rules-for-law-governing-automated-employment-decision-tools.html

@@ -3,6 +3,7 @@ name: company-researcher
 description: Researches a company (and optionally a specific site, team, or interviewer's public professional background) for the user's applications and interviews. Returns a concise, sourced brief. Use for cover-letter hooks, fit evaluation, and interview prep.
 tools: WebSearch, WebFetch, Read, Write
 model: sonnet
+maxTurns: 15
 color: blue
 ---
 

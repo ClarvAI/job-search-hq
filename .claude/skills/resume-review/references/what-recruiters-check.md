@@ -18,7 +18,7 @@ Background for `/resume-review`. Evidence first, then what to do with it. Resear
 
 ## Length (follow the target country, then career stage)
 
-- **US/Canada:** one page is the safe default for students, new grads and early career. Two pages is normal with roughly 8–10+ years or a lot of directly relevant work. Evidence is mixed: one vendor-run simulation found reviewers preferred two-page resumes at every level ([ResumeGo](https://www.resumego.net/research/one-or-two-page-resumes/)); career centers still advise one page early on. Don't pad to fill a second page.
+- **US/Canada:** one page is the safe default for students, new grads and early career. Two pages is normal with roughly 10+ years or a lot of directly relevant work (common recruiter advice, not a rule). Evidence is mixed: one vendor-run simulation found reviewers preferred two-page resumes at every level ([ResumeGo](https://www.resumego.net/research/one-or-two-page-resumes/)); career centers still advise one page early on. Don't pad to fill a second page.
 - **UK and Ireland:** "CV", usually up to two pages, no photo, no date of birth.
 - **Germany, Austria, Switzerland:** a tabular CV (Lebenslauf) with exact month/year dates; a photo is still common though not required.
 - **Australia and New Zealand:** often two to three pages; longer for senior people.

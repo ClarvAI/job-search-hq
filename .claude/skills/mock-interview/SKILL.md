@@ -1,6 +1,7 @@
 ---
 name: mock-interview
 description: "Run a realistic spoken mock interview for a job in the Interview Room, one question at a time, with a timer, scoring, and a written debrief. Use when the user wants to practice interviewing, rehearse answers, or asks for a mock interview."
+argument-hint: "[job folder or job name]"
 ---
 
 # /mock-interview
@@ -42,7 +43,7 @@ Many onsites ask for a 10–15 minute talk on a past project. One `interview_say
 ## Practising with an accommodation
 If the user has asked (or plans to ask) an employer for an interview accommodation, or just wants practice set up a certain way, mirror it. Ask only what setup they want, never why; don't store health details (`.claude/skills/interview-prep/references/accommodations-and-disclosure.md`). With the Interview Room tools:
 - **Longer answer time:** pass a bigger `seconds` on each `interview_say` question or follow-up (e.g. 1.5x or 2x: behavioral 180–240, technical 270–360, follow-up 90–120), matching what the employer agreed if known. Score on content, never on speed.
-- **Question in writing first:** every line already shows on screen as it's read. For think time before the clock starts, pass `prep_seconds` (e.g. 30–60) with each question, in any style.
+- **Question in writing first:** every line already shows on screen as it's read. For think time before the clock starts, pass `prep_seconds` (e.g. 30–60) with each question or follow-up, in any style (the Interview Room honours it on every question and follow-up, not only in one-way practice).
 - **No read-aloud:** reading aloud is a switch in the Interview Room, not a tool setting. Tell the user once at the start: "Press **Stop reading aloud** in the Interview Room; it remembers your choice." Then the questions are text only.
 - **Questions in advance:** before `interview_start`, give them the topics or the exact questions in chat, as the employer agreed to.
 - **Breaks:** after a main question is scored, ask in character or plainly "Ready for the next one, or want a break?" and wait. Split a long session into two shorter ones if that mirrors the real day.

@@ -27,4 +27,11 @@ Checked 2026-10-08 on gov.uk and acas.org.uk. Figures change every April and the
 
 ## Other countries
 
-Don't apply US or UK rules elsewhere. Find the government's official pages for the user's country on (1) unemployment or jobseeker benefits and how soon to claim, (2) notice and severance or redundancy pay, (3) health coverage after employment ends, if it's tied to the job, and (4) any release or settlement agreement rules. Put each as a plan line with the official link, or "check <government site>" when you can't confirm it. Many countries have a free government or union advice service for workers; point to it, and to a local employment lawyer for anything to sign.
+Don't apply US or UK rules elsewhere.
+
+**Time-critical rules that catch people out** (put these first in the plan when they apply; checked 2026-10-12; re-read the official page before quoting):
+- **Germany:** register as job-seeking (*arbeitsuchend melden*) with the Agentur für Arbeit within **3 days** of learning the job will end, or at least 3 months before the end if notice is longer (online, by phone or in person). A late registration means a one-week block (*Sperrzeit*) on unemployment benefit (§ 38 SGB III; Agentur für Arbeit press release, https://www.arbeitsagentur.de/vor-ort/donauwoerth/presse/2024-76-rechtzeitig-arbeitsuchend-melden-um-nachteile-zu-vermeiden). This applies even before the last day of work, and even if the person was dismissed without notice. Registering as unemployed (*arbeitslos melden*) on the first day without work is a separate step.
+- **Canada:** apply for Employment Insurance right away; "If you apply for Employment Insurance (EI) more than 4 weeks after your last day of work, you may lose benefits." The Record of Employment can follow later (https://www.canada.ca/en/services/benefits/ei/ei-regular-benefit/apply.html).
+- **Anywhere else:** search the public employment service's site for a registration deadline before writing any other plan line; many countries have one.
+
+Then find the government's official pages for the user's country on (1) unemployment or jobseeker benefits and how soon to claim, (2) notice and severance or redundancy pay, (3) health coverage after employment ends, if it's tied to the job, and (4) any release or settlement agreement rules. Put each as a plan line with the official link, or "check <government site>" when you can't confirm it. Many countries have a free government or union advice service for workers; point to it, and to a local employment lawyer for anything to sign.

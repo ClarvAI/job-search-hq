@@ -1,5 +1,6 @@
 {
   "name": "outbox",
+  "displayName": "Outbox",
   "version": "0.1.0",
   "author": { "name": "Job Search HQ contributors" },
   "description": "Review the emails and messages Claude drafted for you: make a Gmail draft, copy, mark sent, or discard. Nothing is sent unless you press Send yourself.",

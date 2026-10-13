@@ -1,6 +1,7 @@
 ---
 name: career-fair
 description: "Prepare the user for a career fair, recruiting event, or networking event (target list, 30-second pitch per company, questions, what to bring) and handle follow-ups afterward. Use when the user mentions a career fair, info session, industry meetup, conference, campus showcase, or networking event."
+argument-hint: "[event name]"
 ---
 
 # /career-fair

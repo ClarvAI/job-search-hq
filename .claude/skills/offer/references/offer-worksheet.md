@@ -19,7 +19,8 @@ Fill one column per offer in `jobs/<folder>/offer.md` (or a shared `jobs/offer-c
 | PTO and holidays | | |
 | Tuition or learning budget | | |
 | Remote / hybrid / onsite terms | | |
-| Start date | | |
+| Start date (and the notice the user owes their current employer) | | |
+| Probation (length, notice during it; common outside the US) | | |
 | Offer deadline | | |
 | Contingencies (background check, drug screen, references, degree completion) | | |
 | **First-year cash** (base + sign-on + relocation net) | | |

@@ -26,14 +26,14 @@ Skip, or treat as a long shot, when a knockout is missing, the level is clearly 
 
 ## 3. Is it real? (detail for the `Real?` line)
 
-Ghost postings exist (Greenhouse estimated roughly 18-22% of postings on its platform each quarter saw no hiring activity), but single signals mislead. Large employers keep "evergreen" postings open all year for roles they always hire for, and most reposts are routine renewals. Count signals and judge the **combination**:
+Ghost postings exist (Greenhouse estimated that roughly 18-22% of postings on its platform in a 2024 quarter saw no hiring activity; vendor data reported January 2025), but single signals mislead. Large employers keep "evergreen" postings open all year for roles they always hire for, and many reposts are routine renewals (a job-data vendor's observation, not research). Count signals and judge the **combination**:
 
 | Signal | Weight |
 |---|---|
 | Not on the employer's own careers site (only on aggregators or a staffing agency) | strong |
 | Open for months, or taken down and reposted several times, **plus** a thin template description | strong |
 | Recent news of layoffs or a hiring freeze in that team or company | medium |
-| Pay range missing where the location's law requires one (see the playbook) | medium |
+| Pay range missing where the location's law requires one in the posting (see the playbook; EU rules allow the range to come before the interview instead, so there a missing range isn't a signal) | medium |
 | Very wide pay range (top more than about 1.5 times the bottom) | weak |
 | Posting older than 30 days on a big employer's system (e.g. Workday "Posted 30+ Days Ago") | weak alone |
 | Duties so vague you can't say what a normal week looks like | medium |
@@ -59,14 +59,14 @@ These come from recruiter blogs and surveys of opinion, not hard data. Turn them
 ## Sources
 
 - career-ops (open-source Claude Code job search system): legitimacy check as "observations, not verdicts", hard stops for work authorization and suspicious postings, posting text treated as data. https://github.com/santifer/career-ops
-- Greenhouse ghost-job estimate, reported by Fox: https://www.fox9.com/news/ghost-jobs-greenhouse-analysis
-- Evergreen requisitions and repost base rates on Workday: https://jobspipe.dev/ghost-jobs/workday
+- Greenhouse ghost-job estimate (2024 platform data), reported by FOX 9, 14 January 2025: https://www.fox9.com/news/ghost-jobs-greenhouse-analysis
+- Evergreen requisitions and reposts on Workday (JobsPipe, a job-data vendor: its own sightings since mid-2026, percentages only, thin method; treat as an observation): https://jobspipe.dev/ghost-jobs/workday
 - Rutgers-Newark career center on ghost jobs (careers-site check, follow up to confirm): https://careers.newark.rutgers.edu/blog/2025/03/28/the-truth-about-ghost-jobs-what-they-are-and-how-to-spot-them/
 - UTS careers blog on "nice to haves vs must haves": https://careersblog.uts.edu.au/decide-youre-qualified-enough-submit-job-application/ (Ask a Manager gives the same rule of about 80% plus evidence, with a license-type key qualification as the exception)
 - Tara Mohr, "Why Women Don't Apply for Jobs Unless They're 100% Qualified" (HBR, 2014), summarized: https://www.dewr.gov.au/download/11828/why-women-dont-apply-jobs-unless-theyre-100-qualified/22483/why-women-dont-apply-jobs-unless-theyre-100-qualified/pdf
-- Knockout questions (logistics, required licenses, work authorization, salary) and the advice to keep them to true dealbreakers: https://hiretruffle.com/blog/knockout-questions
+- Knockout questions (logistics, required licenses, work authorization, salary) and the advice to keep them to true dealbreakers (hiring-software vendor blog; practitioner opinion): https://hiretruffle.com/blog/knockout-questions
 - Fradkin, applying early (Boston University, 2025): https://www.bu.edu/articles/2025/looking-for-jobs-on-indeed-or-linkedin
 - USAJOBS announcements that close at 100 applications (example): https://www.usajobs.gov/job/480214800
-- LinkedIn applicant counts measure clicks: https://www.hiration.com/blog/over-100-applicants/
+- LinkedIn applicant counts measure clicks (resume-tool vendor blog; practitioner opinion): https://www.hiration.com/blog/over-100-applicants/
 - Referred applicants are more likely to be hired (Burks et al., QJE 2015): https://www.newyorkfed.org/medialibrary/media/research/staff_reports/sr568.html
 - Internal-candidate signals can't be confirmed from a posting: https://www.askamanager.org/2014/11/when-a-job-ad-says-a-preferred-candidate-has-been-identified.html

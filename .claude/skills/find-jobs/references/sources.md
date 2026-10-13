@@ -55,7 +55,7 @@ One request per company per search is plenty. Never page through feeds of compan
 - USAJOBS API requires an Authorization-Key header: https://developer.usajobs.gov/general/quick-start
 - Google JobPosting structured data (`datePosted`, `validThrough`, how expired jobs are removed): https://developers.google.com/search/docs/appearance/structured-data/job-posting
 - JobSpy README (rate limits, proxies, Indeed date caveat): https://github.com/speedyapply/JobSpy
-- Repost patterns on Indeed (same job reappearing at new URLs): https://jobspipe.dev/blog/indeed-ghost-jobs
+- Repost patterns on Indeed (same job reappearing at new URLs; JobsPipe, a job-data vendor, own data, thin method): https://jobspipe.dev/blog/indeed-ghost-jobs
 - career-ops (open-source Claude Code job search): scans ATS feeds, optional live check to drop expired postings: https://github.com/santifer/career-ops
 - Fradkin, applying early: https://www.bu.edu/articles/2025/looking-for-jobs-on-indeed-or-linkedin
 - Hacker News "Who is hiring?" via the Algolia HN API: https://hn.algolia.com/api

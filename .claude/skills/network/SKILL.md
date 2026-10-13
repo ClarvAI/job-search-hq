@@ -1,6 +1,7 @@
 ---
 name: network
 description: "Find people for the user to talk to at a company and draft outreach (informational interview asks, referral requests, alumni notes, recruiter messages). Use when the user asks who to contact, wants a referral, or wants to reach out to someone."
+argument-hint: "[company name]"
 ---
 
 # /network
