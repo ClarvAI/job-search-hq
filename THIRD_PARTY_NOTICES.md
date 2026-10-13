@@ -8,7 +8,7 @@ Job Search HQ is released under the PolyForm Noncommercial License 1.0.0 (see `L
 
 ## The trailer
 
-The trailer video was built with [Remotion](https://www.remotion.dev) (free for individuals under its license; the build source is in `docs/maintainers/video-build/`, not part of the app's download). Its narration was generated with ElevenLabs on the maintainer's account, and it uses the fonts listed below and made-up sample data.
+The trailer video was built with [Remotion](https://www.remotion.dev) (free for individuals under its license; the build source is in `docs/maintainers/video-build/`, not part of the app's download). Its narration was generated with ElevenLabs on the maintainer's paid plan, which includes commercial use; its click and pop sound effects were generated for this project with Claude; it uses the fonts listed below and made-up sample data.
 
 ## Libraries used by the pages (bundled in `templates/assets/lib/`)
 

@@ -27,7 +27,7 @@ import zipfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from e2e_common import (Run, parse_args, temp_dir, make_workspace, build_release_zip, sh, ps, run,  # noqa: E402
-                        last_line, snapshot, read, write, keep_temps, find_node, find_bash, IS_WINDOWS)
+                        last_line, snapshot, read, write, keep_temps, find_node, find_bash, IS_WINDOWS, REPO)
 
 OLDV, NEWV = "1.0.0", "1.0.1"
 TOP = "job-search-hq-%s" % NEWV
@@ -62,6 +62,16 @@ MAN_LINE = re.compile(r'^    "([^"]+)": "([0-9a-f]{64})",?$')
 
 
 # ---------------------------------------------------------------- small helpers
+
+
+def expected_source_line():
+    """The update_source line --status prints for this repository's VERSION."""
+    with open(os.path.join(REPO, "VERSION"), encoding="utf-8") as f:
+        m = re.search(r"^update_source:[ \t]*(.*?)\s*$", f.read(), re.M)
+    src = m.group(1) if m else ""
+    if src.startswith("https://"):
+        return "update_source: " + src
+    return "update_source: none (no download address is set yet; updates need a release zip you downloaded)"
 
 def fp(data):
     return hashlib.sha256(data.replace(b"\r", b"")).hexdigest()
@@ -476,7 +486,7 @@ def run_impl(impl, t, prepared, zpath, rel, bad, sentinel, have_node, r):
     rc, out = upd(impl, ws, "status")
     r.ok("[%s] --status prints version, update_source and 'status: done'" % tag,
          rc == 0 and "version: 1.0.0" in out.splitlines() and
-         "update_source: none (no download address is set yet; updates need a release zip you downloaded)" in out
+         expected_source_line() in out.splitlines()
          and last_line(out) == "status: done"
          and "backup:" not in out, out)
     r.ok("[%s] --status changes nothing" % tag, snapshot(ws) == s0)
@@ -521,7 +531,12 @@ def run_impl(impl, t, prepared, zpath, rel, bad, sentinel, have_node, r):
     check_refusal(r, tag, "--check of a release listing profile/x.md", ws, rc, out, "one of your own files")
     rc, out = upd(impl, ws, None, "http://example.com/job-search-hq-1.0.1.zip")
     check_refusal(r, tag, "non-https address", ws, rc, out, "only https://")
+    # With no zip and no address in VERSION (the placeholder), the update refuses plainly.
+    vfile = os.path.join(ws, "VERSION")
+    vorig = rb(vfile)
+    wb(vfile, re.sub(rb"update_source:[^\r\n]*", b"update_source: set by the maintainer before publishing", vorig, count=1))
     rc, out = upd(impl, ws, None, None)
+    wb(vfile, vorig)
     check_refusal(r, tag, "no source and no update address set", ws, rc, out,
                   "no download address for updates is set yet; download the latest release zip yourself")
     rc, out = upd(impl, ws, None, os.path.join(t, "zips", "missing.zip"))
@@ -781,9 +796,8 @@ def run_zipuser(impl, t, zip100_top, unz101, zpath, maint_zip, r):
     z0 = snapshot(ws)
     r.ok("[%s] zip user: the workspace has no maintainer-only file" % tag, not maint_of(z0), "\n".join(maint_of(z0)))
     rc, out = upd(impl, ws, "status")
-    r.ok("[%s] zip user: --status says plainly that no download address is set" % tag,
-         rc == 0 and "update_source: none (no download address is set yet; updates need a release zip you downloaded)"
-         in out.splitlines(), out)
+    r.ok("[%s] zip user: --status names the download address, or says plainly that none is set" % tag,
+         rc == 0 and expected_source_line() in out.splitlines(), out)
     rc, out = upd(impl, ws, "check", zpath)
     r.ok("[%s] zip user: --check 1.0.1 (nothing edited by the user, no maintainer file mentioned)" % tag,
          rc == 0 and last_line(out).startswith("update: check (") and "0 edited by you" in last_line(out)

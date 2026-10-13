@@ -1,7 +1,7 @@
 {
   "name": "Job Search HQ",
   "version": "1.0.0",
-  "update_source": "set by the maintainer before publishing",
+  "update_source": "https://github.com/ClarvAI/job-search-hq/releases/latest/download/job-search-hq.zip",
   "hash": "sha256 of the file with carriage returns removed",
   "themed": [
     "templates/cover-letter-template.html",
@@ -262,8 +262,8 @@
     "LICENSE": "8b6892cb3b22403d44f5239f23d6e563131f84ab49e0cf98720bf8a1e2fb462b",
     "README.md": "a7c96e71c287b6ee5c90420c4185f41e891e4e15a5c6baa3b2a345e38b7a0deb",
     "SECURITY.md": "ffd8dadc362ffb275ee76d4213c98a6edc4254f507aef009dbaf6276797b7009",
-    "THIRD_PARTY_NOTICES.md": "d9510512dc4771118bce3bbb68137e380d6adcd4b22f018b9854ca4db96f4965",
-    "VERSION": "63d4efc2af52264b0055e2c17ac38b75ff70d4afdbada3b60594fd2ca1b89dd8",
+    "THIRD_PARTY_NOTICES.md": "bc5a6a05c338232150d16c05f5255cfae964e4d8d681acc63e0074143f27ca42",
+    "VERSION": "bf0d6073c65cbe172ea7c3f3eeaf3604cc2f91e047a17bb405d63e7051dde107",
     "contacts/README.md": "8ae034bcc94edf7da427adde444ea4477c21d22d78e747d4ed98aed2df940b07",
     "docs/accessibility.md": "3446280d15b1b452f71688886ba5b23b4c4fafcf6d51a6b98df81fd622cc2612",
     "docs/getting-started.md": "589f4cb871a381dd0474e457a70b92cbea52d3e83d48b484e5118bb3b30c14c9",
