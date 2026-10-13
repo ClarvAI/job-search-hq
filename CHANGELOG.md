@@ -2,6 +2,10 @@
 
 What changed in each version of Job Search HQ, newest first. `/update` shows you the entries newer than the version you have. Versions follow `MAJOR.MINOR.PATCH`: a patch fixes things, a minor version adds things, a major version changes how something you rely on works.
 
+## Unreleased
+
+- **Your dashboard on your phone, two ways:** in Claude, besides your themed page, you can publish it as a private Claude Dashboard where every number shows where it came from and a warning appears when it's more than three days old. Either way, the published copy now shows only your job list and counts: no contacts' names, notes, pay or activity log.
+
 ## 1.0.0 (2026-10-07)
 
 First public release.

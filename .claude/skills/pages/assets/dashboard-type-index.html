@@ -1,0 +1,337 @@
+<!-- Job Search HQ: the page of the user's Claude Dashboard (files/index.html). Shipped with the app and written as is;
+     the user's numbers live only in the attached datasets (jobs, week, history), never in this file.
+     Every value is a placeholder marked with data-source, filled by the script below inside dash.onData. -->
+<style>
+  /* Layout: one column on a phone; summary tiles, then two charts side by side, then the job tables, on wider screens. */
+  .jsh { --jsh-gap: 1rem; --jsh-radius: 0.75rem; display: flex; flex-direction: column; gap: 1.5rem; font-family: var(--font-anthropic-sans, system-ui, sans-serif); color: var(--color-fg); }
+  .jsh h2 { font-size: 1.05rem; font-weight: 650; margin: 0; text-wrap: balance; }
+  .jsh p { margin: 0; }
+  .jsh-muted { color: var(--color-fg-muted); font-size: 0.875rem; line-height: 1.45; }
+  .jsh-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.25rem 1rem; }
+  .jsh-head h1 { font-family: var(--font-anthropic-serif, Georgia, serif); font-size: 1.6rem; font-weight: 500; margin: 0; text-wrap: balance; }
+  .jsh-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: var(--jsh-gap); }
+  .jsh-tile { display: flex; flex-direction: column; gap: 0.25rem; padding: 0.875rem 1rem; border: 1px solid var(--color-border-line); border-radius: var(--jsh-radius); background: var(--color-panel); min-width: 0; }
+  .jsh-tile .jsh-label { font-size: 0.8125rem; font-weight: 600; color: var(--color-fg-muted); letter-spacing: 0.02em; }
+  .jsh-big { font-family: var(--font-anthropic-serif, Georgia, serif); font-size: 2.1rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .jsh-unit { font-family: var(--font-anthropic-serif, Georgia, serif); font-size: 1.25rem; color: var(--color-fg-muted); }
+  .jsh-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--jsh-gap); align-items: start; }
+  @media (min-width: 46rem) { .jsh-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .jsh-panel { display: flex; flex-direction: column; gap: 0.75rem; padding: 1rem; border: 1px solid var(--color-border-line); border-radius: var(--jsh-radius); background: var(--color-panel); min-width: 0; }
+  .jsh-panel-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.25rem 0.75rem; }
+  .jsh-chart { position: relative; min-width: 0; }
+  .jsh-chart svg { display: block; overflow: visible; }
+  .jsh-chart text { fill: var(--color-fg-muted); font-size: 12px; font-family: var(--font-anthropic-sans, system-ui, sans-serif); }
+  .jsh-chart .jsh-val { fill: var(--color-fg); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .jsh-chart .jsh-grid-line { stroke: var(--color-border-line); stroke-width: 1; }
+  .jsh-chart .jsh-hit { fill: transparent; cursor: default; }
+  .jsh-chart .jsh-hit:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 1px; }
+  .jsh-tip { position: absolute; z-index: 2; pointer-events: none; padding: 0.375rem 0.5rem; border: 1px solid var(--color-border-line); border-radius: 0.5rem; background: var(--color-bg); color: var(--color-fg); font-size: 0.8125rem; line-height: 1.35; white-space: nowrap; box-shadow: 0 2px 8px rgb(0 0 0 / 0.12); }
+  .jsh-rows { display: flex; flex-direction: column; gap: 0.75rem; }
+  .jsh-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.25rem 0.75rem; align-items: baseline; }
+  .jsh-row .jsh-name { font-size: 0.9375rem; min-width: 0; }
+  .jsh-row .jsh-num { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .jsh-track { grid-column: 1 / -1; height: 0.5rem; border-radius: 999px; background: var(--color-border-line); overflow: hidden; }
+  .jsh-fill { display: block; height: 100%; border-radius: 999px; min-width: 2px; }
+  .jsh-stack { display: flex; gap: 2px; height: 0.875rem; border-radius: 999px; overflow: hidden; background: var(--color-border-line); }
+  .jsh-stack > span { display: block; height: 100%; min-width: 4px; }
+  .jsh-legend { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; padding: 0; margin: 0; list-style: none; font-size: 0.875rem; }
+  .jsh-legend li { display: inline-flex; align-items: center; gap: 0.375rem; }
+  .jsh-swatch { width: 0.75rem; height: 0.75rem; border-radius: 3px; flex: none; }
+  .jsh-table-wrap:focus-visible { outline: 2px solid var(--color-fg); outline-offset: -2px; }
+  .jsh-table-wrap { overflow-x: auto; min-width: 0; border: 1px solid var(--color-border-line); border-radius: var(--jsh-radius); background: var(--color-panel); }
+  .jsh table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+  .jsh caption { text-align: left; padding: 0.75rem 1rem 0.25rem; font-size: 0.8125rem; color: var(--color-fg-muted); }
+  .jsh th, .jsh td { text-align: left; padding: 0.5rem 1rem; border-bottom: 1px solid var(--color-border-line); vertical-align: top; }
+  .jsh th { font-size: 0.75rem; font-weight: 650; color: var(--color-fg-muted); letter-spacing: 0.03em; text-transform: uppercase; white-space: nowrap; }
+  .jsh tbody tr:last-child td { border-bottom: 0; }
+  .jsh td.jsh-date { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .jsh-when { display: inline-flex; align-items: center; gap: 0.3rem; font-weight: 600; white-space: nowrap; }
+  .jsh-when::before { content: ""; width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--color-fg-muted); }
+  .jsh-when[data-tone="bad"] { color: var(--color-bad); } .jsh-when[data-tone="bad"]::before { background: var(--color-bad); }
+  .jsh-when[data-tone="warn"] { color: var(--color-fg); } .jsh-when[data-tone="warn"]::before { background: var(--color-warn); }
+  .jsh-when[data-tone="ok"]::before { background: var(--color-ok); }
+  .jsh details > summary { cursor: pointer; padding: 0.75rem 1rem; font-weight: 600; }
+  .jsh details > summary:focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; border-radius: 0.375rem; }
+  .jsh-empty { padding: 0.75rem 1rem; }
+  .jsh-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+  @media (prefers-reduced-motion: no-preference) { .jsh-fill, .jsh-stack > span { transition: width 300ms ease-out; } }
+  @media (forced-colors: active) { .jsh-fill, .jsh-stack > span, .jsh-swatch { forced-color-adjust: none; border: 1px solid CanvasText; } }
+</style>
+
+<div class="jsh">
+  <header class="jsh-head">
+    <h1 id="jsh-title">Your job search</h1>
+    <p class="jsh-muted">Tracker as of <span data-source="week" data-field="to" data-where="measure=Applications">—</span></p>
+  </header>
+
+  <section id="jsh-summary" aria-labelledby="jsh-summary-title">
+    <h2 id="jsh-summary-title" class="jsh-sr">Summary</h2>
+    <div class="jsh-tiles">
+      <div class="jsh-tile"><span class="jsh-label">Open jobs</span><span class="jsh-big" data-source="totals" data-field="open" data-row="0">—</span><span class="jsh-muted">Still in play</span></div>
+      <div class="jsh-tile"><span class="jsh-label">Applied</span><span class="jsh-big" data-source="totals" data-field="applied" data-row="0">—</span><span class="jsh-muted">Applications sent, all time</span></div>
+      <div class="jsh-tile"><span class="jsh-label">Heard back</span><span><span class="jsh-big" data-source="totals" data-field="rate" data-row="0">—</span><span class="jsh-unit" id="jsh-rate-unit" hidden>%</span></span><span class="jsh-muted">Of applications that got a reply or moved forward</span></div>
+      <div class="jsh-tile"><span class="jsh-label">Interviews</span><span class="jsh-big" data-source="totals" data-field="interviewed" data-row="0">—</span><span class="jsh-muted">Jobs that reached an interview</span></div>
+      <div class="jsh-tile"><span class="jsh-label">Offers</span><span class="jsh-big" data-source="totals" data-field="offers" data-row="0">—</span><span class="jsh-muted">Offers received</span></div>
+    </div>
+  </section>
+
+  <section id="jsh-coming" aria-labelledby="jsh-coming-title" class="jsh-panel" style="padding: 0; gap: 0;">
+    <div class="jsh-panel-head" style="padding: 1rem 1rem 0.25rem;"><h2 id="jsh-coming-title">Coming up</h2><span class="jsh-muted">Next steps with a date, soonest first</span></div>
+    <div class="jsh-table-wrap" style="border: 0; border-radius: 0;" role="region" tabindex="0" aria-labelledby="jsh-coming-title">
+      <table id="jsh-coming-table" data-source="coming_up" data-row-key="key">
+        <thead><tr><th scope="col">When</th><th scope="col" data-field="company">Company</th><th scope="col" data-field="role">Role</th><th scope="col" data-field="next_step">Next step</th><th scope="col" data-field="due">Due</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="jsh-muted jsh-empty" id="jsh-coming-empty" hidden>Nothing has a date yet. Ask your assistant to set a next step for each open job.</p>
+  </section>
+
+  <div class="jsh-grid">
+    <section id="jsh-week" aria-labelledby="jsh-week-title" class="jsh-panel">
+      <div class="jsh-panel-head"><h2 id="jsh-week-title">Last seven days</h2><span class="jsh-muted">Against your weekly goals</span></div>
+      <div id="jsh-week-rows" class="jsh-rows" data-source="week"><p class="jsh-muted">—</p></div>
+    </section>
+
+    <section id="jsh-history" aria-labelledby="jsh-history-title" class="jsh-panel">
+      <div class="jsh-panel-head"><h2 id="jsh-history-title">Applications by week</h2><span class="jsh-muted">Weeks start on Monday</span></div>
+      <div id="jsh-history-chart" class="jsh-chart" data-source="history"><p class="jsh-muted">—</p></div>
+    </section>
+
+    <section id="jsh-stages" aria-labelledby="jsh-stages-title" class="jsh-panel">
+      <div class="jsh-panel-head"><h2 id="jsh-stages-title">Where your jobs are</h2><span class="jsh-muted">Every job you track, by stage</span></div>
+      <div id="jsh-stages-chart" data-source="stages"><p class="jsh-muted">—</p></div>
+    </section>
+
+    <section id="jsh-funnel" aria-labelledby="jsh-funnel-title" class="jsh-panel">
+      <div class="jsh-panel-head"><h2 id="jsh-funnel-title">How far applications get</h2><span class="jsh-muted">All time</span></div>
+      <div id="jsh-funnel-chart" class="jsh-rows" data-source="funnel"><p class="jsh-muted">—</p></div>
+    </section>
+  </div>
+
+  <section id="jsh-jobs" aria-labelledby="jsh-jobs-title" class="jsh-panel" style="padding: 0; gap: 0;">
+    <div class="jsh-panel-head" style="padding: 1rem 1rem 0.25rem;"><h2 id="jsh-jobs-title">Open jobs</h2><span class="jsh-muted">Change these in your tracker or the Pipeline panel</span></div>
+    <div class="jsh-table-wrap" style="border: 0; border-radius: 0;" role="region" tabindex="0" aria-labelledby="jsh-jobs-title">
+      <table id="jsh-open-table" data-source="jobs" data-row-key="key">
+        <thead><tr><th scope="col" data-field="company">Company</th><th scope="col" data-field="role">Role</th><th scope="col" data-field="stage">Stage</th><th scope="col" data-field="next_step">Next step</th><th scope="col" data-field="due">Due</th><th scope="col" data-field="applied">Applied</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="jsh-muted jsh-empty" id="jsh-open-empty" hidden>No open jobs right now. Ask your assistant to find jobs or add one you like.</p>
+    <details id="jsh-closed">
+      <summary>Closed jobs</summary>
+      <div class="jsh-table-wrap" style="border: 0; border-radius: 0;" role="region" tabindex="0" aria-label="Closed jobs">
+        <table id="jsh-closed-table" data-source="jobs" data-row-key="key">
+          <thead><tr><th scope="col" data-field="company">Company</th><th scope="col" data-field="role">Role</th><th scope="col" data-field="status">Outcome</th><th scope="col" data-field="applied">Applied</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="jsh-muted jsh-empty" id="jsh-closed-empty" hidden>Nothing closed yet.</p>
+    </details>
+  </section>
+
+  <p class="jsh-muted">Private to your claude.ai account. It shows only your own job list: no contacts, notes, pay or activity log. Your tracker on your computer stays the real record.</p>
+</div>
+
+<script>
+  // Derived numbers: each is a dash.calc, so a reader can see how it was worked out.
+  dash.calc('totals', {
+    title: 'Headline numbers',
+    description: 'Open jobs, applications, replies, interviews and offers, counted from your job list.',
+    inputs: ['jobs'],
+    fn: (jobs) => {
+      const has = (list) => jobs.filter((j) => list.includes(j.status)).length;
+      const applied = has(['applied', 'screening', 'interviewing', 'offer', 'accepted', 'rejected', 'ghosted', 'withdrawn']);
+      const heard = jobs.filter((j) => j.reached_screen === 'yes').length;
+      return [{
+        tracked: jobs.length,
+        open: has(['interested', 'applied', 'screening', 'interviewing', 'offer']),
+        applied,
+        heard,
+        interviewed: jobs.filter((j) => j.reached_interview === 'yes').length,
+        offers: has(['offer', 'accepted']),
+        rate: applied ? Math.round((heard / applied) * 100) : 0
+      }];
+    }
+  });
+  dash.calc('funnel', {
+    title: 'Application funnel',
+    description: 'How many jobs reached each step, from tracked to offer.',
+    inputs: ['totals'],
+    fn: (totals) => {
+      const t = totals[0] || {};
+      return [
+        { step: 'Tracked', jobs: t.tracked || 0 },
+        { step: 'Applied', jobs: t.applied || 0 },
+        { step: 'Heard back', jobs: t.heard || 0 },
+        { step: 'Interviewed', jobs: t.interviewed || 0 },
+        { step: 'Offer', jobs: t.offers || 0 }
+      ];
+    }
+  });
+  dash.calc('stages', {
+    title: 'Jobs by stage',
+    description: 'How many tracked jobs sit in each stage of your pipeline.',
+    inputs: ['jobs'],
+    fn: (jobs) => ['To apply', 'Applied', 'Talking', 'Offer', 'Closed', 'Other']
+      .map((stage) => ({ stage, jobs: jobs.filter((j) => j.stage === stage).length }))
+      .filter((r) => r.stage !== 'Other' || r.jobs > 0)
+  });
+  dash.calc('coming_up', {
+    title: 'Next steps by date',
+    description: 'Open jobs whose next step has a date, soonest first; unclear dates last.',
+    inputs: ['jobs'],
+    fn: (jobs) => jobs
+      .filter((j) => ['interested', 'applied', 'screening', 'interviewing', 'offer'].includes(j.status) && j.due)
+      .map((j) => ({ key: j.key, company: j.company, role: j.role, next_step: j.next_step, due: j.due }))
+      .sort((a, b) => a.due.localeCompare(b.due))
+  });
+
+  (function () {
+    const $ = (id) => document.getElementById(id);
+    const SVG = 'http://www.w3.org/2000/svg';
+    const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = String(text); return e; };
+    const sv = (tag, attrs) => { const e = document.createElementNS(SVG, tag); for (const k in attrs) e.setAttribute(k, String(attrs[k])); return e; };
+    const ok = (d) => d && d.status === 'ok' && Array.isArray(d.data);
+    const series = (i) => (Array.isArray(dash.colors) && dash.colors[i]) || 'var(--color-fg-muted)';
+    const placeholder = (box) => box.replaceChildren(el('p', 'jsh-muted', '—'));
+    const isDay = (s) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
+    const dayOf = (s) => { const p = s.split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]); };
+    const short = (s) => (isDay(s) ? dayOf(s).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : String(s || ''));
+    // Colors follow the thing: each stage keeps its color; applications (history) share Applied's; progress bars one more.
+    const STAGE_COLOR = { 'To apply': 0, Applied: 1, Talking: 2, Offer: 3 };
+    const PROGRESS = 4;
+
+    // Words, not numbers, for how soon a date is (relative to the reader's today).
+    function when(due) {
+      if (!isDay(due)) return { word: 'Date unclear', tone: 'warn' };
+      const now = new Date(); now.setHours(0, 0, 0, 0);
+      const days = Math.round((dayOf(due) - now) / 86400000);
+      if (days < 0) return { word: 'Overdue', tone: 'bad' };
+      if (days === 0) return { word: 'Today', tone: 'warn' };
+      if (days === 1) return { word: 'Tomorrow', tone: 'ok' };
+      if (days <= 7) return { word: 'This week', tone: 'ok' };
+      return { word: 'Later', tone: '' };
+    }
+
+    function fillMarks(id, d) {
+      document.querySelectorAll('[data-source="' + id + '"][data-field]').forEach((m) => {
+        if (m.tagName === 'TH') return;
+        const row = ok(d) ? (m.hasAttribute('data-row') ? d.data[Number(m.getAttribute('data-row'))] : d.data.find((r) => {
+          const w = m.getAttribute('data-where') || '';
+          return w.split('&').every((pair) => { const kv = pair.split('='); return String(r[decodeURIComponent(kv[0])]) === decodeURIComponent(kv[1] || ''); });
+        })) : null;
+        const v = row ? row[m.getAttribute('data-field')] : null;
+        m.textContent = v == null || v === '' ? '—' : String(v);
+      });
+    }
+
+    function fillTable(table, rows, cols, emptyEl) {
+      const body = table.querySelector('tbody');
+      body.replaceChildren(...rows.map((r) => {
+        const tr = el('tr');
+        tr.setAttribute('data-key', r.key);
+        for (const c of cols) {
+          if (c === '@when') { const w = when(r.due); const td = el('td'); const s = el('span', 'jsh-when', w.word); if (w.tone) s.setAttribute('data-tone', w.tone); td.append(s); tr.append(td); continue; }
+          tr.append(el('td', ['due', 'applied'].includes(c) ? 'jsh-date' : '', r[c] == null ? '' : r[c]));
+        }
+        return tr;
+      }));
+      table.hidden = rows.length === 0;
+      if (emptyEl) emptyEl.hidden = rows.length !== 0;
+    }
+
+    function drawWeek(d) {
+      const box = $('jsh-week-rows');
+      if (!ok(d)) return placeholder(box);
+      box.replaceChildren(...d.data.map((r) => {
+        const row = el('div', 'jsh-row');
+        const goal = typeof r.goal === 'number' && r.goal > 0 ? r.goal : null;
+        row.append(el('span', 'jsh-name', r.measure), el('span', 'jsh-num', goal ? r.done + ' of ' + goal : String(r.done)));
+        const track = el('div', 'jsh-track'); track.setAttribute('aria-hidden', 'true');
+        const fill = el('span', 'jsh-fill'); fill.style.background = series(PROGRESS);
+        fill.style.width = (goal ? Math.min(100, (r.done / goal) * 100) : (r.done > 0 ? 100 : 0)) + '%';
+        track.append(fill); row.append(track);
+        return row;
+      }));
+    }
+
+    function drawHistory(d) {
+      const box = $('jsh-history-chart');
+      if (!ok(d) || d.data.length === 0) return placeholder(box);
+      const rows = d.data;
+      const W = Math.max(260, box.clientWidth || 320), H = 180, top = 22, bottom = 26, left = 4, right = 4;
+      const max = Math.max(1, ...rows.map((r) => Number(r.applications) || 0));
+      const slot = (W - left - right) / rows.length, bw = Math.min(40, slot * 0.6);
+      const y = (v) => top + (H - top - bottom) * (1 - v / max);
+      const svg = sv('svg', { width: '100%', viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-labelledby': 'jsh-history-title' });
+      svg.append(sv('line', { x1: left, x2: W - right, y1: H - bottom, y2: H - bottom, class: 'jsh-grid-line' }));
+      const tip = el('div', 'jsh-tip'); tip.hidden = true;
+      const show = (r, cx) => {
+        tip.textContent = 'Week of ' + short(r.week) + ': ' + r.applications + (r.applications === 1 ? ' application' : ' applications');
+        tip.hidden = false;
+        const half = tip.offsetWidth / 2, bw2 = box.clientWidth;
+        tip.style.left = Math.max(0, Math.min(bw2 - tip.offsetWidth, (cx / W) * bw2 - half)) + 'px';
+        tip.style.top = '0px';
+      };
+      const label = Math.ceil(rows.length / Math.max(1, Math.floor((W - left - right) / 56)));
+      rows.forEach((r, i) => {
+        const v = Number(r.applications) || 0, cx = left + slot * i + slot / 2;
+        const h = Math.max(v > 0 ? 3 : 0, H - bottom - y(v));
+        svg.append(sv('rect', { x: cx - bw / 2, y: H - bottom - h, width: bw, height: h, rx: Math.min(4, bw / 2), style: 'fill:' + series(1) }));
+        const val = sv('text', { x: cx, y: H - bottom - h - 6, 'text-anchor': 'middle', class: 'jsh-val' }); val.textContent = String(v); svg.append(val);
+        if (i % label === 0 || i === rows.length - 1) { const t = sv('text', { x: cx, y: H - 8, 'text-anchor': 'middle' }); t.textContent = short(r.week); svg.append(t); }
+        const hit = sv('rect', { x: left + slot * i, y: top - 16, width: slot, height: H - top + 16 - bottom, class: 'jsh-hit', tabindex: '0', 'aria-label': 'Week of ' + short(r.week) + ', ' + v + ' applications' });
+        hit.addEventListener('pointerenter', () => show(r, cx)); hit.addEventListener('focus', () => show(r, cx));
+        hit.addEventListener('pointerleave', () => { tip.hidden = true; }); hit.addEventListener('blur', () => { tip.hidden = true; });
+        svg.append(hit);
+      });
+      box.replaceChildren(svg, tip);
+    }
+
+    function drawStages(d) {
+      const box = $('jsh-stages-chart');
+      if (!ok(d)) return placeholder(box);
+      const total = d.data.reduce((s, r) => s + (Number(r.jobs) || 0), 0);
+      if (!total) return box.replaceChildren(el('p', 'jsh-muted', 'Nothing tracked yet. Ask your assistant to add a job.'));
+      const color = (r) => (r.stage in STAGE_COLOR ? series(STAGE_COLOR[r.stage]) : 'var(--color-fg-muted)');
+      const stack = el('div', 'jsh-stack'); stack.setAttribute('aria-hidden', 'true');
+      for (const r of d.data) if (r.jobs > 0) { const s = el('span'); s.style.width = (r.jobs / total) * 100 + '%'; s.style.background = color(r); stack.append(s); }
+      const legend = el('ul', 'jsh-legend');
+      for (const r of d.data) { const li = el('li'); const sw = el('span', 'jsh-swatch'); sw.style.background = color(r); li.append(sw, el('span', '', r.stage + ': ' + r.jobs)); legend.append(li); }
+      box.replaceChildren(stack, legend);
+      box.style.display = 'flex'; box.style.flexDirection = 'column'; box.style.gap = '0.75rem';
+    }
+
+    function drawFunnel(d) {
+      const box = $('jsh-funnel-chart');
+      if (!ok(d)) return placeholder(box);
+      const max = Math.max(1, ...d.data.map((r) => Number(r.jobs) || 0));
+      box.replaceChildren(...d.data.map((r) => {
+        const row = el('div', 'jsh-row');
+        row.append(el('span', 'jsh-name', r.step), el('span', 'jsh-num', String(r.jobs)));
+        const track = el('div', 'jsh-track'); track.setAttribute('aria-hidden', 'true');
+        const fill = el('span', 'jsh-fill'); fill.style.background = series(PROGRESS); fill.style.width = (r.jobs / max) * 100 + '%';
+        track.append(fill); row.append(track);
+        return row;
+      }));
+    }
+
+    dash.onData(() => {
+      const jobs = dash.data('jobs'), week = dash.data('week'), history = dash.data('history');
+      const totals = dash.data('totals'), funnel = dash.data('funnel'), stages = dash.data('stages'), coming = dash.data('coming_up');
+      fillMarks('week', week);
+      fillMarks('totals', totals);
+      $('jsh-rate-unit').hidden = !(ok(totals) && totals.data.length);
+      fillTable($('jsh-coming-table'), ok(coming) ? coming.data : [], ['@when', 'company', 'role', 'next_step', 'due'], ok(coming) ? $('jsh-coming-empty') : null);
+      const all = ok(jobs) ? jobs.data : [];
+      const open = all.filter((j) => j.stage !== 'Closed');
+      const closed = all.filter((j) => j.stage === 'Closed');
+      fillTable($('jsh-open-table'), open, ['company', 'role', 'stage', 'next_step', 'due', 'applied'], ok(jobs) ? $('jsh-open-empty') : null);
+      fillTable($('jsh-closed-table'), closed, ['company', 'role', 'status', 'applied'], ok(jobs) ? $('jsh-closed-empty') : null);
+      drawWeek(week);
+      drawHistory(history);
+      drawStages(stages);
+      drawFunnel(funnel);
+    });
+  })();
+</script>

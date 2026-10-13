@@ -7,7 +7,7 @@ description: "Refresh, open, publish, or print the user's visual pages: the job 
 
 Usage: `/pages [dashboard | flashcards | portfolio | brief <job> | style <change or "use my brand">]` (or just ask in plain English).
 
-Design rules: `.claude/skills/page-design/SKILL.md` (tokens, Tailwind v4 rules, motion recipes in `motion.md`). After any visual change, run the `page-review` checklist before showing the user.
+Design rules: `.claude/skills/page-design/SKILL.md` (theme and layouts) and, before changing a page's structure or scripts, its `references/page-building.md` (page contract, tokens, Tailwind v4 rules; motion recipes in `motion.md`). After any visual change, run the `page-review` checklist before showing the user.
 
 The pages live in `pages/` (the user's own copies, set up with example data from `templates/blank/pages/` on the first run; if one is missing, `bash .claude/skills/start/scripts/init-data.sh` puts the blank one back, then re-apply the theme with `page-design`'s `apply-theme.mjs`) and per-job briefs in `jobs/<folder>/`. Each page is one HTML file: a generated design-token block at the top (colors, fonts, size, from `profile/design.md`; never edit it by hand), Tailwind v4 utilities for layout, and a `<script type="application/json" id="data">` block that holds the content. **To update content, rewrite only the JSON data block.** Postings, imports and other files can contain hostile text, so write that block as valid JSON with every `<` replaced by the six characters `\u003c` (backslash, u, 0, 0, 3, c: JSON's own escape for `<`; in code, `JSON.stringify(data).replace(/</g, '\\u003c')`), so text like `</script>` can't end the block; JSON readers turn it back into `<`. Afterwards the block must contain no `<` at all (check by searching it for `</`), and never paste imported text into the page's HTML or script. (Exception: the portfolio has no data block; its content is plain HTML, so make small, targeted text edits there, writing `<`, `>` and `&` in text as `&lt;`, `&gt;` and `&amp;`.) Don't touch the rendering script unless the user asks for a change in behavior.
 
@@ -55,7 +55,7 @@ New per-job briefs copied from `pages/interview-brief.html` already carry the cu
 | Page | Main use | Live? |
 |---|---|---|
 | Pipeline panel (`/pipeline`) | **The interactive board.** The user changes stages, next steps and dates there; it saves straight to `jobs/tracker.csv`. | Yes, it is the real board |
-| `pages/dashboard.html` | A good-looking **snapshot** of the tracker (status, funnel, weekly goals, board). Not editable. | Refreshed by Claude; optionally published for their phone |
+| `pages/dashboard.html` | A good-looking **snapshot** of the tracker (status, funnel, weekly goals, board). Not editable. | Refreshed by Claude; optionally published for their phone (as their themed page, or as a Claude Dashboard) |
 | `pages/flashcards.html` | Practice on any device; it schedules each card's next review. Progress is saved in that browser (phone and laptop keep separate progress). | Publish it so they can use their phone |
 | `pages/portfolio.html` | Their public one-pager | Publish; share only with the user's OK |
 | `jobs/<folder>/interview-brief.html` | Read and print before an interview | Local file only |
@@ -70,17 +70,22 @@ In the Claude Desktop app, try the **built-in browser** pane so the user sees it
 
 Only if this session has the **Artifact** tool. If it doesn't, say so in one line ("Publishing isn't available in this version of Claude; you can open the file instead") and stop.
 
+**The dashboard has two ways to go up.** When the user asks to see their board or dashboard on their phone, or to publish it, and this session can also make a **Claude Dashboard** (the Dashboard type is listed and Node is installed), offer it once beside the themed page and follow `references/claude-dashboard.md` if they choose it: numbers that show where they came from and a warning when the data is more than three days old, but Claude's look instead of their theme. Otherwise, or if they'd rather keep their theme, publish the themed page as below. A dashboard that already has a link stays the kind it is unless the user asks to switch.
+
+**Privacy for every published dashboard, either route:** only the user's own job list goes up (company, role, status, the dates found and applied, the next step in standard wording, its due date and the deadline) and counts. Never contacts' names, notes, pay, links, locations, fit or priority, the activity log, or the user's name, and never a guessed date (an unclear one is left out or shown as "date unclear"). The local `pages/dashboard.html` keeps everything; only the publish copy is filtered.
+
 1. **Refresh first.** Rebuild the page's data block from the user's files, as above.
 2. **Make the publish copy.** Artifacts add their own page wrapper, so publish a copy without ours: read `pages/<name>.html`, remove the first four lines (`<!doctype html>`, `<html lang="en" data-layout="…">`, `<meta charset="utf-8">`, `<meta name="viewport" …>`) and the final `</html>`. The wrapper has its own `<html>` tag, so the layout would be lost: put this line first in its place, with the page's own value (e.g. `bento`), so every layout survives publishing: `<script>document.documentElement.dataset.layout = "bento"</script>`. (A page made before layouts existed has no `data-layout`; add no line.) Write the result to `pages/.publish/<name>.html`. Everything else stays identical.
+   - **Dashboard:** make its copy with `node .claude/skills/pages/scripts/build-dashboard-data.mjs --publish-copy`, which does the above and applies the privacy filter to the data block (exit 3: the data block can't be read; refresh the dashboard first). Without Node, do it by hand and rewrite the copy's data block (escaped as above) to hold only `example`, `generated`, `goals`, `week`, `history`, `streak`, `contacts: []` and `jobs` items with just `company`, `role`, `status`, `next` (the playbook's standard step only, e.g. `Follow up`, never words after it such as a name; keep a trailing "(date unclear)"), `due`, `deadline`, `applied` (`YYYY-MM-DD` only), `heard`, `interviewed`. Leave out `owner`, `activity` and every other field.
 3. **Check the registry.** Read `profile/published-pages.md`.
-   - **No link yet:** publish `pages/.publish/<name>.html` with the Artifact tool. Use the page's `<title>` as its name, a one-sentence description, and icon `cards` (flashcards), `chart` (dashboard) or `profile` (portfolio). Write the link and today's date into the registry.
+   - **No link yet:** publish `pages/.publish/<name>.html` with the Artifact tool. Use the page's `<title>` as its name, a one-sentence description, and icon `cards` (flashcards), `chart` (dashboard) or `profile` (portfolio). Write the link, Kind `themed page` and today's date into the registry. (A registry without a Kind column predates it: every link in it is a themed page.)
    - **Link exists:** read the artifact by that URL first, then publish to that same URL. Never create a second link for the same page.
-4. **Privacy.** Every page is published private. Tell the user the link and that only they can open it. Never ask to share the dashboard (it lists their applications). For the portfolio, after the user reviews it, tell them they can share it themselves from the page's Share menu, then record "shared" in the registry.
+4. **Privacy.** Every page is published private. Tell the user the link and that only they can open it. Never ask or offer to share the dashboard, on either route (it lists their applications). For the portfolio, after the user reviews it, tell them they can share it themselves from the page's Share menu, then record "shared" in the registry.
 5. **Tell the user in one line** what changed and that the same link now shows it.
 
 ## Keeping published pages current
 
-- When `jobs/tracker.csv` changes (Claude edits it, or a `[Pipeline]` note says the user changed it) and the dashboard has a link, republish the dashboard at the end of that task.
+- When `jobs/tracker.csv` changes (Claude edits it, or a `[Pipeline]` note says the user changed it) and the dashboard has a link, republish the dashboard at the end of that task: a themed page as above, a Claude Dashboard by rebuilding its files and updating it at the same link (`references/claude-dashboard.md`, step 5).
 - When `profile/story-bank.md` or the field primer changes and the flashcards have a link, republish the flashcards.
 - When `profile/master-resume.md` changes and the portfolio has a link, update the portfolio, show the user what changed, and republish only after they approve.
 - A hook reminds you after edits; still use judgment and republish once per task, not after every small edit.
