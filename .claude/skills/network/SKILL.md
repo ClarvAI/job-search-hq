@@ -1,6 +1,6 @@
 ---
 name: network
-description: "Find people for the user to talk to at a company and draft outreach (informational interview asks, referral requests, alumni notes, recruiter messages). Use when the user asks who to contact, wants a referral, or wants to reach out to someone."
+description: "Find people for the user to talk to at a company and draft outreach (informational interview asks, referral requests, alumni notes, recruiter messages). Use when the user asks who to contact, wants a referral, wants alumni at a company or employers where their school's alumni work, or wants to reach out to someone."
 argument-hint: "[company name]"
 ---
 
@@ -12,12 +12,12 @@ Target: `$ARGUMENTS`.
 
 1. **Who.** Check `contacts/contacts.csv` first (people the user already knows, from `/import-linkedin` or prior chats). Then suggest the kinds of people to find, best first:
    1. Former colleagues/managers (for students, co-op/internship colleagues too) who now work there or know someone there. People the user hasn't spoken to in years count; acquaintances often help more than close friends.
-   2. Alumni of the user's school at the company (search tip: on LinkedIn, the company's "People" tab → filter by the school named in `profile/master-resume.md`)
+   2. Alumni of the user's school (or bootcamp, or a former employer) at the company: the user's own LinkedIn steps, the school's directory, public pages, and where to save counts are in `references/alumni.md`
    3. People in the target team (title search: the target role title + company)
    4. The recruiter for the posting
    For senior and specialist roles, also **executive search firms and agency recruiters** (headhunters) who place people in the user's field: they work for the employer, never charge the candidate (a fee request is a scam signal), and want a short, specific note with target roles, level and location. Ask the user to say which firm sent them to which employer, so the same job isn't submitted twice through two routes. Retained vs contingency, verifying them and the note itself: `references/recruiters-and-search-firms.md`.
    **If the user is employed and searching quietly:** leave out people at their current employer and anyone likely to mention it there; former colleagues who have left, alumni and people outside are the safe route (`knowledge/searching-while-employed.md`). Academic users: postdoc emails to PIs follow `knowledge/academic-jobs.md` §5.
-   Use public web search to find names and titles where possible. Never browse LinkedIn for the user or log in. Give them the search steps to do themselves, and they paste back what they find. Suggest 2–3 people per company rather than one: most people won't answer, and that's normal, not personal.
+   Use public web search to find names and titles where possible; a connected company-data or contacts app can add leaders, senior alumni and people the user already knows (read only: `knowledge/data-connectors.md`). Never browse LinkedIn for the user or log in. Give them the search steps to do themselves, and they paste back what they find. Suggest 2–3 people per company rather than one: most people won't answer, and that's normal, not personal.
 2. **Draft the message** (see `references/outreach-examples.md` for the shape and length of each type) into `outbox/` as a file (format in AGENTS.md "Outbox"), `channel: linkedin` or `email`:
    - LinkedIn connection note (`kind: connection-note`): **≤ 200 characters** (free accounts; personalized invites are limited each month, so use them on people who matter). Who the user is, the shared link (school, past employer, same field), one specific ask. For someone they're already connected to, use `kind: message` (≤ ~600 characters).
    - Informational interview email: under 100 words. Shared link first; no mention of jobs or referrals; a general interest (their path, their team's work); the ask as a question; more about them than the user. Subject line specific (e.g. "Fellow Example State alum, question about product marketing at Acme"), offer 2 time windows, easy to say no to.

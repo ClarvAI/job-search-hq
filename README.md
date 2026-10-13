@@ -170,8 +170,9 @@ Every place your data can go, app by app: **[docs/privacy.md](docs/privacy.md)**
 The main protection is that the assistant drafts and you send. Under the assistant's rules sits a safety check (a "hook") that looks at certain actions before they run, in both apps. It blocks:
 
 - sending, replying, forwarding, posting, sharing or deleting through the Gmail connection or any other connected app (making drafts is fine);
-- inviting people to calendar events or meetings, or changing, cancelling or deleting them;
-- automation services (IFTTT, Zapier, n8n and similar) doing anything but read: Claude asks you first, Codex blocks;
+- inviting people to calendar events or meetings (Google Calendar, Outlook, Calendly, Zoom and similar), or changing, cancelling or deleting them;
+- adding, changing or removing who can see or join something in a connected app (collaborators, guests, members, permissions);
+- automation services (IFTTT, Zapier, n8n and similar) doing anything but read, writing to a contacts app, pushing contacts to another service, or sending feedback to an app's maker: Claude asks you first, Codex blocks;
 - sending an automated browser to Gmail, Outlook or LinkedIn, including through short links or a script run on the page;
 - sending mail from the computer itself (the Mail app, Outlook, mail commands) or opening Gmail, Outlook or LinkedIn from a command;
 - in Claude, web addresses that look like they carry your email, phone, name or large blocks of data (a pattern check that can't catch every disguise);
@@ -220,6 +221,10 @@ Job Search HQ is free for personal use; the assistant runs on your own Claude or
 - **academic jobs:** CVs instead of resumes, the full application packet, and campus visits;
 - **recruiters and headhunters:** who they work for, how they're paid (never by you), and how to reply;
 - **email that isn't Gmail:** in Claude, a work or school Microsoft 365 account can connect read-only; any other inbox works by pasting or saving the emails for it. Don't use your current employer's email for your search.
+
+**Can it use my school's alumni network?** Yes. Tell it your school (or a bootcamp, or a past employer), and it shows you how to see where its alumni work and who's at a company you like: you look on LinkedIn or your school's alumni directory and paste back what you see, and it never runs LinkedIn for you. Alumni counts help rank jobs and give you a warm first person to ask.
+
+**Can it use my other connected apps?** If you've already connected them to Claude or Codex, yes, read only. Company data like PitchBook adds funding, headcount and leadership to "should I apply?", interview prep and startup offers; Google Drive can bring in your resume; meeting notes can feed a thank-you note (it asks first). It names the source of every figure, keeps licensed data out of anything you publish or send, and warns you if an app looks like your employer's account. None of them is needed.
 
 **Will it apply to jobs for me?** No. It prepares everything and you submit. Mass applying and LinkedIn automation are left out on purpose: they get accounts banned and rarely work.
 

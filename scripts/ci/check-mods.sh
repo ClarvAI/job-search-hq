@@ -23,7 +23,7 @@ while IFS= read -r m; do
   if out="$(cd "$m" && claude plugin test . 2>&1)"; then echo "ok    test $m ($(printf '%s\n' "$out" | tail -1))"
   else fail=1; echo "FAIL  test $m"; printf '%s\n' "$out" | tail -40 | sed 's/^/      /'; fi
 done <<EOF
-$(find . \( -name .git -o -name node_modules -o -name .backup \) -prune -o -type f -path '*/.claude-plugin/plugin.json' -print | sort)
+$(find . \( -name .git -o -name node_modules -o -name .backup -o -path ./.claude/worktrees \) -prune -o -type f -path '*/.claude-plugin/plugin.json' -print | sort)
 EOF
 [ "$n" -gt 0 ] || { echo "FAIL  no mods found"; exit 1; }
 echo "mods: $n checked"
