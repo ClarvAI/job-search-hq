@@ -2,8 +2,9 @@
 # Allows only reading email/calendar, making email drafts, and adding events with no attendees,
 # guests or invitees to the user's own calendar (Google Calendar, Outlook, Calendly, Zoom...). Blocks
 # any connected app's action that sends, replies, forwards, trashes, deletes, posts, shares, publishes,
-# invites or submits, and anything but reading in automation services (IFTTT, Zapier...; Claude Code
-# would ask the user, Codex blocks). Blocks sending mail from scripts or mail apps and opening Gmail,
+# invites or submits, or adds, changes or removes collaborators, guests, members or permissions, and
+# anything but reading in automation services (IFTTT, Zapier...), contacts apps, pushes of contacts
+# or people to another service, and feedback to an app's maker (Claude Code would ask the user, Codex blocks). Blocks sending mail from scripts or mail apps and opening Gmail,
 # Outlook or LinkedIn with open/start/Start-Process. Blocks the browser from
 # being sent to Gmail, Outlook or LinkedIn (explicit addresses, after undoing %-encoding and simple
 # base64; disguised addresses in code are blocked too; it can't see which site an already-open tab
@@ -529,12 +530,19 @@ try {
     if ($tool -clike 'mcp__*' -and -not $isRead -and ($opn -match 'send|reply|forward|trash|delete' -or $opn -match '(^|_)(post|share|publish|invite|submit)')) {
         Deny 'Blocked: the assistant never sends, replies, forwards, posts, shares, publishes, trashes or deletes anything through a connected app. Draft it (in outbox/ for messages) and let the user do it themselves.'
     }
+    # Adding, changing or removing the people who can see something (collaborators, guests, members,
+    # permissions: Zoom's canvas_add_file_collaborators and the like) shares files and notifies them.
+    $peopleWrite = '(^|_)(add|create|insert|invite|modify|remove|update|set|change|grant|revoke|transfer)_([a-z0-9]+_)*(collaborators?|invitees?|attendees?|guests?|participants?|members?|registrants?|permissions?|co_?hosts?|alternative_hosts?)(_|$)'
+    if ($tool -clike 'mcp__*' -and -not $isRead -and $opn -match $peopleWrite) {
+        Deny "Blocked: the assistant never adds, changes or removes who can see or join something (collaborators, guests, members, permissions) through a connected app. That shares the user's files and notifies people. Tell the user what to change and let them do it."
+    }
     # Calendars and meeting schedulers (Google Calendar, Outlook, Calendly, Zoom...): read, or add an event with nobody invited.
     if ($tool -match 'calend|meeting|event|invitee') {
         if ($last -match "$read|^(suggest|free|check|load)|_(list|get|search)$") {
             # reading is fine
-        } elseif ($last -match '^(create|insert|add|quick)|_create$' -and $last -notmatch 'attendee|invit|share|guest|participant') {
-            if ($flat -match '\\?"[A-Za-z_]*(attendee|guest|invite|participant)[A-Za-z_]*\\?"\s*:\s*(\[\s*[^\]\s]|\{\s*[^}\s]|\\?"[^"\\])') {
+        } elseif ($last -match '^(create|insert|add|quick)|_create$' -and $last -notmatch 'attendee|invit|share|guest|participant|registrant|host') {
+            # Zoom also emails registrants and alternative hosts (alternative_hosts / alternativeHosts).
+            if ($flat -match '\\?"[A-Za-z_]*(attendee|guest|invite|participant|registrant|alternative_?host)[A-Za-z_]*\\?"\s*:\s*(\[\s*[^\]\s]|\{\s*[^}\s]|\\?"[^"\\])') {
                 Deny 'Blocked: calendar events must not invite anyone (that emails them from the user). Put names in the description and leave attendees, guests and invitees empty.'
             }
         } else {
@@ -576,11 +584,18 @@ try {
     # Automation services (IFTTT, Zapier, n8n...) can do anything, including sending email: anything
     # but reading needs the user's own yes (Claude Code asks them; Codex, which can't ask, blocks).
     if ($tool -clike 'mcp__*' -and -not $isRead -and $tool -match 'ifttt|zapier|n8n|pipedream|make_com|activepieces') { Ask $automationMsg }
+    # Sending people's details, or feedback text, out to another service: any non-read action of a
+    # contacts app (Contacts+ push_contact_info, suggest_contact_update, add_tags...), any action that
+    # pushes, syncs, exports or uploads contacts or people, and feedback sent to an app's maker.
+    $peopleOut = '(^|_)(push|sync|export|upload)_([a-z0-9]+_)*(contacts?|people|persons?|prospects?|leads?|candidates?|vcards?)(_|$)|(^|_)(contacts?|people|persons?|prospects?|leads?|candidates?)_([a-z0-9]+_)*(push|sync|export|upload)(_|$)'
+    if ($tool -clike 'mcp__*' -and -not $isRead -and ($tool -match 'contact|address_?book' -or $opn -match $peopleOut -or $opn -match '(^|_)feedback(_|$)')) {
+        Ask "This sends information to an outside service: people's contact details to a contacts app or another service, or feedback to the app's maker. That can carry other people's personal details out of this folder, so the user should only allow it if they know and want what is sent. (Assistant: keep contact details in contacts/contacts.csv.)"
+    }
     exit 0
 } catch {
     # Something unexpected broke the check. For risky tools, block rather than let it through.
     $risky = ($tool -eq '') -or
-        ($tool -match 'mail|outlook|superhuman|calendar|meeting|event|invitee|browser|chrome|playwright|puppeteer|computer|javascript|_repl|repl__|remote.devices|^WebFetch$|ifttt|zapier|n8n|pipedream|make_com|activepieces') -or
+        ($tool -match 'mail|outlook|superhuman|calendar|meeting|event|invitee|browser|chrome|playwright|puppeteer|computer|javascript|_repl|repl__|remote.devices|^WebFetch$|ifttt|zapier|n8n|pipedream|make_com|activepieces|contact|address_?book|collaborator|feedback') -or
         ($tool -match '^(Bash|PowerShell|shell|shell_command|exec_command|local_shell|unified_exec|container\.exec)$' -and $raw -cmatch $shellLook)
     if ($risky) {
         Deny 'Blocked to be safe: the safety check hit an unexpected error, so this action was not allowed. Tell the user the safety check in .claude/hooks/guard.ps1 needs a look.'

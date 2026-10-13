@@ -7,7 +7,9 @@
 # - Calendar and meeting tools (Google Calendar, Outlook, Calendly, Zoom...): only reading and adding
 #   an event with no attendees, guests or invitees to the user's own calendar are allowed.
 # - Any connected app (MCP tool) whose action sends, replies, forwards, trashes, deletes, posts,
-#   shares, publishes, invites or submits is blocked. Automation services (IFTTT, Zapier, n8n...)
+#   shares, publishes, invites or submits is blocked, and so is adding, changing or removing
+#   collaborators, guests, members or permissions. Automation services (IFTTT, Zapier, n8n...),
+#   contacts apps, pushing contacts or people to another service, and feedback to an app's maker
 #   need the user's yes for anything but reading (Codex can't ask, so there it blocks).
 # - Browser: never send an automated browser to Gmail, Outlook or LinkedIn. This only catches
 #   explicit addresses (navigation, url fields, code that mentions the sites, after undoing %-encoding
@@ -98,6 +100,7 @@ STAGED_MSG="Blocked to be safe: this command changes git's remotes, aliases or s
 SEND_MSG="Blocked: the assistant never sends email or messages itself, from a script or an app (Mail, Outlook, SMTP). Save the message in outbox/ and let the user send it themselves."
 SITE_MSG="Blocked: the assistant doesn't open Gmail, Outlook or LinkedIn for the user, in a browser or any other way. Draft the message in outbox/ for the user to send themselves, or tell them which page to open."
 AUTOMATION_MSG="This runs an automation in a connected app (such as IFTTT or Zapier), which can send, post or change things for the user. The safety check can't tell what it will do, so the user should only allow it if they know and want what it does. (Assistant: never use an automation to send email or messages; draft them in outbox/.)"
+CONTACTS_MSG="This sends information to an outside service: people's contact details to a contacts app or another service, or feedback to the app's maker. That can carry other people's personal details out of this folder, so the user should only allow it if they know and want what is sent. (Assistant: keep contact details in contacts/contacts.csv.)"
 
 # Git subcommands that are never aliases (an alias can't shadow them), so no alias lookup is needed.
 GIT_BUILTIN=" add am apply archive bisect blame branch bundle cat-file check-ignore checkout cherry-pick clean clone commit config describe diff fetch for-each-ref format-patch fsck gc grep hash-object help init log ls-files ls-remote ls-tree merge mv notes pull rebase reflog remote reset restore rev-list rev-parse revert rm shortlog show show-ref stash status submodule switch symbolic-ref tag update-index var version worktree "
@@ -530,6 +533,14 @@ opn="$(printf '%s' "$op" | tr 'A-Z-' 'a-z_' | sed -E 's/^(gmail|google_?mail|out
 leadwrite=""
 case "$opn" in send*|reply*|forward*|delete*|trash*|post*|share*|publish*|invite*|submit*) leadwrite=1 ;; esac
 isread=""; [ -z "$leadwrite" ] && { printf '%s' "$last" | grep -qiE "$READ" || printf '%s' "$opn" | grep -qE "$READ"; } && isread=1
+# A write verb, then (after any other words) who may see or join something: add_file_collaborators,
+# modify_file_collaborator_role, update_permissions, add_member...
+PEOPLE_WRITE='(^|_)(add|create|insert|invite|modify|remove|update|set|change|grant|revoke|transfer)_([a-z0-9]+_)*(collaborators?|invitees?|attendees?|guests?|participants?|members?|registrants?|permissions?|co_?hosts?|alternative_hosts?)(_|$)'
+# Sending people's details, or feedback text, out to another service: any non-read action of a
+# contacts app (Contacts+ push_contact_info, suggest_contact_update, add_tags...), any action that
+# pushes, syncs, exports or uploads contacts or people, and feedback sent to an app's maker.
+CONTACT_APP='contact|address_?book'
+PEOPLE_OUT='(^|_)(push|sync|export|upload)_([a-z0-9]+_)*(contacts?|people|persons?|prospects?|leads?|candidates?|vcards?)(_|$)|(^|_)(contacts?|people|persons?|prospects?|leads?|candidates?)_([a-z0-9]+_)*(push|sync|export|upload)(_|$)'
 if printf '%s' "$tool" | grep -qiE 'mail|outlook|superhuman'; then
   if [ -z "$isread" ] && ! { printf '%s' "$last" | grep -qiE "$DRAFT" || printf '%s' "$opn" | grep -qE "$DRAFT"; }; then
     deny "Blocked: the assistant only reads job email and makes drafts. It never sends, replies, forwards, deletes, labels or archives email; save the message in outbox/ (or as a Gmail draft) and let the user send it themselves."
@@ -542,6 +553,11 @@ case "$tool" in mcp__*)
   if [ -z "$isread" ] && { case "$opn" in *send*|*reply*|*forward*|*trash*|*delete*) true ;; *) false ;; esac \
       || printf '%s' "$opn" | grep -qE '(^|_)(post|share|publish|invite|submit)'; }; then
     deny "Blocked: the assistant never sends, replies, forwards, posts, shares, publishes, trashes or deletes anything through a connected app. Draft it (in outbox/ for messages) and let the user do it themselves."
+  fi
+  # Adding, changing or removing the people who can see something (collaborators, guests, members,
+  # permissions: Zoom's canvas_add_file_collaborators and the like) shares files and notifies them.
+  if [ -z "$isread" ] && printf '%s' "$opn" | grep -qE "$PEOPLE_WRITE"; then
+    deny "Blocked: the assistant never adds, changes or removes who can see or join something (collaborators, guests, members, permissions) through a connected app. That shares the user's files and notifies people. Tell the user what to change and let them do it."
   fi ;;
 esac
 
@@ -550,8 +566,9 @@ esac
 if printf '%s' "$tool" | grep -qiE 'calend|meeting|event|invitee'; then
   if printf '%s' "$last" | grep -qiE "$READ|^(suggest|free|check|load)|_(list|get|search)$"; then
     :
-  elif printf '%s' "$last" | grep -qiE '^(create|insert|add|quick)|_create$' && ! printf '%s' "$last" | grep -qiE 'attendee|invit|share|guest|participant'; then
-    if printf '%s' "$flat" | grep -qiE '\\?"[A-Za-z_]*(attendee|guest|invite|participant)[A-Za-z_]*\\?"[[:space:]]*:[[:space:]]*(\[[[:space:]]*[^][:space:]]|\{[[:space:]]*[^}[:space:]]|\\?"[^"\\])'; then
+  elif printf '%s' "$last" | grep -qiE '^(create|insert|add|quick)|_create$' && ! printf '%s' "$last" | grep -qiE 'attendee|invit|share|guest|participant|registrant|host'; then
+    # Zoom also emails registrants and alternative hosts (alternative_hosts / alternativeHosts).
+    if printf '%s' "$flat" | grep -qiE '\\?"[A-Za-z_]*(attendee|guest|invite|participant|registrant|alternative_?host)[A-Za-z_]*\\?"[[:space:]]*:[[:space:]]*(\[[[:space:]]*[^][:space:]]|\{[[:space:]]*[^}[:space:]]|\\?"[^"\\])'; then
       deny "Blocked: calendar events must not invite anyone (that emails them from the user). Put names in the description and leave attendees, guests and invitees empty."
     fi
   else
@@ -636,6 +653,10 @@ fi
 case "$tool" in mcp__*)
   if [ -z "$isread" ] && printf '%s' "$tool" | grep -qiE 'ifttt|zapier|n8n|pipedream|make_com|activepieces'; then
     ask "$AUTOMATION_MSG"
+  fi
+  # Contacts apps, pushing people's details out, feedback to an app's maker: the user's own yes.
+  if [ -z "$isread" ] && { printf '%s' "$tool" | grep -qiE "$CONTACT_APP" || printf '%s' "$opn" | grep -qE "$PEOPLE_OUT|(^|_)feedback(_|$)"; }; then
+    ask "$CONTACTS_MSG"
   fi ;;
 esac
 exit 0

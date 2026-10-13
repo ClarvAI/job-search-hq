@@ -396,6 +396,48 @@ else
   check "IFTTT run_action, Codex: block" deny "$IFTTT_RUN"
 fi
 
+echo "== guard ($IMPL): meeting tools, collaborators and contacts apps (2026-10)"
+Z='mcp__claude_ai_Zoom_for_Claude__'
+check "Zoom canvas_add_file_collaborators (deny)" deny "{\"tool_name\":\"${Z}canvas_add_file_collaborators\",\"tool_input\":{\"emails\":[\"r@example.com\"]}}"
+check "Zoom canvas_modify_file_collaborator_role (deny)" deny "{\"tool_name\":\"${Z}canvas_modify_file_collaborator_role\",\"tool_input\":{}}"
+check "Zoom canvas_remove_file_collaborator (deny)" deny "{\"tool_name\":\"${Z}canvas_remove_file_collaborator\",\"tool_input\":{}}"
+check "Zoom canvas_list_file_collaborators (allow)" allow "{\"tool_name\":\"${Z}canvas_list_file_collaborators\",\"tool_input\":{}}"
+check "Zoom meeting_delete (deny)" deny "{\"tool_name\":\"${Z}meeting_delete\",\"tool_input\":{\"meeting_id\":\"1\"}}"
+check "Zoom in_meeting_control (deny)" deny "{\"tool_name\":\"${Z}in_meeting_control\",\"tool_input\":{}}"
+check "Zoom meeting_create with alternative_hosts (deny)" deny "{\"tool_name\":\"${Z}meeting_create\",\"tool_input\":{\"topic\":\"x\",\"settings\":{\"alternative_hosts\":\"r@example.com\"}}}"
+check "Zoom meeting_create, host_video setting only (allow)" allow "{\"tool_name\":\"${Z}meeting_create\",\"tool_input\":{\"topic\":\"Practice\",\"settings\":{\"host_video\":true,\"alternative_hosts\":\"\"}}}"
+check "meeting registrant create (deny)" deny '{"tool_name":"mcp__zoom__meeting_registrant_create","tool_input":{}}'
+for zt in ask get_meeting_assets recordings_list search search_meetings get_file_content my_notes_get_note_content hub_get_file_content; do
+  check "Zoom $zt (allow)" allow "{\"tool_name\":\"${Z}$zt\",\"tool_input\":{}}"
+done
+check "Slack add_member_to_channel (deny)" deny '{"tool_name":"mcp__slack__add_member_to_channel","tool_input":{}}'
+check "docs update_permissions (deny)" deny '{"tool_name":"mcp__docs__update_permissions","tool_input":{}}'
+check "Drive get_file_permissions (allow)" allow '{"tool_name":"mcp__claude_ai_Google_Drive__get_file_permissions","tool_input":{}}'
+check "Contacts+ send_product_feedback (deny)" deny '{"tool_name":"mcp__claude_ai_Contacts__send_product_feedback","tool_input":{"text":"x"}}'
+for ct in search_contacts get_contact list_tags; do
+  check "Contacts+ $ct (allow)" allow "{\"tool_name\":\"mcp__claude_ai_Contacts__$ct\",\"tool_input\":{}}"
+done
+for rt in PitchBook_Premium__search_companies Octagon_AI__octagon-agent Google_Drive__read_file_content Granola__get_meeting_transcript \
+  Calendly__scheduling_links-create_single_use_scheduling_link Gamma__generate Notion__notion-search Superhuman_Mail__create_or_update_draft \
+  Anthropic_Economic_Index__get_occupation Gamma__export_gamma Figma__upload_assets SecondBrain__export_briefing; do
+  check "connector $rt (allow)" allow "{\"tool_name\":\"mcp__claude_ai_$rt\",\"tool_input\":{}}"
+done
+check "export_leaderboard is not leads (allow)" allow '{"tool_name":"mcp__stats__export_leaderboard","tool_input":{}}'
+# Writes to a contacts app, pushes of people's details, feedback to a vendor: Claude asks, Codex blocks.
+for at in claude_ai_Contacts__push_contact_info claude_ai_Contacts__suggest_contact_update claude_ai_Contacts__add_tags \
+  hubspot__create_contact crm__export_contacts people__sync_people_to_sheet claude_ai_Granola__give_feedback; do
+  if [ "$IMPL" = sh ]; then
+    check "$at, Claude: ask the user" ask "{\"tool_name\":\"mcp__$at\",\"tool_input\":{}}"
+  else
+    check "$at, Codex: block" deny "{\"tool_name\":\"mcp__$at\",\"tool_input\":{}}"
+  fi
+done
+if [ "$IMPL" = sh ]; then
+  RUN="$RUN_DEFAULT codex" check "Codex mode: Contacts+ push_contact_info blocks with exit 2" block2 '{"tool_name":"mcp__claude_ai_Contacts__push_contact_info","tool_input":{}}'
+  RUN="$RUN_DEFAULT codex" check "Codex mode: Contacts+ search_contacts allowed" allow '{"tool_name":"mcp__claude_ai_Contacts__search_contacts","tool_input":{}}'
+  RUN="$RUN_DEFAULT"
+fi
+
 echo "== guard ($IMPL): input shape"
 check "empty stdin (deny)" deny ''
 check "whitespace-only stdin (deny)" deny $'  \n'
