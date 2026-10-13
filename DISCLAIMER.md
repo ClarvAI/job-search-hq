@@ -1,6 +1,6 @@
 # Disclaimer
 
-Job Search HQ is a set of instructions and small scripts that help an AI assistant (Claude Code or Codex) help you with a job search. Please read this before you rely on it.
+Job Search HQ is a set of instructions and small scripts that help an AI assistant (Claude Code or Codex) help you with a job search. Other apps that read its instructions are best effort only, and its safety checks don't run there (see `docs/platforms.md`). Please read this before you rely on it.
 
 ## Not professional advice
 
@@ -21,11 +21,14 @@ Job boards, social networks and employer sites have their own terms of use. Foll
 ## Your data
 
 - Your files stay in this folder on your computer. This project has no server, no account, and no analytics or telemetry. It doesn't phone home.
-- What you work on is sent to the AI provider you use (Anthropic for Claude, OpenAI for Codex) so the assistant can respond, under that provider's terms and privacy policy and your plan's data settings.
+- What you work on is sent to the AI provider you use (Anthropic for Claude, OpenAI for Codex) so the assistant can respond, under that provider's terms and privacy policy and your plan's data settings. On plans for individuals, check whether your chats may be used to train the provider's models, and turn that off if you want.
+- The AI app keeps its own chat history (and any memory notes it makes) on your computer outside this folder, where a backup or "delete everything" doesn't reach.
 - Connectors you choose to turn on (for example Gmail or Google Calendar) give the assistant access to that account, under the connector provider's terms. The workspace limits what it does with them (read job mail, make drafts, add your own calendar events), but the connection itself is between you and that service.
-- Pages you publish (for example a portfolio link) are stored by the service that hosts them. Pages you open in a browser load fonts and libraries from public CDNs, which see your IP address.
+- Web searches and pages the assistant reads go out like any web visit. Voice input goes to the app's speech service.
+- Pages you publish (for example a portfolio link) are stored by the service that hosts them. Pages on your computer use fonts and libraries that come with the app; a published page, or one moved out of this folder, loads them from public CDNs (Google Fonts, jsDelivr), which see the viewer's IP address.
 - If this folder sits in a cloud-synced folder (Dropbox, OneDrive, iCloud, Google Drive), that service has a copy too.
+- The full list, app by app, is in `docs/privacy.md`.
 
 ## No warranty
 
-This software is provided "as is", without warranty of any kind, as stated in the MIT License (`LICENSE`). The authors and contributors are not liable for any outcome of using it, including missed deadlines, rejected applications, lost data, or messages sent in error. Keep your own backups (`/my-data` makes one).
+This software is provided "as is", without warranty of any kind, as stated in its license, the PolyForm Noncommercial License 1.0.0 (`LICENSE`, "No Liability"). The authors and contributors are not liable for any outcome of using it, including missed deadlines, rejected applications, lost data, or messages sent in error. Keep your own backups (`/my-data` makes one).

@@ -15,6 +15,16 @@ First public release.
 - `/health` checks that everything is set up and working, changes nothing, and names the one thing to fix first.
 - Layoff first-week plan (`/laid-off`), unemployment work-search log (`/work-search-log`), and an optional visa unemployment clock in `/today` and `/evaluate-job`.
 - **Your dashboard on your phone, two ways:** in Claude, besides your themed page, you can publish it as a private Claude Dashboard where every number shows where it came from and a warning appears when it's more than three days old. Either way, the published copy now shows only your job list and counts: no contacts' names, notes, pay or activity log.
+- **Try it first:** ask for the sample workspace and you get a separate practice copy filled with a made-up job search, next to your folder and never inside it, so you can try the boards and pages before entering anything.
+- **Your language:** set `language:` and the assistant talks with you in it, writes dates and money your way, and shows a translated phrase beside each typed confirm phrase. Mock interviews can be held in another language, read aloud with a computer voice for that language.
+- **More kinds of searches:** guides for searching while employed, hourly and shift work (availability, hours and shifts in your preferences, filled in by the Apply Kit), freelance and contract work, and academic jobs, plus working with recruiters and search firms.
+- **More inboxes:** `/sync-inbox` reads a Microsoft 365 work or school mailbox, or emails you paste or save, as well as Gmail.
+- **Attachments:** a draft can name the job's checked PDF (`attach:`), and the Outbox panel attaches it when it makes the Gmail draft. Sending still never carries attachments.
+- **Sound only when you ask:** the Interview Room's read-aloud and timer beeps are off until you say yes or press **Turn on voice** / **Turn on sounds**, and it remembers your choice.
+- **Two writers, no lost changes:** a panel that finds its file changed since it opened (the other app, Excel, or another panel) refuses to save and shows you the latest version.
+- **More looks:** three new presets (editorial, calm, bold); a timeline dashboard, printable cheat cards for flashcards, a one-column portfolio, and a portrait designed resume (a photo only if you ask for one). New templates for an academic CV, a US federal resume (USAJOBS, two pages at most) and a Europass-style CV.
+- **Pages work offline:** the fonts and libraries now come with the app, so your pages on your computer load nothing from the web. Resume PDFs embed proper fonts and have a clickable outline.
+- New guides: getting started, platforms, and where your information goes (`docs/privacy.md`).
 
 Fixed and tightened before release, after end-to-end walkthroughs:
 

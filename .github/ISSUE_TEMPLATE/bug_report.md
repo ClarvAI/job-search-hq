@@ -6,7 +6,9 @@ labels: bug
 assignees: ""
 ---
 
-> **Remove personal data before posting.** This page is public. Don't paste your resume, emails, contact names, phone numbers, addresses, offer details, or anything from your `profile/`, `jobs/`, `contacts/` or `outbox/` folders. Replace real names and companies with made-up ones.
+> **Remove personal data before posting.** This page is public. Don't paste or attach your resume, emails, contact names, phone numbers, addresses, offer details, pay, or anything from your `profile/`, `jobs/`, `contacts/`, `outbox/`, `interviews/`, `history/` or `imports/` folders (not even a line of your tracker). Replace real names and companies with made-up ones (Acme, Globex, Jane Doe). We never need your real data to fix a bug.
+>
+> Found a way to make the assistant send something, leak data, or get around a safety check? Don't post it here: report it privately (see SECURITY.md). Hit an accessibility barrier? Use the **Accessibility barrier** template.
 
 **What happened**
 <!-- What you asked or typed, and what the assistant or page did. -->
@@ -19,7 +21,7 @@ assignees: ""
 3.
 
 **/health output**
-<!-- Type /health (Claude Code) or $health (Codex) and paste the result here. Check it for personal details first. -->
+<!-- Type /health (Claude Code) or $health (Codex) and paste the result here. Check it for personal details first: folder paths often contain your name (C:\Users\yourname, /Users/yourname), so replace it with "me". -->
 
 ```
 paste here

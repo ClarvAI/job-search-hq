@@ -6,7 +6,7 @@ Five minutes of reading, and you'll know where everything lives, what happens on
 
 ## The big idea
 
-Everything about your search is kept in a few plain files in this folder. Your assistant (Claude, or Codex from ChatGPT; both work, and you can use both) reads and updates them; the panels and pages show them. When the assistant reads a file, it's sent to the company running it (Anthropic or OpenAI) to process, like any chat. Nothing is shared with employers or posted anywhere unless you do it.
+Everything about your search is kept in a few plain files in this folder. Your assistant (Claude, or Codex from ChatGPT; both work, and you can use both) reads and updates them; the panels and pages show them. When the assistant reads a file, it's sent to the company running it (Anthropic or OpenAI) to process, like any chat. Nothing is shared with employers or posted anywhere unless you do it. Every place your information can go is listed in [docs/privacy.md](docs/privacy.md).
 
 In short: you talk to your assistant; it reads and updates your files (your master resume, job tracker, contacts, drafts and activity log); the panels (in Claude) or the chat (in Codex) let you see and change them; and the pages show them in your browser. The diagram below shows the same thing.
 
@@ -34,12 +34,13 @@ In short: you talk to your assistant; it reads and updates your files (your mast
 
 ---
 
-## The four things to remember
+## Five things to remember
 
 1. **Your master resume is the truth.** `profile/master-resume.md` holds every real fact about you. Every resume, letter, and answer is built from it; nothing is invented. The assistant asks before changing it.
 2. **Your tracker is the scoreboard.** `jobs/tracker.csv` has one row per job: its stage, your next step, and when it's due. It opens in Excel.
 3. **You send everything.** The assistant drafts; you decide. Emails and messages wait in your Outbox until you send them.
 4. **Just ask.** You never need the commands. "What should I do today?" or "Help me prep for Acme on Thursday" works.
+5. **In your language.** The assistant talks with you in the language you choose (a `language:` setting it asks about during setup; just ask to change it). Buttons in Claude's panels stay in English.
 
 ---
 
@@ -68,9 +69,9 @@ When you open Claude, a small pop-up tells you what's due today or tomorrow: int
 
 **`/pipeline` is your job board, and it's live.** Each job shows its stage and next step. Press **Update…** to change the stage, the next step, or its due date; **Mark next step done** when you've done it; **Push back a week** when something is waiting on someone else. Every change saves straight to your tracker, and Claude knows about it.
 
-**`/outbox` is drafts waiting for you.** Read each one, then **Create Gmail draft** (it appears in your Gmail drafts, ready to send), **Copy** (for LinkedIn), **Mark sent** (it asks which day you sent it), **Ask Claude to edit**, or **Discard**. Nothing is sent unless you press the button.
+**`/outbox` is drafts waiting for you.** Read each one, then **Create Gmail draft** (it appears in your Gmail drafts, ready to send; if the message says your resume or cover letter is attached, the panel shows which PDF from that job's folder it will attach first), **Copy** (for LinkedIn), **Mark sent** (it asks which day you sent it), **Ask Claude to edit**, or **Discard**. Nothing is sent unless you press the button.
 
-**`/interview-room` is mock interviews.** During `/mock-interview`, questions appear here and are read aloud, a clock times your answer, and a scorecard fills in. Answer out loud: click the mic in the Desktop app (or type `/voice` once in the terminal, then hold Space).
+**`/interview-room` is mock interviews.** During `/mock-interview`, questions appear here (read aloud too, and a beep near the end of your time, only if you say yes or press **Turn on voice** / **Turn on sounds**), a clock times your answer, and a scorecard fills in. Answer out loud: click the mic in the Desktop app (or type `/voice` once in the terminal, then hold Space).
 
 Long boards show what's due first; press **Show all** for the rest, which comes a page at a time. You can work a panel with the keyboard alone: Tab moves between buttons, Enter presses one, and Esc goes back to typing (the panel shows this hint). Close Excel before using a panel. The panels refuse to save while Excel shows it has the file open (so Excel can't undo your change later), but they can only tell when Excel leaves a lock file, and Excel for Mac often doesn't. They also won't save to a file that looks damaged, and they show unclear dates as "date unclear" instead of guessing.
 
@@ -88,7 +89,7 @@ Long boards show what's due first; press **Show all** for the rest, which comes 
 
 ## Using Claude and Codex together
 
-You can use either app, switch between them, or have both open. They follow the same rules (`AGENTS.md`) and use the same files, so a job you add in one shows up in the other. Whenever one changes your tracker, contacts, or drafts, it adds a line to `history/activity.md`, and the other app reads the latest ones when it starts (ask "what changed?" any time). Before saving, each one re-reads the file so it doesn't overwrite the other's work. That narrows the risk but can't close it: if two of them save the same file in the same moment (both apps, or an app and a Claude panel), one change can be lost, even when they're about different jobs. So change your tracker or contacts in one place at a time. Also avoid having `tracker.csv` open in Excel while either app is changing it.
+You can use either app, switch between them, or have both open. They follow the same rules (`AGENTS.md`) and use the same files, so a job you add in one shows up in the other. Whenever one changes your tracker, contacts, or drafts, it adds a line to `history/activity.md`, and the other app reads the latest ones when it starts (ask "what changed?" any time). Before saving, each one re-reads the file so it doesn't overwrite the other's work. That narrows the risk but can't close it: if two of them save the same file in the same moment (both apps, or an app and a Claude panel), one change can be lost, even when they're about different jobs. So follow the one-writer-at-a-time rule: change your tracker or contacts in one place at a time (one app, one panel, or Excel), finish there, then switch. Also avoid having `tracker.csv` open in Excel while either app is changing it.
 
 ---
 
@@ -140,8 +141,8 @@ You can open any of these yourself. They're ordinary files, and `tracker.csv` op
 
 In `profile/preferences.md` (the assistant will explain before changing either):
 
-- **`outbox_mode: draft-only`** (default): approving an email makes a Gmail draft and you press Send in Gmail. `send` lets Claude's Outbox panel send it after you press Send and confirm; the first time in each folder, and again each time you turn it back on, the panel also asks you to confirm send mode itself, so a changed setting alone never starts sending. It can't attach files, so anything with an attachment still goes through a Gmail draft. Codex always makes drafts only.
-- **`autonomy: coach`** (default): you submit every application, and the assistant only reads employer sites. `assisted` lets the assistant fill in application forms in the app's built-in browser, stopping before Submit unless you say "submit it"; it checks with you in the chat before the first form each session.
+- **`outbox_mode: draft-only`** (default): approving an email makes a Gmail draft and you press Send in Gmail. `send` lets Claude's Outbox panel send it after you press Send and confirm; the first time in each folder, and again each time you turn it back on, the panel also asks you to confirm send mode itself, so a changed setting alone never starts sending. It never sends attachments, so anything with an attachment still goes through a Gmail draft, which carries the job's checked resume or cover letter PDF (or tells you what to attach by hand). Codex always makes drafts only.
+- **`autonomy: coach`** (default): you submit every application, and the assistant only reads employer sites. `assisted` lets the assistant fill in application forms in the app's built-in browser, stopping before Submit unless you say "submit it" (or the same phrase in your language, which the assistant shows you); it checks with you in the chat before the first form each session.
 
 Your master resume and preferences are protected the same way: the assistant shows you each change first, and in Claude the app asks you before any command that would copy over, move or delete them. Being honest about the limits: keeping the assistant from typing into an employer's form in coach mode is one of its rules, not a technical block (the safety check only keeps the browser off Gmail, Outlook and LinkedIn).
 
@@ -157,6 +158,10 @@ Your master resume and preferences are protected the same way: the assistant sho
 
 ---
 
+## Special situations: just ask
+
+Tell the assistant if any of these is you, and it follows the guidance built in for it: searching while you still have a job (it keeps things discreet), hourly, shift or part-time jobs, freelance, contract or agency work, academic jobs, or a recruiter or headhunter getting in touch. If your job email isn't in Gmail: in Claude, a work or school Microsoft 365 account can connect read-only; otherwise paste the emails into the chat or save them in `imports/` and ask it to read them. Don't run your search from your current employer's email or laptop.
+
 ## If you've lost your job
 
 Say **/laid-off** for a dated first-week list (unemployment, health coverage, severance) and drafts to ask colleagues for references. Claiming unemployment? **/work-search-log** keeps the weekly record your state or Universal Credit asks for, in their order; you enter it yourself. If your visa depends on having a job, `/today` can count the days left.
@@ -165,9 +170,9 @@ Say **/laid-off** for a dated first-week list (unemployment, health coverage, se
 
 ## Your data
 
-- "Back up my stuff" saves a dated zip of everything to your Downloads folder (or another folder you pick). Keep one copy somewhere other than this computer. "I got the job, wrap up" or "pause my search" tidies your tracker. "Delete everything" wipes this folder back to blank, but only after you type "delete my data".
+- "Back up my stuff" saves a dated zip of everything to your Downloads folder (or another folder you pick). Keep one copy somewhere other than this computer. "I got the job, wrap up" or "pause my search" tidies your tracker. "Delete everything" wipes this folder back to blank, but only after you type "delete my data" (or the same phrase in your language, which the assistant shows you).
 - Your own files are never part of the app's download or its git history, so that zip is your backup. If you ever put this folder in git anyway, use a **private** repository only: it holds other people's contact details, references and offer terms. As a safety net, run `git config core.hooksPath .githooks` once in the folder (setup and `/health` offer to; it stays off until you say yes) and git itself stops pushes to a public GitHub repository, including ones a script makes. It's not a lock: it doesn't cover other sites or uploads made another way.
-- Everything about your search stays in this folder. Codex is set not to copy these chats into its memories (kept outside the folder, where a backup or "delete everything" can't reach). Claude Code's own memory feature, if it's on, also keeps its notes outside the folder.
+- Your search files stay in this folder. The apps keep a few things of their own outside it, where a backup or "delete everything" can't reach: Claude Code and Codex save your chat history in their own folders (Claude Code deletes it after 30 days by default; `claude project purge` in this folder removes it sooner), and Claude Code's memory feature, which is on by default, keeps notes there too (turn it off with `/memory`). Codex is set not to copy these chats into its memories. Details: [docs/privacy.md](docs/privacy.md).
 - **New version?** Download the release zip and say "update". Only the app's files change; your files are never touched. If you'd edited an app file, your version is kept next to it as `<file>.local`, and "undo the update" rolls back. If the new version changes the resume or cover-letter templates, your themed copies are rebuilt in your look and the old one is kept as `<name>.previous.html`. Got the app with git? `git pull` works too, since your look lives in `profile/`, not in the app's files.
 
 ---
@@ -180,4 +185,4 @@ Say **/laid-off** for a dated first-week list (unemployment, health coverage, se
 - "Why did you suggest that?" It will show its reasoning and sources.
 - "Check my setup" (`/health`) looks over the folder, safety checks, panels and connections, changes nothing, and tells you the one thing to fix first.
 - Still stuck: ask for the menu or the tour.
-- **Safety checks, honestly:** both apps have a check that stops the assistant's own attempts to send, post, share or delete through your connections, to invite people to calendar events, to send mail from your computer, to steer a browser to Gmail, Outlook or LinkedIn, or to push this folder to a public GitHub repository. If the check crashes, the action is blocked. It only sees the assistant's requests: not clicks in a browser tab that's already open, not inside a script saved in a file, and not hosting sites other than GitHub. In Claude it needs the top folder, a trusted folder and, on Windows, Git for Windows; in Codex, a trusted folder and trusted hooks (`/hooks`, again after each update). It's a backstop. The main protection is that the assistant's rules say you send everything, and it follows them. None of this limits you: you can always do anything yourself. The full list is in the README's "What the safety check covers".
+- **Safety checks, honestly:** both apps have a check that stops the assistant's own attempts to send, post, share or delete through your connections, to invite people to calendar events, to send mail from your computer, to steer a browser to Gmail, Outlook or LinkedIn, or to push this folder to a public GitHub repository. If the check crashes, the action is blocked. It only sees the assistant's requests: not clicks in a browser tab that's already open, not inside a script saved in a file, and not hosting sites other than GitHub. In Claude it needs the top folder, a trusted folder and, on Windows, Git for Windows; in Codex, a trusted folder and trusted hooks (`/hooks`, again after each update). In other apps (a regular Claude chat with a folder, Cursor, Copilot and the rest) it doesn't run at all; see [docs/platforms.md](docs/platforms.md). It's a backstop. The main protection is that the assistant's rules say you send everything, and it follows them. None of this limits you: you can always do anything yourself. The full list is in the README's "What the safety check covers".

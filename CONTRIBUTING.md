@@ -38,8 +38,17 @@ CI (`.github/workflows/ci.yml`) runs the same scripts on every push and pull req
 | A fresh clone has no user data, and first run, the startup hook and `/health` work on it | `scripts/ci/e2e-fresh.py` |
 | `/update` installs, checks, rolls back, keeps user files and edited app files, and refuses bad releases | `scripts/ci/e2e-update.py` |
 | `/my-data` backup, reset and restore round-trip every user file, skip links, respect Excel locks | `scripts/ci/e2e-mydata.py` |
+| The sample workspace is made next to the user's folder, never inside it, and is complete and removable | `scripts/ci/e2e-sample.py` |
 | A user's theme stays out of git, and `git pull` of a new version stays clean | `scripts/ci/e2e-theme-git.py` |
 | Published dashboard copies hold only the job list, and the Claude Dashboard page takes every figure from its data | `scripts/ci/check-dashboard-type.py` |
+
+### Journeys, skill evals and the token budget (manual; they cost model quota)
+
+These are not part of `run-all.sh` or CI: they start real, headless Claude Code (and Codex) sessions on the account the CLI is signed in to, so every run spends that account's quota. Each session works on a throwaway copy of the workspace (Claude's shell commands also get a throwaway home folder), no connectors (only the harness's own fake Gmail and browser where a scenario needs them), and no user settings, memory, plugins, agents or skills. An isolation canary runs first for each app and model; if it fails, nothing else runs. Results go to a folder outside the repository.
+
+- `python3 scripts/ci/journeys/run.py` runs the user journeys; `--suite evals` runs the skill evals in `evals.py` (risky flows pushed by a scripted user: injected instructions, exact phrases, made-up numbers, send requests). `--model` takes a comma-separated list, `--only a,b` picks scenarios, `--list` shows them.
+- `python3 scripts/ci/journeys/rescore.py <results-dir>` re-runs the checks on saved results with no model call (for when a check itself was wrong).
+- `python3 scripts/ci/journeys/budget.py` reports how much text every session loads at startup and each skill when it runs, with no model call; `--live` also measures real startup tokens (a few cents). `AGENTS.md` must stay under 30,000 bytes.
 
 ## Conventions
 
