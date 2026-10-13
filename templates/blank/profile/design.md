@@ -8,7 +8,7 @@ This file is the one place your look is set: the colors, fonts, text size, motio
 
 ## Pages (dashboard, flashcards, portfolio site, interview briefs)
 
-Presets: **default** (friendly headings, warm stone backgrounds, deep teal), **modern** (clean sans, violet), **minimal** (mostly black and white), **high-contrast** (larger text, stronger contrast, motion off), or **brand** (your own colors and fonts, from your brand or design system).
+Presets: **default** (friendly headings, warm stone backgrounds, deep teal), **modern** (clean sans, violet), **minimal** (mostly black and white), **high-contrast** (larger text, stronger contrast, motion off), **editorial** (warm paper tones, serif headings, deep plum), **calm** (soft pastel blue-gray, roomy, motion off), **bold** (vivid magenta, strong headings, sharp corners), or **brand** (your own colors and fonts, from your brand or design system).
 
 ```design
 preset: default
@@ -38,10 +38,10 @@ layout_portfolio:
 - `base_size`: `100%` (default), `large` (112.5%), `larger` (125%), or a size like `18px`. Never smaller than 100%.
 - `density`: `compact`, `comfortable` or `spacious`. `radius`: corner roundness, `none`, `small`, `medium`, `large` or a number of pixels. `motion`: `full` or `reduced` (your device's own "reduce motion" setting is always respected too).
 - Layouts (blank means the first, the default; your assistant can show you a preview of each):
-  - `layout_dashboard`: `overview` (today's to-dos first, then progress and the board) or `board` (your job board first, columns by stage).
-  - `layout_flashcards`: `flip` (one big card at a time) or `list` (the whole deck as a study sheet).
+  - `layout_dashboard`: `overview` (today's to-dos first, then progress and the board) `board` (your job board first, columns by stage) or `timeline` (every open job on one date line: applied, next step, deadline).
+  - `layout_flashcards`: `flip` (one big card at a time), `list` (the whole deck as a study sheet) or `cards` (cheat cards to print, cut and fold).
   - `layout_brief`: `sheet` (one printable page) or `detailed` (longer, with a section menu; still prints as one page).
-  - `layout_portfolio`: `profile` (a card with your name, contact buttons and highlights), `editorial` (no boxes, clean rows like a printed page) or `bento` (a grid of tiles).
+  - `layout_portfolio`: `profile` (a card with your name, contact buttons and highlights), `editorial` (no boxes, clean rows like a printed page), `bento` (a grid of tiles) or `column` (one column on every screen, like a link page).
 
 ## Documents (resume and cover letter)
 
@@ -60,5 +60,6 @@ layout_designed:
 - `accent`: a dark color as a hex code; if it's too light to read on white paper, your assistant uses a deeper shade of it.
 - `density`: `compact`, `standard` or `roomy`. `paper`: `Letter` (US and Canada) or `A4` (most other countries).
 - `layout_resume`: `classic` (the default), `modern` (name and headings in your accent color) or `compact` (tighter, for a full page). All three are equally readable by application systems; your cover letter matches it.
-- `layout_designed`: for the designed resume, `sidebar` (the default) or `headline`.
+- `layout_designed`: for the designed resume, `sidebar` (the default), `headline` or `portrait` (a centered header that can hold your photo, only if you ask for one).
+- Also available, same font, color, spacing and paper: an academic CV, a US federal resume (USAJOBS, two pages at most) and a Europass-style CV. Your assistant uses one when a job calls for it.
 - A designed (more visual) resume is available for creative fields; it uses your page look and always comes alongside the plain one, never instead of it.

@@ -1,0 +1,188 @@
+<!doctype html>
+<!--
+  Academic CV template (faculty, postdoc, research and teaching jobs; the app's copy, always on the default look).
+  Assistant: if profile/templates/cv-academic-template.html exists, start from that copy instead (it carries the
+  user's documents look); never edit this file. Copy it to jobs/<folder>/cv.html, replace everything between the
+  opening and closing main tags keeping the markup pattern below, set the title element to the person's name and
+  "CV", and set --cv-name below to the same name in quotes (it prints at the foot of every page with the page
+  number). Every entry comes from the master resume (ground rule 1); never invent a publication or a grant.
+  Conventions (MIT CAPD, capd.mit.edu/resources/cvs; Newcastle University Careers academic CV workbook):
+    - No page limit: completeness matters more than brevity (often 2 to 4 pages early in a career, more later).
+    - Reverse chronological order inside each section; lead with what the job weighs most (research or teaching).
+    - Publications in the field's own citation style, the person's name in bold (<strong>), published work apart
+      from submitted or in preparation (never list something as accepted that isn't).
+    - Name and page number on every page (the footer below does it).
+  Markup pattern (same classes as the ATS resume, so the documents look applies):
+    header.masthead: h1 (the name), p.contact items separated by <span class="sep"> | </span>, optional
+      p.position (current title and department).
+    One section per heading, its h2 holding only the plain heading text, in this usual order (drop the empty
+      ones): Research Interests, Education, Academic Appointments, Publications, Grants and Fellowships, Awards and
+      Honors, Teaching Experience, Presentations, Service, Skills and Languages, References.
+    .entry with p.line rows (span.org, span.end dates or place) and a ul or p, as in the resume.
+    Publications, presentations: ol.cites with one li per item (full citation as text).
+    References: p.ref per person (name, title, institution, email) only with their permission.
+  Keep: one column, real text, standard headings, no images, tables or icons. Make the PDF with
+  .claude/skills/tailor-resume/scripts/make-pdf.sh (it saves <First>-<Last>-Resume-<Company>.pdf; keep that name, the Apply Kit
+  looks for it; the user can rename the copy they upload) and check "parse: ok".
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your Name CV</title>
+<style>
+  /* ---- Document theme (generated from profile/design.md; see .claude/skills/page-design/SKILL.md) ---- */
+  :root { --doc-font: Arial, Helvetica, "Liberation Sans", sans-serif; --doc-accent: #111111; --doc-size: 10.5pt; --doc-leading: 1.2; }
+  @page { size: Letter; margin: 0.5in 0.6in; }
+  /* ---- End document theme ---- */
+
+  /* The person's name for the page footer (set it with the title). */
+  :root { --cv-name: "Your Name"; }
+  /* Footer on every page: name at the left, page number at the right (CSS page margin boxes, Chrome 131+).
+     The bottom margin is raised to make room; the theme's @page above still sets the paper size. */
+  @page {
+    margin-bottom: 0.8in;
+    @bottom-left { content: var(--cv-name) ", CV"; font: 9pt var(--doc-font); color: #3d3d3d; }
+    @bottom-right { content: "Page " counter(page) " of " counter(pages); font: 9pt var(--doc-font); color: #3d3d3d; }
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; color: #111; background: #fff;
+    font-family: var(--doc-font); font-size: var(--doc-size); line-height: var(--doc-leading);
+    font-kerning: normal; text-rendering: optimizeLegibility;
+  }
+  main { display: block; }
+  h1, h2, p, ul, ol { margin: 0; }
+  a { color: inherit; text-decoration: none; }
+
+  .masthead { margin-bottom: 0.6em; }
+  .masthead h1 { font-size: 20pt; line-height: 1.1; font-weight: 700; letter-spacing: -0.01em; color: var(--doc-accent); }
+  .position { margin-top: 0.25em; font-weight: 700; }
+  .contact { margin-top: 0.3em; font-size: 0.95em; overflow-wrap: break-word; white-space: nowrap; }
+  .contact .sep { white-space: pre-wrap; }
+
+  h2 {
+    font-size: 10.5pt; line-height: 1.2; font-weight: 700; color: #111; text-transform: uppercase; letter-spacing: 0.07em;
+    margin: 1em 0 0.4em; padding-bottom: 0.15em; border-bottom: 0.75pt solid var(--doc-accent); break-after: avoid;
+  }
+  section:first-of-type h2 { margin-top: 0.35em; }
+  .entry { break-inside: avoid; }
+  .entry + .entry { margin-top: 0.5em; }
+  .line { display: flex; justify-content: space-between; align-items: baseline; gap: 1em; }
+  .line > span:first-child { min-width: 0; }
+  .org { font-weight: 700; }
+  .end { flex: none; white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums lining-nums; }
+  .entry > p:not(.line) { margin-top: 0.1em; text-wrap: pretty; }
+  ul { margin-top: 0.15em; padding-left: 1.15em; }
+  li { padding-left: 0.15em; text-wrap: pretty; }
+  li + li { margin-top: 0.12em; }
+  .sub { margin: 0.5em 0 0.2em; font-weight: 700; break-after: avoid; }
+  ol.cites { padding-left: 1.6em; }
+  ol.cites li { padding-left: 0.2em; break-inside: avoid; }
+  ol.cites li + li { margin-top: 0.3em; }
+  .skill { padding-left: 1em; text-indent: -1em; text-wrap: pretty; }
+  .skill + .skill { margin-top: 0.12em; }
+  .ref + .ref { margin-top: 0.4em; }
+
+  @media screen {
+    html { background: color-mix(in srgb, #111 7%, #fff); }
+    body { max-width: 8.5in; margin: 24px auto; padding: 0.5in 0.6in; box-shadow: 0 1px 3px color-mix(in srgb, #111 18%, transparent), 0 8px 24px color-mix(in srgb, #111 8%, transparent); }
+    @media (max-width: 8.6in) { body { margin: 0; box-shadow: none; padding: 16px; } }
+  }
+  @media print { body { margin: 0; padding: 0; } .screen-only { display: none; } }
+  .screen-only {
+    margin: 0 0 18px; padding: 8px 12px; border-radius: 6px;
+    font: 12px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; color: #111;
+    background: color-mix(in srgb, #111 4%, #fff); border: 1px solid color-mix(in srgb, #111 16%, #fff);
+  }
+  /* ---- Custom ---- */
+  /* ---- End custom ---- */
+</style>
+</head>
+<body>
+<div class="screen-only">Academic CV: no page limit; your name and the page number print at the foot of every page. To save as PDF: press Ctrl+P (Windows) or Cmd+P (Mac), choose “Save as PDF”, set Margins to Default, and turn off Headers and footers. This box won’t print.</div>
+<main>
+  <header class="masthead">
+    <h1>Your Name</h1>
+    <p class="position">Current title, Department, Institution</p>
+    <p class="contact">City, ST<span class="sep"> | </span>(555) 555-0100<span class="sep"> | </span>you@example.com<span class="sep"> | </span>orcid.org/0000-0000-0000-0000</p>
+  </header>
+
+  <section>
+    <h2>Research Interests</h2>
+    <p>One or two lines in the person’s words.</p>
+  </section>
+
+  <section>
+    <h2>Education</h2>
+    <div class="entry">
+      <p class="line"><span class="org">PhD, Field, University Name</span><span class="end">YYYY</span></p>
+      <p>Dissertation: “Title.” Advisor: Name.</p>
+    </div>
+    <div class="entry">
+      <p class="line"><span class="org">BA, Field, College Name</span><span class="end">YYYY</span></p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Academic Appointments</h2>
+    <div class="entry">
+      <p class="line"><span class="org">Title, Department, Institution</span><span class="end">YYYY – Present</span></p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Publications</h2>
+    <p class="sub">Peer-reviewed articles</p>
+    <ol class="cites">
+      <li><strong>Your Name</strong>, Coauthor Name. YYYY. “Article title.” <cite>Journal Name</cite> 12 (3): 45–67.</li>
+    </ol>
+    <p class="sub">Under review</p>
+    <ol class="cites">
+      <li><strong>Your Name</strong>. “Article title.” Under review at <cite>Journal Name</cite>.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Grants and Fellowships</h2>
+    <div class="entry">
+      <p class="line"><span class="org">Grant or fellowship name, Funder</span><span class="end">YYYY – YYYY</span></p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Teaching Experience</h2>
+    <div class="entry">
+      <p class="line"><span class="org">Course title (instructor of record or teaching assistant), Institution</span><span class="end">YYYY</span></p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Presentations</h2>
+    <ol class="cites">
+      <li>“Talk title.” Conference or venue, City, Month YYYY.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Service</h2>
+    <ul>
+      <li>Reviewer, Journal Name (YYYY – Present)</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Skills and Languages</h2>
+    <p class="skill"><strong>Methods:</strong> Method, method, software</p>
+    <p class="skill"><strong>Languages:</strong> Language (level)</p>
+  </section>
+
+  <section>
+    <h2>References</h2>
+    <p class="ref">Name, Title, Institution, name@example.edu (only with their permission)</p>
+  </section>
+</main>
+</body>
+</html>

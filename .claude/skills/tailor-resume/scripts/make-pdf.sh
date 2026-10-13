@@ -131,6 +131,10 @@ if [ "$engine" = "browser" ]; then
     ""|*"Your Name"*) echo "title-warning: the page title is \"$title\"; set <title> to the person's name and \"Resume\" or \"Cover Letter\" (it becomes the PDF's title, which screen readers announce), then make the PDF again" ;;
   esac
 fi
+# A photo is never added by default (AGENTS.md ground rule 4): say so whenever the document has one.
+if [ "$engine" = "browser" ] && awk '/<!--/{c=1} c{ if ($0 ~ /-->/) c=0; next } {print}' "$src" | grep -q -i '<img[[:space:]>]'; then
+  echo "photo-note: this document includes a photo. Keep it only if the user chose to add one for this application; employers in the US, UK, Canada and Australia usually expect none."
+fi
 
 # ---- Parse check: does the PDF's text layer read back cleanly, in order? ----
 if ! command -v pdftotext >/dev/null 2>&1; then echo "parse: skipped (pdftotext not installed)"; exit 0; fi
@@ -183,7 +187,9 @@ if [ "$kind" = "Resume" ]; then
   fi
   nh="$(grep -c . "$tmpdir/headings.txt" | tr -d ' ')"
   if [ "$nh" -gt 0 ]; then
-    missing="$(awk 'function t(s){gsub(/^[ \t]+|[ \t]+$/,"",s); return tolower(s)}
+    # [[:space:]] also strips the form feed pdftotext puts before the first line of each new page (a heading at the
+    # top of page 2 would otherwise never match).
+    missing="$(awk 'function t(s){gsub(/^[[:space:]]+|[[:space:]]+$/,"",s); return tolower(s)}
       NR==FNR { if (t($0)!="") want[++n]=t($0); next }
       { line=t($0); if (i<n && line==want[i+1]) i++ }
       END { if (i<n) print want[i+1] }' "$tmpdir/headings.txt" "$text")"

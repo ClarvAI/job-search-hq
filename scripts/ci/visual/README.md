@@ -1,9 +1,10 @@
 # Visual, accessibility and print harness (maintainers)
 
 Renders every page and document the way a user sees it, takes screenshots, and runs the automated parts of a
-WCAG 2.2 AA review. It is manual (not in `run-all.sh` or CI): it needs network access for Tailwind, Google Fonts and
-the pinned CDN scripts, takes 20 to 40 minutes for the full matrix, and its screenshots are meant to be looked at by a
-person. The last full run is written up in `docs/maintainers/reviews/2026-10-12-design.md`.
+WCAG 2.2 AA review. It is manual (not in `run-all.sh` or CI): it takes 30 to 60 minutes for the full matrix, and its screenshots are meant
+to be looked at by a person. The pages load their libraries and fonts from `templates/assets/` (no network needed,
+except Google Fonts for Lexend in the High contrast preset). The last full runs are written up in
+`docs/maintainers/reviews/2026-10-12-design.md` and `2026-10-13-looks.md`.
 
 ```
 bash scripts/ci/visual/run.sh                       # everything
@@ -21,10 +22,11 @@ and downloads no browser: Playwright drives the installed Chrome.
 It copies the app's product files into `<out>/ws/Job Search HQ` (like `e2e_common.make_workspace`) and only ever runs
 the copies there; the repo's pages and templates are never themed or written.
 
-- **Pages:** `apply-theme.mjs --preview --layouts` renders dashboard `overview`/`board` (with the preview's sample data,
-  and the brand-new-user state), flashcards `flip`/`list`, interview brief `sheet`/`detailed` and portfolio
-  `profile`/`editorial`/`bento` (as shipped, and with the "Example" notes removed) in the `default`, `modern`,
-  `minimal` and `high-contrast` presets and a brand accent (`#e4572e`), light and dark, at 320, 390, 768 and 1440 px.
+- **Pages:** `apply-theme.mjs --preview --layouts` renders dashboard `overview`/`board`/`timeline` (with the preview's
+  sample data, and the brand-new-user state), flashcards `flip`/`list`/`cards`, interview brief `sheet`/`detailed` and
+  portfolio `profile`/`editorial`/`bento`/`column` (as shipped, and with the "Example" notes removed) in the `default`,
+  `modern`, `minimal`, `high-contrast`, `editorial`, `calm` and `bold` presets and a brand accent (`#e4572e`), light and
+  dark, at 320, 390, 768 and 1440 px.
   For each: full-page screenshots; axe-core with the WCAG 2.0/2.1/2.2 A and AA tags; no horizontal scroll at each
   width and at 640 px (200% zoom of a 1280 px window; 320 px is 400%); text spacing per 1.4.12 at 390 px (no scroll,
   no clipped text); target size 2.5.8 (24 px, with the spacing and inline-link exceptions); a Tab walk at 1440 and
@@ -32,11 +34,17 @@ the copies there; the repo's pages and templates are never themed or written.
   behind sticky content or left off screen, no positive tabindex, places where focus jumps upward listed for review);
   reduced motion (no running animations, nothing left faded); forced colors (screenshots, focus still visible); text
   left below 60% opacity at rest; print to PDF on Letter and A4 (page count, the brief's one- or two-page limit, light
-  colors under a dark device theme, a preview image of page 1).
-- **Documents (48 + 8):** the resume (`classic`, `modern`, `compact`) and the cover letter, each in the three densities
-  on Letter and A4, and the designed resume (`sidebar`, `headline`) in the three densities on both papers, filled with
-  the Alex Rivera fixtures in `fixtures/` and printed with the workspace copy of `make-pdf.sh`; plus the designed
-  resume in each other theme. Checks: paper, one page, `parse: ok`, the PDF is tagged, and its tag tree has a language and the H1 and section headings in reading order (read with `qpdf`).
+  colors under a dark device theme, a preview image of page 1); console errors; every request that leaves the
+  machine (anything but Google Fonts fails: libraries must load from `templates/assets/`). axe runs with
+  `preload: false`, because its stylesheet preload re-fetches each stylesheet with XHR, which file:// pages refuse (a
+  console error from axe, not from the page).
+- **Documents:** the resume (`classic`, `modern`, `compact`) and the cover letter, each in the three densities on
+  Letter and A4; the designed resume (`sidebar`, `headline`, `portrait`) in the three densities on both papers; the
+  academic CV, US federal resume and Europass-style CV in the three densities on both papers (federal at most two
+  pages, academic at most four, the rest one); the portrait layout with a placeholder photo (`make-pdf` must print
+  `photo-note:`, and must not for any other document); the designed resume in each other theme; and the ATS resume in
+  every font on the safe list. All filled with the Alex Rivera fixtures in `fixtures/` and printed with the workspace
+  copy of `make-pdf.sh`. Checks: paper, one page, `parse: ok`, the PDF is tagged, and its tag tree has a language and the H1 and section headings in reading order (read with `qpdf`).
 
 ## Output
 
@@ -50,3 +58,11 @@ every axe node), `<out>/shots/<theme>/<page>-<layout>[-state]/{light,dark}-<widt
 Look at the screenshots: layout, hierarchy, spacing, empty-state copy and anything that "looks off" are judgement
 calls. Screen readers (VoiceOver, NVDA), real browser zoom, Windows High Contrast themes and touch are not automated
 here. axe reports some contrast checks as "incomplete" (text on gradients or images); `results.json` lists how many.
+
+## Self-hosted assets
+
+`build-assets.mjs` (maintainers) fills `templates/assets/` from the exact npm packages listed in
+`.claude/skills/page-design/assets.mjs` (downloads go to a cache outside the repo) and writes
+`templates/assets/manifest.json` with each file's source, version, license, size and SHA-256. `--check` (no network)
+confirms the folder matches the manifest and the libraries match the integrity hashes the pages use for their CDN
+fallback; `scripts/ci/theme-fixtures.sh` runs it.

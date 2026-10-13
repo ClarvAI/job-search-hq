@@ -3,10 +3,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Interview Flashcards</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..700&family=Source+Sans+3:wght@400..700&family=Source+Code+Pro:wght@400..600&display=swap">
-<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.13/dist/index.global.js" integrity="sha384-P0V9YU7TFy919I0oVLXiqiUsdiJiaV+QKGysF4Lx+s901F1X9+zjFV0mc6pRKCKq" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="../templates/assets/fonts/fonts.css" data-fallback="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..700&family=Source+Sans+3:wght@400..700&family=Source+Code+Pro:wght@400..600&display=swap" onerror="if(this.dataset.up){this.onerror=null;this.href=this.dataset.fallback}else{this.dataset.up=1;this.href='../'+this.getAttribute('href')}">
+<script src="../templates/assets/lib/tailwindcss-browser-4.1.13.js" data-cdn="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.13/dist/index.global.js" data-sri="sha384-P0V9YU7TFy919I0oVLXiqiUsdiJiaV+QKGysF4Lx+s901F1X9+zjFV0mc6pRKCKq" onerror="this.onerror=null;var d=this.dataset,s=document.createElement('script');if(d.up){s.src=d.cdn;s.integrity=d.sri;s.crossOrigin='anonymous'}else{s.src='../'+this.getAttribute('src');s.dataset.up=1;s.dataset.cdn=d.cdn;s.dataset.sri=d.sri;s.setAttribute('onerror',this.getAttribute('onerror'))}this.after(s)"></script>
 <style>
   /* ---- Design tokens (generated; see .claude/skills/page-design/SKILL.md) ----
      Primitives are role-based 12-step ramps (1 page bg … 9 solid fill … 11 low-contrast text, 12 high-contrast text),
@@ -121,6 +119,8 @@
     [aria-pressed="true"], [aria-selected="true"], [aria-current]:not([aria-current="false"]) { forced-color-adjust: none; background: Highlight; color: HighlightText; border-color: Highlight; }
     :is([aria-pressed="true"], [aria-selected="true"], [aria-current]:not([aria-current="false"])) * { color: HighlightText; }
     .session, .face, .done, .sheet-item, .pile::before, .pile::after { border: 1px solid CanvasText; }
+    .cheat-card { border: 1.5px dashed CanvasText; }
+    .cheat-back { border-color: CanvasText; }
     .bar { forced-color-adjust: none; background: Canvas; box-shadow: inset 0 0 0 1px CanvasText; }
     .seg-learned, .dot-learned { forced-color-adjust: none; background: CanvasText; }
     .seg-due, .dot-due { forced-color-adjust: none; background: GrayText; }
@@ -128,7 +128,9 @@
 
   /* Concept: a deck of cue cards. One calm card at a time, prompt in the middle, the rest of the deck
      peeking below. Tap or Space flips it to the user's notes; rate how it went and the next card is dealt.
-     Layouts (data-layout on <html>): "flip" (one card at a time) and "list" (a study sheet of the whole deck). */
+     Layouts (data-layout on <html>): "flip" (one card at a time), "list" (a study sheet of the whole deck) and "cards"
+     (cheat cards: every card as a fold-in-half cue card, question on one half and notes on the other, made to print
+     and cut out). */
   @layer components {
     .sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
     .icon { width: 1.25em; height: 1.25em; flex: none; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
@@ -313,9 +315,33 @@
 
     .print-sheet { display: none; }
 
+    /* Cheat cards: a cut line (dashed border) around each card, a fold line (dashed) between the halves. */
+    .cheat { display: flex; flex-direction: column; gap: var(--space-5); }
+    .cheat-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); }
+    .cheat-tools p { margin: 0; max-width: var(--measure); color: var(--color-text-secondary); }
+    .cheat-list { display: flex; flex-direction: column; gap: var(--space-6); }
+    .cheat-deck { display: flex; flex-direction: column; gap: var(--space-3); }
+    .cheat-deck h2 { font-size: var(--text-heading); line-height: var(--text-heading--line-height); }
+    .cheat-deck > p { margin: 0; color: var(--color-text-secondary); font-size: var(--text-small); }
+    .cheat-grid { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+    .cheat-card { display: grid; grid-template-columns: minmax(0, 1fr); border: 1.5px dashed var(--color-border-strong); border-radius: var(--radius-md); background: var(--color-bg-surface); break-inside: avoid; }
+    .cheat-front, .cheat-back { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-4); min-width: 0; }
+    .cheat-back { border-top: 1.5px dashed var(--color-border); }
+    .cheat-front h3 { font-size: var(--text-subheading); line-height: var(--text-subheading--line-height); overflow-wrap: anywhere; }
+    .cheat-front .cue { font-size: var(--text-small); }
+    .cheat-back .notes p { font-size: var(--text-small); line-height: 1.5; }
+    .cheat-back .notes p.lead { font-size: var(--text-body); }
+    .cheat-n { color: var(--color-text-secondary); }
+    @media (min-width: 40rem) {
+      .cheat-card { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); }
+      .cheat-back { border-top: 0; border-inline-start: 1.5px dashed var(--color-border); }
+    }
+
     /* Layout switch */
     :root[data-layout="list"] .stage, :root[data-layout="list"] #controls, :root[data-layout="list"] #nav-row { display: none !important; }
     :root:not([data-layout="list"]) .sheet { display: none !important; }
+    :root[data-layout="cards"] .controls-row, :root[data-layout="cards"] #deck-desc, :root[data-layout="cards"] #study { display: none !important; }
+    :root:not([data-layout="cards"]) .cheat { display: none !important; }
   }
 
   @media (prefers-reduced-motion: no-preference) {
@@ -355,6 +381,16 @@
     .print-sheet li { break-inside: avoid; }
     .print-sheet .pq { font-weight: 700; margin: 0 0 0.15rem; }
     .print-sheet .pa { margin: 0; white-space: pre-line; color: var(--color-text-secondary); }
+    /* Cheat cards print as themselves (cut and fold), instead of the list. */
+    :root[data-layout="cards"] .print-sheet { display: none !important; }
+    :root[data-layout="cards"] .wrap > .cheat { display: flex !important; gap: 0.75rem; }
+    .cheat-tools { display: none !important; }
+    .cheat-grid { gap: 0.5rem; }
+    .cheat-card { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); border-color: #6b7178; border-radius: 0; background: #ffffff; }
+    .cheat-back { border-top: 0; border-inline-start: 1.5px dashed #9aa0a6; }
+    .cheat-front, .cheat-back { padding: 0.6rem 0.75rem; }
+    .cheat-deck { break-before: auto; }
+    .cheat-deck h2 { font-size: 1.15rem; break-after: avoid; }
   }
   /* ---- Custom ---- */
   /* ---- End custom ---- */
@@ -461,6 +497,7 @@
   <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M6 9.5l6 6 6-6"/></symbol>
   <symbol id="i-reset" viewBox="0 0 24 24"><path d="M3.5 12a8.5 8.5 0 1 0 2.8-6.3L3.5 8.5M3.5 3.5v5h5"/></symbol>
   <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.6a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .8-1 1.5v.4M12 16.8v.2"/></symbol>
+  <symbol id="i-printer" viewBox="0 0 24 24"><path d="M7 9V3.5h10V9"/><rect x="3.5" y="9" width="17" height="8" rx="2"/><path d="M7 14h10v6.5H7z"/></symbol>
 </svg>
 
 <main id="main" class="wrap">
@@ -560,6 +597,17 @@
     </section>
   </div>
 
+  <section class="cheat" id="cheat" aria-labelledby="cheat-title">
+    <div class="cheat-tools">
+      <div>
+        <h2 class="sr-only" id="cheat-title">Cheat cards</h2>
+        <p>Every card as a fold-in-half cue card. Print this page, cut along the dashed edges and fold along the dashed middle line: the question on the front, your notes on the back.</p>
+      </div>
+      <button class="btn" id="cheat-print" type="button"><svg class="icon" aria-hidden="true"><use href="#i-printer"/></svg>Print the cards</button>
+    </div>
+    <div id="cheat-decks" class="cheat-list"></div>
+  </section>
+
   <footer class="foot">
     <div class="foot-row">
       <details class="help">
@@ -584,13 +632,14 @@
 </main>
 
 <!-- Spaced repetition: FSRS scheduler from ts-fsrs (MIT, github.com/open-spaced-repetition/ts-fsrs). If it can't load (offline), a simple built-in schedule is used instead. -->
-<script src="https://cdn.jsdelivr.net/npm/ts-fsrs@5.4.2/dist/index.umd.js" integrity="sha384-i45WWZuHT8d0SsGTvLVWyTzhdBv5HC8FV4XO+Lh5VBFpzLoqhoqwKFxc+Vqa/1SA" crossorigin="anonymous"></script>
+<script src="../templates/assets/lib/ts-fsrs-5.4.2.umd.js" data-cdn="https://cdn.jsdelivr.net/npm/ts-fsrs@5.4.2/dist/index.umd.js" data-sri="sha384-i45WWZuHT8d0SsGTvLVWyTzhdBv5HC8FV4XO+Lh5VBFpzLoqhoqwKFxc+Vqa/1SA" onerror="this.onerror=null;var d=this.dataset,s=document.createElement('script');if(d.up){s.src=d.cdn;s.integrity=d.sri;s.crossOrigin='anonymous'}else{s.src='../'+this.getAttribute('src');s.dataset.up=1;s.dataset.cdn=d.cdn;s.dataset.sri=d.sri;s.setAttribute('onerror',this.getAttribute('onerror'))}this.after(s)"></script>
 <script>
 (function () {
   const data = JSON.parse(document.getElementById('data').textContent);
   const $ = id => document.getElementById(id);
   const card = $('card');
   const LIST = document.documentElement.dataset.layout === 'list';
+  const CARDS = document.documentElement.dataset.layout === 'cards';
   // Reduced motion: the device setting, or "motion: reduced" in profile/design.md (the --motion token).
   const reduceMq = matchMedia('(prefers-reduced-motion: reduce)');
   const reduce = { get matches() { return reduceMq.matches || getComputedStyle(document.documentElement).getPropertyValue('--motion').trim() === 'reduced'; } };
@@ -961,6 +1010,28 @@
     });
   })();
 
+  // ---- Cheat cards layout: every deck, every card, front and back side by side ----
+  if (CARDS) {
+    const box = $('cheat-decks');
+    data.decks.forEach(d => {
+      const sec = el('section', 'cheat-deck'), ul = el('ul', 'cheat-grid');
+      sec.append(el('h2', '', d.name || 'Cards'));
+      if (d.description) sec.append(el('p', '', d.description));
+      if (!d.cards.length) sec.append(el('p', '', 'No cards in this deck yet. Ask your assistant to refresh your flashcards.'));
+      d.cards.forEach((c, n) => {
+        const li = el('li', 'cheat-card'), front = el('div', 'cheat-front'), back = el('div', 'cheat-back'), notes = el('div', 'notes');
+        front.append(el('span', 'eyebrow cheat-n', `Card ${n + 1}${c.tag ? ' · ' + c.tag : ''}`), el('h3', '', c.q));
+        if (c.hint) { const cue = el('p', 'cue'); cue.append(icon('sparkle'), el('span', '', c.hint)); front.append(cue); }
+        renderNotes(notes, c.a);
+        back.append(el('span', 'sr-only', 'Your notes:'), notes);
+        li.append(front, back); ul.append(li);
+      });
+      if (d.cards.length) sec.append(ul);
+      box.append(sec);
+    });
+    $('cheat-print').onclick = () => window.print();
+  }
+
   function go(step) { if (!order.length) return; pos = (pos + step + order.length) % order.length; show(true); }
 
   function rate(g) {
@@ -1028,7 +1099,7 @@
   card.addEventListener('pointercancel', end);
 
   document.addEventListener('keydown', e => {
-    if (LIST) return;
+    if (LIST || CARDS) return;
     if (e.target.closest('input, textarea, select, [contenteditable], [role="tablist"], summary')) return;
     if (e.metaKey || e.ctrlKey || e.altKey || !order.length) return;
     const onControl = e.target.closest('button, a');

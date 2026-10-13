@@ -8,10 +8,10 @@ Fonts: IBM Plex Serif (headings), IBM Plex Sans (text), IBM Plex Mono (labels an
 
 ## 1. Fonts line (every page, and the designed resume template)
 
-Replace the line that starts `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?` (or `href="data:text/css,`) with:
+Replace the fonts line (the one `<link rel="stylesheet" ...>` whose address ends in `templates/assets/fonts/fonts.css`, starts with `https://fonts.googleapis.com/css2?`, or is `data:text/css,`) with the line below. It is written for a page in `pages/`; in `jobs/<folder>/interview-brief.html` and in the user's copy of the designed resume template, write `../../templates/assets/` instead of `../templates/assets/`.
 
 ```html
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../templates/assets/fonts/fonts.css" data-fallback="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" onerror="if(this.dataset.up){this.onerror=null;this.href=this.dataset.fallback}else{this.dataset.up=1;this.href='../'+this.getAttribute('href')}">
 ```
 
 ## 2. Page token block (pages/*.html and jobs/*/interview-brief.html)
@@ -161,11 +161,11 @@ and for the cover letter:
 | Cambria | `Cambria, Caladea, Georgia, serif` | none |
 | Georgia | `Georgia, "Times New Roman", serif` | none |
 | Times New Roman | `"Times New Roman", Times, "Liberation Serif", serif` | none |
-| Garamond | `"EB Garamond", Garamond, Georgia, serif` | `@import url("https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..700;1,400..700&display=swap");` |
+| Garamond | `"EB Garamond", Garamond, Georgia, serif` | `@import url("../../templates/assets/fonts/documents.css");` |
 | Lato | `Lato, Arial, sans-serif` | `@import url("https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;1,400&display=swap");` |
-| Source Sans 3 | `"Source Sans 3", Arial, sans-serif` | `@import url("https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400..700;1,400..700&display=swap");` |
-| Roboto | `Roboto, Arial, sans-serif` | `@import url("https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400..700;1,400..700&display=swap");` |
-| Open Sans | `"Open Sans", Arial, sans-serif` | `@import url("https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400..700;1,400..700&display=swap");` |
+| Source Sans 3 | `"Source Sans 3", Arial, sans-serif` | `@import url("../../templates/assets/fonts/documents.css");` |
+| Roboto | `Roboto, Arial, sans-serif` | `@import url("../../templates/assets/fonts/documents.css");` |
+| Open Sans | `"Open Sans", Arial, sans-serif` | `@import url("../../templates/assets/fonts/documents.css");` |
 
 - `--doc-size` / `--doc-leading` / `@page` margin by density:
 

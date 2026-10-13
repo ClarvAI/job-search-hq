@@ -1,0 +1,153 @@
+<!doctype html>
+<!--
+  US federal resume template (USAJOBS; the app's copy, always on the default look).
+  Use it only for US federal jobs on USAJOBS. Since 27 September 2025 OPM limits every resume for competitive and
+  excepted service (Title 5) announcements to two pages; a longer one makes the applicant ineligible
+  (opm.gov, "Agency Guidance on the Two-Page Limit on Resume Length", 2025-09-12). An announcement outside Title 5
+  may say otherwise: follow the announcement.
+  Assistant: if profile/templates/resume-federal-template.html exists, start from that copy instead (it carries the
+  user's documents look); never edit this file. Copy it to jobs/<folder>/resume.html, replace everything between the
+  opening and closing main tags keeping the markup pattern below, and set the title element to the person's name
+  and "Resume". Every fact comes from the master resume (ground rule 1).
+  What OPM asks for in each job (guidance for applicants, 2025-09-12, updated 2025-12-19): job title; employer;
+  for federal jobs the series and grade (e.g. 0343, GS-12); start and end dates as month and year (05/2019 to
+  08/2022); hours worked per week. Education: school, degree, completion date, cumulative GPA if asked.
+  Optional: clearance, training, languages, affiliations, publications, special hiring eligibility.
+  Leave out (USAJOBS): photos, Social Security number, date of birth, age, sex, religion, classified information.
+  Markup pattern (same classes as the ATS resume):
+    header.masthead: h1 (the name), then p.contact items separated by <span class="sep"> | </span>.
+    One section per heading, its h2 holding only the plain heading text: Summary (optional), Work Experience,
+      Education, Skills, Additional Information (optional: clearance, training, languages, eligibility).
+    .entry per job: p.line (span.org employer, span.end city and state), p.line.role (job title, span.end dates
+      MM/YYYY - MM/YYYY or Present), p.line.details (series and grade for federal jobs, or empty; span.end hours
+      per week), then a ul of duties and results (lead with the ones the announcement's qualifications ask for).
+    Skills and Additional Information: p.skill lines, "<strong>Label:</strong> text".
+  Keep: one column, real text, standard headings, no images, tables or icons, at most two pages. OPM suggests
+  about 10pt text and 0.5in margins; the documents block keeps text at 10pt or more. Make the PDF with
+  .claude/skills/tailor-resume/scripts/make-pdf.sh (Windows without bash: make-pdf.ps1) and confirm it reports
+  "pages: 2" or fewer; upload the PDF so the page count holds.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your Name Resume</title>
+<style>
+  /* ---- Document theme (generated from profile/design.md; see .claude/skills/page-design/SKILL.md) ---- */
+  :root { --doc-font: Arial, Helvetica, "Liberation Sans", sans-serif; --doc-accent: #111111; --doc-size: 10.5pt; --doc-leading: 1.2; }
+  @page { size: Letter; margin: 0.5in 0.6in; }
+  /* ---- End document theme ---- */
+
+  /* Structure never changes with the theme: one column, real text, standard headings. Body text is always
+     near-black (#111); the accent colors only the name and the section rules. Sizes are in pt so print matches. */
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; color: #111; background: #fff;
+    font-family: var(--doc-font); font-size: max(10pt, var(--doc-size)); line-height: var(--doc-leading);
+    font-kerning: normal; text-rendering: optimizeLegibility;
+  }
+  main { display: block; }
+  h1, h2, p, ul { margin: 0; }
+  a { color: inherit; text-decoration: none; }
+
+  .masthead { margin-bottom: 0.5em; }
+  .masthead h1 { font-size: 18pt; line-height: 1.1; font-weight: 700; letter-spacing: -0.01em; color: var(--doc-accent); }
+  .contact { margin-top: 0.3em; font-size: 0.95em; overflow-wrap: break-word; white-space: nowrap; }
+  .contact .sep { white-space: pre-wrap; }
+
+  h2 {
+    font-size: 11pt; line-height: 1.2; font-weight: 700; color: #111; text-transform: uppercase; letter-spacing: 0.06em;
+    margin: 0.9em 0 0.35em; padding-bottom: 0.15em; border-bottom: 0.75pt solid var(--doc-accent); break-after: avoid;
+  }
+  section:first-of-type h2 { margin-top: 0.3em; }
+  .summary { text-wrap: pretty; }
+  .entry { break-inside: avoid; }
+  .entry + .entry { margin-top: 0.6em; }
+  .line { display: flex; justify-content: space-between; align-items: baseline; gap: 1em; }
+  .line > span:first-child { min-width: 0; }
+  .org { font-weight: 700; }
+  .role > span:first-child { font-weight: 700; }
+  .end { flex: none; white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums lining-nums; }
+  .details { color: #111; }
+  .entry > p:not(.line) { margin-top: 0.1em; }
+  ul { margin-top: 0.2em; padding-left: 1.15em; }
+  li { padding-left: 0.15em; text-wrap: pretty; }
+  li + li { margin-top: 0.12em; }
+  .skill { padding-left: 1em; text-indent: -1em; text-wrap: pretty; }
+  .skill + .skill { margin-top: 0.12em; }
+  .skill strong { font-weight: 700; }
+
+  /* Screen only: show the pages as sheets of paper. Print uses @page above. */
+  @media screen {
+    html { background: color-mix(in srgb, #111 7%, #fff); }
+    body { max-width: 8.5in; margin: 24px auto; padding: 0.5in 0.6in; box-shadow: 0 1px 3px color-mix(in srgb, #111 18%, transparent), 0 8px 24px color-mix(in srgb, #111 8%, transparent); }
+    @media (max-width: 8.6in) { body { margin: 0; box-shadow: none; padding: 16px; } }
+  }
+  @media print { body { margin: 0; padding: 0; } .screen-only { display: none; } }
+  .screen-only {
+    margin: 0 0 18px; padding: 8px 12px; border-radius: 6px;
+    font: 12px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; color: #111;
+    background: color-mix(in srgb, #111 4%, #fff); border: 1px solid color-mix(in srgb, #111 16%, #fff);
+  }
+  /* ---- Custom ---- */
+  /* ---- End custom ---- */
+</style>
+</head>
+<body>
+<div class="screen-only">US federal resume (USAJOBS): two pages at most. To save as PDF: press Ctrl+P (Windows) or Cmd+P (Mac), choose “Save as PDF”, set Margins to Default, and turn off Headers and footers. Upload the PDF so the page count stays the same. This box won’t print.</div>
+<main>
+  <header class="masthead">
+    <h1>Your Name</h1>
+    <p class="contact">City, ST<span class="sep"> | </span>(555) 555-0100<span class="sep"> | </span>you@example.com<span class="sep"> | </span>U.S. citizen (only if the announcement asks)</p>
+  </header>
+
+  <section>
+    <h2>Summary</h2>
+    <p class="summary">Two or three lines from the master resume that match the announcement’s qualifications (optional).</p>
+  </section>
+
+  <section>
+    <h2>Work Experience</h2>
+    <div class="entry">
+      <p class="line"><span class="org">Employer</span><span class="end">City, ST</span></p>
+      <p class="line role"><span>Job title</span><span class="end">MM/YYYY – Present</span></p>
+      <p class="line details"><span>Series and grade (federal jobs only, e.g. 0343, GS-12)</span><span class="end">40 hours per week</span></p>
+      <ul>
+        <li>Duty or result from the master resume that matches a qualification in the announcement, in its words where true.</li>
+        <li>Action verb, what you did, for whom, and the result with its number.</li>
+      </ul>
+    </div>
+    <div class="entry">
+      <p class="line"><span class="org">Employer</span><span class="end">City, ST</span></p>
+      <p class="line role"><span>Job title</span><span class="end">MM/YYYY – MM/YYYY</span></p>
+      <p class="line details"><span></span><span class="end">40 hours per week</span></p>
+      <ul>
+        <li>Duty or result.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>Education</h2>
+    <div class="entry">
+      <p class="line"><span class="org">School Name</span><span class="end">City, ST</span></p>
+      <p class="line role"><span>Degree, Major</span><span class="end">MM/YYYY</span></p>
+      <p>Cumulative GPA (if the announcement asks); relevant coursework (optional)</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Skills</h2>
+    <p class="skill"><strong>Technical:</strong> Tool, tool, software</p>
+    <p class="skill"><strong>Certifications:</strong> Certification name (issuer, year)</p>
+  </section>
+
+  <section>
+    <h2>Additional Information</h2>
+    <p class="skill"><strong>Languages:</strong> Language (level)</p>
+    <p class="skill"><strong>Training:</strong> Course name (provider, year)</p>
+  </section>
+</main>
+</body>
+</html>

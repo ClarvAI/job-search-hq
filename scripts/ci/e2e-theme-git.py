@@ -172,7 +172,9 @@ class Scenario:
             html = lf(read(os.path.join(self.user, rel)))
             if region(html, TOKENS_START, TOKENS_END) != block:
                 bad.append("%s: token block is not the %s preset's" % (rel, preset))
-            if fonts not in html:
+            # The fonts line points at templates/assets/ relative to the file: one folder deeper in jobs/<folder>/.
+            want = fonts.replace('href="../templates/assets/', 'href="../../templates/assets/') if rel.startswith("jobs") else fonts
+            if want not in html:
                 bad.append("%s: fonts line is not the %s preset's" % (rel, preset))
         for rel, want in layouts.items():
             html = read(os.path.join(self.user, rel))
@@ -297,8 +299,8 @@ class Scenario:
                              {"font": "Georgia", "accent": "#1f3a5f", "paper": "A4", "layout_resume": "modern", "layout_designed": "headline"})
         rc, out = self.node()
         created = [l for l in out.splitlines() if l.startswith("created: profile/templates/")]
-        r.ok(self.label("theme 1 applies and creates the three themed template copies in profile/templates/"),
-             not missing and rc == 0 and last_line(out).startswith("result: done") and len(created) == 3,
+        r.ok(self.label("theme 1 applies and creates the six themed template copies in profile/templates/"),
+             not missing and rc == 0 and last_line(out).startswith("result: done") and len(created) == 6,
              "missing keys: %s\n%s" % (missing, out))
         self.check_clean("theme 1")
         rc, out = self.git(self.user, "check-ignore", "-q", "profile/templates/resume-template.html")
@@ -312,7 +314,7 @@ class Scenario:
         for name in ("resume-template.html", "cover-letter-template.html"):
             why += ["%s: %s" % (name, w) for w in self.check_doc_theme(name, "#1f3a5f", "Georgia", "A4", "modern")]
         designed = read(self.tpl("resume-designed-template.html"))
-        if modern_fonts not in designed or 'data-layout="headline"' not in designed:
+        if modern_fonts.replace('href="../templates/assets/', 'href="../../templates/assets/') not in designed or 'data-layout="headline"' not in designed:
             why.append("resume-designed-template.html: not on the Modern fonts / headline layout")
         r.ok(self.label("theme 1: profile/templates copies carry the theme (navy #1f3a5f, Georgia, A4, layouts)"), not why, "\n".join(why))
         self.check_theme_consistent("theme 1")

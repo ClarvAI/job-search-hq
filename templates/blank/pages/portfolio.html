@@ -8,10 +8,8 @@
 <meta property="og:title" content="Your Name, Product Marketing">
 <meta property="og:description" content="Example portfolio. Product marketer who turns customer research into positioning, launches and pricing that move revenue.">
 <meta name="twitter:card" content="summary">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..700&family=Source+Sans+3:wght@400..700&family=Source+Code+Pro:wght@400..600&display=swap">
-<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.13/dist/index.global.js" integrity="sha384-P0V9YU7TFy919I0oVLXiqiUsdiJiaV+QKGysF4Lx+s901F1X9+zjFV0mc6pRKCKq" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="../templates/assets/fonts/fonts.css" data-fallback="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..700&family=Source+Sans+3:wght@400..700&family=Source+Code+Pro:wght@400..600&display=swap" onerror="if(this.dataset.up){this.onerror=null;this.href=this.dataset.fallback}else{this.dataset.up=1;this.href='../'+this.getAttribute('href')}">
+<script src="../templates/assets/lib/tailwindcss-browser-4.1.13.js" data-cdn="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.13/dist/index.global.js" data-sri="sha384-P0V9YU7TFy919I0oVLXiqiUsdiJiaV+QKGysF4Lx+s901F1X9+zjFV0mc6pRKCKq" onerror="this.onerror=null;var d=this.dataset,s=document.createElement('script');if(d.up){s.src=d.cdn;s.integrity=d.sri;s.crossOrigin='anonymous'}else{s.src='../'+this.getAttribute('src');s.dataset.up=1;s.dataset.cdn=d.cdn;s.dataset.sri=d.sri;s.setAttribute('onerror',this.getAttribute('onerror'))}this.after(s)"></script>
 <style>
   /* ---- Design tokens (generated; see .claude/skills/page-design/SKILL.md) ----
      Primitives are role-based 12-step ramps (1 page bg … 9 solid fill … 11 low-contrast text, 12 high-contrast text),
@@ -129,8 +127,8 @@
 
   /* Concept: a public one-pager someone is proud to send a recruiter. One semantic structure (hero, contact,
      highlights, experience, projects, skills, education, testimonials) restyled by data-layout on <html>:
-     profile (default; also used when the attribute is missing), editorial, bento. Base rules below ARE the
-     profile layout; editorial and bento override them. Resume-level facts only (profile/master-resume.md). */
+     profile (default; also used when the attribute is missing), editorial, bento, column. Base rules below ARE the
+     profile layout; editorial, bento and column override them. Resume-level facts only (profile/master-resume.md). */
   @layer components {
     .pf, .pf *, .pf *::before, .pf *::after { box-sizing: border-box; }
     .pf :where(p, ul, ol, dl, dd, figure, blockquote) { margin: 0; }
@@ -243,7 +241,24 @@
     }
 
     /* ---------- Projects ---------- */
-    .pf-projects { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr)); }
+    .pf-projects { display: grid; gap: var(--space-4); grid-template-columns: minmax(0, 1fr); }
+    /* Two across from 40rem, three from 64rem, on a six-column grid so a last row is never one lonely card: an odd
+       card out spans the row (two across), and a last row of one or two shares it (three across). */
+    @media (min-width: 40rem) {
+      :root:not([data-layout="editorial"]):not([data-layout="column"]) .pf-projects { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+      :root:not([data-layout="editorial"]):not([data-layout="column"]) .pf-projects > li { grid-column: span 3; }
+      :root:not([data-layout="editorial"]):not([data-layout="column"]) .pf-projects > li:last-child:nth-child(odd) { grid-column: 1 / -1; }
+
+      :root:not([data-layout="editorial"]):not([data-layout="column"]) .pf-projects > li:last-child:nth-child(odd) :is(.pf-cover, .pf-shot) { aspect-ratio: 3 / 1; }
+    }
+    @media (min-width: 64rem) {
+      :root:not([data-layout="editorial"]):not([data-layout="column"]) .pf-projects > li,
+      :root:not([data-layout="editorial"]):not([data-layout="column"]) .pf-projects > li:last-child:nth-child(odd) { grid-column: span 2; }
+      :root:not([data-layout="editorial"]):not([data-layout="column"]) .pf-projects > li:last-child:nth-child(3n+1) { grid-column: 1 / -1; }
+      :root:not([data-layout="editorial"]):not([data-layout="column"]) .pf-projects > li:last-child:nth-child(odd):not(:nth-child(3n+1)) :is(.pf-cover, .pf-shot) { aspect-ratio: 16 / 9; }
+      :root:not([data-layout="editorial"]):not([data-layout="column"]) .pf-projects > li:nth-last-child(2):nth-child(3n+1),
+      :root:not([data-layout="editorial"]):not([data-layout="column"]) .pf-projects > li:last-child:nth-child(3n+2) { grid-column: span 3; }
+    }
     .pf-project { display: flex; flex-direction: column; height: 100%; overflow: hidden; border-radius: var(--radius-md); background: var(--color-bg-surface); box-shadow: var(--shadow-surface); }
     .pf-cover, .pf-shot { aspect-ratio: 16 / 9; width: 100%; }
     @media (max-width: 39.99rem) { .pf-cover { aspect-ratio: 3 / 1; } }
@@ -417,6 +432,37 @@
       :root[data-layout="bento"] .pf-top > .pf-contact { grid-column: span 4; padding: var(--space-7) var(--space-6); }
     }
 
+    /* ---------- Layout: column (one column at every width, phone first: a centered contact card like a link page,
+       then the whole story under it, big tap targets) ---------- */
+    :root[data-layout="column"] .pf { max-width: 38rem; gap: var(--space-6); }
+    @media (min-width: 64rem) {
+      :root[data-layout="column"] .pf { grid-template-columns: minmax(0, 1fr); }
+      :root[data-layout="column"] .pf-skills-sec, :root[data-layout="column"] .pf-edu-sec { grid-column: 1 / -1; }
+    }
+    :root[data-layout="column"] .pf-top, :root[data-layout="column"] .pf-top::before { grid-template-columns: minmax(0, 1fr); grid-column: auto; }
+    :root[data-layout="column"] .pf-top { text-align: center; }
+    :root[data-layout="column"] .pf-top::before { height: 4.5rem; }
+    :root[data-layout="column"] .pf-hero { align-items: center; padding: 0 var(--space-5) var(--space-5); }
+    :root[data-layout="column"] .pf-hero .pf-avatar { margin-top: -2.75rem; width: 5.5rem; height: 5.5rem; font-size: 2rem; }
+    :root[data-layout="column"] .pf-name { font-size: clamp(2.25rem, 9vw, 3rem); }
+    :root[data-layout="column"] .pf-headline { font-size: var(--text-subheading); line-height: 1.35; }
+    :root[data-layout="column"] .pf-facts { justify-content: center; }
+    :root[data-layout="column"] .pf-contact { margin: 0; padding: var(--space-5); border-top: 1px solid var(--color-border-subtle); border-inline-start: 0; }
+    :root[data-layout="column"] .pf-contact-note { margin-inline: auto; }
+    :root[data-layout="column"] .pf-actions { flex-direction: column; align-items: stretch; }
+    :root[data-layout="column"] .pf-actions .btn { justify-content: center; min-height: 3rem; }
+    :root[data-layout="column"] .pf-reach { align-items: center; }
+    :root[data-layout="column"] .pf-h2 { font-size: var(--text-heading); line-height: var(--text-heading--line-height); letter-spacing: 0; }
+    :root[data-layout="column"] .pf-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    :root[data-layout="column"] .pf-stat:first-child { grid-column: 1 / -1; }
+    :root[data-layout="column"] .pf-stat:last-child:nth-child(even) { grid-column: 1 / -1; }
+    :root[data-layout="column"] .pf-role { grid-template-columns: minmax(0, 1fr); }
+    :root[data-layout="column"] .pf-role + .pf-role { margin-top: var(--space-6); }
+    :root[data-layout="column"] .pf-when { flex-direction: row; align-items: center; padding-top: 0; }
+    :root[data-layout="column"] .pf-role:not(:last-child) .pf-role-body { padding-bottom: 0; }
+    :root[data-layout="column"] .pf-cover { aspect-ratio: 3 / 1; }
+    :root[data-layout="column"] .pf-quotes { grid-template-columns: minmax(0, 1fr); }
+
     /* ---------- Motion: one signature moment (hero rises in, highlight numbers count up) ---------- */
     @media (prefers-reduced-motion: no-preference) {
       .btn { transition-property: scale, background-color, box-shadow, color; transition-duration: 150ms; transition-timing-function: ease-out; }
@@ -471,6 +517,7 @@
     :root[data-layout] .pf-role, :root[data-layout] .pf-project, :root[data-layout] .pf-skills-sec, :root[data-layout] .pf-edu-sec, :root[data-layout] .pf-quote { padding: 0; border-radius: 0; background: none; }
     .pf-card { padding: 0; }
     .pf-projects, :root[data-layout] .pf-projects { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+    .pf-projects > li { grid-column: auto; }
     .pf-project-body { padding: 0; }
     .pf-project-link[href^="http"]::after { content: " (" attr(href) ")"; font-weight: 400; overflow-wrap: anywhere; }
     .pf-section-head { margin-bottom: 0.5rem; break-after: avoid; }

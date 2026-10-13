@@ -3,10 +3,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Job Search Dashboard</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..700&family=Source+Sans+3:wght@400..700&family=Source+Code+Pro:wght@400..600&display=swap">
-<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.13/dist/index.global.js" integrity="sha384-P0V9YU7TFy919I0oVLXiqiUsdiJiaV+QKGysF4Lx+s901F1X9+zjFV0mc6pRKCKq" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="../templates/assets/fonts/fonts.css" data-fallback="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..700&family=Source+Sans+3:wght@400..700&family=Source+Code+Pro:wght@400..600&display=swap" onerror="if(this.dataset.up){this.onerror=null;this.href=this.dataset.fallback}else{this.dataset.up=1;this.href='../'+this.getAttribute('href')}">
+<script src="../templates/assets/lib/tailwindcss-browser-4.1.13.js" data-cdn="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.13/dist/index.global.js" data-sri="sha384-P0V9YU7TFy919I0oVLXiqiUsdiJiaV+QKGysF4Lx+s901F1X9+zjFV0mc6pRKCKq" onerror="this.onerror=null;var d=this.dataset,s=document.createElement('script');if(d.up){s.src=d.cdn;s.integrity=d.sri;s.crossOrigin='anonymous'}else{s.src='../'+this.getAttribute('src');s.dataset.up=1;s.dataset.cdn=d.cdn;s.dataset.sri=d.sri;s.setAttribute('onerror',this.getAttribute('onerror'))}this.after(s)"></script>
 <style>
   /* ---- Design tokens (generated; see .claude/skills/page-design/SKILL.md) ----
      Primitives are role-based 12-step ramps (1 page bg … 9 solid fill … 11 low-contrast text, 12 high-contrast text),
@@ -121,6 +119,11 @@
     .bar > i, .fbar > i, .wk .now i, .seg i.on, .tracker i.on { background: CanvasText; }
     .wk .past i { background: GrayText; }
     .is-sample .fbar > i, .is-sample .bar > i, .is-sample .tracker i.on, .is-sample .seg i.on { background: GrayText; }
+    .gantt-track, .gantt-legend i { forced-color-adjust: none; }
+    .gantt-track { background: Canvas; box-shadow: inset 0 0 0 1px CanvasText; }
+    .gantt-bar, .gantt-key-bar, .gantt-mark.gantt-deadline, .gantt-key-deadline { background: CanvasText; }
+    .gantt-mark.gantt-due, .gantt-key-due { background: Canvas; box-shadow: inset 0 0 0 2.5px CanvasText; }
+    .gantt-track::after, .gantt-key-now { background: Highlight; }
   }
   /* Motion: one signature moment (counters, bars and rings fill in). Everything starts visible. */
   @media (prefers-reduced-motion: no-preference) {
@@ -350,6 +353,31 @@
     .is-sample .node.small { box-shadow: 0 0 0 2px var(--chart-track), 0 0 0 5px var(--color-bg-page); background: var(--color-bg-page); }
 
     .foot { font-size: var(--text-small); color: var(--color-text-secondary); }
+
+    /* Timeline layout: one row per open job on a shared date axis (gantt-style). The track is decoration; each row's
+       dates are also written out below it. */
+    .gantt-legend { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); margin-bottom: var(--space-3); }
+    .gantt-legend > span { display: inline-flex; align-items: center; gap: var(--space-2); }
+    .gantt-key-bar { display: inline-block; width: 1.25rem; height: 0.5rem; border-radius: var(--radius-full); background: var(--chart-2); }
+    .gantt-key-due, .gantt-mark.gantt-due { display: inline-block; width: 0.75rem; height: 0.75rem; border-radius: var(--radius-full); background: var(--color-bg-surface); box-shadow: inset 0 0 0 2.5px var(--color-text-primary); }
+    .gantt-key-deadline, .gantt-mark.gantt-deadline { display: inline-block; width: 0.625rem; height: 0.625rem; border-radius: 1px; rotate: 45deg; background: var(--color-text-primary); }
+    .gantt-key-now { display: inline-block; width: 2px; height: 1rem; background: var(--color-accent-text); }
+    .gantt-rows { list-style: none; margin: 0; padding: 0; --today: 50%; }
+    .gantt-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-2); padding-block: var(--space-3); }
+    .gantt-row + .gantt-row { border-top: 1px solid var(--color-border-subtle); }
+    .gantt-head { padding-block: 0 var(--space-1); }
+    .gantt-head + .gantt-row { border-top: 0; }
+    .gantt-label { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; }
+    .gantt-co { font-size: var(--text-body); font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+    .gantt-axis { position: relative; height: 1.25rem; font-size: var(--text-label); line-height: 1.25rem; color: var(--color-text-secondary); }
+    .gantt-axis > span { position: absolute; top: 0; translate: -50% 0; white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
+    .gantt-axis > span:first-child { translate: 0 0; }
+    .gantt-track { position: relative; height: 1.25rem; border-radius: var(--radius-full); background: var(--color-bg-inset); box-shadow: inset 0 0 0 1px var(--color-border-subtle); }
+    .gantt-track::after { content: ""; position: absolute; top: -0.25rem; bottom: -0.25rem; left: var(--today); width: 2px; translate: -1px 0; background: var(--color-accent-text); }
+    .gantt-bar { position: absolute; top: 0.375rem; height: 0.5rem; border-radius: var(--radius-full); background: var(--c, var(--chart-1)); }
+    .gantt-mark { position: absolute; top: 50%; z-index: 1; translate: -50% -50%; }
+    .gantt-facts { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem var(--space-2); }
+    .is-sample .gantt-bar, .is-sample .gantt-key-bar { background: var(--color-graphic-idle); }
   }
 
   /* ---- Layout grid ---- */
@@ -406,12 +434,37 @@
     :root[data-layout="board"] .area-due .tl .when { flex-basis: 100%; }
   }
 
+  /* Timeline layout: the date axis of every open job first, then what's coming up and the week; no board or funnel. */
+  :root[data-layout="timeline"] .area-today, :root[data-layout="timeline"] .area-funnel, :root[data-layout="timeline"] .area-board { display: none; }
+  :root[data-layout="timeline"] .dash-grid { grid-template-areas: "kpis" "timeline" "due" "week" "side"; }
+  .area-timeline { grid-area: timeline; min-width: 0; }
+  :root[data-layout="timeline"][data-first-run] .area-today { display: grid; gap: var(--space-4); padding: var(--space-4) var(--space-5); }
+  :root[data-layout="timeline"][data-first-run] .area-today .hero-title { font-size: var(--text-heading); line-height: var(--text-heading--line-height, 1.25); }
+  :root[data-layout="timeline"][data-first-run] .area-today .suggest { display: none; }
+  :root[data-layout="timeline"][data-first-run] .area-today .hero-intro { gap: var(--space-1); }
+  :root[data-layout="timeline"][data-first-run] .area-today .steps li { padding: var(--space-2) var(--space-3); }
+  :root[data-layout="timeline"][data-first-run] .dash-grid { grid-template-areas: "today" "kpis" "timeline" "due" "week" "side"; }
+  @media (max-width: 39.99rem) { .gantt-axis > span:nth-child(even) { visibility: hidden; } }
+  @media (min-width: 40rem) {
+    :root[data-layout="timeline"] .dash-grid { grid-template-areas: "kpis kpis" "timeline timeline" "due week" "due side"; }
+    :root[data-layout="timeline"][data-first-run] .dash-grid { grid-template-areas: "today today" "kpis kpis" "timeline timeline" "due week" "due side"; }
+    :root[data-layout="timeline"][data-first-run] .area-today .steps { flex-direction: row; }
+    :root[data-layout="timeline"][data-first-run] .area-today .steps li { flex: 1 1 0; min-width: 0; }
+  }
+  @media (min-width: 48rem) {
+    .gantt-row { grid-template-columns: 13rem minmax(0, 1fr); column-gap: var(--space-5); align-items: center; }
+    .gantt-facts { grid-column: 2; }
+  }
+  @media (min-width: 64rem) {
+    :root[data-layout="timeline"][data-first-run] .area-today { grid-template-columns: minmax(0, 1fr) minmax(0, 2.4fr); align-items: center; gap: var(--space-6); }
+  }
+
   /* Print: the KPIs and the due list, in light colors, no shadows. */
   @page { margin: 0.5in; }
   @media print {
     html:root, html:root[data-theme], html:root:not([data-theme="light"]) { color-scheme: light; --color-bg-page: Canvas; --color-bg-surface: Canvas; --color-bg-inset: Canvas; --color-text-primary: CanvasText; --color-text-secondary: CanvasText; --color-accent-text: var(--print-accent-text); --color-accent-subtle: var(--print-accent-subtle); font-size: 90%; }
     body { background: Canvas; color: CanvasText; }
-    .area-today, .area-funnel, .area-week, .area-board, .area-side, .callout, #again-confetti, .viz { display: none !important; }
+    .area-today, .area-funnel, .area-week, .area-board, .area-timeline, .area-side, .callout, #again-confetti, .viz { display: none !important; }
     .shell { max-width: none; padding: 0; gap: 1rem; }
     .dash-grid { display: block; }
     .dash-grid > * + * { margin-top: 1rem; }
@@ -421,7 +474,7 @@
     .tl > li { break-inside: avoid; }
   }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.js" integrity="sha384-/Ko/tqVwPYurnBe+Mj8WWw+39WmyOZn/kU+neqXn4hRxGI575k07mB/hIekAT51+" crossorigin="anonymous"></script>
+<script src="../templates/assets/lib/canvas-confetti-1.9.3.js" data-cdn="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.js" data-sri="sha384-/Ko/tqVwPYurnBe+Mj8WWw+39WmyOZn/kU+neqXn4hRxGI575k07mB/hIekAT51+" onerror="this.onerror=null;var d=this.dataset,s=document.createElement('script');if(d.up){s.src=d.cdn;s.integrity=d.sri;s.crossOrigin='anonymous'}else{s.src='../'+this.getAttribute('src');s.dataset.up=1;s.dataset.cdn=d.cdn;s.dataset.sri=d.sri;s.setAttribute('onerror',this.getAttribute('onerror'))}this.after(s)"></script>
 
 <!-- The assistant regenerates this block from jobs/tracker.csv, contacts/contacts.csv, interviews/, history/activity.md and profile/preferences.md.
      Write every "<" inside it as \u003c (JSON.stringify(data).replace(/</g, '\\u003c')), so no text can end this block early.
@@ -522,6 +575,15 @@
       <p class="meta" style="margin-top: var(--space-3)">A snapshot of your tracker. To move a job, tell your assistant what happened (or use the Pipeline board in Claude Code), then ask it to refresh this page.</p>
     </section>
 
+    <section class="panel area-timeline" id="timeline-panel" aria-labelledby="timeline-title" hidden>
+      <div class="sec-head">
+        <div><h2 class="type-heading" id="timeline-title">Timeline</h2><span data-sample-slot></span></div>
+        <span class="meta" id="timeline-count"></span>
+      </div>
+      <div id="timeline"></div>
+      <p class="meta" style="margin-top: var(--space-3)">How long each open application has been waiting, and when its next step and deadline come. To change a date, tell your assistant (or use the Pipeline board in Claude Code), then ask it to refresh this page.</p>
+    </section>
+
     <section class="panel area-due" aria-labelledby="due-title">
       <div class="sec-head"><div><h2 class="type-sub" id="due-title">Coming up</h2><span data-sample-slot></span></div><span class="meta">Next steps and deadlines</span></div>
       <div id="due"></div>
@@ -546,7 +608,7 @@
 (function () {
   const data = JSON.parse(document.getElementById('data').textContent);
   const root = document.documentElement;
-  const layout = root.dataset.layout === 'board' ? 'board' : 'overview';
+  const layout = ['board', 'timeline'].includes(root.dataset.layout) ? root.dataset.layout : 'overview';
   // Reduced motion: the device setting, or "motion: reduced" in profile/design.md (the --motion token).
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches || getComputedStyle(root).getPropertyValue('--motion').trim() === 'reduced';
   const $ = id => document.getElementById(id);
@@ -888,6 +950,56 @@
     if (matchMedia('print').addEventListener) matchMedia('print').addEventListener('change', sync);
   }
   markSample(document.querySelector('.area-board'));
+
+  // ---- Timeline layout: every open job on one date axis (applied -> today, next step, deadline) ----
+  if (layout === 'timeline') {
+    $('timeline-panel').hidden = false;
+    const stageWord = { interested: 'To apply', applied: 'Applied', screening: 'Screening', interviewing: 'Interviewing', offer: 'Offer' };
+    const colOf = st => (columns.find(c => c[1].includes(st)) || columns[0])[2];
+    const rows = jobs.filter(j => open.includes(j.status))
+      .sort((a, b) => open.indexOf(b.status) - open.indexOf(a.status) || (isDate(a.due) ? a.due : '9999').localeCompare(isDate(b.due) ? b.due : '9999'));
+    $('timeline-count').textContent = plural(rows.length, 'open job');
+    const box = $('timeline');
+    if (!rows.length) box.append(h('p', { class: 'meta', text: 'No open jobs to show yet. Ask your assistant to add a job you like; it shows up here with its dates.' }));
+    else {
+      // The window: at least two weeks back and ahead, at most eight back and six ahead; dates outside sit at the edge.
+      const pts = rows.flatMap(j => [j.applied, j.due, j.deadline]).filter(isDate).sort();
+      const lo = pts[0] || today, hi = pts[pts.length - 1] || today;
+      const start = diff(lo, today) < -56 ? add(today, -56) : diff(lo, today) > -14 ? add(today, -14) : lo;
+      const end = diff(hi, today) > 42 ? add(today, 42) : diff(hi, today) < 14 ? add(today, 14) : hi;
+      const span = Math.max(1, diff(end, start));
+      const pos = s => Math.max(0, Math.min(100, (diff(s, start) / span) * 100));
+      const axis = h('div', { class: 'gantt-axis' });
+      for (let m = add(start, (8 - parse(start).getDay()) % 7); m <= end; m = add(m, 7)) if (pos(m) < 94) axis.append(h('span', { style: `left:${pos(m)}%`, text: fmt(m) }));
+      box.append(h('div', { class: 'gantt-legend meta', 'aria-hidden': 'true' },
+        h('span', {}, h('i', { class: 'gantt-key-bar' }), 'Waiting since you applied'), h('span', {}, h('i', { class: 'gantt-key-due' }), 'Next step'),
+        h('span', {}, h('i', { class: 'gantt-key-deadline' }), 'Deadline'), h('span', {}, h('i', { class: 'gantt-key-now' }), 'Today')));
+      const shown = rows.slice(0, 12);
+      const ul = h('ul', { class: 'gantt-rows', style: `--today:${pos(today)}%` },
+        h('li', { class: 'gantt-row gantt-head', 'aria-hidden': 'true' }, h('span'), axis),
+        shown.map((j, i) => {
+          const c = colOf(j.status);
+          const track = h('div', { class: 'gantt-track', 'aria-hidden': 'true' });
+          if (isDate(j.applied)) { const a = pos(j.applied), b = pos(today); track.append(h('i', { class: 'gantt-bar grow-in', style: `left:${a}%;width:${Math.max(1, b - a)}%;--c:var(${c})` })); }
+          if (isDate(j.deadline)) track.append(h('i', { class: 'gantt-mark gantt-deadline', style: `left:${pos(j.deadline)}%` }));
+          if (isDate(j.due)) track.append(h('i', { class: 'gantt-mark gantt-due', style: `left:${pos(j.due)}%` }));
+          // The stage in words (the dot's color is never the only cue); "Applied" is already in the date fact.
+          const facts = j.status === 'applied' && isDate(j.applied) ? [] : [stageWord[j.status]];
+          if (isDate(j.applied)) facts.push(`Applied ${fmt(j.applied)} (${plural(Math.max(0, diff(today, j.applied)), 'day')} ago)`);
+          if (isDate(j.deadline)) facts.push(`Deadline ${fmt(j.deadline)}`);
+          const u = isDate(j.due) ? urgency({ due: j.due }) : null;
+          return h('li', { class: 'gantt-row deal', style: `--i:${i}` },
+            h('div', { class: 'gantt-label' }, h('span', { class: 'dot', style: `--c:var(${c})`, 'aria-hidden': 'true' }),
+              h('div', { class: 'min-w-0' }, h('h3', { class: 'gantt-co', text: j.company || 'Company' }), j.role ? h('p', { class: 'meta', text: j.role }) : null)),
+            track,
+            h('p', { class: 'gantt-facts meta' }, facts.length ? h('span', { text: facts.join(' · ') }) : null,
+              u ? h('span', { class: 'gantt-next' }, (j.next || 'Next step') + ' ', chip(u.word, u.tone, u.ic), isDate(j.due) && u.word !== fmt(j.due) ? h('span', { class: 'sr-only', text: ` (${fmt(j.due)})` }) : null) : null));
+        }));
+      box.append(ul);
+      if (rows.length > shown.length) box.append(h('p', { class: 'meta', style: 'margin-top: var(--space-2)', text: `+ ${rows.length - shown.length} more in your tracker` }));
+    }
+    markSample($('timeline-panel'));
+  }
 
   // ---- Coming up: a timeline grouped by urgency ----
   const due = $('due');

@@ -10,7 +10,7 @@ Only the user's own job list: for each job, company, role, status and stage, the
 
 ## 1. Can this session do it?
 
-Use this route only when all of these hold; otherwise publish the themed page as usual (SKILL.md, "Publishing a page"):
+Use this route only when all of these hold; otherwise publish the themed page as usual (`references/publishing.md`):
 
 - The session has the **Artifact** tool and the user is signed in: `Artifact` `action: "list"`, `scope: "types"` works.
 - That listing has a type titled **Dashboard**. Take its `type_url` from the listing; never type one in from memory.
@@ -24,7 +24,7 @@ When the user asks to see their board or dashboard on their phone, or to publish
 
 > I can put your dashboard on your phone two ways. A **Claude Dashboard**: every number shows where it came from, and it warns you when it's more than three days old, but it uses Claude's look rather than your theme. Or **your themed page**, looking just like it does now. Which would you like?
 
-Themed page: follow SKILL.md "Publishing a page". Claude Dashboard: go on. Don't offer again once they've chosen; they can always ask to switch.
+Themed page: follow `references/publishing.md`. Claude Dashboard: go on. Don't offer again once they've chosen; they can always ask to switch.
 
 ## 3. Ask before the first publish
 

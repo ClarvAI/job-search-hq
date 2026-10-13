@@ -57,7 +57,7 @@ function Invoke-Print([string]$browser, [string]$html, [string]$pdf) {
   $enc = (($full.Replace('\', '/').Split('/')) | ForEach-Object { if ($_ -match '^[A-Za-z]:$') { $_ } else { [Uri]::EscapeDataString($_) } }) -join '/'
   if ($enc.StartsWith('/')) { $url = 'file://' + $enc } else { $url = 'file:///' + $enc }   # //server/share stays file:////server/share
   $argList = @('--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--disable-extensions',
-    '--no-pdf-header-footer', '--print-to-pdf-no-header', '--virtual-time-budget=3000',
+    '--no-pdf-header-footer', '--print-to-pdf-no-header', '--virtual-time-budget=3000', '--generate-pdf-document-outline',
     ('--print-to-pdf=' + $pdf), $url) | ForEach-Object { Quote-Arg $_ }
   $so = $pdf + '.out.log'; $se = $pdf + '.err.log'
   if ($OnWindows) { $proc = Start-Process -FilePath $browser -ArgumentList $argList -PassThru -WindowStyle Hidden -RedirectStandardOutput $so -RedirectStandardError $se }
@@ -201,6 +201,10 @@ try {
     $tm = [regex]::Match($raw, '<title>([^<]*)</title>', 'IgnoreCase')
     $title = if ($tm.Success) { ($tm.Groups[1].Value -replace '\s+', ' ').Trim() } else { '' }
     if (-not $title -or $title -like '*Your Name*') { Write-Output ('title-warning: the page title is "' + $title + '"; set <title> to the person''s name and "Resume" or "Cover Letter" (it becomes the PDF''s title, which screen readers announce), then make the PDF again') }
+  }
+  # A photo is never added by default (AGENTS.md ground rule 4): say so whenever the document has one.
+  if ($engine -eq 'browser' -and [regex]::IsMatch(([regex]::Replace($raw, '(?s)<!--.*?-->', '')), '<img\b', 'IgnoreCase')) {
+    Write-Output 'photo-note: this document includes a photo. Keep it only if the user chose to add one for this application; employers in the US, UK, Canada and Australia usually expect none.'
   }
 
   # ---- Parse check

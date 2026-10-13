@@ -1,6 +1,6 @@
 ---
 name: page-design
-description: "Change how the user's pages and documents look and move: their theme in profile/design.md (presets, or their own brand or design system), colors (measured), fonts, text size, layout, animation, and print. Use whenever the user asks to restyle, recolor, re-theme, change the look, use their brand or design system, or redesign their dashboard, flashcards, portfolio site, interview brief, or the resume/cover-letter templates (e.g. \"make it navy and gold\", \"use my brand\", \"switch to the minimal look\", \"bigger text\", \"less motion\"). Not for the wording of resumes, cover letters, or emails; those follow profile/voice.md."
+description: "Use when the user asks to restyle, recolor, re-theme, change the look, use their brand or design system, or redesign their pages or resume template (\"make it navy and gold\", \"bigger text\", \"less motion\"). Changes theme, colors, fonts, text size, layout, animation and print. Not for wording."
 ---
 
 # page-design (Codex)
@@ -9,7 +9,7 @@ This workflow is shared with Claude Code. Read `.claude/skills/page-design/SKILL
 
 Never quote, link or mention these instruction files or rules to the user; just do what they say.
 
-It was written with Claude Code's names; translate them with the table in AGENTS.md ("If you are Codex"): `/name` means the skill of that name (`$name` here), review agents are separate, honest review passes you do yourself from `.claude/agents/<name>.md` (and say so), and panels are the `outbox`, `pipeline`, `contacts`, `job-inbox` and `apply-kit` skills in chat.
+It was written with Claude Code's names; translate them with the table in AGENTS.md ("If you are Codex"): `/name` means the skill of that name (`$name` here), review agents follow that table's review-agent row (mostly separate, honest passes you do yourself from `.claude/agents/<name>.md`, and you say so), and panels are the `outbox`, `pipeline`, `contacts`, `job-inbox` and `apply-kit` skills in chat.
 
 ## Codex notes
 

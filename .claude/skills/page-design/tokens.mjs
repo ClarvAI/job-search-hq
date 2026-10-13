@@ -4,6 +4,7 @@
 import { fileURLToPath } from 'node:url'
 import { buildRamps } from './palette.mjs'
 import { FONTS, DOC_FONTS, DENSITY, DOC_DENSITY, PRESETS, resolveTheme, fixContrast } from './themes.mjs'
+import { CANONICAL_BASE, DOC_FONTS_LOCAL, documentsCss, fontsLinkLocal, isLocalPageFont } from './assets.mjs'
 
 export const MARK = {
   pageStart: '  /* ---- Design tokens', pageEnd: '  /* ---- End design tokens ---- */',
@@ -22,19 +23,35 @@ export function fontStack(name, role) {
   if (f && f.stack) return f.stack
   return `"${name}", ${FALLBACK[f ? f.kind : ROLE_KIND[role]]}`
 }
-// The Google Fonts stylesheet for the page fonts, or an empty stylesheet when all three are system fonts.
-export function fontsHref(theme) {
+// The Google Fonts stylesheet for the page fonts (or only those in `names`), or an empty stylesheet when all are
+// system fonts.
+export function fontsHref(theme, names) {
   const fams = []
   for (const role of ['heading', 'body', 'mono']) {
     const name = theme.fonts[role], f = FONTS[name]
+    if (names && !names.includes(name)) continue
     const q = f ? f.google : `${name.trim().replace(/\s+/g, '+')}:wght@400;700`
     if (q && !fams.includes(q)) fams.push(q)
   }
   return fams.length ? `https://fonts.googleapis.com/css2?${fams.map(q => 'family=' + q).join('&')}&display=swap` : 'data:text/css,'
 }
-export const fontsLink = theme => `<link rel="stylesheet" href="${fontsHref(theme)}">`
-// Matches the fonts line this system writes (Google Fonts or the empty stylesheet).
-export const FONTS_LINK_RE = /<link rel="stylesheet" href="(?:https:\/\/fonts\.googleapis\.com\/css2\?[^"]*|data:text\/css,[^"]*)">/
+// The fonts line. Fonts the app ships (templates/assets/fonts/, see assets.mjs) load from there, relative to the file
+// (`base`), with the Google Fonts stylesheet only as a fallback when that file can't be found (a published copy).
+// Any other web font (Lexend, a brand font the app doesn't ship) loads from Google Fonts, in a second tag on the same
+// line; all system fonts load nothing.
+export function fontsLink(theme, base = CANONICAL_BASE.page) {
+  const href = fontsHref(theme)
+  if (href.startsWith('data:')) return `<link rel="stylesheet" href="${href}">`
+  const names = [...new Set(['heading', 'body', 'mono'].map(r => theme.fonts[r]))]
+  const web = names.filter(n => !(FONTS[n] && FONTS[n].stack))
+  const local = web.filter(isLocalPageFont), remote = web.filter(n => !isLocalPageFont(n))
+  if (!local.length) return `<link rel="stylesheet" href="${href}">`
+  const first = fontsLinkLocal(base, fontsHref(theme, local))
+  return remote.length ? `${first}<link rel="stylesheet" href="${fontsHref(theme, remote)}">` : first
+}
+// Matches the fonts line this system writes: the shipped fonts with a fallback (perhaps followed by a Google Fonts tag
+// for the rest), Google Fonts alone, or the empty stylesheet.
+export const FONTS_LINK_RE = /<link rel="stylesheet" href="[^"]*templates\/assets\/fonts\/fonts\.css"[^>]*>(?:<link rel="stylesheet" href="https:\/\/fonts\.googleapis\.com\/css2\?[^"]*">)?|<link rel="stylesheet" href="(?:https:\/\/fonts\.googleapis\.com\/css2\?[^"]*|data:text\/css,[^"]*)">/
 
 const pct = n => `${Math.round(n * 1000) / 1000}%`
 
@@ -140,10 +157,13 @@ ${MARK.designedEnd}`
 }
 
 // ATS resume and cover letter: font from the safe list, accent for the name and rules only, paper, density.
-export function documentBlock(docs, kind) {
+// A font the app ships (static files, see assets.mjs) loads from templates/assets/fonts/documents.css, relative to the
+// file (`base`); Lato still loads from Google Fonts; system fonts load nothing.
+export function documentBlock(docs, kind, base = CANONICAL_BASE.doc) {
   const f = DOC_FONTS[docs.font] || DOC_FONTS.Arial
   const [size, lead, margin] = DOC_DENSITY[kind === 'letter' ? 'letter' : 'resume'][docs.density]
-  const imp = f.google ? `\n  @import url("https://fonts.googleapis.com/css2?family=${f.google}&display=swap");` : ''
+  const imp = DOC_FONTS_LOCAL[docs.font] ? `\n  @import url("${documentsCss(base)}");`
+    : f.google ? `\n  @import url("https://fonts.googleapis.com/css2?family=${f.google}&display=swap");` : ''
   return `${MARK.docStart} (generated from profile/design.md; see .claude/skills/page-design/SKILL.md) ---- */${imp}
   :root { --doc-font: ${f.stack}; --doc-accent: ${docs.accent}; --doc-size: ${size}; --doc-leading: ${lead}; }
   @page { size: ${docs.paper}; margin: ${margin}; }

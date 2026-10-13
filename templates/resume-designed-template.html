@@ -7,7 +7,8 @@
   everything between the opening and closing main tags, keeping the markup pattern below, and set the title
   element to the person's name and "Resume" (it becomes the PDF's title, which screen readers announce). Uses the user's page
   look (colors, fonts) from profile/design.md, printed light. Leave data-layout alone (page-design sets it from
-  layout_designed: sidebar or headline; both read the same markup in the same order).
+  layout_designed: sidebar, headline or portrait; all read the same markup in the same order). The portrait layout
+  has a slot for a photo in the header, commented out: fill it only when the user explicitly asks for a photo.
   Still: real selectable text, one reading order, standard headings, no images of text, no hidden or tiny text,
   no icons standing in for words. Make the PDF with make-pdf.sh (it saves
   <First>-<Last>-Resume-<Company>-Designed.pdf) and keep the parse check passing.
@@ -31,7 +32,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Your Name Resume (designed)</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..700&family=Source+Sans+3:wght@400..700&family=Source+Code+Pro:wght@400..600&display=swap">
+<link rel="stylesheet" href="../../templates/assets/fonts/fonts.css" data-fallback="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..700&family=Source+Sans+3:wght@400..700&family=Source+Code+Pro:wght@400..600&display=swap" onerror="if(this.dataset.up){this.onerror=null;this.href=this.dataset.fallback}else{this.dataset.up=1;this.href='../'+this.getAttribute('href')}">
 <style>
   /* ---- Designed resume theme (generated from profile/design.md; see .claude/skills/page-design/SKILL.md) ---- */
   :root {
@@ -106,25 +107,34 @@
     content: ""; display: block; width: 2.4em; height: 3.5pt; margin-bottom: 0.9em;
     border-radius: 2pt; background: var(--r-accent);
   }
-  :root[data-layout="sidebar"] .columns { display: grid; grid-template-columns: minmax(0, 1fr) 30%; column-gap: 1.6em; align-items: start; }
-  :root[data-layout="sidebar"] .side {
+  :root:is([data-layout="sidebar"], [data-layout="portrait"]) .columns { display: grid; grid-template-columns: minmax(0, 1fr) 30%; column-gap: 1.6em; align-items: start; }
+  :root:is([data-layout="sidebar"], [data-layout="portrait"]) .side {
     background: var(--r-wash); border-radius: 6pt; padding: 1.05em 1em 1.15em;
     font-size: 0.95em;
   }
-  :root[data-layout="sidebar"] .side h2 {
+  :root:is([data-layout="sidebar"], [data-layout="portrait"]) .side h2 {
     font-family: var(--font-data); font-size: max(9pt, 0.9em); font-weight: 600; text-transform: uppercase;
     letter-spacing: 0.1em; color: var(--r-accent-text); margin: 1.3em 0 0.5em;
   }
-  :root[data-layout="sidebar"] .side section:first-child > h2 { margin-top: 0; }
-  :root[data-layout="sidebar"] .side .line { display: block; }
-  :root[data-layout="sidebar"] .side .end { display: block; text-align: left; white-space: normal; margin-top: 0.1em; }
-  :root[data-layout="sidebar"] .side .role > span:first-child { display: block; }
-  :root[data-layout="sidebar"] .side .entry + .entry { margin-top: 0.8em; }
-  :root[data-layout="sidebar"] .side h3 { font-size: 0.95em; }
-  :root[data-layout="sidebar"] .side .org, :root[data-layout="sidebar"] .side .role > span:first-child { text-wrap: balance; }
-  :root[data-layout="sidebar"] .side ul { padding-left: 0.95em; }
-  :root[data-layout="sidebar"] .primary h2 { display: flex; align-items: baseline; gap: 0.5em; }
-  :root[data-layout="sidebar"] .primary h2::after { content: ""; flex: 1; align-self: center; height: 0; border-top: 0.75pt solid var(--r-line); }
+  :root:is([data-layout="sidebar"], [data-layout="portrait"]) .side section:first-child > h2 { margin-top: 0; }
+  :root:is([data-layout="sidebar"], [data-layout="portrait"]) .side .line { display: block; }
+  :root:is([data-layout="sidebar"], [data-layout="portrait"]) .side .end { display: block; text-align: left; white-space: normal; margin-top: 0.1em; }
+  :root:is([data-layout="sidebar"], [data-layout="portrait"]) .side .role > span:first-child { display: block; }
+  :root:is([data-layout="sidebar"], [data-layout="portrait"]) .side .entry + .entry { margin-top: 0.8em; }
+  :root:is([data-layout="sidebar"], [data-layout="portrait"]) .side h3 { font-size: 0.95em; }
+  :root:is([data-layout="sidebar"], [data-layout="portrait"]) .side .org, :root:is([data-layout="sidebar"], [data-layout="portrait"]) .side .role > span:first-child { text-wrap: balance; }
+  :root:is([data-layout="sidebar"], [data-layout="portrait"]) .side ul { padding-left: 0.95em; }
+  :root:is([data-layout="sidebar"], [data-layout="portrait"]) .primary h2 { display: flex; align-items: baseline; gap: 0.5em; }
+  :root:is([data-layout="sidebar"], [data-layout="portrait"]) .primary h2::after { content: ""; flex: 1; align-self: center; height: 0; border-top: 0.75pt solid var(--r-line); }
+
+  /* ---- Layout: portrait. A centered header (with the person's photo only if they chose to add one), then the same
+     two columns as sidebar, read in the same order. ---- */
+  .masthead .photo { display: none; }
+  :root[data-layout="portrait"] .masthead { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 0 0 1em; margin-bottom: 1.1em; border-bottom: 1pt solid var(--r-line); }
+  :root[data-layout="portrait"] .masthead .photo { display: block; width: 1.2in; height: 1.2in; margin-bottom: 0.75em; border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 3pt #fff, 0 0 0 4.5pt var(--r-accent); }
+  :root[data-layout="portrait"] .masthead:not(:has(.photo))::before { content: ""; display: block; width: 2.4em; height: 3.5pt; margin-bottom: 0.9em; border-radius: 2pt; background: var(--r-accent); }
+  :root[data-layout="portrait"] .masthead h1 { font-size: 28pt; }
+  :root[data-layout="portrait"] .headline { max-width: 34em; }
 
   /* ---- Layout: headline. One column under a bold header band; accent markers on headings,
      skills as tags. ---- */
@@ -162,7 +172,7 @@
     body { max-width: 8.5in; margin: 24px auto; padding: 0.5in 0.55in; box-shadow: 0 1px 3px color-mix(in srgb, var(--r-ink) 18%, transparent), 0 8px 24px color-mix(in srgb, var(--r-ink) 8%, transparent); }
     @media (max-width: 8.6in) {
       body { margin: 0; box-shadow: none; padding: 16px; }
-      :root[data-layout="sidebar"] .columns { grid-template-columns: minmax(0, 1fr); row-gap: 1.2em; }
+      :root:is([data-layout="sidebar"], [data-layout="portrait"]) .columns { grid-template-columns: minmax(0, 1fr); row-gap: 1.2em; }
     }
   }
   @media print { body { margin: 0; padding: 0; } .screen-only { display: none; } }
@@ -179,6 +189,10 @@
 <div class="screen-only">This is the designed version of your resume, for emailing a person or sharing directly. For online application forms, upload the plain version. To save as PDF: press Ctrl+P (Windows) or Cmd+P (Mac), choose “Save as PDF”, set Margins to Default, turn on Background graphics, and turn off Headers and footers. This box won’t print.</div>
 <main>
   <header class="masthead">
+    <!-- Photo (portrait layout only): only if the user explicitly chose to include one for this application
+         (ground rule 4); never by default, and not for the US, UK, Canada or Australia unless they ask. A photo they
+         own, square, with alt "Photo of <name>":
+    <img class="photo" src="photo.jpg" alt="Photo of Your Name" width="230" height="230"> -->
     <h1>Your Name</h1>
     <p class="headline">Target role or summary line, word for word from resume.md (delete if there is none)</p>
     <p class="contact">City, ST<span class="sep"> · </span>(555) 555-0100<span class="sep"> · </span>you@example.com<span class="sep"> · </span><a href="https://www.linkedin.com/in/your-name">linkedin.com/in/your-name</a></p>

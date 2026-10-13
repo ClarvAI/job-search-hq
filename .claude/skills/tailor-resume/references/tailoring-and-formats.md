@@ -23,7 +23,10 @@ Background for `/tailor-resume`. Researched 2026-10. Evidence is labeled; most r
 | Career changer | Summary, Experience (reverse-chronological), then Projects / Training that bridge | A **hybrid** layout (short skills summary on top of a normal work history) beats a pure skills-based "functional" resume; recruiters widely say functional resumes look like they're hiding something (opinion, consistent across recruiter sources). Re-word past bullets toward transferable results, never toward duties the user didn't do. |
 | Returning after a break | Normal reverse-chronological; the break as its own one-line entry | Example: "Career break: full-time caregiving, 2022-2024" plus any courses or volunteer work from that time. Evidence: in a 3,771-resume field experiment, applicants who explained a 7+ month gap (illness, explained in the cover letter) got more callbacks than identical applicants who didn't explain it, though still fewer than people with no gap (Blankenau, Namingit & Schwab, Kansas State); a vendor experiment (ResumeGo) found a similar direction. Employers' systems may also filter on unexplained gaps (HBS *Hidden Workers*). The user decides how much reason to give; one plain line is enough. |
 | Experienced / senior | Summary, Experience, Education at the end | Two pages is normal in the US with roughly 10+ years. Detail the last 10-15 years; older roles in a short "Earlier experience" list. Dropping old graduation years is common advice to limit age bias; a 40,000-application field experiment found age discrimination in callbacks, strongest for older women (Neumark, Burn & Button 2019). |
-| Academic, medical, legal | Their own formats | An academic or medical CV has different rules; look them up rather than forcing one page. |
+| Academic | CV: contact, education, research and publications, teaching, grants, service, references | No page limit; order sections to fit the job; full citations exactly as published. `knowledge/academic-jobs.md` §1. |
+| Medical, legal | Their own formats | A medical CV or legal resume has its own conventions; look them up rather than forcing one page. |
+| Hourly and shift work | Contact, availability line, Experience, Certifications, Skills, Education | One short page; availability and required certifications matter most. `knowledge/hourly-and-shift-work.md` §5. |
+| Freelance or contract history | Summary, Experience with contracts grouped under one entry, Projects or portfolio link | Contract work is real experience: real titles, client results where allowed. `knowledge/freelance-and-contract.md` §3. |
 | US federal (USAJOBS) | Contact, Experience, Education, optional details | **Two pages maximum** since 27 Sep 2025 (§6). The old long-form federal resume is no longer accepted. |
 
 ## 3. What actually breaks parsing
@@ -59,6 +62,19 @@ Applicant tracking systems (Workday, Greenhouse, iCIMS, Taleo and others) pull t
   - Optional where relevant: security clearance, job-related training, language skills, organisations, publications, eligibility for special hiring programs (e.g. veterans, military spouses, people with disabilities). Clearance and eligibility only as the user states them; never guess.
 - **Formatting OPM passes on through the USAJOBS Help Center** (recommendations, not rules): PDF preferred to keep page count, 5 MB or less; a sans-serif font such as Lato, Calibri, Arial or Helvetica; 0.5-inch margins; about 14 pt titles and 10 pt body text. Our template (Letter, text PDF) is fine as it is; to fit two pages, cut content rather than shrinking the type below the template's size, and run the page check.
 - **Hints from OPM:** prioritise the most relevant and recent experience, use concise result-focused language, and align wording with the announcement. Keep it two pages even if the user has many years of experience: older roles go in one line each.
+
+## 7. Which template
+
+Start from the user's copy `profile/templates/<name>` when it exists (it carries their documents look), else `templates/<name>` (the app's copy; never edit it). Each template's top comment holds its markup pattern and rules; fill it exactly that way. All are one column and ATS-safe, and `make-pdf` works on each of them the same way (same `pages:`, `parse:` and other lines; the PDF keeps the name `<First>-<Last>-Resume-<Company>.pdf`, which is what the Apply Kit looks for, so don't rename it).
+
+| The job | Template | Save as | What to check |
+|---|---|---|---|
+| Most jobs | `resume-template.html` | `jobs/<folder>/resume.html` | The page target (SKILL.md steps 3-4). |
+| US federal, applied through USAJOBS | `resume-federal-template.html` | `jobs/<folder>/resume.html` | `make-pdf` must report `pages: 2` or fewer; never upload more. Every job shows MM/YYYY start and end dates and hours per week, and every federal job its series and grade (§6). Ask the user for anything missing; never estimate. |
+| Academic (faculty, postdoc, research or teaching posts) | `cv-academic-template.html` | `jobs/<folder>/cv.html` | No page limit: report the page count and don't trim for length. Set the template's `--cv-name` so the name and page number print in every page's footer. Cross-check the sections, their order and the citation rules with `knowledge/academic-jobs.md` §1. |
+| A job in the EU (or nearby) whose posting asks for a Europass or "European" CV | `cv-europass-template.html` | `jobs/<folder>/cv.html` | A4 paper. Language levels (A1-C2) only as the user rates them. Never a date of birth; the photo slot stays commented out unless the user explicitly chooses a photo for this application (ground rule 4). Many EU employers are happy with the ordinary resume, so use this one only when the posting or country expects it (`.claude/skills/cover-letter/references/languages-and-countries.md`). |
+
+With a `cv.html`, use that file in place of `resume.html` in the page check and `make-pdf` commands; `resume.md` stays the checked text. The designed resume (SKILL.md step 8b) is separate and only ever made alongside one of these.
 
 ## Sources
 

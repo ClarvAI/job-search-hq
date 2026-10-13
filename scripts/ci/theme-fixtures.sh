@@ -40,6 +40,28 @@ const good = T.resolveTheme({ design: { preset: 'default', layout_portfolio: 'Be
 if (good.errors.length || good.layouts.layout_portfolio !== 'bento' || good.layouts.layout_resume !== 'compact' || good.layouts.layout_dashboard !== 'overview') { console.log('FAIL  layout keys not read'); bad++ } else console.log('ok    layout keys read, defaults filled')
 const wrong = T.resolveTheme({ design: { preset: 'default', layout_dashboard: 'grid' } })
 if (!wrong.errors.some(e => e.includes('layout_dashboard'))) { console.log('FAIL  unknown layout accepted'); bad++ } else console.log('ok    unknown layout rejected')
+// New layout values are accepted
+const more = T.resolveTheme({ design: { preset: 'default', layout_dashboard: 'timeline', layout_flashcards: 'cards', layout_portfolio: 'column' }, documents: { layout_designed: 'portrait' } })
+if (more.errors.length || more.layouts.layout_dashboard !== 'timeline' || more.layouts.layout_flashcards !== 'cards' || more.layouts.layout_portfolio !== 'column' || more.layouts.layout_designed !== 'portrait') { console.log('FAIL  timeline/cards/column/portrait layouts not read: ' + more.errors.join('; ')); bad++ } else console.log('ok    timeline, cards, column and portrait layouts read')
+// Status colors stay unlike the accent: a red-orange brand moves the "problem" red inside the red family until the
+// text colors differ by 8 (OKLab x100) in light mode; the presets' status hues don't move.
+for (const [acc, want] of [['#e4572e', 8], ['#f97316', 8]]) {
+  const t = T.resolveTheme({ design: { preset: 'brand', accent: acc } }), f = T.fixContrast(t.spec), dist = T.statusDistance(f.R)
+  const inBand = t.spec.hues.danger >= 0 && t.spec.hues.danger <= 40
+  if (dist.danger.light < want - 0.05 || !inBand || !t.notes.some(n => n.includes('"problem" red'))) { console.log(`FAIL  ${acc}: danger hue ${t.spec.hues.danger}, difference ${dist.danger.light.toFixed(1)}`); bad++ }
+  else console.log(`ok    ${acc}: "problem" red moved to hue ${Math.round(t.spec.hues.danger)} (difference ${dist.danger.light.toFixed(1)} light, ${dist.danger.dark.toFixed(1)} dark)`)
+}
+for (const name of T.PRESET_NAMES) { const t = T.resolveTheme({}, { preset: name }); if (t.notes.some(n => n.startsWith('Moved the'))) { console.log(`FAIL  preset ${name} moves a status color`); bad++ } }
+console.log('ok    no preset moves a status color')
+// Fonts line: shipped fonts load from templates/assets/ with the Google stylesheet only as a fallback; Lexend
+// (not shipped) gets its own Google tag; all-system fonts load nothing.
+const fl = name => K.fontsLink(T.resolveTheme({}, { preset: name }), '../templates/assets/')
+if (!/^<link rel="stylesheet" href="\.\.\/templates\/assets\/fonts\/fonts\.css" data-fallback="https:\/\/fonts\.googleapis\.com[^"]*" onerror="[^"]*">$/.test(fl('default'))) { console.log('FAIL  default fonts line: ' + fl('default')); bad++ } else console.log('ok    default fonts line is local with a Google fallback')
+if (!/fonts\.css[^>]*><link rel="stylesheet" href="https:\/\/fonts\.googleapis\.com\/css2\?family=Lexend/.test(fl('high-contrast'))) { console.log('FAIL  high-contrast fonts line: ' + fl('high-contrast')); bad++ } else console.log('ok    high-contrast: shipped fonts local, Lexend from Google')
+const sys = K.fontsLink(T.resolveTheme({ design: { preset: 'brand', font_heading: 'Georgia', font_body: 'Arial', font_mono: 'ui-monospace' } }))
+if (sys !== '<link rel="stylesheet" href="data:text/css,">') { console.log('FAIL  system fonts line: ' + sys); bad++ } else console.log('ok    system fonts load nothing')
+for (const f of ['Garamond', 'Roboto', 'Source Sans 3', 'Open Sans']) if (!K.documentBlock({ font: f, accent: '#111111', density: 'standard', paper: 'Letter' }, 'resume').includes('@import url("../../templates/assets/fonts/documents.css")')) { console.log(`FAIL  ${f} resume font not local`); bad++ }
+console.log('ok    the four shipped resume fonts load from documents.css')
 const forced = T.resolveTheme({ design: { preset: 'default', layout_brief: 'detailed' } }, { preset: 'modern' })
 if (forced.layouts.layout_brief !== 'detailed') { console.log('FAIL  --preset dropped the layout'); bad++ } else console.log('ok    a forced preset keeps layouts')
 process.exit(bad ? 1 : 0)
@@ -84,9 +106,24 @@ node "$AT" --root "$W" --design "$T/bad.md" >"$T/bad.out" 2>&1 && bad "unknown l
 # Layout previews
 out="$(node "$AT" --root "$W" --preview --layouts all 2>&1)"
 n=0; for f in "$W"/pages/.preview/*-*.html; do [ -f "$f" ] && n=$((n + 1)); done
-[ "$n" -ge 17 ] && ok "--preview --layouts all wrote $n files" || bad "--preview --layouts: $out"
+[ "$n" -ge 24 ] && ok "--preview --layouts all wrote $n files" || bad "--preview --layouts: $out"
 grep -q 'data-layout="bento"' "$W/pages/.preview/portfolio-bento.html" && ok "preview carries its layout" || bad "portfolio-bento preview wrong"
 node "$AT" --root "$W" --preview --layouts nope >/dev/null 2>&1 && bad "unknown preview page accepted" || ok "unknown preview page rejected"
+# Asset paths follow each file's folder; the publish copy goes back to the pinned CDN files.
+grep -q 'src="../templates/assets/lib/tailwindcss-browser-4.1.13.js"' "$W/pages/dashboard.html" && ok "page in pages/ loads Tailwind from ../templates/assets/" || bad "pages/dashboard.html asset path"
+grep -q 'src="../../templates/assets/lib/tailwindcss-browser-4.1.13.js"' "$W/jobs/acme-analyst/interview-brief.html" && ok "brief in jobs/<folder>/ loads Tailwind from ../../templates/assets/" || bad "job brief asset path"
+grep -q 'fonts.googleapis.com/css2' "$W/pages/dashboard.html" && ! grep -q 'rel="preconnect"' "$W/pages/dashboard.html" && ok "Google Fonts only as data-fallback, no preconnect" || bad "dashboard still preconnects or lost its fallback"
+for f in academic-cv federal-resume europass-cv designed-portrait flashcards-cards dashboard-timeline portfolio-column; do
+  [ -f "$W/pages/.preview/$f.html" ] && ok "preview $f" || bad "no preview $f"
+done
+node --input-type=module -e '
+const A = await import(process.argv[1] + "/.claude/skills/page-design/assets.mjs")
+const fs = await import("node:fs")
+const out = A.toCdn(fs.readFileSync(process.argv[2], "utf8"))
+const okay = !out.includes("templates/assets/") && out.includes("integrity=\"sha384-P0V9YU7TFy919I0oVLXiqiUsdiJiaV+QKGysF4Lx+s901F1X9+zjFV0mc6pRKCKq\" crossorigin=\"anonymous\"") && out.includes("href=\"https://fonts.googleapis.com/css2")
+process.exit(okay ? 0 : 1)' "$REPO" "$W/pages/flashcards.html" && ok "publish copy (toCdn) uses the pinned CDN files with integrity" || bad "toCdn left local paths or dropped integrity"
+node "$REPO/scripts/ci/visual/build-assets.mjs" --check >"$T/assets.out" 2>&1 && ok "templates/assets matches its manifest ($(tail -1 "$T/assets.out"))" || bad "templates/assets: $(cat "$T/assets.out")"
+
 # --regenerate keeps the user's Custom CSS
 node -e '
 const fs = require("fs"), f = process.argv[1]; let s = fs.readFileSync(f, "utf8")

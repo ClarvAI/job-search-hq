@@ -50,6 +50,7 @@ import { fileURLToPath } from 'node:url'
 import { wcag, report } from '../palette.mjs'
 import { parseDesign, resolveTheme, fixContrast, PRESETS, PRESET_NAMES, DOC_FONTS, DOC_DENSITY, LAYOUTS, DEFAULT_LAYOUTS, layoutFor } from '../themes.mjs'
 import { tokenBlock, designedBlock, documentBlock, fontsLink, FONTS_LINK_RE, MARK } from '../tokens.mjs'
+import { CANONICAL_BASE, DOC_FONTS_LOCAL, LIBS, LIB_SCRIPT_RE, baseFor, libScript } from '../assets.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const args = process.argv.slice(2)
@@ -157,25 +158,35 @@ function guard(html, next) {
   return { html: next }
 }
 
-function themePage(html, t, R, file) {
+// Asset lines (fonts line, library scripts) point at templates/assets/ relative to the file being written: `base`
+// (see assets.mjs). A page still loading a library from the CDN gets the local line (same pinned version, with the
+// CDN as its fallback); old preconnect hints to Google Fonts go (they open a connection even when nothing loads).
+const PRECONNECT_RE = /^<link rel="preconnect" href="https:\/\/fonts\.(?:googleapis|gstatic)\.com"[^>]*>\n/gm
+function assetLines(html, base) {
+  let next = html.replace(PRECONNECT_RE, '')
+  for (const name of Object.keys(LIBS)) next = next.replace(LIB_SCRIPT_RE(name), () => libScript(name, base))
+  return next
+}
+function themePage(html, t, R, file, base = CANONICAL_BASE.page) {
   const block = tokenBlock(t, R)
   let next = replaceRegion(html, MARK.pageStart, MARK.pageEnd, block, legacyPageEnd)
   if (next == null) return { skip: 'no design-token block found' }
-  if (FONTS_LINK_RE.test(next)) next = next.replace(FONTS_LINK_RE, fontsLink(t))
+  if (FONTS_LINK_RE.test(next)) next = next.replace(FONTS_LINK_RE, () => fontsLink(t, base))
   else return { skip: 'no fonts line found' }
+  next = assetLines(next, base)
   next = setLayout(next, file ? layoutFor(t.layouts, file) : null)
   return guard(html, next)
 }
-function themeDoc(html, t, kind, file) {
-  let next = replaceRegion(html, MARK.docStart, MARK.docEnd, documentBlock(t.docs, kind))
+function themeDoc(html, t, kind, file, base = CANONICAL_BASE.doc) {
+  let next = replaceRegion(html, MARK.docStart, MARK.docEnd, documentBlock(t.docs, kind, base))
   if (next == null) return { skip: 'no document theme block found' }
   next = setLayout(next, file ? layoutFor(t.layouts, file) : null)
   return guard(html, next)
 }
-function themeDesigned(html, t, R, file) {
+function themeDesigned(html, t, R, file, base = CANONICAL_BASE.doc) {
   let next = replaceRegion(html, MARK.designedStart, MARK.designedEnd, designedBlock(t, R))
   if (next == null) return { skip: 'no designed resume block found' }
-  if (FONTS_LINK_RE.test(next)) next = next.replace(FONTS_LINK_RE, fontsLink(t))
+  if (FONTS_LINK_RE.test(next)) next = next.replace(FONTS_LINK_RE, () => fontsLink(t, base))
   next = setLayout(next, file ? layoutFor(t.layouts, file) : null)
   return guard(html, next)
 }
@@ -199,7 +210,7 @@ function apply({ t, R }, { write }) {
     if (lp) { out(`skipped: ${rel(file)} (a link: ${lp}/ points to another folder; only real folders are changed)`); skipped++; continue }
     if (fs.lstatSync(file).isSymbolicLink()) { out(`skipped: ${rel(file)} (a link; only real files are changed)`); skipped++; continue }
     const html = readHtml(file)
-    const r = themePage(html, t, R, file)
+    const r = themePage(html, t, R, file, baseFor(ROOT, path.dirname(file), path))
     if (r.skip) { out(`skipped: ${rel(file)} (${r.skip})`); skipped++; continue }
     if (r.html === html) { out(`unchanged: ${rel(file)}`); same++; continue }
     if (!write) { out(`differs: ${rel(file)}`); differs++; continue }
@@ -211,14 +222,17 @@ function apply({ t, R }, { write }) {
 }
 
 // ---- Print templates: the app's copy (templates/) stays as shipped; the user's themed copy lives in profile/templates/ ----
-const TEMPLATES = [['resume-template.html', 'resume'], ['cover-letter-template.html', 'letter'], ['resume-designed-template.html', 'designed']]
+// The extra ATS document templates (academic CV, US federal resume, Europass-style CV) take the documents block like the
+// resume (font, accent, density, paper) and have no layouts.
+const TEMPLATES = [['resume-template.html', 'resume'], ['cover-letter-template.html', 'letter'], ['resume-designed-template.html', 'designed'],
+  ['cv-academic-template.html', 'resume'], ['resume-federal-template.html', 'resume'], ['cv-europass-template.html', 'resume']]
 const USER_TPL = path.join(ROOT, 'profile', 'templates')
 const RECORD = path.join(USER_TPL, '.generated.json')
 const sha = s => crypto.createHash('sha256').update(s.replace(/\r/g, '')).digest('hex')
 const previousName = name => name.replace(/\.html$/, '.previous.html')
 function readRecord() { try { const r = JSON.parse(fs.readFileSync(RECORD, 'utf8')); return r && typeof r === 'object' ? r : {} } catch { return {} } }
 function writeRecord(r) { fs.writeFileSync(RECORD, JSON.stringify(r, null, 2) + '\n') }
-function themeTemplate(html, kind, t, R, name) { return kind === 'designed' ? themeDesigned(html, t, R, name) : themeDoc(html, t, kind, name) }
+function themeTemplate(html, kind, t, R, name, base = CANONICAL_BASE.doc) { return kind === 'designed' ? themeDesigned(html, t, R, name, base) : themeDoc(html, t, kind, name, base) }
 function isLink(f) { try { return fs.lstatSync(f).isSymbolicLink() } catch { return false } }
 // The outermost folder between the workspace and this path that is a link (shortcut) to another place, or ''.
 function linkedParent(file) {
@@ -343,10 +357,13 @@ const PREVIEW_SOURCES = {
   resume: ['templates/resume-template.html', 'resume'],
   'cover-letter': ['templates/cover-letter-template.html', 'letter'],
   designed: ['templates/resume-designed-template.html', 'designed'],
+  'academic-cv': ['templates/cv-academic-template.html', 'resume'],
+  'federal-resume': ['templates/resume-federal-template.html', 'resume'],
+  'europass-cv': ['templates/cv-europass-template.html', 'resume'],
 }
-const PAGE_ALIASES = { 'interview-brief': 'brief', 'resume-designed': 'designed', cover: 'cover-letter', letter: 'cover-letter' }
+const PAGE_ALIASES = { 'interview-brief': 'brief', 'resume-designed': 'designed', cover: 'cover-letter', letter: 'cover-letter', academic: 'academic-cv', federal: 'federal-resume', europass: 'europass-cv', documents: 'resume,cover-letter,designed,academic-cv,federal-resume,europass-cv' }
 function previewLayouts(dir, which, th) {
-  const want = String(which || 'all').toLowerCase().split(',').map(x => PAGE_ALIASES[x.trim()] || x.trim()).filter(Boolean)
+  const want = String(which || 'all').toLowerCase().split(',').map(x => PAGE_ALIASES[x.trim()] || x.trim()).join(',').split(',').filter(Boolean)
   const names = want.includes('all') ? Object.keys(PREVIEW_SOURCES) : want
   for (const n of names) if (!PREVIEW_SOURCES[n]) die(`--layouts: unknown page "${n}" (use ${Object.keys(PREVIEW_SOURCES).join(', ')} or all)`)
   fs.mkdirSync(dir, { recursive: true })
@@ -361,13 +378,15 @@ function previewLayouts(dir, which, th) {
       base = base.replace(/(<script type="application\/json" id="data">)[\s\S]*?(<\/script>)/, (_, a, b) => `${a}\n${json}\n${b}`)
     }
     const key = Object.keys(LAYOUTS).find(k => LAYOUTS[k].files.includes(path.basename(src)))
-    const current = th.t.layouts[key]
-    for (const layout of LAYOUTS[key].values) {
-      const t = { ...th.t, layouts: { ...th.t.layouts, [key]: layout } }
-      const r = kind === 'page' ? themePage(base, t, th.R, src) : themeTemplate(base, kind, t, th.R, path.basename(src))
+    const current = key ? th.t.layouts[key] : null
+    // A template without layouts (the academic, federal and Europass ones) gets one preview, <name>.html.
+    for (const layout of key ? LAYOUTS[key].values : [null]) {
+      const t = key ? { ...th.t, layouts: { ...th.t.layouts, [key]: layout } } : th.t
+      const ab = baseFor(ROOT, dir, path)
+      const r = kind === 'page' ? themePage(base, t, th.R, src, ab) : themeTemplate(base, kind, t, th.R, path.basename(src), ab)
       if (r.skip) die(`preview failed for ${src}: ${r.skip}`)
-      const label = `${name} ${layout} layout${layout === current ? ' (your current one)' : ''}`
-      const outFile = path.join(dir, `${name}-${layout}.html`)
+      const label = layout ? `${name} ${layout} layout${layout === current ? ' (your current one)' : ''}` : `${name} (in your documents look)`
+      const outFile = path.join(dir, layout ? `${name}-${layout}.html` : `${name}.html`)
       fs.writeFileSync(outFile, r.html.replace(/<title>[^<]*<\/title>/, `<title>Preview: ${label}</title>`))
       made.push(outFile); out(`preview: ${label}: ${outFile}`)
     }
@@ -383,7 +402,7 @@ function preview(dir) {
   fs.mkdirSync(dir, { recursive: true })
   const made = []
   const one = (name, theme) => {
-    const r = themePage(withData, theme.t, theme.R, 'dashboard.html')
+    const r = themePage(withData, theme.t, theme.R, 'dashboard.html', baseFor(ROOT, dir, path))
     if (r.skip) die(`preview failed: ${r.skip}`)
     const label = theme.t.label
     const file = path.join(dir, `theme-preview-${name}.html`)
@@ -400,7 +419,7 @@ function preview(dir) {
 // The documents block (ATS resume and cover letter) doesn't depend on the preset; it comes from design.md's documents block.
 function docsSection() {
   const docs = { font: 'Arial', accent: '#111111', density: 'standard', paper: 'Letter' }
-  const fonts = Object.entries(DOC_FONTS).map(([n, f]) => `| ${n} | \`${f.stack}\` | ${f.google ? `\`@import url("https://fonts.googleapis.com/css2?family=${f.google}&display=swap");\`` : 'none'} |`).join('\n')
+  const fonts = Object.entries(DOC_FONTS).map(([n, f]) => `| ${n} | \`${f.stack}\` | ${DOC_FONTS_LOCAL[n] ? `\`@import url("${CANONICAL_BASE.doc}fonts/documents.css");\`` : f.google ? `\`@import url("https://fonts.googleapis.com/css2?family=${f.google}&display=swap");\`` : 'none'} |`).join('\n')
   const dens = ['compact', 'standard', 'roomy'].map(d => `| ${d} | ${DOC_DENSITY.resume[d].join(' / ')} | ${DOC_DENSITY.letter[d].join(' / ')} |`).join('\n')
   return `## 4. Documents block (resume and cover letter; the same for every preset)
 
@@ -465,7 +484,7 @@ Fonts: ${th.t.fonts.heading} (headings), ${th.t.fonts.body} (text), ${th.t.fonts
 
 ## 1. Fonts line (every page, and the designed resume template)
 
-Replace the line that starts \`<link rel="stylesheet" href="https://fonts.googleapis.com/css2?\` (or \`href="data:text/css,\`) with:
+Replace the fonts line (the one \`<link rel="stylesheet" ...>\` whose address ends in \`templates/assets/fonts/fonts.css\`, starts with \`https://fonts.googleapis.com/css2?\`, or is \`data:text/css,\`) with the line below. It is written for a page in \`pages/\`; in \`jobs/<folder>/interview-brief.html\` and in the user's copy of the designed resume template, write \`../../templates/assets/\` instead of \`../templates/assets/\`.
 
 \`\`\`html
 ${fontsLink(th.t)}

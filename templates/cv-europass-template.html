@@ -1,0 +1,161 @@
+<!doctype html>
+<!--
+  Europass-style CV template (jobs in the EU and nearby countries that ask for a "European CV"; the app's copy,
+  always on the default look). It follows the order of the official Europass CV (europass.europa.eu/en/create-
+  europass-cv): personal information, work experience, education and training, language skills (with the
+  Common European Framework levels A1 to C2), digital and other skills, driving licence. Many employers are happy
+  with the ordinary resume instead; use this one when the posting or the country expects it.
+  Assistant: if profile/templates/cv-europass-template.html exists, start from that copy instead (it carries the
+  user's documents look); never edit this file. Copy it to jobs/<folder>/cv.html, replace everything between the
+  opening and closing main tags keeping the markup pattern below, and set the title element to the person's name
+  and "CV". Paper: A4 for European jobs (tailor-resume sets it per job). Every fact comes from the master resume.
+  Personal details: Europass's own form offers date of birth, gender, nationality and a photo. Ground rule 4
+  applies: never a date of birth, and never a photo, nationality or gender unless the user explicitly chooses to
+  include it for this application. Photo slot: uncomment the img in the header only then (a photo they own,
+  alt "Photo of <name>"); it never goes on applications to the US, UK, Canada or Australia unless asked.
+  Markup pattern:
+    header.masthead: optional img.photo (commented out), h1 (the name), optional p.headline (a target role or
+      summary line word for word from the resume), ul.contact with one li per item, each
+      "<span class="label">Email</span> value".
+    One section per heading, its h2 holding only the plain heading text: About Me (optional), Work Experience,
+      Education and Training, Language Skills, Digital Skills, Other Skills (optional), Driving Licence (optional).
+    .entry: div.when (the dates, left column) then div.what: p.line rows (span.org, span.end city and country),
+      p.line.role (role or qualification), then a ul or p. The dates come first in the file too, so the page,
+      the PDF text and a screen reader read them in the same order.
+    Language skills: p.skill "<strong>Mother tongue:</strong> ..."; then .lang per language: h3 (language) and
+      p (Listening B2 · Reading C1 · Spoken production B2 · Spoken interaction B2 · Writing B1), levels only as the
+      user rates them.
+  Keep: real text, standard headings, no tables, icons or images of text. Make the PDF with
+  .claude/skills/tailor-resume/scripts/make-pdf.sh and check "parse: ok".
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your Name CV</title>
+<style>
+  /* ---- Document theme (generated from profile/design.md; see .claude/skills/page-design/SKILL.md) ---- */
+  :root { --doc-font: Arial, Helvetica, "Liberation Sans", sans-serif; --doc-accent: #111111; --doc-size: 10.5pt; --doc-leading: 1.2; }
+  @page { size: Letter; margin: 0.5in 0.6in; }
+  /* ---- End document theme ---- */
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; color: #111; background: #fff;
+    font-family: var(--doc-font); font-size: var(--doc-size); line-height: var(--doc-leading);
+    font-kerning: normal; text-rendering: optimizeLegibility;
+  }
+  main { display: block; }
+  h1, h2, h3, p, ul { margin: 0; }
+  a { color: inherit; text-decoration: none; }
+
+  /* Header: name, optional headline, contact details with labels; an optional photo at the right. */
+  .masthead { display: grid; grid-template-columns: minmax(0, 1fr); column-gap: 1.2em; margin-bottom: 0.8em; padding-bottom: 0.6em; border-bottom: 1.5pt solid var(--doc-accent); }
+  .masthead:has(> .photo) { grid-template-columns: minmax(0, 1fr) auto; }
+  .masthead > :not(.photo) { grid-column: 1; }
+  .photo { grid-column: 2; grid-row: 1 / span 3; width: 1.15in; height: 1.45in; object-fit: cover; border-radius: 2pt; }
+  .masthead h1 { font-size: 20pt; line-height: 1.1; font-weight: 700; letter-spacing: -0.01em; color: var(--doc-accent); }
+  .headline { margin-top: 0.25em; font-weight: 700; }
+  .contact { list-style: none; margin-top: 0.45em; padding: 0; display: flex; flex-wrap: wrap; gap: 0.15em 1.4em; font-size: 0.95em; }
+  .contact li { white-space: nowrap; }
+  .contact .label { font-weight: 700; margin-right: 0.35em; }
+
+  h2 {
+    font-size: 11pt; line-height: 1.2; font-weight: 700; color: var(--doc-accent); text-transform: uppercase; letter-spacing: 0.06em;
+    margin: 1em 0 0.45em; padding-bottom: 0.15em; border-bottom: 0.5pt solid #8a8a8a; break-after: avoid;
+  }
+  section:first-of-type h2 { margin-top: 0.2em; }
+  /* Entries: the dates in a narrow left column, the rest beside them (Europass's label column). */
+  .entry { display: grid; grid-template-columns: 9.8em minmax(0, 1fr); column-gap: 0.9em; break-inside: avoid; }
+  .entry + .entry { margin-top: 0.65em; }
+  .when { font-variant-numeric: tabular-nums lining-nums; color: #111; white-space: nowrap; }
+  .line { display: flex; justify-content: space-between; align-items: baseline; gap: 1em; }
+  .line > span:first-child { min-width: 0; }
+  .org { font-weight: 700; }
+  .end { flex: none; white-space: nowrap; text-align: right; }
+  .what > p:not(.line) { margin-top: 0.1em; text-wrap: pretty; }
+  ul { margin-top: 0.15em; padding-left: 1.15em; }
+  li { padding-left: 0.15em; text-wrap: pretty; }
+  .what li + li { margin-top: 0.12em; }
+  .skill { padding-left: 1em; text-indent: -1em; text-wrap: pretty; }
+  .skill + .skill { margin-top: 0.15em; }
+  .lang { margin-top: 0.4em; break-inside: avoid; }
+  .lang h3 { font-size: 1em; font-weight: 700; }
+
+  @media screen {
+    html { background: color-mix(in srgb, #111 7%, #fff); }
+    body { max-width: 8.5in; margin: 24px auto; padding: 0.5in 0.6in; box-shadow: 0 1px 3px color-mix(in srgb, #111 18%, transparent), 0 8px 24px color-mix(in srgb, #111 8%, transparent); }
+    @media (max-width: 8.6in) { body { margin: 0; box-shadow: none; padding: 16px; } .entry { grid-template-columns: minmax(0, 1fr); } }
+  }
+  @media print { body { margin: 0; padding: 0; } .screen-only { display: none; } }
+  .screen-only {
+    margin: 0 0 18px; padding: 8px 12px; border-radius: 6px;
+    font: 12px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; color: #111;
+    background: color-mix(in srgb, #111 4%, #fff); border: 1px solid color-mix(in srgb, #111 16%, #fff);
+  }
+  /* ---- Custom ---- */
+  /* ---- End custom ---- */
+</style>
+</head>
+<body>
+<div class="screen-only">Europass-style CV. To save as PDF: press Ctrl+P (Windows) or Cmd+P (Mac), choose “Save as PDF”, set Margins to Default, and turn off Headers and footers. This box won’t print.</div>
+<main>
+  <header class="masthead">
+    <!-- <img class="photo" src="photo.jpg" alt="Photo of Your Name" width="110" height="140"> -->
+    <h1>Your Name</h1>
+    <p class="headline">Target role or summary line, word for word from the resume (delete if there is none)</p>
+    <ul class="contact">
+      <li><span class="label">Email</span>you@example.com</li>
+      <li><span class="label">Phone</span>+00 555 555 0100</li>
+      <li><span class="label">Location</span>City, Country</li>
+      <li><span class="label">LinkedIn</span>linkedin.com/in/your-name</li>
+    </ul>
+  </header>
+
+  <section>
+    <h2>Work Experience</h2>
+    <div class="entry">
+      <div class="when">MM/YYYY – Present</div>
+      <div class="what">
+        <p class="line"><span class="org">Employer</span><span class="end">City, Country</span></p>
+        <p class="line role"><span>Role</span></p>
+        <ul>
+          <li>Responsibility or result from the master resume.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Education and Training</h2>
+    <div class="entry">
+      <div class="when">MM/YYYY – MM/YYYY</div>
+      <div class="what">
+        <p class="line"><span class="org">School or university</span><span class="end">City, Country</span></p>
+        <p class="line role"><span>Qualification, field (and its level, e.g. EQF 6, if known)</span></p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Language Skills</h2>
+    <p class="skill"><strong>Mother tongue:</strong> Language</p>
+    <div class="lang">
+      <h3>Language</h3>
+      <p>Listening B2 · Reading C1 · Spoken production B2 · Spoken interaction B2 · Writing B1</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Digital Skills</h2>
+    <p class="skill">Tool, tool, software</p>
+  </section>
+
+  <section>
+    <h2>Driving Licence</h2>
+    <p class="skill">Category B (optional)</p>
+  </section>
+</main>
+</body>
+</html>

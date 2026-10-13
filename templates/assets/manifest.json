@@ -1,0 +1,564 @@
+{
+ "note": "Self-hosted assets for the pages; rebuilt by scripts/ci/visual/build-assets.mjs from the packages below. Do not edit.",
+ "built": "2026-10-13",
+ "files": [
+  {
+   "path": "fonts/bricolage-grotesque/bricolage-grotesque-latin-ext-opsz-normal.woff2",
+   "bytes": 30736,
+   "sha256": "776f6dcaf03636cd69a5802c94808cc8896c0a66c8e9ce0fe147231b6ee01957",
+   "source": "npm:@fontsource-variable/bricolage-grotesque@5.3.0/files/bricolage-grotesque-latin-ext-opsz-normal.woff2",
+   "url": "https://www.npmjs.com/package/@fontsource-variable/bricolage-grotesque/v/5.3.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/bricolage-grotesque/bricolage-grotesque-latin-opsz-normal.woff2",
+   "bytes": 76888,
+   "sha256": "a79fdb52d4a5c76552452f69202add96e287401fff03d3e8c0e38b4dcb5a99cd",
+   "source": "npm:@fontsource-variable/bricolage-grotesque@5.3.0/files/bricolage-grotesque-latin-opsz-normal.woff2",
+   "url": "https://www.npmjs.com/package/@fontsource-variable/bricolage-grotesque/v/5.3.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/bricolage-grotesque/OFL.txt",
+   "bytes": 4401,
+   "sha256": "923f4ddf0fd39f9b7794ab0df7332f3d95dc43e8ad7ec2289d6d9e8491177f51",
+   "source": "npm:@fontsource-variable/bricolage-grotesque@5.3.0/LICENSE",
+   "url": "https://www.npmjs.com/package/@fontsource-variable/bricolage-grotesque/v/5.3.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/dm-sans/dm-sans-latin-ext-opsz-normal.woff2",
+   "bytes": 31292,
+   "sha256": "5d18d31d23ada61ebee1d589b11d5da30db9e158f589d5e35221ba2b1a45de54",
+   "source": "npm:@fontsource-variable/dm-sans@5.3.0/files/dm-sans-latin-ext-opsz-normal.woff2",
+   "url": "https://www.npmjs.com/package/@fontsource-variable/dm-sans/v/5.3.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/dm-sans/dm-sans-latin-opsz-normal.woff2",
+   "bytes": 62724,
+   "sha256": "ca72d2bcea8f4daa783dbdfa2d9b46068c3ce38168e05918fb867aa453b4f890",
+   "source": "npm:@fontsource-variable/dm-sans@5.3.0/files/dm-sans-latin-opsz-normal.woff2",
+   "url": "https://www.npmjs.com/package/@fontsource-variable/dm-sans/v/5.3.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/dm-sans/OFL.txt",
+   "bytes": 4502,
+   "sha256": "6fbd040a29c2037a765dfb9f2561e9965b5c95c6dcb5dce516089d63d5f17af7",
+   "source": "npm:@fontsource-variable/dm-sans@5.3.0/LICENSE",
+   "url": "https://www.npmjs.com/package/@fontsource-variable/dm-sans/v/5.3.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/documents.css",
+   "bytes": 5008,
+   "sha256": "642f7cff1ac7a95d254440079a2c04414b70f15be3adc70837664ce93304568a",
+   "source": "generated from the Fontsource CSS of the families listed",
+   "license": "OFL-1.1 (fonts); this file: same as Job Search HQ"
+  },
+  {
+   "path": "fonts/eb-garamond/eb-garamond-latin-400-normal.woff2",
+   "bytes": 23820,
+   "sha256": "912929dba0faab5e151849ea5e988adba3080ad6d2bcc4dbff27aa427896498d",
+   "source": "npm:@fontsource/eb-garamond@5.3.0/files/eb-garamond-latin-400-normal.woff2",
+   "url": "https://www.npmjs.com/package/@fontsource/eb-garamond/v/5.3.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/eb-garamond/eb-garamond-latin-700-normal.woff2",
+   "bytes": 25292,
+   "sha256": "ae7cef029eea959654a474fbcaa2c202f205abfca29caaef62e9a0019c3c8370",
+   "source": "npm:@fontsource/eb-garamond@5.3.0/files/eb-garamond-latin-700-normal.woff2",
+   "url": "https://www.npmjs.com/package/@fontsource/eb-garamond/v/5.3.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/eb-garamond/eb-garamond-latin-ext-400-normal.woff2",
+   "bytes": 56964,
+   "sha256": "9a1335bd850842fd21a977a8e8a1249e20b3ed7cd405f18ba1d2177044e9a8ea",
+   "source": "npm:@fontsource/eb-garamond@5.3.0/files/eb-garamond-latin-ext-400-normal.woff2",
+   "url": "https://www.npmjs.com/package/@fontsource/eb-garamond/v/5.3.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/eb-garamond/eb-garamond-latin-ext-700-normal.woff2",
+   "bytes": 63560,
+   "sha256": "33db13f493e46192e13da59d5aac5c2dd19d6de441ecd0fae47098616e27e2da",
+   "source": "npm:@fontsource/eb-garamond@5.3.0/files/eb-garamond-latin-ext-700-normal.woff2",
+   "url": "https://www.npmjs.com/package/@fontsource/eb-garamond/v/5.3.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/eb-garamond/OFL.txt",
+   "bytes": 4519,
+   "sha256": "f03c8eda63076cd52317dcd40aa04db8472d4cb592dfaafa385129dfdafc7f9c",
+   "source": "npm:@fontsource/eb-garamond@5.3.0/LICENSE",
+   "url": "https://www.npmjs.com/package/@fontsource/eb-garamond/v/5.3.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/fonts.css",
+   "bytes": 9861,
+   "sha256": "49ebdf4e8e4a1740604f5924a59751d899194f129988cac53afd13b1b2708ebe",
+   "source": "generated from the Fontsource CSS of the families listed",
+   "license": "OFL-1.1 (fonts); this file: same as Job Search HQ"
+  },
+  {
+   "path": "fonts/fraunces/fraunces-latin-ext-opsz-normal.woff2",
+   "bytes": 59388,
+   "sha256": "a2930b27d13a228bd9ab6a49269b5f800237892ad560cb9dd7fab01b1620f88e",
+   "source": "npm:@fontsource-variable/fraunces@5.3.0/files/fraunces-latin-ext-opsz-normal.woff2",
+   "url": "https://www.npmjs.com/package/@fontsource-variable/fraunces/v/5.3.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/fraunces/fraunces-latin-opsz-normal.woff2",
+   "bytes": 67304,
+   "sha256": "7234ed860a9cc83045413c4faee63c960a8f2d1917adcf728119307d56e0d783",
+   "source": "npm:@fontsource-variable/fraunces@5.3.0/files/fraunces-latin-opsz-normal.woff2",
+   "url": "https://www.npmjs.com/package/@fontsource-variable/fraunces/v/5.3.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/fraunces/OFL.txt",
+   "bytes": 4504,
+   "sha256": "cd3384cafac6f2bddc3955273958a2e029f97027c8037ac539ef5744a77b579e",
+   "source": "npm:@fontsource-variable/fraunces@5.3.0/LICENSE",
+   "url": "https://www.npmjs.com/package/@fontsource-variable/fraunces/v/5.3.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/ibm-plex-mono/IBMPlexMono-Medium.woff2",
+   "bytes": 50400,
+   "sha256": "33faf307fa6031fb4062276d7320a6d632de890cbb347576fd80cfa01077bc25",
+   "source": "npm:@ibm/plex-mono@2.5.0/fonts/complete/woff2/IBMPlexMono-Medium.woff2",
+   "url": "https://www.npmjs.com/package/@ibm/plex-mono/v/2.5.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/ibm-plex-mono/IBMPlexMono-Regular.woff2",
+   "bytes": 49248,
+   "sha256": "ba204497f16b6d334cee9d1e963a831b73e3a56e1d6300a8489d18df7214b350",
+   "source": "npm:@ibm/plex-mono@2.5.0/fonts/complete/woff2/IBMPlexMono-Regular.woff2",
+   "url": "https://www.npmjs.com/package/@ibm/plex-mono/v/2.5.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/ibm-plex-mono/IBMPlexMono-SemiBold.woff2",
+   "bytes": 50600,
+   "sha256": "6a825b4824c01cbb401e829e5a066a1818411bcb3538b5a5792c5ca9b82343c3",
+   "source": "npm:@ibm/plex-mono@2.5.0/fonts/complete/woff2/IBMPlexMono-SemiBold.woff2",
+   "url": "https://www.npmjs.com/package/@ibm/plex-mono/v/2.5.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/ibm-plex-mono/OFL.txt",
+   "bytes": 4363,
+   "sha256": "37784b44044a4ffd9256702b7c0982c37e5c8887ba90c6dca0479aea93dc898d",
+   "source": "npm:@ibm/plex-mono@2.5.0/LICENSE.txt",
+   "url": "https://www.npmjs.com/package/@ibm/plex-mono/v/2.5.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/ibm-plex-sans/IBMPlexSans-Bold.woff2",
+   "bytes": 63012,
+   "sha256": "fa7130d854a660b39a7fc9e6e0f2dc23dba5f1346e2adea3e1fe37b6d884133d",
+   "source": "npm:@ibm/plex-sans@1.1.0/fonts/complete/woff2/IBMPlexSans-Bold.woff2",
+   "url": "https://www.npmjs.com/package/@ibm/plex-sans/v/1.1.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/ibm-plex-sans/IBMPlexSans-Medium.woff2",
+   "bytes": 66740,
+   "sha256": "5660f8a658f8bb50dbc005232f885eadffd2bc1c235c4f6fbb63469d1f9cde6d",
+   "source": "npm:@ibm/plex-sans@1.1.0/fonts/complete/woff2/IBMPlexSans-Medium.woff2",
+   "url": "https://www.npmjs.com/package/@ibm/plex-sans/v/1.1.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/ibm-plex-sans/IBMPlexSans-Regular.woff2",
+   "bytes": 63020,
+   "sha256": "ba711a3085ff9f27440b6b9c4550cfc47c97bf36591d5da958b975bb3add8c1a",
+   "source": "npm:@ibm/plex-sans@1.1.0/fonts/complete/woff2/IBMPlexSans-Regular.woff2",
+   "url": "https://www.npmjs.com/package/@ibm/plex-sans/v/1.1.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/ibm-plex-sans/IBMPlexSans-SemiBold.woff2",
+   "bytes": 67060,
+   "sha256": "f78048030eab62e860efa39a0df79e2e5581bf122eb95b9bc42c0b8a4988d205",
+   "source": "npm:@ibm/plex-sans@1.1.0/fonts/complete/woff2/IBMPlexSans-SemiBold.woff2",
+   "url": "https://www.npmjs.com/package/@ibm/plex-sans/v/1.1.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/ibm-plex-sans/OFL.txt",
+   "bytes": 4363,
+   "sha256": "37784b44044a4ffd9256702b7c0982c37e5c8887ba90c6dca0479aea93dc898d",
+   "source": "npm:@ibm/plex-sans@1.1.0/LICENSE.txt",
+   "url": "https://www.npmjs.com/package/@ibm/plex-sans/v/1.1.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/ibm-plex-serif/IBMPlexSerif-Bold.woff2",
+   "bytes": 69300,
+   "sha256": "3b9eb99793dd9fed419aaf1af03559ea28bac17b7cb6146e7f8fc3db813621fe",
+   "source": "npm:@ibm/plex-serif@2.0.0/fonts/complete/woff2/IBMPlexSerif-Bold.woff2",
+   "url": "https://www.npmjs.com/package/@ibm/plex-serif/v/2.0.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/ibm-plex-serif/IBMPlexSerif-Italic.woff2",
+   "bytes": 73852,
+   "sha256": "ba5feed9ebae36e3b6ae3486052c90f4f42a294fa67a7c9415985175d19c4c82",
+   "source": "npm:@ibm/plex-serif@2.0.0/fonts/complete/woff2/IBMPlexSerif-Italic.woff2",
+   "url": "https://www.npmjs.com/package/@ibm/plex-serif/v/2.0.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/ibm-plex-serif/IBMPlexSerif-Medium.woff2",
+   "bytes": 73052,
+   "sha256": "f66376aeb33a5b32116558e0de53b76b48531f6388e352aeeb35ad82ea05cfaa",
+   "source": "npm:@ibm/plex-serif@2.0.0/fonts/complete/woff2/IBMPlexSerif-Medium.woff2",
+   "url": "https://www.npmjs.com/package/@ibm/plex-serif/v/2.0.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/ibm-plex-serif/IBMPlexSerif-Regular.woff2",
+   "bytes": 69400,
+   "sha256": "024ebce13cec984b46e350dd85fa7c01105c777e116bfe95f097ad7fa93f39f2",
+   "source": "npm:@ibm/plex-serif@2.0.0/fonts/complete/woff2/IBMPlexSerif-Regular.woff2",
+   "url": "https://www.npmjs.com/package/@ibm/plex-serif/v/2.0.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/ibm-plex-serif/IBMPlexSerif-SemiBold.woff2",
+   "bytes": 73440,
+   "sha256": "030d808e82f99ebe5c21d50745bd06e5ce16ad9e94b360f5adcc19362beb5344",
+   "source": "npm:@ibm/plex-serif@2.0.0/fonts/complete/woff2/IBMPlexSerif-SemiBold.woff2",
+   "url": "https://www.npmjs.com/package/@ibm/plex-serif/v/2.0.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/ibm-plex-serif/OFL.txt",
+   "bytes": 4363,
+   "sha256": "37784b44044a4ffd9256702b7c0982c37e5c8887ba90c6dca0479aea93dc898d",
+   "source": "npm:@ibm/plex-serif@2.0.0/LICENSE.txt",
+   "url": "https://www.npmjs.com/package/@ibm/plex-serif/v/2.0.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/inter/inter-latin-ext-opsz-normal.woff2",
+   "bytes": 133336,
+   "sha256": "5e6d4fe9d9f4bff8b2a2469d25ab19576bb85331e22c6ed51398e16f95d56a9c",
+   "source": "npm:@fontsource-variable/inter@5.3.0/files/inter-latin-ext-opsz-normal.woff2",
+   "url": "https://www.npmjs.com/package/@fontsource-variable/inter/v/5.3.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/inter/inter-latin-opsz-normal.woff2",
+   "bytes": 72920,
+   "sha256": "2c295d99e26dcf357d4d01bcf270fd6924b600c9a13dd8c363ef114f4c6976fa",
+   "source": "npm:@fontsource-variable/inter@5.3.0/files/inter-latin-opsz-normal.woff2",
+   "url": "https://www.npmjs.com/package/@fontsource-variable/inter/v/5.3.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/inter/OFL.txt",
+   "bytes": 4477,
+   "sha256": "3b0a5fca3d17942cde889069889dedbbbd075e9b599968c82a95f4d944e9b345",
+   "source": "npm:@fontsource-variable/inter@5.3.0/LICENSE",
+   "url": "https://www.npmjs.com/package/@fontsource-variable/inter/v/5.3.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/jetbrains-mono/jetbrains-mono-latin-ext-wght-normal.woff2",
+   "bytes": 15196,
+   "sha256": "79bfdab9ba467e26eea4122e6f2567e188dd8a09a8c730d501fc487c4ab99c6e",
+   "source": "npm:@fontsource-variable/jetbrains-mono@5.3.0/files/jetbrains-mono-latin-ext-wght-normal.woff2",
+   "url": "https://www.npmjs.com/package/@fontsource-variable/jetbrains-mono/v/5.3.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/jetbrains-mono/jetbrains-mono-latin-wght-normal.woff2",
+   "bytes": 40404,
+   "sha256": "18be452724bfdc236c074ca94a249a7f41a86752c7d04ab258ce9ed5651f6a7e",
+   "source": "npm:@fontsource-variable/jetbrains-mono@5.3.0/files/jetbrains-mono-latin-wght-normal.woff2",
+   "url": "https://www.npmjs.com/package/@fontsource-variable/jetbrains-mono/v/5.3.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/jetbrains-mono/OFL.txt",
+   "bytes": 4524,
+   "sha256": "403581b69dac5cff4079205e01c6b467e56af449ecbd7247693ddb1baafa005b",
+   "source": "npm:@fontsource-variable/jetbrains-mono@5.3.0/LICENSE",
+   "url": "https://www.npmjs.com/package/@fontsource-variable/jetbrains-mono/v/5.3.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/open-sans/OFL.txt",
+   "bytes": 4508,
+   "sha256": "9e7f12fafee50a9b4f7b3004c0fa58990805620d9debb0daf7f75de0d3ad5548",
+   "source": "npm:@fontsource/open-sans@5.3.0/LICENSE",
+   "url": "https://www.npmjs.com/package/@fontsource/open-sans/v/5.3.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/open-sans/open-sans-latin-400-normal.woff2",
+   "bytes": 18640,
+   "sha256": "0e44026ad31376af1b56593cd4acb4f353f8e8789c51759e18f64578e4ef296a",
+   "source": "npm:@fontsource/open-sans@5.3.0/files/open-sans-latin-400-normal.woff2",
+   "url": "https://www.npmjs.com/package/@fontsource/open-sans/v/5.3.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/open-sans/open-sans-latin-700-normal.woff2",
+   "bytes": 18204,
+   "sha256": "594a622208d1dad5d1dd58aef74f212ce7132d8f0aa5bacea6cfeb86d308c17a",
+   "source": "npm:@fontsource/open-sans@5.3.0/files/open-sans-latin-700-normal.woff2",
+   "url": "https://www.npmjs.com/package/@fontsource/open-sans/v/5.3.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/open-sans/open-sans-latin-ext-400-normal.woff2",
+   "bytes": 15380,
+   "sha256": "c260ffc9d1acb022e1037cb8ffc8baa8fe8c44c2ae74429d3231c7ce6d2b7f21",
+   "source": "npm:@fontsource/open-sans@5.3.0/files/open-sans-latin-ext-400-normal.woff2",
+   "url": "https://www.npmjs.com/package/@fontsource/open-sans/v/5.3.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/open-sans/open-sans-latin-ext-700-normal.woff2",
+   "bytes": 15072,
+   "sha256": "3f959194168b9c2f90b70f7a2a548d3bac2a4328df65b1656fd848bfdeb7efe7",
+   "source": "npm:@fontsource/open-sans@5.3.0/files/open-sans-latin-ext-700-normal.woff2",
+   "url": "https://www.npmjs.com/package/@fontsource/open-sans/v/5.3.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/roboto/OFL.txt",
+   "bytes": 4512,
+   "sha256": "84044c09058803d87a241bd28abb4ce30a433d7db9c27a04da3efad6a0ca539c",
+   "source": "npm:@fontsource/roboto@5.3.0/LICENSE",
+   "url": "https://www.npmjs.com/package/@fontsource/roboto/v/5.3.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/roboto/roboto-latin-400-normal.woff2",
+   "bytes": 21884,
+   "sha256": "425c0713a8176f92273d378599c7eac57de7fafabd4bd0ed457b70eb8f80d371",
+   "source": "npm:@fontsource/roboto@5.3.0/files/roboto-latin-400-normal.woff2",
+   "url": "https://www.npmjs.com/package/@fontsource/roboto/v/5.3.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/roboto/roboto-latin-700-normal.woff2",
+   "bytes": 22240,
+   "sha256": "b9d66d1708156f765ada51939bc24ed259dafa69eb631b36e443680fe9e15879",
+   "source": "npm:@fontsource/roboto@5.3.0/files/roboto-latin-700-normal.woff2",
+   "url": "https://www.npmjs.com/package/@fontsource/roboto/v/5.3.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/roboto/roboto-latin-ext-400-normal.woff2",
+   "bytes": 15040,
+   "sha256": "5725eacca97303d8bce26f76cfcaee4393295bbf93c1eb6c3e5e4f260b2da189",
+   "source": "npm:@fontsource/roboto@5.3.0/files/roboto-latin-ext-400-normal.woff2",
+   "url": "https://www.npmjs.com/package/@fontsource/roboto/v/5.3.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/roboto/roboto-latin-ext-700-normal.woff2",
+   "bytes": 15196,
+   "sha256": "7673803a2d402018b1f726dded5bf2dbf2be4307039e8718f4bea654d6eca249",
+   "source": "npm:@fontsource/roboto@5.3.0/files/roboto-latin-ext-700-normal.woff2",
+   "url": "https://www.npmjs.com/package/@fontsource/roboto/v/5.3.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/source-code-pro/OFL.txt",
+   "bytes": 4473,
+   "sha256": "0b2c3168605cb4f3ba54cf3cf2003f67ff894c66484c75702007f23eda92c353",
+   "source": "npm:source-code-pro@2.42.0/LICENSE.md",
+   "url": "https://www.npmjs.com/package/source-code-pro/v/2.42.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/source-code-pro/SourceCodeVF-Upright.ttf.woff2",
+   "bytes": 90124,
+   "sha256": "d95dc751b4d82141259f5c00c9838addaadd3b4eac30dd7db4a0da4921d77792",
+   "source": "npm:source-code-pro@2.42.0/WOFF2/VF/SourceCodeVF-Upright.ttf.woff2",
+   "url": "https://www.npmjs.com/package/source-code-pro/v/2.42.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/source-sans-3/OFL.txt",
+   "bytes": 4486,
+   "sha256": "56af9b9c6715597e458284a474dc118a50a4150e9d547c70f7b4a33c3e6a9328",
+   "source": "npm:source-sans@3.52.0/LICENSE.md",
+   "url": "https://www.npmjs.com/package/source-sans/v/3.52.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/source-sans-3/SourceSans3-Bold.ttf.woff2",
+   "bytes": 108640,
+   "sha256": "8d35c6d40e750a4ee23bbbba2bd604ad098d172907369b43281507e16b8e2e7a",
+   "source": "npm:source-sans@3.52.0/WOFF2/TTF/SourceSans3-Bold.ttf.woff2",
+   "url": "https://www.npmjs.com/package/source-sans/v/3.52.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/source-sans-3/SourceSans3-Regular.ttf.woff2",
+   "bytes": 109632,
+   "sha256": "53492fb3a0def77354f166a55d09b63a10855e91c206c7620a81cf56e97f8ec3",
+   "source": "npm:source-sans@3.52.0/WOFF2/TTF/SourceSans3-Regular.ttf.woff2",
+   "url": "https://www.npmjs.com/package/source-sans/v/3.52.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/source-sans-3/SourceSans3VF-Upright.ttf.woff2",
+   "bytes": 170188,
+   "sha256": "5f16566f7a40d39b339ad26be151fa5a1ab1f0c2574c7a2e619765584a1acbd8",
+   "source": "npm:source-sans@3.52.0/WOFF2/VF/SourceSans3VF-Upright.ttf.woff2",
+   "url": "https://www.npmjs.com/package/source-sans/v/3.52.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/source-serif-4/OFL.txt",
+   "bytes": 4314,
+   "sha256": "18aabf190848725e2576eefb5c29ba06aac1029d02132252a7f312eac2e50cf3",
+   "source": "npm:@fontsource-variable/source-serif-4@5.3.1/LICENSE",
+   "url": "https://www.npmjs.com/package/@fontsource-variable/source-serif-4/v/5.3.1",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/source-serif-4/source-serif-4-latin-ext-opsz-italic.woff2",
+   "bytes": 110324,
+   "sha256": "2078240cee94e627d0e180d56d74a11b2a1d387bbd61a9b7269f0a43df756896",
+   "source": "npm:@fontsource-variable/source-serif-4@5.3.1/files/source-serif-4-latin-ext-opsz-italic.woff2",
+   "url": "https://www.npmjs.com/package/@fontsource-variable/source-serif-4/v/5.3.1",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/source-serif-4/source-serif-4-latin-ext-opsz-normal.woff2",
+   "bytes": 100872,
+   "sha256": "155f6e701097cc269cf8d5d7ac86795f263f1afbeb47c14d1d747108c9335389",
+   "source": "npm:@fontsource-variable/source-serif-4@5.3.1/files/source-serif-4-latin-ext-opsz-normal.woff2",
+   "url": "https://www.npmjs.com/package/@fontsource-variable/source-serif-4/v/5.3.1",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/source-serif-4/source-serif-4-latin-opsz-italic.woff2",
+   "bytes": 130188,
+   "sha256": "96e6393209728ab93c334ae739af8a040cd2006c82e8614d6465a8084db88f89",
+   "source": "npm:@fontsource-variable/source-serif-4@5.3.1/files/source-serif-4-latin-opsz-italic.woff2",
+   "url": "https://www.npmjs.com/package/@fontsource-variable/source-serif-4/v/5.3.1",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/source-serif-4/source-serif-4-latin-opsz-normal.woff2",
+   "bytes": 122360,
+   "sha256": "f2ea9c12d2fe9bd3a9589b02ad2c0909da88f30938c91adc838c4f4098f9f9e0",
+   "source": "npm:@fontsource-variable/source-serif-4@5.3.1/files/source-serif-4-latin-opsz-normal.woff2",
+   "url": "https://www.npmjs.com/package/@fontsource-variable/source-serif-4/v/5.3.1",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/space-grotesk/OFL.txt",
+   "bytes": 4401,
+   "sha256": "18a4de52385f6b988782639d5d0cc1326e5a8c2de9a7f01d7b20d9aedcc60943",
+   "source": "npm:@fontsource-variable/space-grotesk@5.3.0/LICENSE",
+   "url": "https://www.npmjs.com/package/@fontsource-variable/space-grotesk/v/5.3.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/space-grotesk/space-grotesk-latin-ext-wght-normal.woff2",
+   "bytes": 18940,
+   "sha256": "952dddb45d2f96f71cbf3b7f510b24379afc3c89ea02fcf89d377b45d62c0166",
+   "source": "npm:@fontsource-variable/space-grotesk@5.3.0/files/space-grotesk-latin-ext-wght-normal.woff2",
+   "url": "https://www.npmjs.com/package/@fontsource-variable/space-grotesk/v/5.3.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/space-grotesk/space-grotesk-latin-wght-normal.woff2",
+   "bytes": 22288,
+   "sha256": "0640890476fc1198ab4de571fb658de443c4d85b66466ec09534a8737ab1ce9d",
+   "source": "npm:@fontsource-variable/space-grotesk@5.3.0/files/space-grotesk-latin-wght-normal.woff2",
+   "url": "https://www.npmjs.com/package/@fontsource-variable/space-grotesk/v/5.3.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/work-sans/OFL.txt",
+   "bytes": 4515,
+   "sha256": "e7c426573d51f3d2e5e92254878c862344ffa0b9272f79a880f9f99010f002c7",
+   "source": "npm:@fontsource-variable/work-sans@5.3.0/LICENSE",
+   "url": "https://www.npmjs.com/package/@fontsource-variable/work-sans/v/5.3.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/work-sans/work-sans-latin-ext-wght-normal.woff2",
+   "bytes": 35716,
+   "sha256": "2aa17fc7b072e46652e84bbe3dbba9ec57cdea320d89e8c951ed7cf3218c300b",
+   "source": "npm:@fontsource-variable/work-sans@5.3.0/files/work-sans-latin-ext-wght-normal.woff2",
+   "url": "https://www.npmjs.com/package/@fontsource-variable/work-sans/v/5.3.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "fonts/work-sans/work-sans-latin-wght-normal.woff2",
+   "bytes": 50316,
+   "sha256": "1dd49afc07fb2231b2ff686cbf007725fb2742271bb1f28ebd98f22a0d817343",
+   "source": "npm:@fontsource-variable/work-sans@5.3.0/files/work-sans-latin-wght-normal.woff2",
+   "url": "https://www.npmjs.com/package/@fontsource-variable/work-sans/v/5.3.0",
+   "license": "OFL-1.1"
+  },
+  {
+   "path": "lib/canvas-confetti-1.9.3.js",
+   "bytes": 24906,
+   "sha256": "e103ab02784339d56c93ca3debe2c5a299372cafc5215148d55283de046e86d1",
+   "source": "npm:canvas-confetti@1.9.3/dist/confetti.browser.js",
+   "url": "https://www.npmjs.com/package/canvas-confetti/v/1.9.3",
+   "license": "ISC"
+  },
+  {
+   "path": "lib/LICENSE-canvas-confetti.txt",
+   "bytes": 743,
+   "sha256": "fd44477c30a832a1dee9ef0b6cfb34677fbe5ef58c0cf655d27c646f11bb2f7a",
+   "source": "npm:canvas-confetti@1.9.3/LICENSE",
+   "url": "https://www.npmjs.com/package/canvas-confetti/v/1.9.3",
+   "license": "ISC"
+  },
+  {
+   "path": "lib/LICENSE-tailwindcss-browser.txt",
+   "bytes": 1071,
+   "sha256": "60e0b68c0f35c078eef3a5d29419d0b03ff84ec1df9c3f9d6e39a519a5ae7985",
+   "source": "npm:@tailwindcss/browser@4.1.13/LICENSE",
+   "url": "https://www.npmjs.com/package/@tailwindcss/browser/v/4.1.13",
+   "license": "MIT"
+  },
+  {
+   "path": "lib/LICENSE-ts-fsrs.txt",
+   "bytes": 1079,
+   "sha256": "8b83a73dd2894ff553d6de6113064b3ad9dfad3f839837b61f3b183881131d01",
+   "source": "npm:ts-fsrs@5.4.2/LICENSE",
+   "url": "https://www.npmjs.com/package/ts-fsrs/v/5.4.2",
+   "license": "MIT"
+  },
+  {
+   "path": "lib/tailwindcss-browser-4.1.13.js",
+   "bytes": 260427,
+   "sha256": "4df034809c175da313a3e44657411bd26cbd52ceb16f52f028e35e3d646bb9c8",
+   "source": "npm:@tailwindcss/browser@4.1.13/dist/index.global.js",
+   "url": "https://www.npmjs.com/package/@tailwindcss/browser/v/4.1.13",
+   "license": "MIT"
+  },
+  {
+   "path": "lib/ts-fsrs-5.4.2.umd.js",
+   "bytes": 72009,
+   "sha256": "59b7444121d0aae5bb969097ed95df38eff4a4f878e459703c63720f6b6a176b",
+   "source": "npm:ts-fsrs@5.4.2/dist/index.umd.js",
+   "url": "https://www.npmjs.com/package/ts-fsrs/v/5.4.2",
+   "license": "MIT"
+  }
+ ]
+}

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Runs the visual, accessibility and print harness (scripts/ci/visual/visual.mjs). Maintainers only; manual.
-# Needs Node 18+, npm (comes with Node), network access (Tailwind, fonts and the CDN scripts load from the web),
+# Needs Node 18+, npm (comes with Node; network once, to install the tools below; the pages load from templates/assets/),
 # and Google Chrome (or set CHROME=/path/to/chrome-or-chromium). pdfinfo, pdftoppm and qpdf are optional.
 #
 #   bash scripts/ci/visual/run.sh [--quick] [--out <folder>] [--themes default,brand] [--pages dashboard] [--no-docs]

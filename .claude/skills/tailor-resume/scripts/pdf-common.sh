@@ -55,7 +55,8 @@ file_url_path() {
   printf '%s' "$out"
 }
 
-# print_html <file.html> <out.pdf>: headless print with no header/footer.
+# print_html <file.html> <out.pdf>: headless print with no header/footer, tagged (Chrome's default), with bookmarks
+# made from the headings (--generate-pdf-document-outline, Chrome 121+; older browsers ignore the switch).
 # Paper size and margins come from the page's own CSS @page rule.
 # Returns non-zero if no PDF was produced within 60 seconds.
 # (No separate --user-data-dir on purpose: on macOS a fresh profile makes headless Chrome write the PDF
@@ -67,7 +68,7 @@ print_html() {
   out="$(native_path "$pdf")"
   rm -f "$pdf"
   "$browser" --headless=new --disable-gpu --no-first-run --no-default-browser-check --disable-extensions \
-    --no-pdf-header-footer --print-to-pdf-no-header --virtual-time-budget=3000 \
+    --no-pdf-header-footer --print-to-pdf-no-header --virtual-time-budget=3000 --generate-pdf-document-outline \
     --print-to-pdf="$out" "$url" >/dev/null 2>&1 &
   pid=$!
   # Wait for the browser to exit, or for the PDF to exist and stop growing; never hang.

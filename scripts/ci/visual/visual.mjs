@@ -3,15 +3,16 @@
 // Start it with scripts/ci/visual/run.sh (installs playwright-core and axe-core into a cache folder outside the repo).
 //
 // What it does, on a throwaway copy of the app (never the repo's files):
-//   pages: dashboard overview|board (sample data and empty), flashcards flip|list, interview-brief sheet|detailed,
-//          portfolio profile|editorial|bento, each in the default, modern, minimal and high-contrast presets and a brand
-//          accent, light and dark, at 320/390/768/1440 px: full-page screenshots, axe-core (WCAG 2.0-2.2 A/AA tags),
+//   pages: dashboard overview|board|timeline (sample data and empty), flashcards flip|list|cards, interview-brief
+//          sheet|detailed, portfolio profile|editorial|bento|column, each in the default, modern, minimal, high-contrast,
+//          editorial, calm and bold presets and a brand accent, light and dark, at 320/390/768/1440 px: full-page screenshots, axe-core (WCAG 2.0-2.2 A/AA tags),
 //          reflow (no horizontal scroll at 320 px = 400% zoom, and at 640 px = 200% zoom), text spacing (1.4.12),
 //          target size (2.5.8), a keyboard walk (focus visible, ring contrast, focus not obscured, order), reduced
 //          motion, forced colors, content left below full opacity at rest, and print to PDF on Letter and A4 (page
 //          count, light colors under a dark device theme).
 //   documents: resume classic|modern|compact and cover letter x density compact|standard|roomy x paper Letter|A4,
-//          designed resume sidebar|headline x density x paper (48), plus the designed resume in every preset; each
+//          designed resume sidebar|headline|portrait x density x paper, academic CV, federal resume and Europass CV x
+//          density x paper, the portrait layout with a photo, plus the designed resume in every preset; each
 //          filled with the Alex Rivera fixture, printed with the workspace copy of make-pdf.sh; checks paper, one
 //          page, parse: ok, tagged PDF with a language and H1/H2 tags in reading order.
 //
@@ -44,7 +45,7 @@ const OUT = path.resolve(opt('--out', process.env.VISUAL_OUT || path.join(os.tmp
 const inside = (p, root) => { const r = path.relative(root, p); return r === '' || (!r.startsWith('..') && !path.isAbsolute(r)) }
 if (inside(fs.realpathSync(path.dirname(OUT)) + path.sep + path.basename(OUT), fs.realpathSync(REPO))) die(`--out must be outside the workspace: ${OUT}`)
 const QUICK = flag('--quick')
-const ALL_THEMES = ['default', 'modern', 'minimal', 'high-contrast', 'brand']
+const ALL_THEMES = ['default', 'modern', 'minimal', 'high-contrast', 'editorial', 'calm', 'bold', 'brand']
 const THEMES = (opt('--themes') || (QUICK ? 'default,brand' : ALL_THEMES.join(','))).split(',').map(s => s.trim())
 for (const t of THEMES) if (!ALL_THEMES.includes(t)) die(`unknown theme ${t} (use ${ALL_THEMES.join(', ')})`)
 const PAGES = (opt('--pages') || 'dashboard,flashcards,brief,portfolio').split(',').map(s => s.trim())
@@ -182,6 +183,11 @@ async function loadPage(ctx, file) {
   const errors = []
   page.on('pageerror', e => errors.push(String(e.message || e)))
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()) })
+  // Offline and privacy check: pages load their libraries and shipped fonts from templates/assets/, so nothing should
+  // leave the machine except Google Fonts for a font the app doesn't ship (Lexend in High contrast, a brand font).
+  const net = []
+  page.on('request', r => { const u = r.url(); if (/^https?:/i.test(u)) net.push(u) })
+  page.__net = net
   await page.goto(pathToFileURL(file).href, { waitUntil: 'load', timeout: 45000 })
   await settle(page)
   await page.addScriptTag({ content: PROBES })
@@ -190,7 +196,10 @@ async function loadPage(ctx, file) {
 }
 async function runAxe(page) {
   return page.evaluate(async tags => {
-    const r = await window.axe.run(document, { runOnly: { type: 'tag', values: tags }, resultTypes: ['violations', 'incomplete'] })
+    // preload: false. axe would otherwise re-fetch every stylesheet with XHR to read its rules, which file:// pages
+    // refuse (a CORS error in the console, from axe, not the page). The one rule that needs it (css-orientation-lock)
+    // has nothing to find: no page locks orientation.
+    const r = await window.axe.run(document, { preload: false, runOnly: { type: 'tag', values: tags }, resultTypes: ['violations', 'incomplete'] })
     const map = v => ({ id: v.id, impact: v.impact, help: v.help, tags: v.tags.filter(t => /^wcag\d/.test(t)), nodes: v.nodes.slice(0, 6).map(n => ({ target: n.target.join(' '), summary: (n.failureSummary || '').split('\n').slice(0, 3).join(' ') })), count: v.nodes.length })
     return { violations: r.violations.map(map), incomplete: r.incomplete.filter(v => v.id === 'color-contrast' || v.id === 'target-size').map(v => ({ id: v.id, count: v.nodes.length })) }
   }, AXE_TAGS)
@@ -372,7 +381,10 @@ async function checkPage(browser, v) {
       if (v.page === 'brief' && n > BRIEF_PAGES[v.layout]) fail(id, `${scheme} brief prints on ${n} pages on ${format} (limit ${BRIEF_PAGES[v.layout]})`)
     }
     R.errors = errors.filter(e => !/favicon/i.test(e))
-    if (R.errors.length) fail(id, `${scheme} script errors: ${R.errors.slice(0, 2).join(' | ')}`)
+    if (R.errors.length) fail(id, `${scheme} console errors: ${R.errors.slice(0, 2).join(' | ')}`)
+    R.network = [...new Set(page.__net)]
+    const leaks = R.network.filter(u => !/^https:\/\/fonts\.(googleapis|gstatic)\.com\//.test(u))
+    if (leaks.length) fail(id, `${scheme} requests left the machine (libraries must load from templates/assets/): ${leaks.slice(0, 3).join(' | ')}`)
     await ctx.close()
   }
   // Reduced motion and forced colors (light only).
@@ -410,7 +422,8 @@ async function pool(items, n, fn) {
 function fillMain(html, fixture) {
   const main = fs.readFileSync(path.join(here, 'fixtures', fixture), 'utf8').trim()
   if (!/<main>[\s\S]*<\/main>/.test(html)) die('template has no <main> block')
-  return html.replace(/<main>[\s\S]*<\/main>/, main).replace(/<title>[^<]*<\/title>/, `<title>Alex Rivera ${fixture.startsWith('cover') ? 'Cover Letter' : 'Resume'}</title>`)
+  const kind = fixture.startsWith('cover') ? 'Cover Letter' : /^(academic|europass)/.test(fixture) ? 'CV' : 'Resume'
+  return html.replace(/<main>[\s\S]*<\/main>/, main).replace(/<title>[^<]*<\/title>/, `<title>Alex Rivera ${kind}</title>`).replace(/--cv-name: "[^"]*"/, '--cv-name: "Alex Rivera"')
 }
 function runAsync(cmd, argv, opts) {
   return new Promise(resolve => { const p = spawn(cmd, argv, opts); let out = ''; p.stdout.on('data', d => out += d); p.stderr.on('data', d => out += d); p.on('close', code => resolve({ code, out })) })
@@ -425,7 +438,18 @@ async function docs(ws) {
       combos.push({ kind: 'resume', layout: l, density, paper, theme: 'default', src: path.join(dir, `resume-${l}.html`) })
       combos.push({ kind: 'cover-letter', layout: l, density, paper, theme: 'default', src: path.join(dir, `cover-letter-${l}.html`) })
     }
-    for (const l of ['sidebar', 'headline']) combos.push({ kind: 'designed', layout: l, density, paper, theme: 'default', src: path.join(dir, `designed-${l}.html`) })
+    for (const l of ['sidebar', 'headline', 'portrait']) combos.push({ kind: 'designed', layout: l, density, paper, theme: 'default', src: path.join(dir, `designed-${l}.html`) })
+  }
+  // The academic CV, US federal resume and Europass-style CV (no layouts), each density on both papers; and the
+  // designed portrait layout with a (placeholder) photo, which ships off.
+  for (const density of ['compact', 'standard', 'roomy']) for (const paper of ['Letter', 'A4']) {
+    const dir = path.join(prev, `extra-${density}-${paper}`)
+    applyTheme(ws, ['--preview', dir, '--layouts', 'academic-cv,federal-resume,europass-cv', '--design', designFile(ws, `docs-extra-${density}-${paper}`, { docs: { density, paper, accent: '#1f3a5f' } })])
+    for (const k of ['academic-cv', 'federal-resume', 'europass-cv']) combos.push({ kind: k, layout: 'single', density, paper, theme: 'default', src: path.join(dir, `${k}.html`) })
+  }
+  {
+    const dir = path.join(prev, 'default-standard-Letter')
+    combos.push({ kind: 'designed', layout: 'portrait', density: 'standard', paper: 'Letter', theme: 'default', photo: true, src: path.join(dir, 'designed-portrait.html'), extra: true })
   }
   // Every font on the ATS-safe list (the Google ones load as web fonts), classic layout, standard, Letter.
   for (const font of ['Helvetica', 'Calibri', 'Cambria', 'Georgia', 'Times New Roman', 'Garamond', 'Lato', 'Source Sans 3', 'Roboto', 'Open Sans']) {
@@ -437,17 +461,20 @@ async function docs(ws) {
   for (const theme of THEMES.filter(t => t !== 'default')) {
     const dir = path.join(prev, `${theme}-standard-Letter`)
     applyTheme(ws, ['--preview', dir, '--layouts', 'designed', ...themeArgs(ws, theme)])
-    for (const l of ['sidebar', 'headline']) combos.push({ kind: 'designed', layout: l, density: 'standard', paper: 'Letter', theme, src: path.join(dir, `designed-${l}.html`), extra: true })
+    for (const l of ['sidebar', 'headline', 'portrait']) combos.push({ kind: 'designed', layout: l, density: 'standard', paper: 'Letter', theme, src: path.join(dir, `designed-${l}.html`), extra: true })
   }
-  const fixture = { resume: 'resume-main.html', 'cover-letter': 'cover-letter-main.html', designed: 'designed-main.html' }
-  const fname = { resume: 'resume.html', 'cover-letter': 'cover-letter.html', designed: 'resume-designed.html' }
+  const fixture = { resume: 'resume-main.html', 'cover-letter': 'cover-letter-main.html', designed: 'designed-main.html', 'academic-cv': 'academic-main.html', 'federal-resume': 'federal-main.html', 'europass-cv': 'europass-main.html' }
+  const fname = { resume: 'resume.html', 'cover-letter': 'cover-letter.html', designed: 'resume-designed.html', 'academic-cv': 'cv.html', 'federal-resume': 'resume.html', 'europass-cv': 'cv.html' }
+  // Page limits: one page, except the federal resume (OPM: two at most) and the academic CV (no limit; the fixture
+  // runs to two or three).
+  const maxPages = { 'federal-resume': 2, 'academic-cv': 4 }
   const makePdf = path.join(ws, '.claude/skills/tailor-resume/scripts/make-pdf.sh')
   await pool(combos, Math.min(JOBS, 4), async c => {
-    c.id = `${c.kind}-${c.layout}-${c.density}-${c.paper}${c.theme !== 'default' ? '-' + c.theme : ''}${c.font ? '-' + c.font : ''}`
+    c.id = `${c.kind}-${c.layout}-${c.density}-${c.paper}${c.theme !== 'default' ? '-' + c.theme : ''}${c.font ? '-' + c.font : ''}${c.photo ? '-photo' : ''}`
     const dir = path.join(ws, 'jobs', `visual-${c.id}`)
     fs.mkdirSync(dir, { recursive: true })
     const file = path.join(dir, fname[c.kind])
-    fs.writeFileSync(file, fillMain(fs.readFileSync(c.src, 'utf8'), fixture[c.kind]))
+    fs.writeFileSync(file, fillMain(fs.readFileSync(c.src, 'utf8'), c.photo ? 'designed-photo-main.html' : fixture[c.kind]))
     const r = await runAsync('bash', [makePdf, file, 'Alex Rivera', 'Acme'], { cwd: ws })
     const line = k => (new RegExp(`^${k}: (.*)$`, 'm').exec(r.out) || [])[1]
     const pdf = line('pdf')
@@ -462,7 +489,10 @@ async function docs(ws) {
     if (!pdf) fail(`doc ${c.id}`, `make-pdf did not produce a PDF: ${r.out.trim().split('\n').slice(0, 3).join(' | ')}`)
     else {
       if (d.paperOut !== c.paper) fail(`doc ${c.id}`, `paper ${d.paperOut}, wanted ${c.paper}`)
-      if (d.pages !== 1) fail(`doc ${c.id}`, `${d.pages} pages, wanted 1`)
+      const limit = maxPages[c.kind] || 1
+      if (d.pages < 1 || d.pages > limit) fail(`doc ${c.id}`, `${d.pages} pages, wanted ${limit === 1 ? '1' : 'at most ' + limit}`)
+      if (c.photo && !d.out.some(l => l.startsWith('photo-note:'))) fail(`doc ${c.id}`, 'make-pdf printed no photo-note for a document with a photo')
+      if (!c.photo && d.out.some(l => l.startsWith('photo-note:'))) fail(`doc ${c.id}`, 'make-pdf printed a photo-note for a document without a photo')
       if (!/^ok/.test(d.parse) && HAVE.bash) fail(`doc ${c.id}`, `parse: ${d.parse}`)
       if (d.info && d.info.tagged && d.info.tagged !== 'yes') fail(`doc ${c.id}`, 'PDF is not tagged')
       if (d.structure && (!d.structure.marked || !d.structure.lang || !d.structure.headingTags.includes('H1') || (c.kind !== 'cover-letter' && d.structure.headingTags.filter(t => t === 'H2').length < 3))) fail(`doc ${c.id}`, `PDF tags incomplete: ${JSON.stringify({ marked: d.structure.marked, lang: d.structure.lang, headings: d.structure.headingTags })}`)

@@ -96,6 +96,27 @@ export const PRESETS = {
     fonts: { heading: 'Lexend', body: 'Lexend', mono: 'Source Code Pro' },
     baseSize: 112.5, density: 'comfortable', radius: 8, motion: 'reduced',
   },
+  editorial: {
+    label: 'Editorial', accentName: 'plum',
+    blurb: 'A warm editorial look: Fraunces headings over Source Serif 4 text on warm paper tones, a deep plum accent, small corners.',
+    spec: { ...DEFAULT_SPEC, hues: { accent: 335, accentDark: 335, neutral: 70, ...STATUS }, solid: { ...DEFAULT_SPEC.solid, accent: [0.46, 0.58] }, accentVivid: 0.62, neutralTint: 1.9 },
+    fonts: { heading: 'Fraunces', body: 'Source Serif 4', mono: 'Source Code Pro' },
+    baseSize: 100, density: 'comfortable', radius: 6, motion: 'full',
+  },
+  calm: {
+    label: 'Calm', accentName: 'periwinkle',
+    blurb: 'A calm pastel look: soft blue-gray backgrounds, a muted periwinkle accent, rounded corners, roomy spacing, DM Sans throughout, gentle motion.',
+    spec: { ...DEFAULT_SPEC, hues: { accent: 268, accentDark: 268, neutral: 255, ...STATUS }, solid: { ...DEFAULT_SPEC.solid, accent: [0.52, 0.57] }, accentVivid: 0.48, neutralTint: 1.7 },
+    fonts: { heading: 'DM Sans', body: 'DM Sans', mono: 'Source Code Pro' },
+    baseSize: 100, density: 'spacious', radius: 16, motion: 'reduced',
+  },
+  bold: {
+    label: 'Bold', accentName: 'magenta',
+    blurb: 'A bold creative look: Space Grotesk headings over Work Sans, a vivid magenta accent on cool near-neutral grays, sharp corners.',
+    spec: { ...DEFAULT_SPEC, hues: { accent: 350, accentDark: 350, neutral: 290, ...STATUS }, solid: { ...DEFAULT_SPEC.solid, accent: [0.52, 0.59] }, accentVivid: 1, neutralTint: 0.6 },
+    fonts: { heading: 'Space Grotesk', body: 'Work Sans', mono: 'JetBrains Mono' },
+    baseSize: 100, density: 'comfortable', radius: 2, motion: 'full',
+  },
 }
 export const PRESET_NAMES = Object.keys(PRESETS)
 
@@ -103,12 +124,12 @@ export const PRESET_NAMES = Object.keys(PRESETS)
 // One file per page; the layout is the data-layout attribute on its <html> tag. First value = default.
 // key: [block in design.md, values, the files it applies to (basename; briefs also live in jobs/*/)]
 export const LAYOUTS = {
-  layout_dashboard: { block: 'design', values: ['overview', 'board'], files: ['dashboard.html'], page: 'dashboard' },
-  layout_flashcards: { block: 'design', values: ['flip', 'list'], files: ['flashcards.html'], page: 'flashcards' },
+  layout_dashboard: { block: 'design', values: ['overview', 'board', 'timeline'], files: ['dashboard.html'], page: 'dashboard' },
+  layout_flashcards: { block: 'design', values: ['flip', 'list', 'cards'], files: ['flashcards.html'], page: 'flashcards' },
   layout_brief: { block: 'design', values: ['sheet', 'detailed'], files: ['interview-brief.html'], page: 'brief' },
-  layout_portfolio: { block: 'design', values: ['profile', 'editorial', 'bento'], files: ['portfolio.html'], page: 'portfolio' },
+  layout_portfolio: { block: 'design', values: ['profile', 'editorial', 'bento', 'column'], files: ['portfolio.html'], page: 'portfolio' },
   layout_resume: { block: 'documents', values: ['classic', 'modern', 'compact'], files: ['resume-template.html', 'cover-letter-template.html'], page: 'resume' },
-  layout_designed: { block: 'documents', values: ['sidebar', 'headline'], files: ['resume-designed-template.html'], page: 'designed' },
+  layout_designed: { block: 'documents', values: ['sidebar', 'headline', 'portrait'], files: ['resume-designed-template.html'], page: 'designed' },
 }
 export const DEFAULT_LAYOUTS = Object.fromEntries(Object.entries(LAYOUTS).map(([k, v]) => [k, v.values[0]]))
 // The layout value for a file (by its name), or null when the file has no layouts.
@@ -141,6 +162,42 @@ export function parseDesign(text) {
 }
 
 const hueDist = (a, b) => { const d = Math.abs(((a - b) % 360) + 360) % 360; return Math.min(d, 360 - d) }
+
+// ---- Status colors vs the accent -----------------------------------------------------------------------------------
+// A brand accent near red (or amber, or green) made accent chips ("In 2 days") read like status chips ("1 day late").
+// The measure is the OKLab difference (x100) between the accent's text color and the status text color in light mode
+// (step 11, what chips and links are written in); the default teal vs its green is about 8, clearly different hues.
+// Each status hue may move only inside its family band, to the nearest hue (from its preset value) that reaches
+// STATUS_MIN_DE, keeping at least 15 degrees from the accent; when no hue in the band gets there, the one that differs most.
+export const STATUS_BAND = { danger: [0, 40], warning: [55, 100], success: [125, 165] }
+export const STATUS_MIN_DE = 8
+const STATUS_WORD = { danger: '"problem" red', warning: '"warning" amber', success: '"good" green' }
+function oklab(x) { const [L, C, h] = hexToOklch(x); return [L, C * Math.cos(h * Math.PI / 180), C * Math.sin(h * Math.PI / 180)] }
+export function deltaE(a, b) { const p = oklab(a), q = oklab(b); return 100 * Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]) }
+// How different each status text color is from the accent text color, light and dark (for --print and the fixtures).
+export function statusDistance(R) {
+  const out = {}
+  for (const k of ['danger', 'warning', 'success']) out[k] = { light: deltaE(R.light.accent[10], R.light[k][10]), dark: deltaE(R.dark.accent[10], R.dark[k][10]) }
+  return out
+}
+function separateStatus(spec, k) {
+  const accents = [...new Set([spec.hues.accent, spec.hues.accentDark])]
+  const de = h => { const R = buildRamps({ ...spec, hues: { ...spec.hues, [k]: h } }); return deltaE(R.light.accent[10], R.light[k][10]) }
+  const okHue = h => accents.every(a => hueDist(h, a) >= 15)
+  const start = spec.hues[k]
+  const now = de(start)
+  if (now >= STATUS_MIN_DE && okHue(start)) return { moved: false, de: now }
+  const [lo, hi] = STATUS_BAND[k]
+  const cands = []
+  for (let h = lo; h <= hi; h++) if (okHue(h)) cands.push(h)
+  cands.sort((a, b) => hueDist(a, start) - hueDist(b, start) || a - b)
+  let best = null
+  for (const h of cands) { const d = de(h); if (d >= STATUS_MIN_DE) { best = { h, d }; break } if (!best || d > best.d + 1e-9) best = { h, d } }
+  if (!best) return { moved: false, de: now }
+  if (best.d <= now && okHue(start)) return { moved: false, de: now }
+  spec.hues[k] = round3(best.h)
+  return { moved: true, de: best.d }
+}
 const round3 = x => Math.round(x * 1000) / 1000
 
 // Resolve design.md values (or a preset name) into everything the generators need.
@@ -202,17 +259,12 @@ export function resolveTheme(parsed = {}, { preset: forcePreset } = {}) {
       else { spec.neutralTint = round3(Math.min(2.5, o[1] / 0.008)); if (o[1] > 0.002) spec.hues.neutral = round3(o[2]) }
     }
   }
-  // Keep every status hue at least 15° from the accent (or "danger" reads like the main button).
-  for (const k of ['success', 'warning', 'danger']) {
-    for (const acc of new Set([spec.hues.accent, spec.hues.accentDark])) {
-      if (spec.accentVivid < 0.2) continue // a near-gray accent can't be confused with a status color
-      const dist = hueDist(spec.hues[k], acc)
-      if (dist < 15) {
-        const dir = (((spec.hues[k] - acc) % 360) + 540) % 360 - 180 >= 0 ? 1 : -1
-        const before = spec.hues[k]
-        spec.hues[k] = round3((((acc + dir * 15) % 360) + 360) % 360)
-        notes.push(`Moved the ${k === 'danger' ? '"problem" red' : k === 'warning' ? '"warning" amber' : '"good" green'} a little (hue ${Math.round(before)}° → ${Math.round(spec.hues[k])}°) so it doesn't look like your accent.`)
-      }
+  // Status colors keep their meaning beside the accent: each status hue stays inside its own family (red, amber, green)
+  // and moves, the least it can, until its text color is clearly unlike the accent's (measured, see separateStatus).
+  if (spec.accentVivid >= 0.2) { // a near-gray accent can't be confused with a status color
+    for (const k of ['danger', 'warning', 'success']) {
+      const before = spec.hues[k], r = separateStatus(spec, k)
+      if (r.moved) notes.push(`Moved the ${STATUS_WORD[k]} a little (hue ${Math.round(before)}° → ${Math.round(spec.hues[k])}°) so it doesn't look like your accent (difference ${r.de.toFixed(1)}${r.de < STATUS_MIN_DE ? ', the most its color family allows; status chips always carry a word and an icon too' : ''}).`)
     }
   }
 

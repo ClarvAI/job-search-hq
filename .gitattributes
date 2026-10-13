@@ -6,3 +6,8 @@
 product-manifest.json text eol=lf
 *.pdf binary
 *.zip binary
+*.woff2 binary
+*.woff binary
+*.ttf binary
+*.png binary
+*.jpg binary

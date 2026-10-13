@@ -304,6 +304,9 @@ if (args.includes('--publish-copy')) {
   const layout = (/<html\b[^>]*\bdata-layout="([a-z-]+)"/i.exec(body) || [])[1] || ''
   body = body.replace(/^\s*<!doctype html>[^\n]*\n/i, '').replace(/^\s*<html\b[^>]*>[^\n]*\n/i, '').replace(/^\s*<meta charset[^>]*>[^\n]*\n/i, '').replace(/^\s*<meta name="viewport"[^>]*>[^\n]*\n/i, '').replace(/<\/html>\s*$/i, '\n')
   if (layout) body = `<script>document.documentElement.dataset.layout = "${layout}"</script>\n` + body
+  // The relative templates/assets/ files aren't there in a published copy: use the pinned CDN files (with their
+  // integrity hashes) and Google Fonts, which claude.ai artifacts allow.
+  try { body = (await import(new URL('../../page-design/assets.mjs', import.meta.url))).toCdn(body) } catch { /* page-design missing: keep the lines as they are (they fall back to the CDN by themselves) */ }
   const dest = join(ROOT, 'pages', '.publish')
   mkdirSync(dest, { recursive: true })
   writeFileSync(join(dest, 'dashboard.html'), body)
