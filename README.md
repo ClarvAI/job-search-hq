@@ -193,7 +193,7 @@ The main protection is that the assistant drafts and you send. Under the assista
 - sending an automated browser to Gmail, Outlook or LinkedIn, including through short links or a script run on the page;
 - sending mail from the computer itself (the Mail app, Outlook, mail commands) or opening Gmail, Outlook or LinkedIn from a command;
 - in Claude, web addresses that look like they carry your email, phone, name or large blocks of data (a pattern check that can't catch every disguise);
-- pushing this folder to a public GitHub repository, creating or uploading to a public repository, release or gist, or making one public, including through git aliases, remote changes in the same command, or text piped into a shell.
+- pushing this folder to a public GitHub repository, creating or uploading to a public repository, release or gist, or making one public, including through git aliases, saved address rewrites, remote or settings changes in the same command, a script started with `bash -c` or PowerShell's `-Command`, or text piped into a shell. A push from a folder it can't find is blocked too.
 
 In Claude, the main email and calendar actions (send, reply, forward, delete, respond, change) are also switched off in the folder's permission settings, so they stay blocked even if the check can't run. If the check crashes or is missing, the action is blocked. If it takes too long (30 seconds): Claude Code 2.1.295 or later blocks the action, older versions and Codex let it go ahead.
 
