@@ -32,6 +32,7 @@ step "guard fixtures (bash)" bash "$HERE/guard-fixtures.sh" --impl sh
 step "my-data smoke (bash)" bash "$HERE/mydata-smoke.sh" --impl sh
 step "startup summary (bash)" bash "$HERE/summary-fixtures.sh" --impl sh
 step "health check fixtures (bash)" bash "$HERE/health-fixtures.sh" --impl sh
+step "Manual-mode notice hook" bash "$HERE/mode-notice-fixtures.sh"
 if [ -n "$PY" ]; then
   step "e2e: fresh clone and first run (bash)" "$PY" "$HERE/e2e-fresh.py" --impl sh
   step "e2e: /update install, check, rollback, refusals (bash)" "$PY" "$HERE/e2e-update.py" --impl sh

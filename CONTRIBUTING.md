@@ -34,6 +34,7 @@ CI (`.github/workflows/ci.yml`) runs the same scripts on every push and pull req
 | PowerShell scripts parse | `scripts/ci/parse-powershell.ps1` |
 | `/my-data` backup and reset work | `scripts/ci/mydata-smoke.sh` |
 | `/health` runs on a fresh checkout | the health step in `ci.yml` |
+| The Manual-mode notice (Claude's prompt hook) speaks once per session in Manual mode, stays silent in every other mode and on bad input, and never blocks | `scripts/ci/mode-notice-fixtures.sh` |
 | Claude Code panels validate and their tests pass | `scripts/ci/check-mods.sh` |
 | A fresh clone has no user data, and first run, the startup hook and `/health` work on it | `scripts/ci/e2e-fresh.py` |
 | `/update` installs, checks, rolls back, keeps user files and edited app files, and refuses bad releases | `scripts/ci/e2e-update.py` |

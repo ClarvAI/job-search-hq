@@ -551,7 +551,10 @@ def start_check(c, t, ws, ctx):
                                                        json.dumps(a["input"]))]
         c.ok("the project's ask rule fired for profile edits (a permission box would have shown)",
              asked, [a["tool"] for a in t.approvals][:10])
-        c.note("permission boxes for profile edits (master resume and preferences)", len(asked))
+        # The start skill makes three saves to these files (master resume in section 1, preferences at
+        # the end of sections 3 and 6), each one edit, so a full setup should show about 3 boxes; more
+        # means the assistant split a save into several edits.
+        c.note("permission boxes for profile edits (master resume and preferences; expect about 3)", len(asked))
     q = [turn_["final"].count("?") for turn_ in t.turns]
     c.note("questions per assistant turn", q)
     if ctx.get("withheld"):

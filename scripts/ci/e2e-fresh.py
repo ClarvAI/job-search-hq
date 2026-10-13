@@ -650,6 +650,38 @@ def crlf_clone(parent, name="Job Search HQ"):
     return dest
 
 
+def check_mode_notice_wired(r, ws, tag):
+    """Claude's UserPromptSubmit hook, run exactly as .claude/settings.json writes it: tells a Manual-mode
+    session once, stays quiet on its next prompt and in auto mode, and never blocks (exit 0).
+    Run on the working-tree copy, so it covers uncommitted wiring too (in CI that copy is HEAD)."""
+    w, err = parse_wiring(ws)
+    cmd = first_cmd(w, w["settings"], "UserPromptSubmit") if w else ""
+    if not find_bash():
+        skip("%s: Manual-mode notice hook as wired" % tag, "no bash here")
+        return
+    env = {"CLAUDE_PROJECT_DIR": bp(ws)}
+
+    def prompt(sid, mode):
+        data = json.dumps({"session_id": sid, "permission_mode": mode, "hook_event_name": "UserPromptSubmit",
+                           "prompt": "what should I do today?"}).encode("utf-8")
+        return run([find_bash(), "-c", cmd], cwd=os.path.dirname(ws), env=env, input_text=data)
+    rc1, o1 = prompt("e2e-mode-1", "default") if cmd else (1, err or "no UserPromptSubmit hook in settings.json")
+    rc2, o2 = prompt("e2e-mode-1", "default") if cmd else (1, "")
+    rc3, o3 = prompt("e2e-mode-2", "auto") if cmd else (1, "")
+    ctx = ""
+    try:
+        h = json.loads(o1)["hookSpecificOutput"]
+        ctx = h["additionalContext"] if h.get("hookEventName") == "UserPromptSubmit" else ""
+    except (ValueError, KeyError, TypeError):
+        pass
+    r.ok("%s: Claude's Manual-mode notice hook, run as wired, speaks once per session, not in auto mode, "
+         "and exits 0" % tag,
+         "mode-notice.sh" in cmd and rc1 == 0 and "Shift+Tab" in ctx and rc2 == 0 and not o2.strip()
+         and rc3 == 0 and not o3.strip(),
+         "command: %s\nfirst (exit %d): %s\nsecond (exit %d): %s\nauto (exit %d): %s"
+         % (cmd, rc1, o1[-600:], rc2, o2[-300:], rc3, o3[-300:]))
+
+
 def pass_clone(r, base, impl, shared):
     tag = "clone/" + impl
     r.section("Fresh git clone of HEAD, first run by init-data (%s)" % impl)
@@ -749,6 +781,8 @@ def pass_worktree(r, base, impl, shared):
     ws2 = make_workspace(mk(base, "tree-b"))
     check_session_start(r, ws2, impl, tag, full=False)
     check_health_after(r, ws2, impl, tag, full=False, sid="e2e-fresh-" + impl)
+    if shared:   # last: it leaves its marker in .claude/.health, which the checks above must not see
+        check_mode_notice_wired(r, ws, "worktree")
 
 
 def main():

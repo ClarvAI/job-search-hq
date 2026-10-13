@@ -73,6 +73,8 @@ jobs:
         run: |
           bash scripts/ci/health-fixtures.sh --impl sh
           bash scripts/ci/health-fixtures.sh --impl ps
+      - name: Manual-mode notice hook (mode-notice.sh)
+        run: bash scripts/ci/mode-notice-fixtures.sh
       - name: Health check runs on a fresh checkout
         run: |
           out="$(bash .claude/skills/health/scripts/health.sh)"
@@ -153,6 +155,8 @@ jobs:
         run: /bin/bash scripts/ci/summary-fixtures.sh --impl sh
       - name: Health check fixtures with /bin/bash 3.2
         run: /bin/bash scripts/ci/health-fixtures.sh --impl sh
+      - name: Manual-mode notice hook with /bin/bash 3.2
+        run: /bin/bash scripts/ci/mode-notice-fixtures.sh
       - name: Health check with /bin/bash 3.2
         run: |
           out="$(/bin/bash .claude/skills/health/scripts/health.sh)"
@@ -239,6 +243,9 @@ jobs:
         run: |
           bash scripts/ci/health-fixtures.sh --impl sh
           bash scripts/ci/health-fixtures.sh --impl ps
+      - name: Manual-mode notice hook (Git Bash)
+        shell: bash
+        run: bash scripts/ci/mode-notice-fixtures.sh
       - name: Health check (Windows PowerShell 5.1)
         shell: powershell
         run: |
