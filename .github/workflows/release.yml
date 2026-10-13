@@ -1,0 +1,59 @@
+# Builds the release zip when the maintainer pushes a version tag (v1.0.0) and attaches it, with its
+# SHA-256, to a DRAFT GitHub Release. Nothing is published until the maintainer reviews the draft and
+# presses Publish. The zip holds exactly the files in product-manifest.json (no tests, CI or maintainer notes).
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build the release zip (draft release)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: The tag matches VERSION, and the changelog has a dated entry for it
+        run: |
+          v="$(sed -n 's/^version:[[:space:]]*//p' VERSION | tr -d '\r' | head -1)"
+          [ "v$v" = "$GITHUB_REF_NAME" ] || { echo "tag $GITHUB_REF_NAME does not match VERSION ($v)"; exit 1; }
+          grep -q "^## $v " CHANGELOG.md || { echo "CHANGELOG.md has no '## $v' heading"; exit 1; }
+          if grep -q "^## $v (not yet released)" CHANGELOG.md; then echo "date the $v entry in CHANGELOG.md first"; exit 1; fi
+          if grep -q "^update_source: set by the maintainer" VERSION; then echo "set update_source in VERSION first"; exit 1; fi
+          echo "VERSION_NUMBER=$v" >> "$GITHUB_ENV"
+      - name: The product manifest is current
+        run: bash scripts/build-manifest.sh --check
+      - name: Skill and rule parity
+        run: bash scripts/ci/check-parity.sh
+      - name: Build the zip and its SHA-256
+        run: |
+          zip="job-search-hq-$VERSION_NUMBER.zip"
+          bash scripts/build-manifest.sh --check --zip "$zip"
+          # Also under a fixed name, so update_source can point at .../releases/latest/download/job-search-hq.zip.
+          cp "$zip" job-search-hq.zip
+          sha256sum "$zip" job-search-hq.zip > "$zip.sha256"
+          cat "$zip.sha256"
+      - name: Release notes from the changelog entry
+        run: |
+          awk -v v="$VERSION_NUMBER" '
+            index($0, "## " v " ") == 1 { on = 1; next }
+            on && /^## / { exit }
+            on { print }
+          ' CHANGELOG.md > notes.md
+          [ -s notes.md ] || { echo "empty changelog entry for $VERSION_NUMBER"; exit 1; }
+      - name: Draft release with the zip attached
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          zip="job-search-hq-$VERSION_NUMBER.zip"
+          gh release create "$GITHUB_REF_NAME" "$zip" job-search-hq.zip "$zip.sha256" --draft --verify-tag \
+            --title "Job Search HQ $VERSION_NUMBER" --notes-file notes.md

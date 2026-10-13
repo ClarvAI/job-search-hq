@@ -235,7 +235,7 @@ What was checked, the known limits, and how to report a barrier: **[docs/accessi
 
 ## Contributing
 
-Ideas, bug reports and fixes are welcome. Open an issue in the source repository (please leave out your personal details; the templates say how). How to change, test and release the app is in [CONTRIBUTING.md](CONTRIBUTING.md) (in the source repository; it isn't part of the release zip).
+Ideas, bug reports and fixes are welcome. Open an issue in the source repository (please leave out your personal details; the templates say how), and follow the [code of conduct](CODE_OF_CONDUCT.md). How to change, test and release the app is in [CONTRIBUTING.md](CONTRIBUTING.md) (in the source repository; it isn't part of the release zip).
 
 ## License and fine print
 
