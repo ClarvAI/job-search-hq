@@ -178,12 +178,13 @@ fi
 
 # ---- 6. Script line endings (Windows line endings break bash scripts) ----
 # Every bash script the app runs: hooks, the git hook, skill scripts and maintenance scripts.
-crlf=""; cr="$(printf '\r')"
+crlf=""
 shfiles="$(find .claude/hooks .claude/skills scripts -name '*.sh' -type f 2>/dev/null)"
 oldifs="$IFS"; IFS='
 '
 for f in $shfiles .githooks/pre-push .githooks/commit-msg; do
-  [ -f "$f" ] && LC_ALL=C grep -q "$cr" "$f" && crlf="${crlf:+$crlf, }$f"
+  # Count carriage returns with tr: Git for Windows' grep drops them before matching, so it never finds one.
+  [ -f "$f" ] && [ "$(LC_ALL=C tr -dc '\r' < "$f" | wc -c | tr -d ' ')" -gt 0 ] && crlf="${crlf:+$crlf, }$f"
 done
 IFS="$oldifs"
 if [ -n "$crlf" ]; then

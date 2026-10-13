@@ -103,6 +103,34 @@ for c in python3 python; do
   if [ "$p" = /usr/bin/python3 ] && [ "$(uname -s)" = Darwin ] && ! xcode-select -p >/dev/null 2>&1; then continue; fi
   "$c" -c 1 >/dev/null 2>&1 && { py="$c"; break; }   # -c 1: also skips the Windows Store stub
 done
+# Python version: every file and folder under $name, links left out, every non-ASCII name flagged UTF-8 (0x800).
+# Python 3.9's own "zipfile -c" (the Mac's built-in Python) leaves that flag off folder entries.
+py_zip='import os, sys, zipfile
+out, top = sys.argv[1], sys.argv[2]
+def add(z, path, arc, folder):
+    zi = zipfile.ZipInfo.from_file(path, arc)
+    if any(ord(c) > 127 for c in arc):
+        zi.flag_bits |= 0x800
+    if folder:
+        z.writestr(zi, b"")
+        return
+    zi.compress_type = zipfile.ZIP_DEFLATED
+    with open(path, "rb") as f, z.open(zi, "w") as w:
+        while True:
+            b = f.read(1048576)
+            if not b:
+                break
+            w.write(b)
+with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
+    for d, dirs, files in os.walk(top):
+        dirs.sort()
+        if not os.path.islink(d):
+            add(z, d, d.replace(os.sep, "/") + "/", True)
+        for n in sorted(files):
+            p = os.path.join(d, n)
+            if not os.path.islink(p):
+                add(z, p, p.replace(os.sep, "/"), False)
+'
 # Perl version: every file and folder under $name, links left out, names flagged UTF-8 (Efs), read in 1 MB chunks.
 # (No single quotes inside: it is one shell argument.)
 # shellcheck disable=SC2016  # Perl code, not shell
@@ -122,7 +150,7 @@ for my $p (sort @items) {
 }
 $z->close or die "zip: $ZipError\n";'
 if [ -n "$py" ]; then
-  (cd "$tmp" && "$py" -I -m zipfile -c "$out" "$name") || die "zip failed"
+  (cd "$tmp" && "$py" -I -c "$py_zip" "$out" "$name") || die "zip failed"
 elif command -v perl >/dev/null 2>&1 && perl -MIO::Compress::Zip -e 1 >/dev/null 2>&1; then
   (cd "$tmp" && perl -e "$perl_zip" "$out" "$name") || die "zip failed"
 elif command -v zip >/dev/null 2>&1; then

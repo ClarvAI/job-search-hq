@@ -114,7 +114,7 @@ merge_log() {  # the backup's log, then the lines here that it doesn't have
 }
 
 n_rest=0; n_rep=0; n_merge=0; n_diff=0
-cr="$(printf '\r')"; nl='
+cr=$'\r'; nl='
 '
 while IFS= read -r -d '' r; do
   [ -n "$r" ] || continue
