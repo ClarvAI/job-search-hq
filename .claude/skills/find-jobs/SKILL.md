@@ -34,3 +34,10 @@ Focus: `$ARGUMENTS` (blank = their preferences).
    `A | Acme Corp | Operations Analyst | Austin TX | posted 3 days ago | why it fits in 6 words`
    Mark anything that looks like a scam or a staffing-agency repost. Then the next step in one line: in Claude Code, "They're in your Job Inbox: type `/job-inbox` to save, skip, or pass on each one." In Codex (or if the panel isn't available), use the `job-inbox` skill in chat: "Tell me which to save, e.g. save 1, 3; skip 2." If the user asks how often to search: two or three short searches a week beat one long one, because early applicants get the closest look (daily while a campus, graduate-program or government intake window is open).
 6. When the user saves leads (a `[Job Inbox]` note from the panel, or they tell you), run **`/add-job`** with those links (it saves each posting with its deadline, job ID and apply link, scores it, preps packages for strong fits, and sets the lead's status to `added`).
+
+## Scheduled mode (the morning scan routine)
+
+When the instructions say scheduled mode, first read `.claude/skills/routines/references/scheduled-mode.md` and follow it; it overrides any step above that needs the user.
+- Steps 1 to 4 as above with the saved preferences only: one `job-scout` call, up to 10 results, no follow-up searches. Skip the offers and questions (building `target-employers.md`, updating preferences from a pattern, the search-firm note, the kind of search when it's unclear); list the ones that came up.
+- Write only new rows in `jobs/leads.csv` (`status` = `new`, de-duplicated exactly as in step 1). Leave `target-employers.md` alone (board tokens wait for a run with the user), never run `/add-job`, and never touch `jobs/tracker.csv`.
+- Log: `morning scan · <N> new leads (Job Inbox)`, or `morning scan · nothing new`. Summary: the count, the best one or two (company and role), any possible scam or former-employer opening, and "sort them in the Job Inbox".

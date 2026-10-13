@@ -43,6 +43,28 @@ brief() {
   for x in jobs/*.xlsx jobs/*.xls; do [ -f "$x" ] && [ "$x" -nt jobs/tracker.csv ] && echo "The user saved $x after jobs/tracker.csv; their newest edits may be in that file. Ask before changing the tracker, and offer to copy them in."; done
   bash .claude/hooks/summary.sh long 2>/dev/null
   echo "Autonomy: $(sed -n 's/^autonomy:[[:space:]]*\([a-z-]*\).*/\1/p' profile/preferences.md 2>/dev/null | head -1). Outbox mode: $(sed -n 's/^outbox_mode:[[:space:]]*\([a-z-]*\).*/\1/p' profile/preferences.md 2>/dev/null | head -1)."
+  # Scheduled routines (the routines skill) log "- YYYY-MM-DD HH:MM · <routine> · <result>" to history/routines.md:
+  # the latest line of each routine from the last 24 hours, at most 4 routines, oldest first.
+  if [ -f history/routines.md ]; then
+    ago=$(( $(date +%s) - 86400 ))
+    cutoff="$(date -d "@$ago" '+%Y-%m-%d %H:%M' 2>/dev/null || date -r "$ago" '+%Y-%m-%d %H:%M' 2>/dev/null)"
+    runs="$(LC_ALL=C awk -v cutoff="$cutoff" -v sep=' · ' -v bom="$(printf '\357\273\277')" '
+      function trim(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
+      { sub(/\r$/, ""); if (NR == 1 && index($0, bom) == 1) $0 = substr($0, length(bom) + 1) }
+      /^- [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] [0-9][0-9]:[0-9][0-9]( |$)/ {
+        ts = substr($0, 3, 16); if (cutoff == "" || ts < cutoff) next
+        rest = trim(substr($0, 19)); if (index(rest, trim(sep)) == 1) rest = trim(substr(rest, length(trim(sep)) + 1))
+        i = index(rest, sep); nm = trim(i ? substr(rest, 1, i - 1) : rest); rs = trim(i ? substr(rest, i + length(sep)) : "")
+        if (nm == "") next
+        n++; NM[n] = nm; RT[n] = rs; TM[n] = substr(ts, 12, 5); K[n] = tolower(nm)
+      }
+      END {
+        for (i = n; i >= 1 && kept < 4; i--) if (!(K[i] in seen)) { seen[K[i]] = 1; keep[i] = 1; kept++ }
+        for (i = 1; i <= n; i++) if (i in keep) out = out (out == "" ? "" : "; ") NM[i] " (" TM[i] ")" (RT[i] != "" ? ": " RT[i] : "")
+        if (out != "") print out
+      }' history/routines.md 2>/dev/null)"
+    [ -n "$runs" ] && echo "Routine results from the last 24 hours (automatic runs; mention them in one line when the user first writes): $runs."
+  fi
   recent="$(grep -E '^- [0-9]{4}-' history/activity.md 2>/dev/null | tail -8)"
   if [ -n "$recent" ]; then
     echo "Recent activity (from either app; newest last):"

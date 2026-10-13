@@ -38,9 +38,11 @@ Each workflow is a skill (`.claude/skills/<name>/SKILL.md`; Codex finds them thr
 - Applying: `tailor-resume`, `cover-letter`, `apply`, `apply-kit`, `resume-review`, `linkedin`
 - People and mail: `network`, `follow-up`, `thank-you`, `contacts`, `outbox`, `sync-inbox`, `import-linkedin`, `career-fair`
 - Interviews and offers: `interview-prep`, `mock-interview`, `offer`
-- Other: `weekly-review`, `laid-off`, `work-search-log`, `pages` (looks: `page-design`, checked by `page-review`)
+- Other: `weekly-review`, `laid-off`, `work-search-log`, `routines` (automatic checks), `pages` (looks: `page-design`, checked by `page-review`)
 
 `outbox`, `pipeline`, `contacts`, `job-inbox` and `apply-kit` are also panels in Claude Code.
+
+A run in **scheduled mode** (a routine the user set up, with nobody there) asks nothing and only reads, drafts and tracks: `.claude/skills/routines/references/scheduled-mode.md`.
 
 ## How to work
 

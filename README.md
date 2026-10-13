@@ -29,12 +29,14 @@ Job Search HQ is a folder you download and open in an AI app: **Claude** (the Cl
 
 https://github.com/user-attachments/assets/d8f7bc63-ce08-40f8-b45c-4405b96cf07f
 
+<sub>Made with made-up sample data and a recreated version of the app, so real screens may look different. The panels are built on Claude Code mods, a new feature that may change.</sub>
+
 <details>
 <summary>Trailer transcript</summary>
 
 Looking for work is a second job. Job Search HQ keeps track of all of it. Every job, every next step, on a board that saves to a spreadsheet you own. It finds openings that fit you, and writes your resume from your real experience. Nothing made up. Applications go faster, with every answer ready to copy. It drafts your follow-ups. You send them. Practice interviews out loud, with a clock and a scorecard, and take your prep with you. Works in Claude or ChatGPT, in plain words. No coding. Job Search HQ. Try it with sample data first.
 
-The video shows a rebuilt version of the app with made-up sample data; the board, the panels and read-aloud interviews are in Claude, and Codex does the same in the chat.
+The board, the panels and read-aloud interviews are in Claude; Codex does the same in the chat.
 </details>
 
 ## What it does
@@ -120,6 +122,7 @@ Take the 10-minute **tour** first (`/tour` in Claude, `$tour` in Codex), then st
 | "I applied to Acme yesterday" | Updates your tracker and sets the next follow-up date |
 | "Show my board" or "show my outbox" | Your jobs by stage, or the drafts waiting for you |
 | "Back up my stuff" | A dated zip of everything |
+| "Set up automatic checks" | New jobs each morning, an inbox check or follow-up drafts on a schedule, on your own computer (opt-in; they only read, draft and track) |
 
 Every shortcut is listed in [the guide](docs/getting-started.md#what-you-can-do). Not sure what to ask? Type "I'm lost" or `/menu`.
 
@@ -240,6 +243,8 @@ Job Search HQ is free for personal use; the assistant runs on your own Claude or
 
 **Can it use my other connected apps?** If you've already connected them to Claude or Codex, yes, read only. Company data like PitchBook adds funding, headcount and leadership to "should I apply?", interview prep and startup offers; Google Drive can bring in your resume; meeting notes can feed a thank-you note (it asks first). It names the source of every figure, keeps licensed data out of anything you publish or send, and warns you if an app looks like your employer's account. None of them is needed.
 
+**Can it check for new jobs automatically?** Yes, if you want it to. Say **set up automatic checks** and it suggests one to three routines, such as a morning job scan on weekdays, a daily inbox check or a Friday review, and sets up only the ones you say yes to. They run on your own computer, in the Claude desktop app or the ChatGPT desktop app (Codex), while the app is open, and they only read, draft and track: new leads wait in your Job Inbox and drafts in your Outbox, and nothing is sent or submitted. Each run uses your plan like a short chat, so once a day is plenty. Steps: [the guide](docs/getting-started.md#automatic-checks-routines).
+
 **Will it apply to jobs for me?** No. It prepares everything and you submit. Mass applying and LinkedIn automation are left out on purpose: they get accounts banned and rarely work.
 
 ## Updating
@@ -258,7 +263,7 @@ Ideas, bug reports and fixes are welcome. Open an issue in the source repository
 
 ## License and fine print
 
-- [LICENSE](LICENSE): PolyForm Noncommercial 1.0.0. Free for your own job search and any other noncommercial use, and free for schools, career centers, charities and public bodies. You can change it and share it, as long as the license and its `Required Notice` line go with it. Selling it, building it into a paid product, or using it to serve paying clients (for example as a career coach) needs a commercial license from Sam Clarvit; ask through this repository. Because of that limit it is source-available rather than "open source".
+- [LICENSE](LICENSE): PolyForm Noncommercial 1.0.0. Free for your own job search and any other noncommercial use, and free for schools, career centers, charities and public bodies. You can change it and share it, as long as the license and its `Required Notice` line go with it. Selling it, building it into a paid product, or using it to serve paying clients (for example as a career coach) needs a commercial license from Sam Clarvit; ask in this repository's [Discussions](https://github.com/ClarvAI/job-search-hq/discussions). Because of that limit it is source-available rather than "open source".
 - [DISCLAIMER.md](DISCLAIMER.md): not professional advice; AI output can be wrong; you're responsible for what you send.
 - [SECURITY.md](SECURITY.md): what the safety checks do and don't cover, and how to report a problem privately.
 - [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md): fonts, libraries and other outside pieces the pages use.

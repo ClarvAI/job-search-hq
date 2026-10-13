@@ -205,6 +205,46 @@ hasnt "done before the checklist existed" "not reached yet"
 OUT="$(prog doldpart 'SETUP: done 2026-01-01' '' 'resume, status, preferences')"
 has  "done: sections left, from old line" "skipped or not reached yet (field-pack, story, forms, look, first-week)."
 
+# Routine results (history/routines.md, written by scheduled runs): the latest line of each routine from
+# the last 24 hours, at most 4, oldest first; older lines, malformed lines, a BOM and CRLF don't matter.
+ss() { # ss <name>: the full startup text of a workspace (session-start.sh or session-start.ps1)
+  if [ "$IMPL" = ps ]; then run "$1"
+  else cp "$REPO/.claude/hooks/session-start.sh" "$REPO/.claude/hooks/summary.sh" "$T/$1/.claude/hooks/"; (cd "$T/$1" && printf '{}' | CLAUDE_PROJECT_DIR="$T/$1" bash .claude/hooks/session-start.sh 2>/dev/null); fi
+}
+hago() { "$PY" -c "import datetime,sys; print((datetime.datetime.now()-datetime.timedelta(minutes=int(sys.argv[1]))).strftime('%Y-%m-%d %H:%M'))" "$1"; }
+hm() { hago "$1" | cut -c12-16; }
+{ printf '%s\n' "$HDR"; printf 'Acme,Eng,applied,2099-01-01,Follow up,,A,4,X,,,,,,,,,0,acme,\n'; } | ws routines ""
+mkdir -p "$T/routines/history"
+{ printf '\357\273\277# Routine results\r\n\r\n'
+  printf -- '- %s \302\267 morning scan \302\267 9 new leads\r\n' "$(hago 2880)"
+  printf -- '- %s \302\267 morning scan \302\267 2 new leads\r\n' "$(hago 180)"
+  printf -- '- %s \302\267 follow-up drafts \302\267 1 draft in the Outbox\r\n' "$(hago 150)"
+  printf -- '- not a date \302\267 inbox check \302\267 ignored\r\n'
+  printf -- '- %s \302\267 certification reminder \302\267 certify today\r\n' "$(hago 132)"
+  printf -- '- %s \302\267 inbox check \302\267 1 update\r\n' "$(hago 120)"
+  printf -- '- %s \302\267 morning scan \302\267 4 new leads (Job Inbox)\r\n' "$(hago 60)"
+  printf -- '- %s \302\267 weekly review\r\n' "$(hago 30)"; } > "$T/routines/history/routines.md"
+OUT="$(ss routines)"
+has  "routine results: latest per routine" "Routine results from the last 24 hours (automatic runs; mention them in one line when the user first writes): certification reminder ($(hm 132)): certify today; inbox check ($(hm 120)): 1 update; morning scan ($(hm 60)): 4 new leads (Job Inbox); weekly review ($(hm 30))."
+hasnt "routine results: older run of a routine" "2 new leads"
+hasnt "routine results: older than 24 hours" "9 new leads"
+hasnt "routine results: at most 4 routines" "follow-up drafts"
+hasnt "routine results: malformed line" "ignored"
+OUT="$(ss contacts)"
+hasnt "no routine line without the file" "Routine results"
+printf -- '- %s \302\267 morning scan \302\267 9 new leads\n' "$(hago 2000)" > "$T/routines/history/routines.md"
+OUT="$(ss routines)"
+hasnt "no routine line when all are old" "Routine results"
+if [ "$IMPL" = ps ]; then
+  # The same file through both hooks gives the same line.
+  { printf -- '- %s \302\267 morning scan \302\267 4 new leads (Job Inbox)\n' "$(hago 60)"; printf -- '- %s \302\267 inbox check\n' "$(hago 20)"; } > "$T/routines/history/routines.md"
+  cp "$REPO/.claude/hooks/session-start.sh" "$REPO/.claude/hooks/summary.sh" "$T/routines/.claude/hooks/"
+  a="$(cd "$T/routines" && printf '{}' | CLAUDE_PROJECT_DIR="$T/routines" bash .claude/hooks/session-start.sh 2>/dev/null | grep '^Routine results')"
+  b="$(run routines | grep '^Routine results')"
+  if [ -n "$a" ] && [ "$a" = "$b" ]; then pass=$((pass + 1)); echo "PASS  routines: session-start.ps1 matches session-start.sh"
+  else fail=$((fail + 1)); printf 'FAIL  routines: session-start.ps1 differs from session-start.sh\n      | sh: %s\n      | ps: %s\n' "$a" "$b"; fi
+fi
+
 if [ "$IMPL" = sh ]; then
   # Status line: reads the folder from Claude Code's JSON on stdin (not the current folder or env).
   sl() { printf '{"workspace":{"current_dir":"/","project_dir":"%s"}}' "$T/$1" | (cd / && env -u CLAUDE_PROJECT_DIR bash "$REPO/.claude/hooks/statusline.sh"); }

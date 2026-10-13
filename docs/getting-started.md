@@ -79,6 +79,7 @@ Just type what you want in plain English ("find me operations analyst jobs near 
 | `/linkedin`, `/import-linkedin` | Improve your profile; find contacts from your LinkedIn data export |
 | `/sync-inbox` | Reads your job emails (Gmail, a work or school Microsoft 365 account in Claude, or emails you paste or save) and updates your tracker |
 | `/weekly-review` | How it's going and what to change |
+| `/routines` | Automatic checks on a schedule (new jobs each morning, your inbox, follow-up drafts, a weekly review); see [Automatic checks](#automatic-checks-routines) |
 | `/career-fair` | Game plan for a career fair, then follow-ups |
 | `/laid-off` | Lost your job? A dated first-week list (unemployment, health coverage, severance) and drafts to ask colleagues for references |
 | `/work-search-log` | Claiming unemployment? Keeps the weekly record your state or Universal Credit asks for, in their order; you enter it yourself |
@@ -131,6 +132,30 @@ In Claude: **Settings → Connectors**. In Codex: install the Gmail (or Google C
 Each connection shares data with that service; [privacy.md](privacy.md) lists what goes where.
 
 Want the assistant to fill out application forms for you, or Claude's Outbox to send emails when you press Send? Both are off by default. Ask about "assisted mode" or "send mode," and it will explain the tradeoffs before you switch. Even when one is on, you confirm it again: Claude's Outbox asks you once in the panel before its first real send, and the assistant asks you in the chat before the first form it fills in each session. (Codex always makes drafts only.)
+
+---
+
+## Automatic checks (routines)
+
+Off until you ask. Say **set up automatic checks** (or `/routines`, `$routines` in Codex) and the assistant suggests one to three routines that fit your search, and sets up only the ones you say yes to:
+
+| Routine | When | What it leaves for you |
+|---|---|---|
+| Morning job scan | Weekdays | New openings in your Job Inbox |
+| Inbox check | Daily, if Gmail or a Microsoft 365 mailbox is connected | Clear updates in your tracker (a rejection, an interview with a date, an application confirmation); anything unclear is listed for you |
+| Follow-up drafts | Weekdays | Follow-ups that are due, as drafts in your Outbox |
+| Weekly review | Fridays | Your week in numbers and what to change, in `interviews/` |
+| Certification reminder | Your benefits certification day, if you claim | A reminder, with how many activities are recorded |
+
+**What they can and can't do.** Routines run on your own computer and only read, draft and track. They never send, apply, publish or change your profile or preferences, and they ask no questions: anything that needs you waits, listed, for the next time you open the app, which tells you what they found. Each run uses your plan like a short chat, so once a day is plenty.
+
+**Claude desktop app** (version 1.1.5368 or later): the assistant can set a routine up for you when you ask in the Code tab. To do it yourself: **Routines** in the sidebar (or the sidebar's **More** menu) → **New routine** → **Local**. Give it a name, paste the one line of instructions the assistant gives you, pick **Auto** as the permission mode, choose **this folder**, leave the **isolated worktree** switch **off** (a worktree is a copy without your own files), and pick a schedule. Then press **Run now** once; if it asks permission for anything, choose "always allow" so later runs don't stop and wait. Results show under **Scheduled** in the sidebar, with a notification. Routines run only while the app is open and the computer is awake; a run missed during sleep happens once when it wakes. **Settings → This computer → System → Keep computer awake** helps. To pause, change or delete one: **Routines** → click it → **Status**, **Edit** or **Delete**.
+
+**Codex (ChatGPT desktop app):** open **Scheduled** in the sidebar (or ask in a chat), paste the instructions line, pick the schedule, and choose this folder's **local project**, not a new worktree. Keep the computer on and the app running. Results arrive in **Scheduled**, where you can also pause or remove the task. The Codex terminal and editor can't run scheduled tasks.
+
+**Claude in the terminal** has no lasting schedule: a repeating task (`/loop`) runs only while that terminal stays open, for up to 7 days. Fine for "check for replies every hour this afternoon"; for daily checks, use the desktop app on the same folder. Cloud routines aren't used: they can't see the files in this folder.
+
+If you use both apps, set up each routine in one of them only, so it doesn't run twice.
 
 ---
 

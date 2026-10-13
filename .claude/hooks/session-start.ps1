@@ -444,6 +444,31 @@ foreach ($line in $preferences) {
     if ($line -cmatch '^outbox_mode:\s*([a-z-]*)') { $outboxMode = $Matches[1]; break }
 }
 $lines.Add("Autonomy: $autonomy. Outbox mode: $outboxMode.")
+# Scheduled routines (the routines skill) log "- YYYY-MM-DD HH:MM (middle dot) <routine> (middle dot) <result>" to history/routines.md:
+# the latest line of each routine from the last 24 hours, at most 4 routines, oldest first (like session-start.sh).
+$runs = New-Object 'System.Collections.Generic.List[object]'
+$cutoff = [DateTime]::UtcNow.AddSeconds(-86400).ToLocalTime().ToString('yyyy-MM-dd HH:mm', $culture)
+$sep = ' ' + [char]0x00B7 + ' '
+foreach ($ln in @(Read-Lines 'history/routines.md')) {
+    $ln = $ln.TrimStart([char]0xFEFF)
+    if ($ln -cnotmatch '^- ([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2})( |$)') { continue }
+    $ts = $Matches[1]
+    if ([string]::CompareOrdinal($ts, $cutoff) -lt 0) { continue }
+    $rest = $ln.Substring(18).Trim()
+    if ($rest.StartsWith($sep.Trim())) { $rest = $rest.Substring($sep.Trim().Length).Trim() }
+    $i = $rest.IndexOf($sep)
+    if ($i -ge 0) { $nm = $rest.Substring(0, $i).Trim(); $rs = $rest.Substring($i + $sep.Length).Trim() } else { $nm = $rest.Trim(); $rs = '' }
+    if ($nm -eq '') { continue }
+    $runs.Add([pscustomobject]@{ Name = $nm; Result = $rs; Time = $ts.Substring(11, 5); Key = $nm.ToLowerInvariant() })
+}
+$seenRun = @{}; $keepRun = @{}
+for ($i = $runs.Count - 1; $i -ge 0 -and $keepRun.Count -lt 4; $i--) {
+    if (-not $seenRun.ContainsKey($runs[$i].Key)) { $seenRun[$runs[$i].Key] = $true; $keepRun[$i] = $true }
+}
+$runParts = @(for ($i = 0; $i -lt $runs.Count; $i++) {
+    if ($keepRun.ContainsKey($i)) { "$($runs[$i].Name) ($($runs[$i].Time))" + $(if ($runs[$i].Result -ne '') { ": $($runs[$i].Result)" } else { '' }) }
+})
+if ($runParts.Count -gt 0) { $lines.Add('Routine results from the last 24 hours (automatic runs; mention them in one line when the user first writes): ' + ($runParts -join '; ') + '.') }
 $recent = @(Read-Lines 'history/activity.md' | Where-Object { $_ -cmatch '^- [0-9]{4}-' } | Select-Object -Last 8)
 if ($recent.Count -gt 0) {
     $lines.Add('Recent activity (from either app; newest last):')

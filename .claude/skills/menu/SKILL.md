@@ -14,6 +14,7 @@ Show the user this menu (adapt lightly; keep it scannable). Start with the tip, 
 - `/pipeline`: your live job board; change stages, next steps, and dates (panel)
 - `/outbox`: review drafts; make a Gmail draft, copy, mark sent, or discard (panel)
 - When a session opens, a short pop-up lists what's due today or tomorrow; nothing to type
+- `/routines`: automatic checks on your own computer (new jobs each morning, your inbox, follow-up drafts, a weekly review); they only read, draft and track, and you choose which
 
 **Finding jobs**
 - `/add-job`: paste job links or a posting; it's saved, tracked, scored, and the application is prepped for your review

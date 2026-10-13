@@ -17,3 +17,11 @@ description: "Weekly check-in on the user's job search: activity vs goals, funne
 4. Tidy the Outbox: move files whose status is `sent` into `outbox/sent/` and `discarded` into `outbox/discarded/` so old drafts don't pile up. Leave `draft` and `in-gmail-drafts` files where they are: they are still waiting on the user (run the Gmail check from `sync-inbox` first if Gmail is connected).
 5. Write `interviews/weekly-<YYYY-MM-DD>.md` (date of the review) with numbers, 3 wins, 3 changes for next week, and the week's top 5 targets. Offer to put next week's 2–3 search blocks on their calendar (only after a yes; no attendees).
 6. Ask the user how they're feeling about the search in one line. Job hunting is a grind; acknowledge effort, celebrate any response or interview, and keep next week's plan realistic. Never shame a low week. After a rejection, one line of perspective plus one concrete lesson if there is one. If the user sounds burned out, plan a lighter week. If they express hopelessness or thoughts of self-harm, respond with care first and point them to local crisis resources (US: call or text 988; UK and Ireland: Samaritans, 116 123; anywhere else: findahelpline.com lists free local helplines by country) before anything job-related.
+
+## Scheduled mode (the weekly review routine)
+
+When the instructions say scheduled mode, first read `.claude/skills/routines/references/scheduled-mode.md` and follow it; it overrides any step above that needs the user.
+- If an `interviews/weekly-<date>.md` from the last 6 days already exists, log `weekly review · already done this week` and stop.
+- Steps 1 to 3 and 5 from the files as they are: no Gmail check, no `work-search-log` gather (use `jobs/work-search-log.csv` as it stands and say so in the file), no calendar offer. Suggestions to close stale jobs go in the file; never change their status.
+- Write only the review file and step 4's moves of files already marked `sent` or `discarded`. In place of step 6's question, end the file with one short, kind line about the week (never shaming a slow one).
+- Log: `weekly review · ready (interviews/weekly-<date>.md)`. Summary: the week's headline numbers against goals, the one change to make, and any offer deadline.
