@@ -88,6 +88,7 @@ Hiring has seasons that differ by field and level. The start skill's field pack 
 | Situation | When | How many |
 |---|---|---|
 | Applied online, no response | 7–10 business days, to a recruiter or alum if one can be found | 1 (a 2nd only if a named person has replied or accepted the user's connection) |
+| Applied to an hourly or shift job, no response | 3–5 business days (the app sets 4): a call or visit if the posting doesn't forbid it (`hourly-and-shift-work.md` §6) | 1 |
 | Cold networking message | 5 business days (no reply after 3 business days? it's fine to try a second person at the same company) | max 2 touches total |
 | After an interview | Thank-you within 24 hours, to each interviewer | 1 each (a thank-you is not a follow-up: it doesn't count toward `followups` or a contact's `touches`) |
 | After an interview, no news | the day after the date they said they'd decide, or 7 business days | 1, then once more a week later |

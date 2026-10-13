@@ -14,5 +14,5 @@ It was written with Claude Code's names; translate them with the table in AGENTS
 ## Codex notes
 
 - There is no Apply Kit panel in Codex: where the skill says `/apply-kit`, use the chat skill `apply-kit` (`$apply-kit`), which prints the same answers as copyable blocks.
-- Making a missing PDF: on Windows without Git Bash, use `make-pdf.ps1` (same arguments; the full command is in the `tailor-resume` skill). If neither script can run, treat it as `no-browser`.
+- Making a missing PDF: on Windows without Git Bash, use `make-pdf.ps1` (same arguments; the full command is in the `tailor-resume` skill). If the sandbox blocks the browser, retry outside the sandbox as the `tailor-resume` Codex notes say; only if that's refused or neither script can run, treat it as `no-browser`.
 - Assisted mode in Codex uses the Codex desktop app's built-in browser, with exactly the same rules (stop before Submit; submit only on the exact phrase "submit it", or the translated phrase you showed, per AGENTS.md "Exact confirm phrases").

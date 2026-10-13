@@ -40,6 +40,7 @@ CI (`.github/workflows/ci.yml`) runs the same scripts on every push and pull req
 | `/update` installs, checks, rolls back, keeps user files and edited app files, and refuses bad releases | `scripts/ci/e2e-update.py` |
 | `/my-data` backup, reset and restore round-trip every user file, skip links, respect Excel locks | `scripts/ci/e2e-mydata.py` |
 | The sample workspace is made next to the user's folder, never inside it, and is complete and removable | `scripts/ci/e2e-sample.py` |
+| PDFs print only pages inside the job folders, from a cleaned copy with no scripts, frames or outside requests | `scripts/ci/e2e-pdf.py` |
 | A user's theme stays out of git, and `git pull` of a new version stays clean | `scripts/ci/e2e-theme-git.py` |
 | Published dashboard copies hold only the job list, and the Claude Dashboard page takes every figure from its data | `scripts/ci/check-dashboard-type.py` |
 

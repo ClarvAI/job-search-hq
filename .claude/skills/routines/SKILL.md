@@ -19,7 +19,7 @@ Say it in two or three plain sentences (above), then where it runs (step 3), the
 | weekly review | Weekly, Friday 16:00 | Anyone; pairs well with the morning scan | `Job Search HQ weekly review: follow the weekly-review skill in scheduled mode.` |
 | certification reminder | Weekly, on their certification day, 9:00 | Only if `benefits_cert_day:` is set in `profile/preferences.md` | `Job Search HQ certification reminder: follow the routines skill's certification reminder in scheduled mode.` |
 
-Use the user's own times if they give them (in their time format), and the names above so the startup note can report results. Read `profile/preferences.md` first: before setup is done, or when `search_status:` is paused or closed, suggest finishing setup or resuming the search first. Ask which ones they want (one question), and go ahead only on a clear yes for each.
+Use the user's own times if they give them (in their time format), and the names above so the startup note can report results. Read `profile/preferences.md` first: before setup is done, while the search is paused (a "search paused until" note with a future date) or closed (`search_status: closed`), suggest finishing setup or resuming the search first (only the certification reminder makes sense then). Ask which ones they want (one question), and go ahead only on a clear yes for each.
 
 ## 2. Find out which app they're in
 
@@ -44,7 +44,7 @@ After setting up, add one line to `history/activity.md` (e.g. `Routine set up: m
 
 - **Claude desktop app:** **Routines** → click the routine → **Status** (Active / Paused), **Edit**, **Run now**, or **Delete** (tick **Also delete files on disk** to remove its saved instructions too). They can also ask Claude in any desktop session ("pause my morning scan").
 - **Codex:** open the task in **Scheduled** to pause or remove it, or ask in a chat.
-- Suggest pausing routines when the user pauses or wraps up their search (`my-data`), and when they move or rename this folder (a routine keeps pointing at the old place).
+- When the user pauses their search, suggest pausing every routine except the certification reminder; when they accept a job, suggest deleting them, keeping the certification reminder until the new job starts if `benefits_cert_day:` is set (`my-data` and `offer` ask this). A paused or closed search makes runs skip on their own anyway, but each skipped run still starts a session. Also suggest it when they move or rename this folder (a routine keeps pointing at the old place).
 
 ## How scheduled runs behave
 
@@ -52,4 +52,4 @@ Every routine follows `references/scheduled-mode.md` plus the "Scheduled mode" s
 
 ## Certification reminder (scheduled mode)
 
-Run only when the instructions say scheduled mode. Follow `references/scheduled-mode.md`. If today isn't the user's certification day by `benefits_cert_day:` (a weekday, or "every other <weekday> from YYYY-MM-DD"), log `not certification day` and stop. Otherwise, read only: count the benefit week(s) being certified the way `today` does (records in `jobs/tracker.csv`, `contacts/contacts.csv`, sent Outbox files and `jobs/work-search-log.csv`; no drafts), applications and other activities separately, against the agency's number in `.claude/skills/work-search-log/references/requirements.md`. Don't write to `jobs/work-search-log.csv`. Log e.g. `certify today; 3 of 3 activities recorded` or `certify today; 1 of 3 recorded, open the app and say "work search log"`. The user certifies on the agency's site themselves.
+Run only when the instructions say scheduled mode. Follow `references/scheduled-mode.md` (it keeps this reminder running on a paused or closed search). If `benefits_cert_day:` is blank (it's cleared when a new job starts), log `no certification day set; this routine can be deleted` and stop. If today isn't the user's certification day by `benefits_cert_day:` (a weekday, or "every other <weekday> from YYYY-MM-DD"), log `not certification day` and stop. Otherwise, read only: count the benefit week(s) being certified the way `today` does (records in `jobs/tracker.csv`, `contacts/contacts.csv`, sent Outbox files and `jobs/work-search-log.csv`; no drafts), applications and other activities separately, against the agency's number in `.claude/skills/work-search-log/references/requirements.md`. Don't write to `jobs/work-search-log.csv`. Log e.g. `certify today; 3 of 3 activities recorded` or `certify today; 1 of 3 recorded, open the app and say "work search log"`. The user certifies on the agency's site themselves.

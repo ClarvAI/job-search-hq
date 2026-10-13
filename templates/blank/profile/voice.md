@@ -13,7 +13,7 @@
 - Short sentences. Plain words. Concrete numbers and names.
 - Lead with the point. In an email, the ask goes in the first two sentences.
 - Specific beats impressive: "I cut report turnaround from three days to one" beats "I drove operational excellence."
-- One idea per paragraph. Cover letters: 3–4 short paragraphs, under 300 words. Cold emails: under 120 words. LinkedIn connection notes: 200 characters max (free accounts); messages to existing connections: under about 600.
+- One idea per paragraph. Cover letters: 3–4 short paragraphs, under 300 words (an academic letter, or one a form or the user wants longer, keeps the length it needs). Cold emails: under 120 words. LinkedIn connection notes: 200 characters max (free accounts); messages to existing connections: under about 600.
 - Every cover letter names something real and specific about that company (a product, a team, a recent announcement) and connects it to something the user actually did.
 - Confident, not desperate. No apologizing for being a student, a career changer, or for a gap, and no pre-emptive concessions ("if you need someone sooner, I understand"). State availability as a plain fact: "Available to start in June."
 - Calm and exact in serious messages (declining, negotiating, withdrawing); warmth is for thank-yous.

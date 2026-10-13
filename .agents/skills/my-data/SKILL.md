@@ -15,5 +15,5 @@ It was written with Claude Code's names; translate them with the table in AGENTS
 
 - On Windows without bash, use the `.ps1` scripts as the Claude skill describes. If the sandbox blocks writing outside the workspace, ask the user to allow it for this one command (the backup must land outside this folder).
 - Deleting published pages needs Claude: list the links from `profile/published-pages.md` and tell the user to ask Claude or delete them at claude.ai before the reset.
-- `references/reset.md` step 8: in Codex, Gmail and Google Calendar are disconnected under **Apps** in Codex or ChatGPT settings.
+- `references/reset.md` step 8: in Codex, Gmail and Google Calendar are plugins: remove them from the **Plugins** tab in the ChatGPT desktop app, or with `/plugins` in the terminal.
 - The confirm phrase rule is the same: run the reset only after the user's own next message is exactly "delete my data", or the translated phrase you showed them (AGENTS.md, "Exact confirm phrases"). "Yes" in any language never counts.

@@ -13,5 +13,5 @@ It was written with Claude Code's names; translate them with the table in AGENTS
 
 ## Codex notes
 
-- The make-pdf script needs bash plus Chrome or Edge. On Windows without Git Bash, use the `make-pdf.ps1` command given in the skill. If neither can run (or the sandbox blocks the browser), treat it as `no-browser` and give the user the manual Print → Save as PDF steps.
+- The make-pdf script needs bash plus Chrome or Edge. On Windows without Git Bash, use the `make-pdf.ps1` command given in the skill. Run it exactly as the skill writes it, from the top folder: this folder's rules let that command run outside the sandbox once the folder is trusted. If the sandbox still blocks the browser, run the same command again asking to run it outside the sandbox (one approval for the user); only if that is refused or fails, or neither script can run at all, treat it as `no-browser` and give the user the manual Print → Save as PDF steps.
 - Do the company-researcher pass yourself with your web search (spawn the `company-researcher` project agent only if the user asks).

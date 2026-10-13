@@ -56,7 +56,7 @@ OEWS percentiles mix all experience levels. As a rough guide: entry level / new 
 
 ## 4. Base vs. total comp
 
-Keep them separate. H-1B filings and most posted ranges are **base**; OEWS is close to base (it also counts commissions and production bonuses), so treat it as base for comparing. Levels.fyi headlines are usually **total comp** (base + bonus + equity). Never compare a total-comp number with a base offer. When the offer has a bonus or equity, compare base to base, then show total separately.
+Keep them separate. H-1B filings and most posted ranges are **base**; OEWS is close to base (it also counts commissions and production bonuses), so treat it as base for comparing, except in commission- or tip-heavy work (sales, servers, bartenders), where it runs above base: compare with base-pay postings there instead. Levels.fyi headlines are usually **total comp** (base + bonus + equity). Never compare a total-comp number with a base offer. When the offer has a bonus or equity, compare base to base, then show total separately.
 
 ## 5. Write it down (and cache it)
 
