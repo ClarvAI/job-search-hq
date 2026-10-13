@@ -26,4 +26,4 @@ Ask the user: yes / no (anything personal, or anything they might have customize
 
 A migration only describes edits; it never deletes the user's data. Changes to blank starter files themselves go in `templates/blank/` (new users get them automatically); a migration is for users who already have the file.
 
-`001-published-pages-kind.md` (1.1.0) adds the Kind column to `profile/published-pages.md`.
+There are no migrations yet (1.0.0 is the first release).

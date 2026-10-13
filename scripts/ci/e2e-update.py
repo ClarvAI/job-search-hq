@@ -6,6 +6,15 @@ template copy in profile/templates/, two app files the user edited), then a "1.0
 release's own scripts/build-manifest.sh --zip, plus hand-made bad zips. Every run happens on throwaway copies
 in a temp folder; the real workspace is never touched.
 
+Release packaging (maintainer-only paths: docs/maintainers/, .github/, scripts/ci/, .claude/skills/*/tests/,
+CONTRIBUTING.md) is proven three ways:
+  - release-zip user: the 1.0.0 release zip, unpacked and set up with init-data, updated to the 1.0.1 zip and rolled
+    back; neither zip holds a maintainer-only file and none is ever installed;
+  - git-clone user (the "installed" workspace, a copy of the working tree): the maintainer files it has are never
+    replaced, removed or reported, even though 1.0.1 changes and adds some;
+  - a clone whose older product-manifest.json still lists maintainer files, and a release whose manifest lists one:
+    nothing maintainer-only is removed or installed.
+
     python3 scripts/ci/e2e-update.py [--impl sh|ps|both] [--keep]
 """
 import sys; sys.dont_write_bytecode = True
@@ -30,9 +39,14 @@ REL_ADDED = ["docs/whats-new.md", "templates/blank/profile/goals.md", "templates
              "migrations/000-old-note.md", "migrations/001-add-goals.md"]
 REL_UPDATED = ["VERSION", "CHANGELOG.md", "HOW-IT-WORKS.md", "templates/resume-template.html",
                ".claude/settings.json", ".codex/hooks.json", UPD_SH, UPD_PS]
-REL_REMOVED = ["scripts/ci/mock-github.py"]
+REL_REMOVED = ["docs/e2e-retired.md"]                  # made in the base copy, so the test owns it
 EDITED_CHANGED = ".claude/skills/today/SKILL.md"       # user edited it, and the release changes it too
-EDITED_REMOVED = "scripts/ci/summary-fixtures.sh"     # user edited it, and the release drops it
+EDITED_REMOVED = "docs/e2e-retired-edited.md"         # user edited it, and the release drops it
+# Maintainer-only files the 1.0.1 tree adds or changes: never in a zip, never installed, never touched in a clone.
+MAINT_ADDED = ["docs/maintainers/e2e-notes-101.md", "scripts/ci/e2e-check-101.sh", "scripts/ci/visual/e2e-101.mjs",
+               ".github/workflows/e2e-101.yml", ".claude/skills/outbox/tests/e2e-101.test.ts"]
+MAINT_CHANGED = ["CONTRIBUTING.md", "scripts/ci/run-all.sh"]
+SMUGGLED = "scripts/ci/e2e-smuggled.sh"                # listed in a crafted release's manifest: must not be installed
 NEW_STARTER = "profile/goals.md"                      # new starter file the user doesn't have
 CLASH_STARTER = "jobs/notes.md"                       # new starter file the user already has (must be kept)
 THEMED = "profile/templates/resume-template.html"
@@ -87,6 +101,32 @@ def is_user(rel):
     if l in USER_ALLOWED:
         return False
     return l.startswith(USER_PREFIXES) or l.endswith(".local") or l == ".claude/settings.local.json"
+
+
+def is_maint(rel):
+    """Maintainer-only (scripts/build-manifest.sh is_maintainer; update.sh ship; update.ps1 Test-Maintainer)."""
+    l = rel.lower()
+    return (l.startswith(("docs/maintainers/", ".github/", "scripts/ci/")) or l == "contributing.md"
+            or re.match(r"^\.claude/skills/.*/tests/", l) is not None)
+
+
+def maint_of(snap):
+    return {k: v for k, v in snap.items() if is_maint(k)}
+
+
+def maint_mentions(out):
+    """Output lines that name a maintainer-only path (added:/updated:/removed:/kept-local:/would keep ...)."""
+    bad = []
+    for l in out.splitlines():
+        for tok in re.split(r"[\s()]+", l):
+            if tok and (("/" in tok and is_maint(tok)) or tok.lower() == "contributing.md"):
+                bad.append(l)
+                break
+    return bad
+
+
+def man_paths(path):
+    return [m.group(1) for m in (MAN_LINE.match(l) for l in rb(path).decode("utf-8").replace("\r", "").split("\n")) if m]
 
 
 def copy_ws(src, dst):
@@ -219,11 +259,56 @@ def zinfo(name, mode=0o100644):
 
 def build_base(t, r):
     base = make_workspace(t, "base")
+    write(J(base, REL_REMOVED[0]), "# Retired in 1.0.1\n\nE2E-RETIRED\n")
+    write(J(base, EDITED_REMOVED), "# Retired in 1.0.1 (the user edits it)\n\nE2E-RETIRED-EDITED\n")
     rc, out = sh(bash_arg(J(base, "scripts/build-manifest.sh")), cwd=base)
     if not r.ok("base copy: build-manifest.sh writes the 1.0.0 product-manifest.json",
                 rc == 0 and "version 1.0.0" in out, out):
         r.finish()
+    listed = man_paths(J(base, "product-manifest.json"))
+    have = [k for k in snapshot(base) if is_maint(k)]
+    r.ok("base copy: the working tree has maintainer-only files, and the manifest lists none of them",
+         have and not [p for p in listed if is_maint(p)], "\n".join(p for p in listed if is_maint(p)))
     return base
+
+
+def unzip_to(zpath, dest):
+    with zipfile.ZipFile(zpath) as z:
+        z.extractall(dest)
+    return dest
+
+
+def check_zip(r, label, zpath, top, ws_manifest):
+    """One top folder, the manifest, exactly the listed files, no user file and no maintainer-only file."""
+    with zipfile.ZipFile(zpath) as z:
+        names = [n for n in z.namelist() if not n.endswith("/")]
+    inner = [n[len(top) + 1:] for n in names if n.startswith(top + "/")]
+    r.ok("%s: one top folder with the manifest and no user files" % label,
+         len(inner) == len(names) and "product-manifest.json" in inner and not any(is_user(n) for n in inner),
+         "\n".join(n for n in names if not n.startswith(top + "/") or is_user(n[len(top) + 1:]))[:2000])
+    maint = [n for n in inner if is_maint(n)]
+    r.ok("%s: no maintainer-only file (docs/maintainers, .github, scripts/ci, panel tests, CONTRIBUTING.md)" % label,
+         not maint, "\n".join(maint)[:2000])
+    listed = man_paths(ws_manifest)
+    r.ok("%s: holds exactly the files its manifest lists" % label,
+         sorted(inner) == sorted(listed + ["product-manifest.json"]),
+         "\n".join(sorted(set(inner) ^ set(listed + ["product-manifest.json"]))))
+    return inner
+
+
+def build_zip_100(t, base, r):
+    """The 1.0.0 release zip, as a user downloads it, and that zip unpacked."""
+    zpath = os.path.join(t, "zips", "job-search-hq-1.0.0.zip")
+    os.makedirs(os.path.dirname(zpath), exist_ok=True)
+    rc, out = build_release_zip(base, bash_abs(zpath))
+    if not r.ok("release 1.0.0: build-manifest.sh --zip builds the zip", rc == 0 and os.path.isfile(zpath), out):
+        r.finish()
+    inner = check_zip(r, "release zip 1.0.0", zpath, "job-search-hq-1.0.0", J(base, "product-manifest.json"))
+    shipped = sorted(k for k in snapshot(base) if not is_maint(k) and not is_user(k) and not k.startswith(".backup/"))
+    r.ok("release zip 1.0.0: every app file of the working tree is in it (nothing but maintainer files left out)",
+         sorted(inner) == shipped, "\n".join(sorted(set(inner) ^ set(shipped)))[:2000])
+    top = J(unzip_to(zpath, os.path.join(t, "unzipped 1.0.0")), "job-search-hq-1.0.0")
+    return top
 
 
 def build_release(t, base, r):
@@ -249,20 +334,19 @@ def build_release(t, base, r):
     append(J(rel, EDITED_CHANGED), "E2E-TODAY-101")
     append(J(rel, UPD_SH), "# E2E 1.0.1")
     append(J(rel, UPD_PS), "# E2E 1.0.1")
+    for p in MAINT_ADDED:
+        write(J(rel, p), "E2E-MAINT-101 %s\n" % p)
+    for p in MAINT_CHANGED:
+        append(J(rel, p), "E2E-MAINT-CHANGED-101")
     zpath = os.path.join(t, "zips", "job-search-hq-1.0.1.zip")
     os.makedirs(os.path.dirname(zpath))
     rc, out = build_release_zip(rel, bash_abs(zpath))
     if not r.ok("release 1.0.1: its own build-manifest.sh --zip builds the zip",
                 rc == 0 and os.path.isfile(zpath) and "version 1.0.1" in out, out):
         r.finish()
-    with zipfile.ZipFile(zpath) as z:
-        names = z.namelist()
-    r.ok("release zip has one top folder with the manifest and no user files",
-         TOP + "/product-manifest.json" in names and all(n.startswith(TOP + "/") for n in names)
-         and not any(is_user(n[len(TOP) + 1:]) for n in names if not n.endswith("/")),
-         "\n".join(n for n in names if not n.startswith(TOP + "/") or
-                   (is_user(n[len(TOP) + 1:]) and not n.endswith("/")))[:2000])
-    return rel, zpath
+    check_zip(r, "release zip 1.0.1", zpath, TOP, J(rel, "product-manifest.json"))
+    unz = J(unzip_to(zpath, os.path.join(t, "unzipped 1.0.1")), TOP)
+    return rel, zpath, unz
 
 
 def build_installed(t, base, r, have_node):
@@ -392,7 +476,8 @@ def run_impl(impl, t, prepared, zpath, rel, bad, sentinel, have_node, r):
     rc, out = upd(impl, ws, "status")
     r.ok("[%s] --status prints version, update_source and 'status: done'" % tag,
          rc == 0 and "version: 1.0.0" in out.splitlines() and
-         "update_source: set by the maintainer before publishing" in out and last_line(out) == "status: done"
+         "update_source: none (no download address is set yet; updates need a release zip you downloaded)" in out
+         and last_line(out) == "status: done"
          and "backup:" not in out, out)
     r.ok("[%s] --status changes nothing" % tag, snapshot(ws) == s0)
 
@@ -410,6 +495,8 @@ def run_impl(impl, t, prepared, zpath, rel, bad, sentinel, have_node, r):
     r.ok("[%s] --check reports hooks-changed for Claude and Codex and the themed copy to refresh" % tag,
          "hooks-changed: claude" in out.splitlines() and "hooks-changed: codex" in out.splitlines() and
          "would refresh your themed copy: %s" % THEMED in out and THEMED_OTHER not in out, out)
+    r.ok("[%s] --check never mentions a maintainer-only file" % tag, not maint_mentions(out),
+         "\n".join(maint_mentions(out)))
     r.ok("[%s] --check changes nothing (whole workspace byte-identical)" % tag, s1 == s0,
          "\n".join(diff(s0, s1))[:3000])
 
@@ -435,7 +522,8 @@ def run_impl(impl, t, prepared, zpath, rel, bad, sentinel, have_node, r):
     rc, out = upd(impl, ws, None, "http://example.com/job-search-hq-1.0.1.zip")
     check_refusal(r, tag, "non-https address", ws, rc, out, "only https://")
     rc, out = upd(impl, ws, None, None)
-    check_refusal(r, tag, "no source and no update address set", ws, rc, out, "no update address is set yet")
+    check_refusal(r, tag, "no source and no update address set", ws, rc, out,
+                  "no download address for updates is set yet; download the latest release zip yourself")
     rc, out = upd(impl, ws, None, os.path.join(t, "zips", "missing.zip"))
     check_refusal(r, tag, "zip that doesn't exist", ws, rc, out, "file not found")
     rc, out = upd(impl, ws, None, zpath, sha="0" * 64)
@@ -463,10 +551,16 @@ def run_impl(impl, t, prepared, zpath, rel, bad, sentinel, have_node, r):
     r.ok("[%s] VERSION is now 1.0.1 and product-manifest.json is the release's" % tag,
          b"version: 1.0.1" in s2.get("VERSION", b"") and
          s2.get("product-manifest.json") == rel_snap.get("product-manifest.json"))
-    app_new = without(s2, lambda k: is_user(k) or k.startswith(".backup/"))
-    app_rel = without(rel_snap, lambda k: is_user(k))
+    app_new = without(s2, lambda k: is_user(k) or is_maint(k) or k.startswith(".backup/"))
+    app_rel = without(rel_snap, lambda k: is_user(k) or is_maint(k))
     r.ok("[%s] every app file now matches the 1.0.1 release exactly (nothing extra, nothing missing)" % tag,
          app_new == app_rel, "\n".join(diff(app_rel, app_new))[:3000])
+    r.ok("[%s] git-clone user: every maintainer-only file is byte-identical, none added (1.0.1 changed and added some)"
+         % tag, maint_of(s2) == maint_of(s0) and maint_of(s0), "\n".join(diff(maint_of(s0), maint_of(s2)))[:3000])
+    r.ok("[%s] install never mentions a maintainer-only file" % tag, not maint_mentions(out),
+         "\n".join(maint_mentions(out)))
+    r.ok("[%s] the backup holds no maintainer-only file" % tag,
+         not [k for k in s2 if k.startswith(".backup/") and is_maint(k.split("/files/", 1)[-1])])
     u0 = without(s0, lambda k: not is_user(k))
     u2 = without(s2, lambda k: not is_user(k))
     expected_user_changes = {"added: " + NEW_STARTER, "added: " + EDITED_CHANGED + ".local",
@@ -573,7 +667,7 @@ def run_impl(impl, t, prepared, zpath, rel, bad, sentinel, have_node, r):
     second = m.group(1) if m else "?"
     s4 = snapshot(ws)
     r.ok("[%s] second install: app files match 1.0.1 again, user files untouched" % tag,
-         without(s4, lambda k: is_user(k) or k.startswith(".backup/")) == app_rel and
+         without(s4, lambda k: is_user(k) or is_maint(k) or k.startswith(".backup/")) == app_rel and
          all(s4.get(k) == v for k, v in s3.items() if is_user(k) and not k.startswith(".backup/")
              and k not in (THEMED, THEMED_PREV, "profile/templates/.generated.json")))
     rc, out = upd(impl, ws, "status")
@@ -657,6 +751,175 @@ def run_impl(impl, t, prepared, zpath, rel, bad, sentinel, have_node, r):
                               last_line(out)) is not None, out)
 
 
+def build_maint_zip(t, good_zip):
+    """A release whose manifest (wrongly) lists maintainer-only files: SMUGGLED and a changed CONTRIBUTING.md."""
+    d = os.path.join(t, "stage", "lists-maintainer")
+    unzip_to(good_zip, d)
+    top = J(d, TOP)
+    man_set(top, SMUGGLED, b"E2E-SMUGGLED\n")
+    man_set(top, "CONTRIBUTING.md", b"E2E-SMUGGLED-CONTRIBUTING\n")
+    return zip_tree(d, os.path.join(t, "zips", "lists-maintainer.zip"))
+
+
+def init_data(impl, ws):
+    if impl == "sh":
+        return sh(bash_arg(J(ws, ".claude/skills/start/scripts/init-data.sh")), cwd=ws)
+    return ps(J(ws, ".claude/skills/start/scripts/init-data.ps1"), cwd=ws)
+
+
+def run_zipuser(impl, t, zip100_top, unz101, zpath, maint_zip, r):
+    """A user who downloaded the 1.0.0 release zip: no git, no maintainer files. Update to 1.0.1, roll back."""
+    tag = impl
+    r.section("%s: release-zip user, 1.0.0 -> 1.0.1" % impl)
+    ws = copy_ws(zip100_top, os.path.join(t, impl, "Zip User HQ"))
+    rc, out = init_data(impl, ws)
+    r.ok("[%s] zip user: init-data sets up the starter files in the unpacked 1.0.0 zip" % tag,
+         rc == 0 and os.path.isfile(J(ws, "profile/preferences.md")) and os.path.isfile(J(ws, "jobs/tracker.csv")), out)
+    append(J(ws, "profile/preferences.md"), "E2E-ZIPUSER-PREFS")
+    append(J(ws, "jobs/tracker.csv"), "Initech,Analyst,saved,2026-10-02,E2E-ZIPUSER-TRACKER")
+    write(J(ws, "outbox/2026-10-07-hello.md"), "---\nstatus: draft\n---\nE2E-ZIPUSER-OUTBOX\n")
+    z0 = snapshot(ws)
+    r.ok("[%s] zip user: the workspace has no maintainer-only file" % tag, not maint_of(z0), "\n".join(maint_of(z0)))
+    rc, out = upd(impl, ws, "status")
+    r.ok("[%s] zip user: --status says plainly that no download address is set" % tag,
+         rc == 0 and "update_source: none (no download address is set yet; updates need a release zip you downloaded)"
+         in out.splitlines(), out)
+    rc, out = upd(impl, ws, "check", zpath)
+    r.ok("[%s] zip user: --check 1.0.1 (nothing edited by the user, no maintainer file mentioned)" % tag,
+         rc == 0 and last_line(out).startswith("update: check (") and "0 edited by you" in last_line(out)
+         and not maint_mentions(out) and snapshot(ws) == z0, out)
+    rc, out = upd(impl, ws, None, zpath)
+    z1 = snapshot(ws)
+    r.ok("[%s] zip user: install ends with 'update: done 1.0.0 -> 1.0.1'" % tag,
+         rc == 0 and last_line(out) == "update: done 1.0.0 -> 1.0.1 (backup: .backup/1.0.0)", out)
+    r.ok("[%s] zip user: no maintainer-only file installed or mentioned" % tag,
+         not maint_of(z1) and not maint_mentions(out), "\n".join(list(maint_of(z1)) + maint_mentions(out)))
+    zrel = snapshot(unz101)
+    app1 = without(z1, lambda k: is_user(k) or k.startswith(".backup/"))
+    r.ok("[%s] zip user: the app files are exactly the 1.0.1 zip's (nothing extra, nothing missing)" % tag,
+         app1 == zrel, "\n".join(diff(zrel, app1))[:3000])
+    u0 = without(z0, lambda k: not is_user(k))
+    u1 = without(z1, lambda k: not is_user(k))
+    starters = sorted(["added: " + NEW_STARTER, "added: " + CLASH_STARTER])   # this user has neither yet
+    r.ok("[%s] zip user: every user file byte-identical (only the two new starter files added)" % tag,
+         sorted(diff(u0, u1)) == starters, "\n".join(diff(u0, u1)))
+    rc, out = upd(impl, ws, "rollback")
+    z2 = snapshot(ws)
+    d02 = diff(without(z0, lambda k: k.startswith(".backup/")), without(z2, lambda k: k.startswith(".backup/")))
+    r.ok("[%s] zip user: rollback puts every app file back to 1.0.0 (user files kept)" % tag,
+         rc == 0 and last_line(out) == "rollback: done (1.0.1 -> 1.0.0)" and sorted(d02) == starters,
+         out + "\n" + "\n".join(d02))
+
+    # A release whose manifest lists maintainer-only files: they are verified with the rest, but never installed.
+    rc, out = upd(impl, ws, None, maint_zip)
+    z3 = snapshot(ws)
+    r.ok("[%s] a release listing maintainer-only files installs without them (%s, CONTRIBUTING.md absent)"
+         % (tag, SMUGGLED), rc == 0 and last_line(out).startswith("update: done 1.0.0 -> 1.0.1") and
+         not maint_of(z3) and not maint_mentions(out), out)
+    rc, out = upd(impl, ws, "rollback")
+    r.ok("[%s] ... and rolls back cleanly" % tag, rc == 0 and last_line(out) == "rollback: done (1.0.1 -> 1.0.0)", out)
+
+    # update_source set to something that isn't an https:// link (a throwaway copy).
+    ws2 = copy_ws(ws, os.path.join(t, impl, "Zip User Odd Source"))
+    v = J(ws2, "VERSION")
+    wb(v, re.sub(rb"update_source:[^\r\n]*", b"update_source: github.com/example/job-search-hq", rb(v), count=1))
+    rc, out = upd(impl, ws2, "status")
+    r.ok("[%s] --status with a non-https update_source says it can't be used" % tag,
+         rc == 0 and "update_source: github.com/example/job-search-hq (not an https:// link, so it can't be used" in out,
+         out)
+    w0 = snapshot(ws2)
+    rc, out = upd(impl, ws2, None, None)
+    r.ok("[%s] install with no zip and a non-https update_source: plain refusal, nothing changed" % tag,
+         rc == 1 and "isn't an https:// link; download the latest release zip yourself" in last_line(out)
+         and snapshot(ws2) == w0, out)
+
+
+def run_legacy(impl, t, prepared, zpath, r):
+    """A git clone from before maintainer files were excluded: its product-manifest.json still lists them."""
+    tag = impl
+    r.section("%s: clone with an older manifest that lists maintainer files" % impl)
+    ws = copy_ws(prepared, os.path.join(t, impl, "Legacy Clone HQ"))
+    s = snapshot(ws)
+    maint = sorted(maint_of(s))
+    entries = "".join('    "%s": "%s",\n' % (p, fp(s[p])) for p in maint if '"' not in p and "\\" not in p)
+    man = J(ws, "product-manifest.json")
+    wb(man, rb(man).replace(b'  "files": {\n', b'  "files": {\n' + entries.encode("utf-8"), 1))
+    l0 = snapshot(ws)
+    r.ok("[%s] legacy: the installed manifest now lists %d maintainer-only files" % (tag, len(maint)),
+         len([p for p in man_paths(man) if is_maint(p)]) == len(maint) > 0)
+    rc, out = upd(impl, ws, None, zpath)
+    l1 = snapshot(ws)
+    r.ok("[%s] legacy: install finishes; removed: lines are only the app files 1.0.1 retired" % tag,
+         rc == 0 and last_line(out).startswith("update: done 1.0.0 -> 1.0.1") and
+         sorted(lines_with(out, "removed: ")) == sorted(REL_REMOVED), out)
+    r.ok("[%s] legacy: no maintainer-only file removed, replaced, set aside or mentioned" % tag,
+         maint_of(l1) == maint_of(l0) and not maint_mentions(out) and
+         not [k for k in l1 if k.endswith(".local") and is_maint(k)],
+         "\n".join(diff(maint_of(l0), maint_of(l1)) + maint_mentions(out))[:3000])
+    rc, out = upd(impl, ws, "rollback")
+    d = diff(without(l0, lambda k: k.startswith(".backup/")), without(snapshot(ws), lambda k: k.startswith(".backup/")))
+    r.ok("[%s] legacy: rollback restores the older manifest and leaves the maintainer files alone" % tag,
+         rc == 0 and last_line(out) == "rollback: done (1.0.1 -> 1.0.0)" and
+         not [x for x in d if is_maint(x.split(": ", 1)[1]) or x.endswith("product-manifest.json")],
+         out + "\n" + "\n".join(d))
+
+
+def run_parentlink(impl, t, prepared, zpath, have_node, r):
+    """A folder on the way to app files (templates/) or pages (pages/) is a link to a folder outside the workspace:
+    the update and apply-theme.mjs skip what lies behind it and never write through it."""
+    tag = impl
+    root = os.path.join(t, impl + " parent link")
+    ws = copy_ws(prepared, os.path.join(root, "Job Search HQ"))
+    outside = os.path.join(root, "templates outside")
+    try:
+        shutil.move(J(ws, "templates"), outside)
+        os.symlink(outside, J(ws, "templates"), target_is_directory=True)
+    except (OSError, NotImplementedError):
+        print("NOTE  [%s] linked-parent checks not run: this system can't make symlinks" % tag)
+        return
+    r.section("%s: a linked parent folder (templates/ -> outside)" % impl)
+    o0 = snapshot(outside)
+    rc, out = upd(impl, ws, "check", zpath)
+    skips = sorted(lines_with(out, "would skip: "))
+    want = sorted("%s (a folder on its way is a link to another folder; nothing is written through it)" % p
+                  for p in ("templates/resume-template.html", "templates/blank/profile/goals.md",
+                            "templates/blank/jobs/notes.md"))
+    r.ok("[%s] --check lists exactly the changing files behind the linked templates/ as 'would skip:'" % tag,
+         rc == 0 and skips == want, out)
+    rc, out = upd(impl, ws, None, zpath)
+    notes = sorted(l for l in out.splitlines() if l.startswith("note: skipped templates/"))
+    r.ok("[%s] install finishes and notes each skipped file behind the linked folder" % tag,
+         rc == 0 and last_line(out).startswith("update: done 1.0.0 -> 1.0.1") and len(notes) == 3
+         and all("templates/ is a link to another folder; the update never writes through it" in l for l in notes)
+         and not [l for l in out.splitlines() if re.match(r"^(added|updated|removed|kept-local): templates/", l)], out)
+    r.ok("[%s] nothing was written through the link (the outside folder is byte-identical)" % tag,
+         snapshot(outside) == o0, "\n".join(diff(o0, snapshot(outside)))[:2000])
+    r.ok("[%s] files outside the linked folder were still updated" % tag,
+         b"E2E-APP-CHANGE-101" in rb(J(ws, "HOW-IT-WORKS.md")))
+    rc, out = upd(impl, ws, "rollback")
+    r.ok("[%s] rollback works and still writes nothing through the link" % tag,
+         rc == 0 and b"version: 1.0.0" in rb(J(ws, "VERSION")) and snapshot(outside) == o0, out)
+    if not have_node:
+        print("NOTE  [%s] apply-theme linked-parent checks not run: no Node" % tag)
+        return
+    r.section("%s: apply-theme.mjs with a linked pages/ folder" % impl)
+    pages_out = os.path.join(root, "pages outside")
+    shutil.move(J(ws, "pages"), pages_out)
+    os.symlink(pages_out, J(ws, "pages"), target_is_directory=True)
+    p0 = snapshot(pages_out)
+    theme = J(ws, ".claude/skills/page-design/scripts/apply-theme.mjs")
+    rc, out = run([find_node(), theme], cwd=ws)
+    sk = [l for l in out.splitlines() if l.startswith("skipped: pages/")]
+    r.ok("[%s] apply-theme skips every page behind the linked pages/ ('skipped: ... (a link: pages/ ...)')" % tag,
+         rc == 0 and sk and all("(a link: pages/ points to another folder" in l for l in sk)
+         and not [l for l in out.splitlines() if l.startswith("updated: pages/")], out)
+    rc, out = run([find_node(), theme, "--preview"], cwd=ws)
+    r.ok("[%s] apply-theme --preview won't write into the linked pages/ folder" % tag,
+         rc == 0 and "skipped: pages/.preview/" in out and not os.path.exists(os.path.join(pages_out, ".preview")), out)
+    r.ok("[%s] the folder pages/ points to is byte-identical" % tag, snapshot(pages_out) == p0,
+         "\n".join(diff(p0, snapshot(pages_out)))[:2000])
+
+
 def main():
     args = parse_args("End-to-end test of /update (install, check, rollback, refusals)")
     keep_temps(args.keep)
@@ -666,14 +929,19 @@ def main():
     print("bash: %s   node: %s" % (find_bash(), find_node() or "none (themed copies crafted by hand)"))
     r.section("fixtures")
     base = build_base(t, r)
-    rel, zpath = build_release(t, base, r)
+    rel, zpath, unz101 = build_release(t, base, r)
+    zip100_top = build_zip_100(t, base, r)
     prepared = build_installed(t, base, r, have_node)
     sentinel = os.path.join(t, "sentinel")
     os.makedirs(sentinel)
     bad = build_bad_zips(t, zpath, sentinel)
+    maint_zip = build_maint_zip(t, zpath)
     for impl in args.impls:
         t0 = time.time()
         run_impl(impl, t, prepared, zpath, rel, bad, sentinel, have_node, r)
+        run_zipuser(impl, t, zip100_top, unz101, zpath, maint_zip, r)
+        run_legacy(impl, t, prepared, zpath, r)
+        run_parentlink(impl, t, prepared, zpath, have_node, r)
         print("\n(%s took %.0fs)" % (impl, time.time() - t0))
     r.finish()
 

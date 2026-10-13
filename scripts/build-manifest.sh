@@ -7,9 +7,11 @@
 #   bash scripts/build-manifest.sh --zip <file>    also build a release zip: job-search-hq-<version>/ + every listed file
 # The file list is every file git tracks or would track (tracked + untracked, minus .gitignore'd), or,
 # outside a git checkout, every file minus the same ignored paths. User-owned paths (DATA_CONTRACT.md)
-# are never listed, even if someone force-added one. Fingerprint = SHA-256 of the file with every
-# carriage return removed, so a Windows checkout (CRLF) and a Mac one match.
-# Keep is_protected in step with .claude/skills/update/scripts/update.sh and update.ps1.
+# are never listed, even if someone force-added one, and neither are maintainer-only paths (is_maintainer:
+# the repository's tests, CI and maintainer notes), so the manifest is exactly what a release ships.
+# Fingerprint = SHA-256 of the file with every carriage return removed, so a Windows checkout (CRLF) and a
+# Mac one match.
+# Keep is_protected and is_maintainer in step with .claude/skills/update/scripts/update.sh and update.ps1.
 set -u
 die() { echo "error: $*" >&2; exit 1; }
 ROOT="$(cd "$(dirname "$0")/.." && pwd -P)" || die "cannot find the workspace"
@@ -35,6 +37,22 @@ is_protected() {
     profile/*|jobs/*|contacts/*|outbox/*|interviews/*|history/*|imports/*|pages/*|knowledge/field/*) return 0 ;;
     .git/*|.backup/*|.claude/.health/*|.claude/settings.local.json|*.local|product-manifest.json) return 0 ;;
     .ds_store|*/.ds_store|thumbs.db|*/thumbs.db|\~\$*|*/\~\$*|*.check.pdf|*-check.pdf) return 0 ;;
+  esac
+  return 1
+}
+# Maintainer-only paths: in the git repository, never in a release. This is the one list (mirrored in update.sh
+# and update.ps1). They are left out of product-manifest.json and so out of the release zip, and /update never
+# installs, replaces, removes or reports them: a release-zip user never has them, and a git clone keeps its own
+# copies (git pull updates those). Case-insensitive, like is_protected.
+#   docs/maintainers/          handoff notes and reviews
+#   .github/                   CI workflows, issue and pull request templates
+#   scripts/ci/                every check and end-to-end test (journeys/, visual/, fixtures, CLAUDE.md)
+#   .claude/skills/*/tests/    the panels' plugin tests
+#   CONTRIBUTING.md            for people changing the app; it points at the paths above
+is_maintainer() {
+  local p; p="$(printf '%s' "$1" | tr 'A-Z' 'a-z')"
+  case "$p" in
+    docs/maintainers/*|.github/*|scripts/ci/*|.claude/skills/*/tests/*|contributing.md) return 0 ;;
   esac
   return 1
 }
@@ -74,6 +92,7 @@ trap 'rm -f "$tmp"' EXIT
     [ -n "$f" ] || continue
     [ -f "$f" ] && [ ! -L "$f" ] || continue          # deleted in the working tree, or a link
     is_protected "$f" && continue
+    is_maintainer "$f" && continue
     case "$f" in *'"'*|*'\'*) die "file name not allowed in the product: $f" ;; esac
     [ $first = 1 ] || printf ',\n'
     printf '    "%s": "%s"' "$f" "$(fp "$f")"; first=0
@@ -101,6 +120,8 @@ if [ -n "$zipout" ]; then
   top="job-search-hq-$ver"
   mkdir -p "$stage/$top"
   sed -n 's/^    "\(.*\)": "[0-9a-f]\{64\}",\{0,1\}$/\1/p' product-manifest.json | while IFS= read -r f; do
+    # A hand-edited manifest must not smuggle personal or maintainer-only files into a release.
+    if is_protected "$f" || is_maintainer "$f"; then echo "error: product-manifest.json lists $f, which a release never ships" >&2; exit 1; fi
     mkdir -p "$stage/$top/$(dirname "$f")" && cp -p "$f" "$stage/$top/$f" || exit 1
   done || die "could not copy the files into the release"
   cp product-manifest.json "$stage/$top/" || die "could not copy the manifest"

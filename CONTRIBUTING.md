@@ -58,10 +58,13 @@ CI (`.github/workflows/ci.yml`) runs the same scripts on every push and pull req
 ## Releasing (maintainers)
 
 1. Work in a separate clone of the public product repository that has never held user data.
-2. If a change alters the shape of a file users already have (a new line in `preferences.md`, a new tracker column, a new part of a page), add a note in `migrations/NNN-short-name.md` (see `migrations/README.md`).
-3. Bump `VERSION` and add a `CHANGELOG.md` entry, in plain English, for users.
-4. Rebuild the manifest with `bash scripts/build-manifest.sh`, then confirm with `bash scripts/build-manifest.sh --check` and `bash scripts/ci/run-all.sh`.
-5. Build the release zip with `bash scripts/build-manifest.sh --zip <file>`, and publish its SHA-256 next to the download so `/update` can verify it.
-6. Before the first public release, set `update_source:` in `VERSION` to where releases are published.
+2. If a change alters the shape of a file users already have (a new line in `preferences.md`, a new tracker column, a new part of a page), add a note in `migrations/NNN-short-name.md` (see `migrations/README.md`). Its `version:` is the release that ships it.
+3. Bump `VERSION` and turn the `CHANGELOG.md` "Unreleased" entries (for 1.0.0, the "not yet released" heading) into a dated `## X.Y.Z (YYYY-MM-DD)` entry, in plain English, for users (`/update` shows users the entries newer than theirs).
+4. Before the first public release (and before building its zip, since `VERSION` goes in it), set `update_source:` in `VERSION` to a direct `https://` link to the latest release zip (for example a GitHub "latest release" asset link, which needs the asset to keep the same file name in every release, such as `job-search-hq.zip`). Until it's set, VERSION says `set by the maintainer before publishing`: `/update --status` shows `update_source: none`, and users are asked for a zip they downloaded. Anything that isn't an `https://` link is refused with a plain message. A download from `update_source` has no checksum to compare against unless the user passes one.
+5. Rebuild the manifest with `bash scripts/build-manifest.sh`, then confirm with `bash scripts/build-manifest.sh --check` and `bash scripts/ci/run-all.sh` (with `PS_EXE` set). `scripts/ci/e2e-update.py` builds real release zips, installs one as a fresh user would, updates it to a test next version with `update.sh` and `update.ps1`, rolls it back, and checks that no maintainer-only file is ever shipped or installed.
+6. Build the release zip with `bash scripts/build-manifest.sh --zip job-search-hq-X.Y.Z.zip`. It holds one folder, `job-search-hq-X.Y.Z/`, with exactly the files `product-manifest.json` lists: the maintainer-only paths (`docs/maintainers/`, `.github/`, `scripts/ci/`, `.claude/skills/*/tests/`, `CONTRIBUTING.md`; the list is in `DATA_CONTRACT.md`) are left out, and `--zip` refuses a manifest that lists one. Unzip it somewhere and look before publishing.
+7. Publish the zip and its SHA-256 (`shasum -a 256 <zip>`, or `sha256sum`) on the release page, so users can pass it to `/update` with `--sha256`.
+
+A git clone has the maintainer-only files and a zip doesn't; `/update` never installs, removes or reports them, so a clone that updates from a zip keeps its copies, and `git pull` is still the normal way to update a clone.
 
 `.githooks/pre-push` blocks pushing to a public GitHub repository when `git config core.hooksPath .githooks` is set; that's the safety net for users' folders. Don't turn it on in the clone you use to maintain the public product repository, or it will block your own pushes.

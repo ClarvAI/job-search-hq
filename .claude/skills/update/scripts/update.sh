@@ -6,6 +6,8 @@
 #   bash .claude/skills/update/scripts/update.sh [zip|URL] [--sha256 HEX]  install it (only after the user said yes)
 #   bash .claude/skills/update/scripts/update.sh --rollback [backup-name]  undo the last update (or the named one)
 # With no zip or URL, the address in VERSION (update_source) is used; it must be an https:// link to a release zip.
+# Until the maintainer sets one, VERSION says "update_source: set by the maintainer before publishing": --status then
+# prints "update_source: none ..." and an install without a zip stops with a plain "no download address" error.
 #
 # Rules (DATA_CONTRACT.md): only paths listed in the release's product-manifest.json are written; a release that
 # lists a user-owned path, or whose files don't match their fingerprints, is refused before anything changes.
@@ -18,7 +20,9 @@
 # Output: "added:/updated:/removed:/kept-local:/new starter file:/template:/migration:/hooks-changed: claude|codex/
 # note:" lines, a changelog block, and a last line "update: done A -> B (backup: .backup/X)", "update: check ...",
 # "update: already up to date", "rollback: done ...", or "error: ..." (exit 1).
-# Keep is_protected in step with scripts/build-manifest.sh and update.ps1.
+# Maintainer-only paths (ship: tests, CI, maintainer notes) are never installed, replaced, removed or
+# reported, even if a manifest lists them: a release doesn't ship them, and a git clone's own copies stay as they are.
+# Keep is_protected and ship (is_maintainer there) in step with scripts/build-manifest.sh and update.ps1.
 set -u
 die() { echo "error: $*"; exit 1; }
 
@@ -55,9 +59,25 @@ is_protected() {   # user-owned or local-only: never written, moved or deleted b
   esac
   return 1
 }
+# ship: drops maintainer-only paths (in the git repository, never in a release; the list and its reasons are in
+# scripts/build-manifest.sh, is_maintainer) from a "path<TAB>fingerprint" list. Case-insensitive. awk, not a shell
+# loop: one process for the whole list.
+ship() {
+  awk -F'\t' '{ l = tolower($1)
+    if (l ~ /^(docs\/maintainers|\.github|scripts\/ci)\// || l ~ /^\.claude\/skills\/.*\/tests\// || l == "contributing.md") next
+    print }'
+}
 safe_path() {      # relative, no "..", no backslashes or odd characters
   case "$1" in ""|/*|*\\*|*:*|*'"'*|..|../*|*/..|*/../*|*/./*|./*) return 1 ;; esac
   return 0
+}
+linked_parent() {  # linked_parent <relative path>: true if a folder on its way is a link (plink: the outermost one)
+  plink=""; local q="$1"
+  while :; do
+    case "$q" in */*) q="${q%/*}" ;; *) break ;; esac
+    [ -L "$ROOT/$q" ] && plink="$q"
+  done
+  [ -n "$plink" ]
 }
 man_files() { tr -d '\r' < "$1" | awk -F'"' '/^    "[^"]+": "[0-9a-f]{64}",?$/ { print $2 "\t" $4 }'; }
 # "themed": the app templates a user may have their own themed copy of (profile/templates/<file name>).
@@ -92,7 +112,11 @@ BK="$ROOT/.backup"
 # ---------------------------------------------------------------- status
 if [ "$mode" = status ]; then
   echo "version: $OLDV"
-  echo "update_source: ${SRC_DEFAULT:-none}"
+  case "$SRC_DEFAULT" in
+    https://*) echo "update_source: $SRC_DEFAULT" ;;
+    ""|*"set by the maintainer"*) echo "update_source: none (no download address is set yet; updates need a release zip you downloaded)" ;;
+    *) echo "update_source: $SRC_DEFAULT (not an https:// link, so it can't be used; updates need a release zip you downloaded)" ;;
+  esac
   if [ -d "$BK" ]; then
     for d in "$BK"/*/; do
       [ -f "$d/backup-info.txt" ] || continue
@@ -108,6 +132,7 @@ restore_from() {   # restore_from <backup dir>: undo one update. Prints what it 
   if [ -f "$b/added.txt" ]; then
     while IFS= read -r p; do
       [ -n "$p" ] && safe_path "$p" && ! is_protected "$p" || continue
+      if linked_parent "$p"; then echo "note: skipped $p ($plink/ is a link to another folder; nothing is changed through it)"; continue; fi
       if [ -f "$ROOT/$p" ] || [ -L "$ROOT/$p" ]; then rm -f -- "$ROOT/$p" && echo "removed: $p" || bad=1; fi
     done < "$b/added.txt"
   fi
@@ -115,6 +140,7 @@ restore_from() {   # restore_from <backup dir>: undo one update. Prints what it 
     while IFS= read -r p; do
       [ -n "$p" ] && safe_path "$p" && ! is_protected "$p" || continue
       [ -f "$b/files/$p" ] || { echo "error: the backup has no copy of $p"; bad=1; continue; }
+      if linked_parent "$p"; then echo "note: skipped $p ($plink/ is a link to another folder; nothing is changed through it)"; continue; fi
       # Already as it was (an update that failed before reaching it): nothing to write, so a file that
       # can't be written (open in another program) doesn't turn a clean undo into "could not put back".
       if [ -f "$ROOT/$p" ] && [ ! -L "$ROOT/$p" ] && cmp -s "$b/files/$p" "$ROOT/$p" \
@@ -167,7 +193,7 @@ if [ "$mode" = rollback ]; then
 fi
 
 # ---------------------------------------------------------------- get and check the release
-[ -n "$src" ] || src="$SRC_DEFAULT"
+from_default=""; [ -n "$src" ] || { src="$SRC_DEFAULT"; from_default=1; }
 TMP="$(mktemp -d 2>/dev/null || mktemp -d -t jshqupd)" || die "cannot make a temporary folder"
 trap 'rm -rf "$TMP"' EXIT
 case "$src" in
@@ -176,8 +202,9 @@ case "$src" in
     curl -fsSL --proto '=https' --max-time 300 -o "$TMP/release.zip" "$src" || die "could not download $src (nothing was changed)"
     zip="$TMP/release.zip" ;;
   http://*) die "only https:// addresses are allowed (nothing was changed)" ;;
-  ""|*"set by the maintainer"*) die "no update address is set yet; download the release zip and give its path (nothing was changed)" ;;
-  *) case "$src" in "~/"*) src="$HOME/${src#\~/}" ;; esac
+  ""|*"set by the maintainer"*) die "no download address for updates is set yet; download the latest release zip yourself and give its path (nothing was changed)" ;;
+  *) [ -z "$from_default" ] || die "the update address in VERSION ($src) isn't an https:// link; download the latest release zip yourself and give its path (nothing was changed)"
+     case "$src" in "~/"*) src="$HOME/${src#\~/}" ;; esac
      [ -f "$src" ] || die "file not found: $src (nothing was changed)"
      zip="$src" ;;
 esac
@@ -235,11 +262,20 @@ if [ "$c" = 0 ] && [ "$mode" = install ] && [ -z "${JSHQ_REINSTALL:-}" ]; then e
 [ "$c" = -1 ] && die "that release ($NEWV) is older than the installed version ($OLDV); to go back, use --rollback (nothing was changed)"
 
 # ---------------------------------------------------------------- plan
-if [ -f "$ROOT/product-manifest.json" ]; then man_files "$ROOT/product-manifest.json" > "$TMP/old.tsv"; else : > "$TMP/old.tsv"; fi
+# Maintainer-only paths drop out of both lists here: never installed, and never removed because a release doesn't
+# ship them (an older manifest, such as a git clone's from before they were excluded, may still list them).
+ship < "$TMP/new.tsv" > "$TMP/ship.tsv"; mv -f "$TMP/ship.tsv" "$TMP/new.tsv"
+if [ -f "$ROOT/product-manifest.json" ]; then man_files "$ROOT/product-manifest.json" | ship > "$TMP/old.tsv"; else : > "$TMP/old.tsv"; fi
 : > "$TMP/local.tsv"
 cut -f1 "$TMP/new.tsv" "$TMP/old.tsv" | LC_ALL=C sort -u | while IFS= read -r p; do
   [ -n "$p" ] && safe_path "$p" && ! is_protected "$p" || continue
-  if [ -L "$ROOT/$p" ]; then printf '%s\tLINK\n' "$p"
+  # A folder on the way that is a link: never write through it. PARENTLINK: nothing there; PARENTLINKX:<fingerprint>:
+  # something there (read through the link only to see whether it is already the new version).
+  if linked_parent "$p"; then
+    if [ -f "$ROOT/$p" ] && [ ! -L "$ROOT/$p" ]; then printf '%s\tPARENTLINKX:%s\n' "$p" "$(fp "$ROOT/$p")"
+    elif [ -e "$ROOT/$p" ] || [ -L "$ROOT/$p" ]; then printf '%s\tPARENTLINKX:\n' "$p"
+    else printf '%s\tPARENTLINK\n' "$p"; fi
+  elif [ -L "$ROOT/$p" ]; then printf '%s\tLINK\n' "$p"
   elif [ -f "$ROOT/$p" ]; then printf '%s\t%s\n' "$p" "$(fp "$ROOT/$p")"; fi
 done > "$TMP/local.tsv"
 # plan.tsv: ACTION<TAB>path. ADD new file; SAME already the new version; UPDATE replace an unedited file;
@@ -251,16 +287,18 @@ awk -F'\t' -v OFS='\t' '
   { neu[$1] = $2; order[++n] = $1 }
   END {
     for (i = 1; i <= n; i++) { p = order[i]; h = neu[p]
-      if (!(p in loc)) print "ADD", p
+      if ((p in loc) && loc[p] ~ /^PARENTLINK/) { act = (loc[p] == ("PARENTLINKX:" h)) ? "SAME" : "SKIPLINK"; print act, p }
+      else if (!(p in loc)) print "ADD", p
       else if (loc[p] == h) print "SAME", p
       else if ((p in old) && loc[p] == old[p]) print "UPDATE", p
       else print "LOCAL", p }
-    for (p in old) if (!(p in neu) && (p in loc)) { if (loc[p] == old[p]) print "REMOVE", p; else print "LOCALREMOVE", p }
+    for (p in old) if (!(p in neu) && (p in loc)) { if (loc[p] == "PARENTLINK") continue; if (loc[p] ~ /^PARENTLINKX/) print "SKIPLINK", p
+      else if (loc[p] == old[p]) print "REMOVE", p; else print "LOCALREMOVE", p }
   }' "$TMP/old.tsv" "$TMP/local.tsv" "$TMP/new.tsv" > "$TMP/plan.tsv"
 count() { grep -c "^$1	" "$TMP/plan.tsv"; }
 nA="$(count ADD)"; nU="$(count UPDATE)"; nL="$(( $(count LOCAL) + $(count LOCALREMOVE) ))"; nR="$(count REMOVE)"
 
-awk -F'\t' '$1 != "SAME" { print $2 }' "$TMP/plan.tsv" > "$TMP/changing.txt"
+awk -F'\t' '$1 != "SAME" && $1 != "SKIPLINK" { print $2 }' "$TMP/plan.tsv" > "$TMP/changing.txt"
 # App templates that change in this update and that the user has a themed copy of.
 : > "$TMP/retheme.txt"
 while IFS= read -r p; do
@@ -269,7 +307,8 @@ done < "$TMP/themed.txt"
 
 if [ "$mode" = check ]; then
   echo "installed: $OLDV"; echo "available: $NEWV"
-  awk -F'\t' '$1 == "LOCAL" || $1 == "LOCALREMOVE" { print "would keep your edited version: " $2 " (saved as " $2 ".local)" }' "$TMP/plan.tsv"
+  awk -F'\t' '$1 == "LOCAL" || $1 == "LOCALREMOVE" { print "would keep your edited version: " $2 " (saved as " $2 ".local)" }
+    $1 == "SKIPLINK" { print "would skip: " $2 " (a folder on its way is a link to another folder; nothing is written through it)" }' "$TMP/plan.tsv"
   hooks_lines "$TMP/changing.txt"
   while IFS= read -r t; do [ -n "$t" ] && echo "would refresh your themed copy: profile/templates/$t (your current copy is kept as profile/templates/${t%.html}.previous.html)"; done < "$TMP/retheme.txt"
   echo "update: check ($nA to add, $nU to update, $nR to remove, $nL edited by you; nothing changed)"
@@ -313,6 +352,7 @@ while IFS="$(printf '\t')" read -r a p; do
         echo "kept-local: $p (your edited version is now $l)"
       else echo "kept-local: $p (no longer part of the app; your edited version is now $l)"; fi ;;
     REMOVE) rm -f -- "$ROOT/$p" || fail "could not remove $p"; echo "removed: $p" ;;
+    SKIPLINK) linked_parent "$p"; echo "note: skipped $p (${plink:-a folder on its way}/ is a link to another folder; the update never writes through it)" ;;
   esac
 done < "$TMP/plan.tsv"
 # The LOCAL files were moved, not copied over: restore_from must put the backup copy back, not delete it.

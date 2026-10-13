@@ -8,7 +8,11 @@
 # Same rules and output lines as update.sh (see there and DATA_CONTRACT.md): the app's templates/*.html are plain
 # app files; a user's themed copy in profile/templates/ is rebuilt when its app template changes (the old copy is
 # kept as <name>.previous.html), and pages are never touched.
-# Keep Test-Protected in step with update.sh and scripts/build-manifest.sh.
+# Maintainer-only paths (Test-Maintainer: tests, CI, maintainer notes) are never installed, replaced, removed or
+# reported, even if a manifest lists them: a release doesn't ship them, and a git clone's own copies stay as they are.
+# With no -Source, the address in VERSION (update_source) is used; until the maintainer sets one it says "set by the
+# maintainer before publishing", -Status prints "update_source: none ..." and an install stops with a plain error.
+# Keep Test-Protected and Test-Maintainer in step with update.sh (is_protected, ship) and scripts/build-manifest.sh.
 param(
   [string]$Source = '',
   [switch]$Status,
@@ -48,6 +52,11 @@ function Test-Protected([string]$p) {
   if ($l -match '^(profile|jobs|contacts|outbox|interviews|history|imports|pages|knowledge/field)/') { return $true }
   if ($l -match '^(\.git|\.backup|\.claude/\.health)/' -or $l -eq '.claude/settings.local.json' -or $l.EndsWith('.local') -or $l -eq 'product-manifest.json') { return $true }
   return $false
+}
+# In the git repository, never in a release (the list and its reasons: scripts/build-manifest.sh, is_maintainer).
+function Test-Maintainer([string]$p) {
+  $l = $p.ToLowerInvariant()
+  return ($l -match '^(docs/maintainers|\.github|scripts/ci)/' -or $l -match '^\.claude/skills/.*/tests/' -or $l -eq 'contributing.md')
 }
 function Test-SafePath([string]$p) {
   if ($p -eq '' -or $p.StartsWith('/') -or $p.Contains('\') -or $p.Contains(':') -or $p.Contains('"')) { return $false }
@@ -104,6 +113,15 @@ function Install-File([string]$src, [string]$rel) {
   [IO.File]::Move("$d.update-tmp", $d)
 }
 function Add-Line([string]$file, [string]$line) { [IO.File]::AppendAllText($file, $line + "`n", $utf8) }
+function Get-LinkedParent([string]$rel) {   # the outermost folder on the way to this path that is a link, or ''
+  $found = ''; $q = $rel
+  while ($q.Contains('/')) {
+    $q = $q.Substring(0, $q.LastIndexOf('/'))
+    $it = Get-Item -LiteralPath (P $q) -Force -ErrorAction SilentlyContinue
+    if ($it -and ($it.LinkType -eq 'SymbolicLink' -or $it.LinkType -eq 'Junction')) { $found = $q }
+  }
+  return $found
+}
 function Read-Lines([string]$file) { if (Test-Path -LiteralPath $file) { return @((Read-Text $file).Split("`n") | Where-Object { $_ -ne '' }) } else { return @() } }
 
 $OldV = Get-Ver (P 'VERSION'); if (-not $OldV) { Fail 'VERSION has no version: line' }
@@ -114,7 +132,9 @@ $Bk = P '.backup'
 # ---------------------------------------------------------------- status
 if ($Status) {
   Write-Output "version: $OldV"
-  Write-Output ("update_source: " + $(if ($SrcDefault) { $SrcDefault } else { 'none' }))
+  if ($SrcDefault -match '^https://') { Write-Output "update_source: $SrcDefault" }
+  elseif (-not $SrcDefault -or $SrcDefault -match 'set by the maintainer') { Write-Output 'update_source: none (no download address is set yet; updates need a release zip you downloaded)' }
+  else { Write-Output "update_source: $SrcDefault (not an https:// link, so it can't be used; updates need a release zip you downloaded)" }
   if (Test-Path -LiteralPath $Bk) {
     foreach ($d in @(Get-ChildItem -LiteralPath $Bk -Directory | Sort-Object Name)) {
       $info = Join-Path $d.FullName 'backup-info.txt'
@@ -129,6 +149,8 @@ function Restore-From([string]$b) {
   $bad = $false
   foreach ($p in (Read-Lines (Join-Path $b 'added.txt'))) {
     if (-not (Test-SafePath $p) -or (Test-Protected $p)) { continue }
+    $pl = Get-LinkedParent $p
+    if ($pl) { Write-Output "note: skipped $p ($pl/ is a link to another folder; nothing is changed through it)"; continue }
     if (Get-Item -LiteralPath (P $p) -Force -ErrorAction SilentlyContinue) {
       try { [IO.File]::Delete((P $p)); Write-Output "removed: $p" } catch { $bad = $true }
     }
@@ -137,6 +159,8 @@ function Restore-From([string]$b) {
     if (-not (Test-SafePath $p) -or (Test-Protected $p)) { continue }
     $copy = Join-Path (Join-Path $b 'files') $p
     if (-not (Test-Path -LiteralPath $copy -PathType Leaf)) { Write-Output "error: the backup has no copy of $p"; $bad = $true; continue }
+    $pl = Get-LinkedParent $p
+    if ($pl) { Write-Output "note: skipped $p ($pl/ is a link to another folder; nothing is changed through it)"; continue }
     # Already as it was (an update that failed before reaching it): nothing to write, so a file that
     # can't be written (open in another program) doesn't turn a clean undo into "could not put back".
     $cur = P $p
@@ -190,7 +214,8 @@ if ($Rollback) {
 }
 
 # ---------------------------------------------------------------- get and check the release
-if (-not $Source) { $Source = $SrcDefault }
+$fromDefault = $false
+if (-not $Source) { $Source = $SrcDefault; $fromDefault = $true }
 $Tmp = Join-Path ([IO.Path]::GetTempPath()) ('jshq-update-' + [guid]::NewGuid().ToString('N'))
 [IO.Directory]::CreateDirectory($Tmp) | Out-Null
 $exitCode = 0
@@ -200,7 +225,8 @@ try {
     $zip = Join-Path $Tmp 'release.zip'
     try { Invoke-WebRequest -Uri $Source -OutFile $zip -UseBasicParsing -MaximumRedirection 5 -TimeoutSec 300 } catch { Fail "could not download $Source (nothing was changed)" }
   } elseif ($Source -match '^http://') { Fail 'only https:// addresses are allowed (nothing was changed)' }
-  elseif (-not $Source -or $Source -match 'set by the maintainer') { Fail 'no update address is set yet; download the release zip and give its path (nothing was changed)' }
+  elseif (-not $Source -or $Source -match 'set by the maintainer') { Fail 'no download address for updates is set yet; download the latest release zip yourself and give its path (nothing was changed)' }
+  elseif ($fromDefault) { Fail "the update address in VERSION ($Source) isn't an https:// link; download the latest release zip yourself and give its path (nothing was changed)" }
   else {
     if (-not (Test-Path -LiteralPath $Source -PathType Leaf)) { Fail "file not found: $Source (nothing was changed)" }
     $zip = (Resolve-Path -LiteralPath $Source).Path
@@ -255,19 +281,30 @@ try {
   if ($c -lt 0) { Fail "that release ($NewV) is older than the installed version ($OldV); to go back, use -Rollback (nothing was changed)" }
 
   # ---------------------------------------------------------------- plan
+  # Maintainer-only paths drop out of both lists here: never installed, and never removed because a release doesn't
+  # ship them (an older manifest, such as a git clone's from before they were excluded, may still list them).
+  $shipFiles = @($newFiles | Where-Object { -not (Test-Maintainer $_.p) })
   $oldH = @{}
-  if (Test-Path -LiteralPath (P 'product-manifest.json')) { foreach ($f in (Get-ManFiles (P 'product-manifest.json'))) { $oldH[$f.p] = $f.h } }
+  if (Test-Path -LiteralPath (P 'product-manifest.json')) { foreach ($f in (Get-ManFiles (P 'product-manifest.json'))) { if (-not (Test-Maintainer $f.p)) { $oldH[$f.p] = $f.h } } }
   function Get-LocalFp([string]$p) {
     if (-not (Test-SafePath $p) -or (Test-Protected $p)) { return $null }
     $it = Get-Item -LiteralPath (P $p) -Force -ErrorAction SilentlyContinue
+    # A folder on the way that is a link: never write through it (PARENTLINKX when something is there).
+    # PARENTLINKX:<fingerprint> when something is there (read through the link only to see whether it is already new).
+    if (Get-LinkedParent $p) {
+      if (-not $it) { return 'PARENTLINK' }
+      if ($it.LinkType -or $it.PSIsContainer) { return 'PARENTLINKX:' }
+      return ('PARENTLINKX:' + (Get-Fp $it.FullName))
+    }
     if (-not $it) { return $null }
     if ($it.LinkType -or $it.PSIsContainer) { return 'LINK' }
     return (Get-Fp $it.FullName)
   }
   $plan = New-Object 'System.Collections.Generic.List[object]'
-  foreach ($f in $newFiles) {
+  foreach ($f in $shipFiles) {
     $lh = Get-LocalFp $f.p
-    if ($null -eq $lh) { $a = 'ADD' }
+    if ($lh -like 'PARENTLINK*') { if ($lh -eq ('PARENTLINKX:' + $f.h)) { $a = 'SAME' } else { $a = 'SKIPLINK' } }
+    elseif ($null -eq $lh) { $a = 'ADD' }
     elseif ($lh -eq $f.h) { $a = 'SAME' }
     elseif ($oldH.ContainsKey($f.p) -and $lh -eq $oldH[$f.p]) { $a = 'UPDATE' }
     else { $a = 'LOCAL' }
@@ -276,20 +313,24 @@ try {
   foreach ($p in @($oldH.Keys | Sort-Object)) {
     if ($newH.ContainsKey($p)) { continue }
     $lh = Get-LocalFp $p
-    if ($null -eq $lh) { continue }
+    if ($null -eq $lh -or $lh -eq 'PARENTLINK') { continue }
+    if ($lh -like 'PARENTLINKX*') { $plan.Add(@{ a = 'SKIPLINK'; p = $p }); continue }
     if ($lh -eq $oldH[$p]) { $plan.Add(@{ a = 'REMOVE'; p = $p }) } else { $plan.Add(@{ a = 'LOCALREMOVE'; p = $p }) }
   }
   $nA = @($plan | Where-Object { $_.a -eq 'ADD' }).Count
   $nU = @($plan | Where-Object { $_.a -eq 'UPDATE' }).Count
   $nL = @($plan | Where-Object { $_.a -in @('LOCAL', 'LOCALREMOVE') }).Count
   $nR = @($plan | Where-Object { $_.a -eq 'REMOVE' }).Count
-  $changing = @($plan | Where-Object { $_.a -ne 'SAME' } | ForEach-Object { $_.p })
+  $changing = @($plan | Where-Object { $_.a -ne 'SAME' -and $_.a -ne 'SKIPLINK' } | ForEach-Object { $_.p })
   # App templates that change in this update and that the user has a themed copy of.
   $retheme = @($themed | Where-Object { ($changing -contains $_) -and (Test-Path -LiteralPath (P ('profile/templates/' + ($_ -replace '^.*/', ''))) -PathType Leaf) } | ForEach-Object { $_ -replace '^.*/', '' })
 
   if ($Check) {
     Write-Output "installed: $OldV"; Write-Output "available: $NewV"
-    foreach ($x in $plan) { if ($x.a -in @('LOCAL', 'LOCALREMOVE')) { Write-Output "would keep your edited version: $($x.p) (saved as $($x.p).local)" } }
+    foreach ($x in $plan) {
+      if ($x.a -in @('LOCAL', 'LOCALREMOVE')) { Write-Output "would keep your edited version: $($x.p) (saved as $($x.p).local)" }
+      if ($x.a -eq 'SKIPLINK') { Write-Output "would skip: $($x.p) (a folder on its way is a link to another folder; nothing is written through it)" }
+    }
     Write-HooksLines $changing
     foreach ($t in $retheme) { Write-Output ("would refresh your themed copy: profile/templates/$t (your current copy is kept as profile/templates/" + ($t -replace '\.html$', '.previous.html') + ')') }
     Write-Output "update: check ($nA to add, $nU to update, $nR to remove, $nL edited by you; nothing changed)"
@@ -335,6 +376,7 @@ try {
           } else { Write-Output "kept-local: $p (no longer part of the app; your edited version is now $l)" }
         }
         'REMOVE' { [IO.File]::Delete((P $p)); Write-Output "removed: $p" }
+        'SKIPLINK' { Write-Output "note: skipped $p ($(Get-LinkedParent $p)/ is a link to another folder; the update never writes through it)" }
       }
     }
     $step = 'product-manifest.json'
