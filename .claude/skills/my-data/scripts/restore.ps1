@@ -182,6 +182,9 @@ $n = @{ restored = 0; 'replaced starter' = 0; merged = 0; differs = 0 }
 try {
   foreach ($e in $items) {
     $r = $e.rel
+    # Only plain relative paths inside the user folders: no "." or ".." parts, no line breaks.
+    if ($r.Contains("`n") -or $r.Contains("`r")) { Write-Output ("skipped odd name: a file in " + $r.Split('/')[0] + "/ has a line break in its name"); continue }
+    if (@($r.Split('/') | Where-Object { $_ -eq '' -or $_ -eq '.' -or $_ -eq '..' }).Count -gt 0) { Write-Output "skipped odd name: $r"; continue }
     if ($e.link) { Write-Output "skipped link: $r"; continue }
     $leaf = Split-Path -Leaf $r
     if ($leaf -like '~$*' -or $leaf -eq '.DS_Store' -or $leaf -eq 'Thumbs.db' -or $leaf -like '*.restore-tmp') { continue }

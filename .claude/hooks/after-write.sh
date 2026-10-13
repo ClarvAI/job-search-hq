@@ -28,12 +28,12 @@ while IFS= read -r p; do
       add "Shared record changed: append one line to history/activity.md exactly like: - $(date '+%Y-%m-%d %H:%M') · $APPNAME · <job or person>: <what changed>."
       case "$p" in */jobs/tracker.csv)
         grep -q '"example": true' "$ROOT/pages/dashboard.html" 2>/dev/null && add "The dashboard page still shows example data; refresh its data block from the tracker at the end of this task (pages skill)."
-        grep -qE "^\| Dashboard \| https" "$PUB" 2>/dev/null && add "The user's dashboard is published; republish it once you finish this task (see the pages skill)." ;;
+        grep -qE "^\|[[:space:]]*Dashboard[[:space:]]*\|.*https" "$PUB" 2>/dev/null && add "The user's dashboard is published; republish it once you finish this task (see the pages skill)." ;;
       esac ;;
     */profile/story-bank.md|*/knowledge/field/field-primer.md)
-      grep -qE "^\| Flashcards \| https" "$PUB" 2>/dev/null && add "The user's flashcards are published and their source changed. Refresh and republish them once you finish this task (see the pages skill)." ;;
+      grep -qE "^\|[[:space:]]*Flashcards[[:space:]]*\|.*https" "$PUB" 2>/dev/null && add "The user's flashcards are published and their source changed. Refresh and republish them once you finish this task (see the pages skill)." ;;
     */profile/master-resume.md)
-      grep -qE "^\| Portfolio \| https" "$PUB" 2>/dev/null && add "The user's portfolio is published and their master resume changed. Offer to update it; republish only after the user approves." ;;
+      grep -qE "^\|[[:space:]]*Portfolio[[:space:]]*\|.*https" "$PUB" 2>/dev/null && add "The user's portfolio is published and their master resume changed. Offer to update it; republish only after the user approves." ;;
     */outbox/_*|*/outbox/sent/*|*/outbox/discarded/*) ;;
     */outbox/*.md)
       [ -n "$MOVED" ] || add "This is an Outbox draft. Check it follows the header format in AGENTS.md, run voice-editor if not done, and tell the user it's ready in $OUTBOX. Never send it yourself." ;;

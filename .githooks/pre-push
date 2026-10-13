@@ -22,12 +22,16 @@ u="${url%/}"; u="${u%.git}"; h=""
 re_ssh='^(ssh|git\+ssh|ssh\+git)://([^@/]*@)?([^/:]+)(:[0-9]+)?/(.*)$'
 re_scp='^([^@/]*@)?([^/:\\]+):(.*)$'
 lu="$(printf '%s' "$u" | tr 'A-Z' 'a-z')"   # GitHub.com and github.com are the same host
+# A trailing dot on the host (github.com.) is the same host, so collapse it before comparing.
+lu="$(printf '%s' "$lu" | sed -E 's#(^|[@/])github\.com\.+([:/])#\1github.com\2#g')"
+u="$(printf '%s' "$u" | sed -E 's#(^|[@/])([Gg][Ii][Tt][Hh][Uu][Bb]\.[Cc][Oo][Mm])\.+([:/])#\1\2\3#g')"
 case "$lu" in
   *github.com[:/]*) p="${lu#*github.com}"; p="${p#:}"; p="${p#/}" ;;
   *)
     if [[ $u =~ $re_ssh ]]; then h="${BASH_REMATCH[3]}"; p="${BASH_REMATCH[5]}"
     elif [[ $u != *://* && $u =~ $re_scp ]]; then h="${BASH_REMATCH[2]}"; p="${BASH_REMATCH[3]}"
     fi
+    h="${h%"${h##*[!.]}"}"                            # drop any trailing dots from the host
     case "$h" in ?|*[!A-Za-z0-9_.-]*) h="" ;; esac   # one letter = a Windows drive (C:\...)
     [ -n "$h" ] && is_github_alias "$h" || exit 0     # not GitHub: nothing to check
     p="${p#/}" ;;

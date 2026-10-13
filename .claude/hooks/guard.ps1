@@ -49,6 +49,8 @@ function Test-GitHubAlias([string]$HostName) {
 function Get-RepoState([string]$Url) {
     $u = $Url.TrimEnd('/')
     if ($u.EndsWith('.git')) { $u = $u.Substring(0, $u.Length - 4) }
+    # A trailing dot on the host (github.com. / github.com..) is the same host, so collapse it.
+    $u = [regex]::Replace($u, '(^|[@/])([Gg][Ii][Tt][Hh][Uu][Bb]\.[Cc][Oo][Mm])\.+([:/])', '$1$2$3')
     $lu = $u.ToLowerInvariant()                          # GitHub.com and github.com are the same host
     $i = $lu.IndexOf('github.com')
     if ($i -ge 0 -and $lu.Length -gt $i + 10 -and ':/'.Contains($lu[$i + 10])) {
@@ -57,6 +59,7 @@ function Get-RepoState([string]$Url) {
         $h = ''; $p = ''
         if ($u -match '^(ssh|git\+ssh|ssh\+git)://([^@/]*@)?([^/:]+)(:[0-9]+)?/(.*)$') { $h = $Matches[3]; $p = $Matches[5] }
         elseif ($u -notmatch '://' -and $u -match '^([^@/]*@)?([^/:\\]+):(.*)$') { $h = $Matches[2]; $p = $Matches[3] }
+        $h = $h.TrimEnd('.')                              # drop any trailing dots from the host
         if ($h.Length -lt 2 -or $h -notmatch '^[A-Za-z0-9_.-]+$') { return 'other' }   # one letter = a drive (C:\...)
         if (-not (Test-GitHubAlias $h)) { return 'other' }
         $p = $p.TrimStart('/')
@@ -175,6 +178,23 @@ function Test-GhRepo([string]$Repo) {
     if ($st -eq 'public') { Deny $publicMsg }
     if ($st -eq 'unknown') { Deny $unknownMsg }
 }
+# Split a segment into words the way the shell would, keeping quoted runs together, so a path like
+# "Job Search HQ" stays one word. Single and double quotes and backslash escapes are honored.
+function Split-Words([string]$s) {
+    $tok = New-Object System.Collections.Generic.List[string]
+    $cur = ''; $q = ''; $have = $false
+    for ($i = 0; $i -lt $s.Length; $i++) {
+        $c = $s[$i]
+        if ($q) {
+            if ($c -eq $q) { $q = '' } else { $cur += $c }
+        } elseif ($c -eq "'" -or $c -eq '"') { $q = $c; $have = $true }
+        elseif ($c -eq '\') { $i++; if ($i -lt $s.Length) { $cur += $s[$i] }; $have = $true }
+        elseif ($c -eq ' ' -or $c -eq "`t" -or $c -eq "`n" -or $c -eq "`r") { if ($have) { $tok.Add($cur); $cur = ''; $have = $false } }
+        else { $cur += $c; $have = $true }
+    }
+    if ($have) { $tok.Add($cur) }
+    return $tok.ToArray()   # the caller wraps with @(...); a bare comma here would nest the array
+}
 function Test-ShellCommand($Data, [string]$cmd) {
     # A line continuation (backslash, or PowerShell's backtick, then a new line) joins two lines.
     $cmd = $cmd -replace '(\\|`)\r?\n', ' '
@@ -183,6 +203,8 @@ function Test-ShellCommand($Data, [string]$cmd) {
     $hide = '(base64|xxd|openssl)[^;|&]*(-d|-D|--decode|-r)[^;&]*\|\s*(ba|z|da|k)?sh(\s|$)|(eval|source|\.)\s.*(base64|xxd|\\x[0-9a-fA-F]{2}|\\[0-7]{3})|(ba|z)?sh\s+-c\s.*\$\(.*(base64|xxd|rev|tr )|[Ff]rom[Bb]ase64[Ss]tring|([Ii]nvoke-[Ee]xpression|(^|[;|&\s])iex)[\s(]'
     $pipe = '\|\s*([^\s;&|]*[/\\])?((ba|z|da|k|fi|tc|c)?sh|pwsh|powershell|python[0-9.]*|node|perl|ruby)(\.exe)?(\s+-[A-Za-z-]*)*\s*($|[;&|)])'
     if ($flatCmd -cmatch $hide -or $flatCmd -cmatch $pipe) { Deny $hiddenMsg }
+    # Command substitution ($(...) or backticks) that feeds a push can hide the program or destination.
+    if (($flatCmd -match '\$\(' -or $flatCmd.Contains('`')) -and $flatCmd -match 'push|send-pack') { Deny $unreadMsg }
     # Sending mail from a script or a mail app, or opening Gmail, Outlook or LinkedIn some other way (-match ignores case).
     $send = 'osascript.*(mail|outlook|messages).*send|outlook\.application|send-mailmessage|net\.mail\.|smtplib|smtpclient|sendmail|msmtp|swaks|(^|[;&|\s])(mailx|mutt|mail)\s+-s\s'
     $open = "(^|[;&|\s(])(open|xdg-open|wslview|start|start-process|invoke-item|explorer(\.exe)?|rundll32)\s[^;&|]*($sites)|webbrowser[^;]*($sites)|osascript[^;&|]*($sites)"
@@ -191,11 +213,13 @@ function Test-ShellCommand($Data, [string]$cmd) {
     # gh api calls that make a repository public (REST fields or a GraphQL mutation, any case, any spacing).
     if ($flatCmd -match '(^|[^A-Za-z0-9_.-])gh(\.exe)?\s+api(\s|$)') {
         if (($flatCmd -replace '\s', '') -match 'private=false|private:false|visibility=public|visibility:public|visibility:"public"|visibility:\\"public\\"|public=true|public:true') { Deny $pubRepoMsg }
+        # A GraphQL mutation can create issues or change visibility and names no repos/<owner>/<repo> to check.
+        if ($flatCmd -match '(?i)graphql' -and ($flatCmd -replace '\s', '') -match 'mutation') { Deny $stagedMsg }
     }
     $dir = (Get-Location).Path
     if ($Data -and $Data.cwd) { $dir = [string]$Data.cwd }
     foreach ($seg in ($cmd -split '&&|\|\||[;|&()`\r\n]')) {
-        $w = @($seg.Trim() -split '\s+' | Where-Object { $_ -ne '' } | ForEach-Object { $_ -replace '["'']', '' })
+        $w = @(Split-Words $seg.Trim())
         $n = $w.Count
         if ($n -eq 0) { continue }
         # NAME=value / export NAME=value (bash) or $name = value (PowerShell) on its own: remember it,
@@ -206,7 +230,12 @@ function Test-ShellCommand($Data, [string]$cmd) {
         }
         $k0 = 0; if ($w[0] -ceq 'export') { $k0 = 1 }
         if ($k0 -lt $n -and @($w[$k0..($n - 1)] | Where-Object { $_ -notmatch '^[A-Za-z_][A-Za-z0-9_]*=' }).Count -eq 0) {
-            foreach ($a in $w[$k0..($n - 1)]) { $q = $a.IndexOf('='); $script:assigns[$a.Substring(0, $q)] = Expand-Vars $a.Substring($q + 1) $dir }
+            foreach ($a in $w[$k0..($n - 1)]) {
+                $q = $a.IndexOf('='); $nm = $a.Substring(0, $q)
+                $script:assigns[$nm] = Expand-Vars $a.Substring($q + 1) $dir
+                # git's own config env vars set here reach a later "git push" in the same command.
+                if ($nm -cmatch '^(GIT_CONFIG|GIT_DIR$|GIT_WORK_TREE$|GIT_COMMON_DIR$)') { $script:staged = $true }
+            }
             continue
         }
         if ($w[0] -in @('cd', 'chdir', 'pushd', 'sl', 'Set-Location', 'Push-Location') -and $n -ge 2) {
@@ -230,37 +259,55 @@ function Test-ShellCommand($Data, [string]$cmd) {
         for ($i = 0; $i -lt $n - 1; $i++) {
             if ($w[$i] -notmatch '(^|[\\/])gh(\.exe)?$') { continue }   # -match ignores case: GH.EXE
             $rest = ' ' + (($w[($i + 1)..($n - 1)]) -join ' ') + ' '
-            $pair = $w[$i + 1] + ' ' + $(if ($i + 2 -lt $n) { $w[$i + 2] } else { '' })
+            # Skip gh's global flags (and their values) so "gh --repo X release upload" dispatches on "release".
+            $sp = $i + 1; $ghrepo = ''
+            while ($sp -lt $n) {
+                if ($w[$sp] -ceq '-R' -or $w[$sp] -ceq '--repo') { if ($sp + 1 -lt $n) { $ghrepo = $w[$sp + 1] }; $sp++ }
+                elseif ($w[$sp] -cmatch '^--repo=(.+)$') { $ghrepo = $Matches[1] }
+                elseif ($w[$sp] -cmatch '^-R(.+)$') { $ghrepo = $Matches[1] }
+                elseif ($w[$sp] -cin @('--hostname', '--jq', '-t', '--template')) { $sp++ }
+                elseif ($w[$sp].StartsWith('-')) { }
+                else { break }
+                $sp++
+            }
+            $sub0 = if ($sp -lt $n) { $w[$sp] } else { '' }
+            $pair = $sub0 + ' ' + $(if ($sp + 1 -lt $n) { $w[$sp + 1] } else { '' })
             if ($pair -ceq 'repo create' -or $pair -ceq 'gist create') {
                 foreach ($p in @('* --public *', '* --public=true *', '* --public=1 *', '* --visibility public *', '* --visibility=public *')) { if ($rest -clike $p) { Deny $pubRepoMsg } }
-                if ($w[$i + 1] -ceq 'gist' -and $rest -clike '* -p *') { Deny $pubRepoMsg }
+                if ($sub0 -ceq 'gist' -and $rest -clike '* -p *') { Deny $pubRepoMsg }
             }
             if ($pair -ceq 'repo edit' -and ($rest -clike '* --visibility public *' -or $rest -clike '* --visibility=public *')) { Deny $pubRepoMsg }
             if ($pair -cin @('release create', 'release upload', 'release edit')) {
                 # Release files are public on a public repository: check the one named with -R/--repo, else this folder's.
-                $r = ''
-                for ($j = $i + 3; $j -lt $n; $j++) {
+                $r = $ghrepo
+                for ($j = $sp + 2; $j -lt $n; $j++) {
                     if ($w[$j] -ceq '-R' -or $w[$j] -ceq '--repo') { if ($j + 1 -lt $n) { $r = $w[$j + 1] } }
                     elseif ($w[$j] -cmatch '^--repo=(.+)$') { $r = $Matches[1] }
                     elseif ($w[$j] -cmatch '^-R(.+)$') { $r = $Matches[1] }
                 }
                 if ($r) { Test-GhRepo $r } else { Test-Push $dir @() @() }
             }
-            if ($w[$i + 1] -ceq 'api') {
+            if ($sub0 -ceq 'api') {
                 $lw = $rest.Replace(' ', '').ToLowerInvariant()
                 if ($lw -cmatch 'private=false|private:false|visibility=public|visibility:public|visibility:"public"|public=true|public:true') { Deny $pubRepoMsg }
                 if ($lw -cmatch '--input.*repos|repos.*--input') { Deny $unreadMsg }
                 # A call that writes (-X PUT/POST/PATCH/DELETE, or fields, which make it a POST) to repos/<owner>/<repo>/...:
-                # only allowed when that repository is private.
+                # only allowed when that repository is private. The endpoint may be relative or a full api.github.com URL.
                 $write = $false; $ep = ''
-                for ($j = $i + 2; $j -lt $n; $j++) {
+                for ($j = $sp + 1; $j -lt $n; $j++) {
                     $t = $w[$j]
                     if ($t -ceq '-X' -or $t -ceq '--method') { if ($j + 1 -lt $n -and $w[$j + 1] -notmatch '^(get|head)$') { $write = $true } }
                     elseif ($t -cmatch '^(-X|--method=)(.+)$') { if ($Matches[2] -notmatch '^(get|head)$') { $write = $true } }
                     elseif ($t -cmatch '^(-f|-F|--field|--raw-field)($|=|.)') { $write = $true }
-                    elseif (-not $ep -and $t -cmatch '^/?repos/([^/]+)/([^/?]+)') { $ep = $Matches[1] + '/' + $Matches[2] }
+                    elseif (-not $ep -and -not $t.StartsWith('-')) {
+                        $path = $t
+                        if ($path -match '^https?://[^/]+/(.*)$') { $path = $Matches[1] }
+                        if ($path -ceq 'graphql') { $ep = 'graphql' }
+                        elseif ("/$path" -match '/repos/([^/]+)/([^/?]+)') { $ep = 'repos/' + $Matches[1] + '/' + $Matches[2] }
+                    }
                 }
-                if ($write -and $ep) { Test-GhRepo $ep }
+                if ($ep -ceq 'graphql') { if (($rest -replace '\s', '') -match 'mutation') { Deny $stagedMsg } }
+                elseif ($ep -and $write -and $ep -cmatch '^repos/(.+)$') { Test-GhRepo $Matches[1] }
             }
         }
         # git [-C dir] [-c k=v] [--git-dir=...] ... push|send-pack|subtree push|<alias> [options] [remote|url] ...
@@ -281,6 +328,8 @@ function Test-ShellCommand($Data, [string]$cmd) {
                     if ($j -lt $n) {
                         $gargs += @('-c', $w[$j])
                         if ($w[$j] -cmatch '^alias\.([^=]+)=(.*)$') { $aliasName = $Matches[1]; $aliasVal = $Matches[2] }
+                        # -c that rewrites where a push goes (url.X.insteadOf/pushInsteadOf, remote.X.url/pushurl).
+                        if ($w[$j].ToLowerInvariant() -match '^url\.|^remote\.|insteadof=|pushurl=') { $script:staged = $true }
                     }
                 }
                 elseif ($t -cin @('--git-dir', '--work-tree', '--namespace')) { $gargs += $t; $j++; if ($j -lt $n) { $gargs += $w[$j] } }
@@ -311,7 +360,20 @@ function Test-ShellCommand($Data, [string]$cmd) {
             if ($sub -ceq $aliasName) { $val = $aliasVal }
             elseif (Get-Command git -ErrorAction SilentlyContinue) { $val = [string](@(& git -C $gdir @gargs config --get "alias.$sub" 2>$null) | Select-Object -First 1) }
             if (-not $val) { continue }
-            if ($val.StartsWith('!')) { if ($val -cmatch 'push|send-pack') { Test-Push $gdir @() $gargs }; continue }
+            if ($val.StartsWith('!')) {
+                # a shell alias: find its own push and check that destination
+                if ($val -cmatch 'push|send-pack') {
+                    $bv = @(Split-Words $val.Substring(1)); $bfound = $false
+                    for ($bi = 0; $bi -lt $bv.Count; $bi++) {
+                        if ($bv[$bi] -ceq 'push' -or $bv[$bi] -ceq 'send-pack') {
+                            $bfound = $true; $ba = @(); if ($bi + 1 -lt $bv.Count) { $ba = @($bv[($bi + 1)..($bv.Count - 1)]) }
+                            Test-Push $gdir $ba $gargs; break
+                        }
+                    }
+                    if (-not $bfound) { Deny $unreadMsg }
+                }
+                continue
+            }
             $av = @($val.Trim() -split '\s+')
             if ($av[0] -ceq 'push' -or $av[0] -ceq 'send-pack') {
                 $words = @(); if ($av.Count -gt 1) { $words += @($av[1..($av.Count - 1)]) }; $words += $after
@@ -395,6 +457,18 @@ function Test-WebFetch($Data) {
 }
 
 function Get-UrlDecoded([string]$s) { try { return [Uri]::UnescapeDataString($s) } catch { return $s } }
+# A browser turns a look-alike host (ideographic or full-width dots, or full-width letters) into
+# mail.google.com / linkedin.com. Fold the same way: decode \uXXXX / \xXX escapes, NFKC-normalize,
+# map the dot look-alikes (built from code points so this file stays plain ASCII).
+function Get-IdnFolded([string]$s) {
+    try {
+        $s = [regex]::Replace($s, '\\u([0-9a-fA-F]{4})', { param($m) [char][Convert]::ToInt32($m.Groups[1].Value, 16) })
+        $s = [regex]::Replace($s, '\\x([0-9a-fA-F]{2})', { param($m) [char][Convert]::ToInt32($m.Groups[1].Value, 16) })
+        $s = $s.Normalize([Text.NormalizationForm]::FormKC)
+        $dots = '[' + [char]0x3002 + [char]0xFF61 + [char]0xFF0E + ']'
+        return ($s -replace $dots, '.')
+    } catch { return $s }
+}
 # Decodes base64-looking strings (12+ characters) found in the text, keeping printable characters.
 function Get-B64Decoded([string]$s) {
     $out = @()
@@ -441,7 +515,10 @@ try {
     # "send-chat-message" or "list-mail-messages" put the verb first.
     $op = $tool; if ($op.StartsWith('mcp__')) { $op = $op.Substring(5); $k = $op.IndexOf('__'); if ($k -ge 0) { $op = $op.Substring($k + 2) } }
     $opn = $op.ToLowerInvariant().Replace('-', '_') -replace '^(gmail|google_?mail|outlook_email|outlook_calendar|outlook|google_?calendar|gcal|superhuman|email|mail|calendar)_', ''
-    $isRead = ($last -match $read -or $opn -match $read)
+    # A read tool only when the operation starts with a read verb AND no write verb leads it, so
+    # "send-and-get" (where "get" is last) stays out of the allow-list but "get_draft_send_status" is read.
+    $leadWrite = ($opn -match '^(send|reply|forward|delete|trash|post|share|publish|invite|submit)')
+    $isRead = (-not $leadWrite -and ($last -match $read -or $opn -match $read))
     if ($tool -match 'mail|outlook|superhuman') {
         if (-not ($isRead -or $last -match $draft -or $opn -match $draft)) {
             Deny 'Blocked: the assistant only reads job email and makes drafts. It never sends, replies, forwards, deletes, labels or archives email; save the message in outbox/ (or as a Gmail draft) and let the user send it themselves.'
@@ -478,7 +555,7 @@ try {
     if ($tool -match $code) {
         $scan = $flat -replace $emails, 'an-email-address'
         $d1 = Get-UrlDecoded $scan
-        $scan = $scan + ' ' + $d1 + ' ' + (Get-UrlDecoded $d1) + ' ' + (Get-B64Decoded $scan)
+        $scan = $scan + ' ' + $d1 + ' ' + (Get-UrlDecoded $d1) + ' ' + (Get-B64Decoded $scan) + ' ' + (Get-IdnFolded $scan)
         if ($scan -match $sites -or $flat -match '"(Mail|Microsoft Outlook|Outlook|LinkedIn)"') {
             Deny "Blocked: the assistant doesn't use Gmail, Outlook, Mail or LinkedIn through the browser or the computer. Draft the message in outbox/ for the user to send themselves. (If this was typing the user's own LinkedIn profile address into an application form, leave that one field for the user to fill in.)"
         }
@@ -488,7 +565,7 @@ try {
     } elseif ($tool -match $browsers) {
         $nav = ([regex]::Matches($flat, '\\?"(url|href|link)\\?"\s*:\s*\\?"[^"\\]*|(createBrowserTab|goto|navigate|newPage|getTab|location\.href|location\.(assign|replace)|location\s*=|window\.open)[^;]{0,250}', 'IgnoreCase') | ForEach-Object { $_.Value }) -join ' '
         $d1 = Get-UrlDecoded $nav
-        $nav = $nav + ' ' + $d1 + ' ' + (Get-UrlDecoded $d1)
+        $nav = $nav + ' ' + $d1 + ' ' + (Get-UrlDecoded $d1) + ' ' + (Get-IdnFolded $nav)
         if ($nav -match $sites) {
             Deny "Blocked: the assistant doesn't use the browser on Gmail, Outlook or LinkedIn. Draft the message in outbox/ for the user to send themselves."
         }

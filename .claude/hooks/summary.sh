@@ -48,12 +48,20 @@ LC_ALL=C tr '\r' '\n' < "$TRACKER" | LC_ALL=C awk -v today="$TODAY" -v wday="$WD
   -v closed="$CLOSED" -v order="$DATE_ORDER" -v layoff="$LAYOFF" \
   -v vtype="$(pref visa_type)" -v vstart="$(pref visa_clock_start)" -v vallowed="$(pref visa_days_allowed)" \
   -v vused="$(pref visa_days_used)" -v vasof="$(pref visa_days_used_as_of)" -v certday="$(pref benefits_cert_day)" '
-function isodate(s) { return s ~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]$/ }
+function isodate(s,   p) { if (s !~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]$/) return 0; split(s, p, "-"); return mk(p[1], p[2] + 0, p[3] + 0) == s }
 # Day number, for differences between two YYYY-MM-DD dates.
 function dnum(s,   y, m, d) { y = substr(s, 1, 4) + 0; m = substr(s, 6, 2) + 0; d = substr(s, 9, 2) + 0; if (m <= 2) { y--; m += 12 }
   return 365 * y + int(y / 4) - int(y / 100) + int(y / 400) + int((153 * (m - 3) + 2) / 5) + d }
 function trim(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
-function mk(y, m, d) { if (m < 1 || m > 12 || d < 1 || d > 31) return ""; return sprintf("%04d-%02d-%02d", (length(y) == 2 ? 2000 + y : y), m, d) }
+function mk(y, m, d,   yy, md) {
+  if (m < 1 || m > 12 || d < 1 || d > 31) return ""
+  yy = (length(y) == 2 ? 2000 + y : y)
+  md = 31
+  if (m == 4 || m == 6 || m == 9 || m == 11) md = 30
+  else if (m == 2) md = ((yy % 4 == 0 && yy % 100 != 0) || yy % 400 == 0) ? 29 : 28
+  if (d > md) return ""                                 # a day outside the month (e.g. Feb 31) is not a real date
+  return sprintf("%04d-%02d-%02d", yy, m, d)
+}
 # The order a slash date proves by itself (a part over 12, the other a month): "MDY", "DMY" or "".
 function slashorder(d,   p) {
   d = trim(d)
@@ -146,6 +154,7 @@ function row(   co, role, st, act, d, dl, k, o, rank, text, extra, nd) {
 }
 BEGIN { cont = 0 }
 {
+  if (NR == 1 && index($0, bom) == 1) $0 = substr($0, length(bom) + 1)   # strip a leading BOM before parsing, so a quoted header still opens
   if (!cont) { split("", F); n = 0; f = ""; q = 0; cs = 1 } else f = f "\n"
   feed($0)
   if (q) { cont = 1; next }
@@ -191,12 +200,17 @@ END {
   } else if (cd ~ /^(every )?(mon|tue|wed|thu|fri|sat|sun)[a-z]*([ ,.;(]|$)/) {
     sub(/^every /, "", cd); if (substr(cd, 1, 3) == wd) cert = 1
   }
-  # Visa unemployment clock.
+  # Visa unemployment clock (the one formula in evaluate-job/references/visa-checks.md; matches
+  # due-alerts visaDaysLeft). All four numbers must be present; a blank count means no estimate.
+  # Days used today = vused + days from the counting start (the later of vstart and vasof+1) through
+  # today, inclusive; 0 if that start is still in the future.
   vleft = ""
-  if (isodate(vstart) && vallowed ~ /^[0-9]+/) {
-    vallowed += 0; u = (vused ~ /^[0-9]+/ ? vused + 0 : 0)
-    if (isodate(vasof)) u += dnum(today) - dnum(vasof); else u += dnum(today) - dnum(vstart) + 1
-    vleft = vallowed - u
+  if (isodate(vstart) && vallowed ~ /^[0-9]+/ && vused ~ /^[0-9]+/ && vallowed + 0 > 0) {
+    vallowed += 0; u = vused + 0
+    fromN = dnum(vstart)
+    if (isodate(vasof)) { aN = dnum(vasof) + 1; if (aN > fromN) fromN = aN }
+    running = (fromN > dnum(today)) ? 0 : dnum(today) - fromN + 1
+    vleft = vallowed - u - running
   }
   # Sort the due items: rank, then date.
   for (i = 2; i <= due; i++) {
@@ -215,6 +229,9 @@ END {
     if (open > 0) print open " job(s) are still open in the tracker. Help the user send any withdrawals and mark them withdrawn."
     if (cnt["withdraw"] > 0) print "Withdrawal notes still to send: " L["withdraw"] (cnt["withdraw"] > 5 ? "; and " cnt["withdraw"] - 5 " more" : "") "."
     if (drafts > 0) print drafts " draft(s) still waiting in the Outbox."
+    # Benefits and visa clocks keep running after the search is closed, until the user clears them.
+    if (cert) print "Today is the user'"'"'s benefits certification day (" certday "). Offer to bring their work-search log up to date (the work-search-log skill) before they certify."
+    if (vleft != "") print "Visa clock" (vtype != "" ? " (" vtype ")" : "") ": about " (vleft < 0 ? 0 : vleft) " of " vallowed " unemployment days left (estimate from the preferences; the official count always wins)." (vleft <= 30 ? " Urgent: mention it today." : "")
     exit
   }
   line = count["applied"] + 0 " applied"
@@ -238,7 +255,7 @@ END {
   }
   print "Pipeline: " line
   if (cert) print "Today is the user'"'"'s benefits certification day (" certday "). Offer to bring their work-search log up to date (the work-search-log skill) before they certify."
-  if (vleft != "") print "Visa clock" (vtype != "" ? " (" vtype ")" : "") ": about " vleft " of " vallowed " unemployment days left (estimate from the preferences; the official count always wins)." (vleft <= 30 ? " Urgent: mention it today." : "")
+  if (vleft != "") print "Visa clock" (vtype != "" ? " (" vtype ")" : "") ": about " (vleft < 0 ? 0 : vleft) " of " vallowed " unemployment days left (estimate from the preferences; the official count always wins)." (vleft <= 30 ? " Urgent: mention it today." : "")
   if (due > 0) {
     print "Due today, overdue, or deadline within 3 days (most urgent first):"
     for (i = 1; i <= due && i <= 10; i++) print "- " T[i]

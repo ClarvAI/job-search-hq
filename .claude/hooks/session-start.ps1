@@ -32,9 +32,16 @@ function Get-Pref([string]$Key) {
     }
     return ''
 }
-function Test-Iso([string]$s) { return $s -match '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' }
+function Test-Iso([string]$s) {
+    if ($s -notmatch '^([0-9]{4})-([0-9]{2})-([0-9]{2})$') { return $false }
+    return (Get-Mk ([int]$Matches[1]) ([int]$Matches[2]) ([int]$Matches[3])) -eq $s   # also rejects impossible days (Feb 31)
+}
 function Get-Mk([int]$y, [int]$m, [int]$d) {
     if ($m -lt 1 -or $m -gt 12 -or $d -lt 1 -or $d -gt 31) { return '' }
+    $md = 31
+    if ($m -in @(4, 6, 9, 11)) { $md = 30 }
+    elseif ($m -eq 2) { if (($y % 4 -eq 0 -and $y % 100 -ne 0) -or $y % 400 -eq 0) { $md = 29 } else { $md = 28 } }
+    if ($d -gt $md) { return '' }                        # a day that doesn't exist (e.g. Feb 31) is not a real date
     return '{0:0000}-{1:00}-{2:00}' -f $y, $m, $d
 }
 # The order a slash date proves by itself (a part over 12, the other a month): MDY, DMY, or ''.
@@ -278,14 +285,21 @@ if (-not $hasTracker) {
         } elseif ($cd -match '^(every )?(mon|tue|wed|thu|fri|sat|sun)[a-z]*([ ,.;(]|$)') {
             if ($Matches[2] -eq $wd) { $cert = $true }
         }
-        # Visa unemployment clock.
+        # Visa unemployment clock (the one formula in evaluate-job/references/visa-checks.md; matches
+        # summary.sh and due-alerts). All four numbers must be present; a blank count means no estimate.
         $vLeft = $null
         $vStart = Get-Pref 'visa_clock_start'; $vAllowed = Get-Pref 'visa_days_allowed'; $vUsed = Get-Pref 'visa_days_used'; $vAsOf = Get-Pref 'visa_days_used_as_of'; $vType = Get-Pref 'visa_type'
-        if ((Test-Iso $vStart) -and $vAllowed -match '^([0-9]+)') {
-            $allowed = [int]$Matches[1]
-            $used = 0; if ($vUsed -match '^([0-9]+)') { $used = [int]$Matches[1] }
-            if (Test-Iso $vAsOf) { $used += (Get-DayDiff $vAsOf $todayIso) } else { $used += (Get-DayDiff $vStart $todayIso) + 1 }
-            $vLeft = $allowed - $used
+        if ((Test-Iso $vStart) -and $vAllowed -match '^([0-9]+)' -and $vUsed -match '^[0-9]+') {
+            $allowed = [int]($vAllowed -replace '[^0-9].*$', '')
+            if ($allowed -gt 0) {
+                $used = [int]($vUsed -replace '[^0-9].*$', '')
+                # counting start = the later of the clock start and the day after the as-of date
+                $fromN = Get-DayDiff '1970-01-01' $vStart
+                if (Test-Iso $vAsOf) { $aN = (Get-DayDiff '1970-01-01' $vAsOf) + 1; if ($aN -gt $fromN) { $fromN = $aN } }
+                $tN = Get-DayDiff '1970-01-01' $todayIso
+                $running = if ($fromN -gt $tN) { 0 } else { $tN - $fromN + 1 }
+                $vLeft = $allowed - $used - $running
+            }
         }
         $sorted = @($due | Sort-Object Rank, Date, Order)
         if ($closed) {
@@ -296,6 +310,14 @@ if (-not $hasTracker) {
                 $lines.Add('Withdrawal notes still to send: ' + ((@($withdraw) | Select-Object -First 5) -join '; ') + $more + '.')
             }
             if ($drafts -gt 0) { $lines.Add("$drafts draft(s) still waiting in the Outbox.") }
+            # Benefits and visa clocks keep running after the search is closed, until the user clears them.
+            if ($cert) { $lines.Add("Today is the user's benefits certification day ($certDay). Offer to bring their work-search log up to date (the work-search-log skill) before they certify.") }
+            if ($null -ne $vLeft) {
+                $vt = if ($vType -ne '') { " ($vType)" } else { '' }
+                $urgent = if ($vLeft -le 30) { ' Urgent: mention it today.' } else { '' }
+                $shown = if ($vLeft -lt 0) { 0 } else { $vLeft }
+                $lines.Add("Visa clock${vt}: about $shown of $allowed unemployment days left (estimate from the preferences; the official count always wins).$urgent")
+            }
         } elseif ($total -eq 0 -and $drafts -eq 0 -and $due.Count -eq 0 -and -not $cert -and $null -eq $vLeft) {
             $lines.Add('Pipeline: nothing tracked yet.')
         } else {
@@ -314,7 +336,8 @@ if (-not $hasTracker) {
             if ($null -ne $vLeft) {
                 $vt = if ($vType -ne '') { " ($vType)" } else { '' }
                 $urgent = if ($vLeft -le 30) { ' Urgent: mention it today.' } else { '' }
-                $lines.Add("Visa clock${vt}: about $vLeft of $allowed unemployment days left (estimate from the preferences; the official count always wins).$urgent")
+                $shown = if ($vLeft -lt 0) { 0 } else { $vLeft }
+                $lines.Add("Visa clock${vt}: about $shown of $allowed unemployment days left (estimate from the preferences; the official count always wins).$urgent")
             }
             if ($sorted.Count -gt 0) {
                 $lines.Add('Due today, overdue, or deadline within 3 days (most urgent first):')

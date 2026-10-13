@@ -243,7 +243,11 @@ if [ -e .git ] && command -v git >/dev/null 2>&1; then
   hp="$(git config --get core.hooksPath 2>/dev/null)"
   case "$hp" in
     .githooks|.githooks/|"$ROOT/.githooks"|"$ROOT/.githooks/")
-      say_ok "git push check" "on (stops pushes to a public GitHub repository, and keeps AI attribution lines out of commit messages)" ;;
+      if [ ! -x .githooks/pre-push ]; then
+        say_fix 3 "git push check" "it's turned on (core.hooksPath is .githooks) but .githooks/pre-push is missing or not executable, so pushes aren't actually checked. $REPAIR, then run: chmod +x .githooks/pre-push."
+      else
+        say_ok "git push check" "on (stops pushes to a public GitHub repository, and keeps AI attribution lines out of commit messages)"
+      fi ;;
     *)
       say_note "git push check" "this folder uses git, and the extra check that stops pushes to a public GitHub repository isn't turned on. The assistant can turn it on for you (it runs: git config core.hooksPath .githooks). It also catches pushes the built-in safety check can't see, like ones made through scripts, and keeps AI attribution lines out of commit messages." ;;
   esac

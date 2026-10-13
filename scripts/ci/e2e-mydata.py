@@ -381,8 +381,9 @@ def files_under(root):
 def check_zip_contents(R, tag, z, exp, what):
     files = dict(z["files"])
     readme = files.pop("READ-ME.txt", None)
-    R.ok("%s %s: READ-ME.txt is in it and asks to keep the backup private" % (tag, what),
-         readme is not None and b"Keep it private" in readme)
+    R.ok("%s %s: READ-ME.txt is in it, asks to keep the backup private, says to restore through the app" % (tag, what),
+         readme is not None and b"Keep it private" in readme and b"say 'restore my backup'" in readme
+         and b"copy the folders back" not in readme, readme)
     missing = sorted(set(exp) - set(files))
     extra = sorted(set(files) - set(exp))
     R.ok("%s %s: holds exactly the expected files (no more, no fewer)" % (tag, what),
@@ -794,6 +795,12 @@ def scenario_restore_more(R, impl, base, pristine, zp, exp, unpack_dir, outside,
     if links_ok:
         os.symlink(os.path.join(outside, "secret.txt"), J(ob, "jobs/evil-link.md"))
         os.symlink(os.path.join(outside, "secret folder"), J(ob, "profile/evil-folder"), target_is_directory=True)
+    odd_names = not IS_WINDOWS
+    if odd_names:
+        # A folder whose name holds a line break and "..": split on lines, jobs/x<LF>../escape.md would read
+        # and write ../escape.md next to the workspace.
+        wbytes(os.path.join(ob, "jobs", "x\n..", "escape.md"), b"E2E-ESCAPE\n")
+        wbytes(os.path.join(odd, "escape.md"), b"E2E-ESCAPE-PLANTED\n")
     ws = clone(pristine, os.path.join(base, "odd restore"))
     s0 = snap(ws)
     o0 = snap(outside)
@@ -812,6 +819,13 @@ def scenario_restore_more(R, impl, base, pristine, zp, exp, unpack_dir, outside,
              and not os.path.lexists(J(ws, "jobs/evil-link.md")) and not os.path.lexists(J(ws, "profile/evil-folder"))
              and not any(v[0] == "file" and b"OUTSIDE-SECRET" in v[1] for v in user_part(s1).values())
              and snap(outside) == o0, "%s\n%s" % (out, diff(o0, snap(outside))))
+    if odd_names:
+        R.ok("%s a name with a line break in a backup is skipped ('skipped odd name:') and nothing escapes" % tag,
+             "skipped odd name: a file in jobs/ has a line break in its name" in o
+             and not os.path.exists(os.path.join(os.path.dirname(ws), "escape.md"))
+             and not any(v[0] == "file" and b"E2E-ESCAPE" in v[1] for v in user_part(s1).values()), out)
+    else:
+        print("NOTE  %s line-break name check not run: Windows doesn't allow such names" % tag)
 
 
 def scenario_export_edges(R, impl, base, pristine, outside, links_ok):
@@ -897,6 +911,38 @@ def scenario_export_edges(R, impl, base, pristine, outside, links_ok):
             if label == "Perl":
                 R.ok("%s export made with Perl marks non-ASCII names as UTF-8" % tag,
                      not z["no_utf8"] and any("Müller" in k for k in fl), z["no_utf8"])
+
+    # links on the way to a backed-up folder (knowledge/ for knowledge/field, profile/ for resume.json)
+    if links_ok:
+        for parent, label in (("knowledge", "knowledge/field"), ("profile", "profile/ and resume.json")):
+            moved = os.path.join(outside, "%s moved %s" % (parent, impl))
+            wbytes(J(ws, "profile/resume.json"), RESUME_JSON)
+            shutil.move(J(ws, parent), moved)
+            os.symlink(moved, J(ws, parent), target_is_directory=True)
+            dest = os.path.join(base, "backups with linked " + parent)
+            rc, out = drive(impl, ws, "export", [dest])
+            zp = export_ok(R, tag, "export with %s/ a link" % parent, rc, out, dest)
+            z = read_zip(zp) if zp else {"files": {}}
+            R.ok("%s export with %s/ a link skips %s ('skipped link: %s'), copies nothing through it" % (
+                 tag, parent, label, parent),
+                 ("skipped link: %s" % parent) in out.replace("\\", "/").splitlines()
+                 and not any(k.startswith(parent + "/") for k in z["files"]) and "resume.json" not in z["files"]
+                 if parent == "profile" else
+                 ("skipped link: %s" % parent) in out.replace("\\", "/").splitlines()
+                 and not any(k.startswith(parent + "/") for k in z["files"]), out)
+            os.unlink(J(ws, parent))
+            shutil.move(moved, J(ws, parent))
+        if not IS_WINDOWS:
+            os.symlink(os.path.join(outside, "secret.txt"), J(ws, "jobs/evil\nprofile"))
+            dest = os.path.join(base, "backups with a line-break link")
+            rc, out = drive(impl, ws, "export", [dest])
+            zp = export_ok(R, tag, "export with a link whose name has a line break", rc, out, dest)
+            z = read_zip(zp) if zp else {"files": {}}
+            R.ok("%s a link whose name has a line break is still left out (nothing it points to in the zip)" % tag,
+                 "skipped link: jobs/evil\nprofile" in out.replace("\\", "/")
+                 and not any(k.startswith("jobs/evil") for k in z["files"])
+                 and not any(b"OUTSIDE-SECRET" in v for v in z["files"].values()), out)
+            os.unlink(J(ws, "jobs/evil\nprofile"))
 
     # some personal folders missing
     shutil.rmtree(J(ws, "outbox"))

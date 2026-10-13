@@ -100,6 +100,37 @@ OUT="$(run closed)"
 has  "closed search still lists withdrawals" "Withdrawal notes still to send: Acme (Eng)."
 has  "closed search still counts drafts" "1 draft(s) still waiting in the Outbox."
 
+# A BOM in front of a quoted header still reads (the BOM is stripped before the quote opens).
+{ printf '\357\273\277'; printf '%s\n' '"company","role","status","next_action_date","next_action"'; printf '%s\n' 'Acme,Eng,applied,2099-01-01,Follow up'; } | ws bomq ""
+OUT="$(run bomq)"
+has  "BOM before a quoted header still reads" "Pipeline:"
+hasnt "BOM quoted header not misread" "does not start with the usual header"
+
+# A date that is not a real calendar day (Feb 31) is not counted as due and does not crash.
+{ printf '%s\n' "$HDR"; printf 'Acme,Eng,applied,2026-02-31,Follow up,,A,4,X,,,,,,,,,0,acme,\n'; } | ws feb31 ""
+OUT="$(run feb31)"
+has  "impossible date does not crash" "Pipeline:"
+hasnt "impossible date not counted as due" "[due 2026-02-31]"
+
+# Visa clock (dates relative to today so the formula is exercised, not a fixed answer).
+dago() { "$PY" -c "import datetime,sys; print((datetime.date.today()-datetime.timedelta(days=int(sys.argv[1]))).isoformat())" "$1"; }
+# Blank days-used: no countdown at all (all four numbers are required).
+{ printf '%s\n' "$HDR"; printf 'Acme,Eng,applied,2099-01-01,Follow up,,A,4,X,,,,,,,,,0,acme,\n'; } | ws visablank ""
+printf 'SETUP: done\nsearch_status: active\nvisa_clock_start: %s\nvisa_days_allowed: 90\nvisa_days_used:\nvisa_type: F-1 OPT\n' "$(dago 10)" > "$T/visablank/profile/preferences.md"
+OUT="$(run visablank)"
+hasnt "blank days-used gives no visa countdown" "Visa clock"
+# A clock start in the future must not add days (90 of 90, never 91).
+{ printf '%s\n' "$HDR"; printf 'Acme,Eng,applied,2099-01-01,Follow up,,A,4,X,,,,,,,,,0,acme,\n'; } | ws visafuture ""
+printf 'SETUP: done\nsearch_status: active\nvisa_clock_start: %s\nvisa_days_allowed: 90\nvisa_days_used: 0\nvisa_type: F-1 OPT\n' "$(dago -1)" > "$T/visafuture/profile/preferences.md"
+OUT="$(run visafuture)"
+has  "future clock start does not overcount" "about 90 of 90"
+# Visa and benefits clocks keep running after the search is closed.
+{ printf '%s\n' "$HDR"; printf 'Acme,Eng,applied,2099-01-01,Follow up,,A,4,X,,,,,,,,,0,acme,\n'; } | ws closedvisa ""
+printf 'SETUP: done\nsearch_status: closed %s\nvisa_clock_start: %s\nvisa_days_allowed: 90\nvisa_days_used: 80\nvisa_type: F-1 OPT\n' "$(dago 3)" "$(dago 3)" > "$T/closedvisa/profile/preferences.md"
+OUT="$(run closedvisa)"
+has  "visa clock still shown after close" "Visa clock"
+has  "closed search still congratulates" "search closed"
+
 if [ "$IMPL" = sh ]; then
   # Status line: reads the folder from Claude Code's JSON on stdin (not the current folder or env).
   sl() { printf '{"workspace":{"current_dir":"/","project_dir":"%s"}}' "$T/$1" | (cd / && env -u CLAUDE_PROJECT_DIR bash "$REPO/.claude/hooks/statusline.sh"); }
@@ -117,7 +148,7 @@ if [ "$IMPL" = sh ]; then
 fi
 
 if [ "$IMPL" = ps ]; then
-  for c in main order semi open closed; do
+  for c in main order semi open closed bomq feb31 visablank visafuture closedvisa; do
     a="$(CLAUDE_PROJECT_DIR="$T/$c" bash "$REPO/.claude/hooks/summary.sh" long)"; b="$(run "$c")"
     if [ "$a" = "$b" ]; then pass=$((pass + 1)); echo "PASS  $c: session-start.ps1 matches summary.sh"
     else fail=$((fail + 1)); echo "FAIL  $c: session-start.ps1 differs from summary.sh"; diff <(printf '%s\n' "$a") <(printf '%s\n' "$b") | sed 's/^/      | /'; fi

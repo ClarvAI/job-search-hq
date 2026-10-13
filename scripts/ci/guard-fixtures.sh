@@ -282,6 +282,36 @@ check "PowerShell FromBase64String + iex (deny hidden)" deny "$(shelljson "$TN/p
 check "PowerShell Get-Content -Encoding UTF8 (allow)" allow "$(shelljson "$TN/pub" 'Get-Content -Encoding UTF8 jobs/tracker.csv' PowerShell)"
 check "base64 encode a file, no shell (allow)" allow "$(shelljson "$TN/pub" 'base64 -i photo.png -o photo.txt')"
 
+echo "== guard ($IMPL): Codex-review push/gh bypasses (2026-10)"
+mk "pub space" "$PUBURL"
+mk aliasown ""; git -C "$T/aliasown" config alias.ship "!git $PU $PUBURL HEAD"
+check "C-01 git -C quoted path with a space, public (deny)" deny "$(shelljson "$TN/none" "git -C \"$TN/pub space\" $PU origin HEAD")"
+check "C-01 ok: ls a quoted path with a space (allow)" allow "$(shelljson "$TN/none" "ls \"$TN/pub space\"")"
+check "J4-09 -c url.<public>.insteadOf then $PU (deny)" deny "$(shelljson "$TN/priv" "git -c url.$PUBURL.insteadOf=reviewdest $PU reviewdest HEAD")"
+check "J4-10 export GIT_CONFIG_* then $PU (deny)" deny "$(shelljson "$TN/priv" "export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=remote.origin.url GIT_CONFIG_VALUE_0=$PUBURL; git $PU origin HEAD")"
+check "J4-11 gh --repo <public> before release upload (deny)" deny "$(shelljson "$TN" 'gh --repo octocat/Hello-World release upload v1 jobs/tracker.csv')"
+check "J4-11 gh --repo <private> before release upload (allow)" allow "$(shelljson "$TN" 'gh --repo octocat/zz9-missing release upload v1 jobs/tracker.csv')"
+check "J4-12 gh api absolute URL write to <public> (deny)" deny "$(shelljson "$TN" 'gh api https://api.github.com/repos/octocat/Hello-World/issues -f title=x')"
+check "J4-12 gh api absolute URL write to <private> (allow)" allow "$(shelljson "$TN" 'gh api https://api.github.com/repos/octocat/zz9-missing/issues -f title=x')"
+check "J4-12 gh api graphql mutation (deny)" deny "$(shelljson "$TN" "gh api graphql -f query='mutation{createRepository(input:{name:\"x\",visibility:PUBLIC}){repository{url}}}'")"
+check "J4-12 gh api graphql read (allow)" allow "$(shelljson "$TN" "gh api graphql -f query='query{viewer{login}}'")"
+check "J4-13 $PU to a trailing-dot GitHub host (deny)" deny "$(shelljson "$TN/none" "git $PU https://github.com./octocat/Hello-World.git HEAD")"
+check "J4-13 $PU to a trailing-dot scp GitHub host (deny)" deny "$(shelljson "$TN/none" "git $PU git@github.com.:octocat/Hello-World HEAD")"
+check "C-03 shell alias with its own public destination (deny)" deny "$(shelljson "$TN/aliasown" 'git ship')"
+
+echo "== guard ($IMPL): look-alike site hosts (2026-10)"
+LD="$(printf 'www.link\xef\xbd\x85din.com')"       # fullwidth e
+GM="$(printf 'mail\xe3\x80\x82google\xe3\x80\x82com')" # ideographic dots
+check "browser to a full-width-letter LinkedIn host (deny)" deny "{\"tool_name\":\"mcp__playwright__browser_navigate\",\"tool_input\":{\"url\":\"https://$LD/\"}}"
+check "browser to an ideographic-dot Gmail host (deny)" deny "{\"tool_name\":\"mcp__playwright__browser_navigate\",\"tool_input\":{\"url\":\"https://$GM/\"}}"
+check "browser code setting location to a look-alike host (deny)" deny "{\"tool_name\":\"mcp__playwright__browser_evaluate\",\"tool_input\":{\"function\":\"() => { window.location = 'https://$GM/' }\"}}"
+check "browser to a café path on an ASCII host (allow)" allow "{\"tool_name\":\"mcp__playwright__browser_navigate\",\"tool_input\":{\"url\":\"https://jobs.example.com/$(printf 'caf\xc3\xa9')/role\"}}"
+
+echo "== guard ($IMPL): connector verb at the front of a kebab name (2026-10)"
+check "C-04 mail tool send-and-get (deny)" deny '{"tool_name":"mcp__mail__send-and-get","tool_input":{}}'
+check "C-04 Gmail send-email-and-get (deny)" deny '{"tool_name":"mcp__claude_ai_Gmail__send-email-and-get","tool_input":{}}'
+check "C-04 ok: get_draft_send_status (allow)" allow '{"tool_name":"mcp__claude_ai_Superhuman_Mail__get_draft_send_status","tool_input":{}}'
+
 echo "== guard ($IMPL): ways around the push check (2026-10 audit)"
 check "cd \"\$PWD\" && git $PU, public (deny unread)" deny "$(shelljson "$TN/pub" "cd \"\$PWD\" && git $PU")"
 check "git -C \"\$PWD\" $PU, public (deny unread)" deny "$(shelljson "$TN/pub" "git -C \"\$PWD\" $PU")"

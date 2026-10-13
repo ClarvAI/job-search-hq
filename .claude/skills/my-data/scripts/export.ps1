@@ -86,6 +86,13 @@ try {
   if ($IncludeImports) { $dirs += 'imports' }
   if ($IncludeTemplates) { $dirs += 'templates' }
   foreach ($d in $dirs) {
+    # A parent folder that is a link (knowledge\ for knowledge\field) would copy whatever it points to.
+    $cut = $d.LastIndexOfAny([char[]]@('\', '/'))
+    if ($cut -gt 0) {
+      $parent = $d.Substring(0, $cut)
+      $pi = Get-Item -LiteralPath (Join-Path $Root $parent) -Force -ErrorAction SilentlyContinue
+      if ($pi -and ($pi.LinkType -eq 'SymbolicLink' -or $pi.LinkType -eq 'Junction')) { Write-Output ("skipped link: " + $parent.Replace('\', '/')); continue }
+    }
     $src = Join-Path $Root $d
     if (Get-Item -LiteralPath $src -Force -ErrorAction SilentlyContinue) { Copy-Tree $src (Join-Path $stage $d) }
   }
@@ -99,6 +106,8 @@ try {
     Remove-Item -Force
   $rj = Join-Path $Root 'profile\resume.json'
   $rji = Get-Item -LiteralPath $rj -Force -ErrorAction SilentlyContinue
+  $pfi = Get-Item -LiteralPath (Join-Path $Root 'profile') -Force -ErrorAction SilentlyContinue
+  if ($pfi -and ($pfi.LinkType -eq 'SymbolicLink' -or $pfi.LinkType -eq 'Junction')) { $rji = $null }
   if ($rji -and -not $rji.PSIsContainer -and $rji.LinkType -ne 'SymbolicLink') { Copy-Item -LiteralPath $rj -Destination (Join-Path $stage 'resume.json') }
 
   $lines = @(
@@ -120,7 +129,7 @@ try {
     "",
     "This backup holds other people's names and contact details (contacts, references, interviewers).",
     "Keep it private: don't post it or share it, and delete old copies you no longer need.",
-    "To restore, unzip it and copy the folders back into a Job Search HQ workspace."
+    "To restore, open the folder in the app and say 'restore my backup'."
   )
   Set-Content -LiteralPath (Join-Path $stage 'READ-ME.txt') -Value $lines -Encoding UTF8
 

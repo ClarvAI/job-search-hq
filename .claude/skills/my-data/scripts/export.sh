@@ -59,16 +59,19 @@ dirs="profile jobs contacts outbox interviews history knowledge/field pages"
 [ -n "$with_imports" ] && dirs="$dirs imports"
 [ -n "$with_templates" ] && dirs="$dirs templates"
 for d in $dirs; do
+  # A parent folder that is a link (knowledge/ for knowledge/field) would copy whatever it points to.
+  case "$d" in */*) if [ -L "$ROOT/${d%/*}" ]; then echo "skipped link: ${d%/*}"; continue; fi ;; esac
   if [ -e "$ROOT/$d" ] || [ -L "$ROOT/$d" ]; then
     mkdir -p "$(dirname "$stage/$d")" && cp -R "$ROOT/$d" "$stage/$d" || die "could not copy all of $d (nothing was saved)"
   fi
 done
 # Links (shortcuts) point outside the backup; leave them out rather than copy whatever they point to.
-find "$stage" -type l | while IFS= read -r l; do echo "skipped link: ${l#"$stage"/}"; rm -f "$l"; done
+# (NUL-separated, so a name with a line break in it can't turn into another path.)
+find "$stage" -type l -print0 | while IFS= read -r -d '' l; do echo "skipped link: ${l#"$stage"/}"; rm -f -- "$l"; done
 # Leave out throwaway files: publish copies, theme previews, page-count PDFs, OS clutter.
 rm -rf "$stage/pages/.publish" "$stage/pages/.preview"
 find "$stage" \( -name '*.check.pdf' -o -name '.DS_Store' -o -name 'Thumbs.db' -o -name '~$*' \) -exec rm -f {} + 2>/dev/null
-if [ -f "$ROOT/profile/resume.json" ] && [ ! -L "$ROOT/profile/resume.json" ]; then
+if [ -f "$ROOT/profile/resume.json" ] && [ ! -L "$ROOT/profile/resume.json" ] && [ ! -L "$ROOT/profile" ]; then
   cp "$ROOT/profile/resume.json" "$stage/resume.json" || die "could not copy profile/resume.json (nothing was saved)"
 fi
 
@@ -87,10 +90,10 @@ fi
   echo ""
   echo "This backup holds other people's names and contact details (contacts, references, interviewers)."
   echo "Keep it private: don't post it or share it, and delete old copies you no longer need."
-  echo "To restore, unzip it and copy the folders back into a Job Search HQ workspace."
+  echo "To restore, open the folder in the app and say 'restore my backup'."
 } > "$stage/READ-ME.txt" || die "could not write the backup's READ-ME (nothing was saved)"
 
-count="$(find "$stage" -type f | wc -l | tr -d ' ')"
+count="$(find "$stage" -type f -print0 | tr -dc '\000' | wc -c | tr -d ' ')"
 # The zip must mark names like "Müller" as UTF-8, or Windows and other unzip tools show them garbled. Python's
 # zipfile and Perl's IO::Compress::Zip (Efs) do; the Mac's zip and ditto don't, so zip is the last resort.
 # On a Mac without the developer tools, /usr/bin/python3 is a stub that pops an install dialog: skip it there.

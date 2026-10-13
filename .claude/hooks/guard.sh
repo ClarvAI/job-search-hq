@@ -66,12 +66,17 @@ repo_state() {
   local re_ssh='^(ssh|git\+ssh|ssh\+git)://([^@/]*@)?([^/:]+)(:[0-9]+)?/(.*)$' re_scp='^([^@/]*@)?([^/:\\]+):(.*)$'
   u="${u%/}"; u="${u%.git}"
   lu="$(printf '%s' "$u" | tr 'A-Z' 'a-z')"           # GitHub.com and github.com are the same host
+  # A trailing dot on the host (github.com. / github.com..) is the same host to a browser and to git,
+  # so collapse "github.com" + dots before "/" or ":" to plain "github.com".
+  lu="$(printf '%s' "$lu" | sed -E 's#(^|[@/])github\.com\.+([:/])#\1github.com\2#g')"
+  u="$(printf '%s' "$u" | sed -E 's#(^|[@/])([Gg][Ii][Tt][Hh][Uu][Bb]\.[Cc][Oo][Mm])\.+([:/])#\1\2\3#g')"
   case "$lu" in
     *github.com[:/]*) p="${lu#*github.com}"; p="${p#:}"; p="${p#/}" ;;
     *)
       if [[ $u =~ $re_ssh ]]; then h="${BASH_REMATCH[3]}"; p="${BASH_REMATCH[5]}"
       elif [[ $u != *://* && $u =~ $re_scp ]]; then h="${BASH_REMATCH[2]}"; p="${BASH_REMATCH[3]}"
       fi
+      h="${h%"${h##*[!.]}"}"                            # drop any trailing dots from the host
       case "$h" in ?|*[!A-Za-z0-9_.-]*) h="" ;; esac   # one letter = a Windows drive (C:\...)
       [ -n "$h" ] && is_github_alias "$h" || { echo other; return; }
       p="${p#/}" ;;
@@ -144,6 +149,29 @@ check_gh_repo() {
   case "$(repo_state "$r")" in public) deny "$PUBLIC_MSG" ;; unknown) deny "$UNKNOWN_MSG" ;; esac
 }
 
+# tokenize <segment>: split into words the way the shell would, keeping quoted runs together, so a path
+# like "Job Search HQ" stays one word. Fills the global array TOK. Single and double quotes and a
+# backslash-escaped character are honored; everything else splits on whitespace.
+tokenize() {
+  local s="$1" c cur="" q="" i have=0 n
+  n=${#s}                                              # a separate line: within one `local`, $s isn't set yet
+  TOK=()
+  for ((i = 0; i < n; i++)); do
+    c="${s:i:1}"
+    if [ -n "$q" ]; then
+      if [ "$c" = "$q" ]; then q=""; else cur="$cur$c"; fi
+    else
+      case "$c" in
+        \'|\") q="$c"; have=1 ;;
+        \\) i=$((i + 1)); cur="$cur${s:i:1}"; have=1 ;;
+        ' '|$'\t'|$'\n') if [ "$have" = 1 ]; then TOK[${#TOK[@]}]="$cur"; cur=""; have=0; fi ;;
+        *) cur="$cur$c"; have=1 ;;
+      esac
+    fi
+  done
+  [ "$have" = 1 ] && TOK[${#TOK[@]}]="$cur"
+}
+
 # expand_vars <text>: $NAME and ${NAME} as the shell would see them: a value set earlier in this
 # command ($assigns), else PWD = the folder the command is in by then ($dir), else the environment,
 # else nothing. $(...) and the like are left as they are (they can't be known).
@@ -161,7 +189,7 @@ expand_vars() {
 # Looks at one shell command line for git push (and aliases for it), gh repo create --public,
 # gh repo edit --visibility public, gh gist create --public and gh api calls that make a repository public.
 check_shell() {
-  local cmd cwd seg dir t i j n sub val rest lw long
+  local cmd cwd seg dir t i j n sub val rest lw long owner repo tok
   # Claude sends "command"; Codex sends "command" or "cmd", as text or as a list of words.
   local re_cmd='"(command|cmd)"[[:space:]]*:[[:space:]]*"((\\.|[^"\\])*)"'
   local re_list='"(command|cmd)"[[:space:]]*:[[:space:]]*\[(([[:space:],]|"(\\.|[^"\\])*")*)\]'
@@ -182,6 +210,8 @@ check_shell() {
   local re_pipe='\|[[:space:]]*([^[:space:];&|]*[/\\])?((ba|z|da|k|fi|tc|c)?sh|pwsh|powershell|python[0-9.]*|node|perl|ruby)(\.exe)?([[:space:]]+-[A-Za-z-]*)*[[:space:]]*($|[;&|)])'
   [[ $cmd =~ $re_hide ]] && deny "$HIDDEN_MSG"
   [[ $cmd =~ $re_pipe ]] && deny "$HIDDEN_MSG"
+  # Command substitution ($(...) or backticks) that feeds a push can hide the program or destination.
+  case "$cmd" in *'$('*|*'`'*) case "$cmd" in *push*|*send-pack*) deny "$UNREAD_MSG" ;; esac ;; esac
   # Sending mail from a script or a mail app, or opening Gmail, Outlook or LinkedIn some other way.
   local re_send='osascript.*(mail|outlook|messages).*send|outlook\.application|send-mailmessage|net\.mail\.|smtplib|smtpclient|sendmail|msmtp|swaks|(^|[;&|[:space:]])(mailx|mutt|mail)[[:space:]]+-s[[:space:]]'
   local re_open="(^|[;&|[:space:](])(open|xdg-open|wslview|start|start-process|invoke-item|explorer(\\.exe)?|rundll32)[[:space:]][^;&|]*($SITES)|webbrowser[^;]*($SITES)|osascript[^;&|]*($SITES)"
@@ -192,6 +222,8 @@ check_shell() {
   if [[ $cmd =~ (^|[^A-Za-z0-9_.-])gh(\.exe)?[[:space:]]+api([[:space:]]|$) ]]; then
     t="${cmd//[[:space:]]/}"
     case "$t" in *private=false*|*private:false*|*visibility=public*|*visibility:public*|*visibility:\"public\"*|*visibility:\\\"public\\\"*|*public=true*|*public:true*) deny "$PUBREPO_MSG" ;; esac
+    # A GraphQL mutation can create issues or change visibility and names no repos/<owner>/<repo> to check.
+    case "$cmd" in *[Gg][Rr][Aa][Pp][Hh][Qq][Ll]*) case "$t" in *mutation*) deny "$STAGED_MSG" ;; esac ;; esac
   fi
   shopt -u nocasematch
   cwd="$PWD"; [[ $input =~ $re_cwd ]] && cwd="${BASH_REMATCH[1]//\\\\/\\}"
@@ -205,11 +237,17 @@ check_shell() {
   local IFS=';'
   for seg in $cmd; do
     IFS=$' \t\n'
-    # shellcheck disable=SC2206
-    local -a w=($seg)
+    tokenize "$seg"
+    local -a w=(${TOK[@]+"${TOK[@]}"})
     n=${#w[@]}
-    for ((i = 0; i < n; i++)); do t="${w[$i]}"; t="${t//\"/}"; t="${t//\'/}"; w[$i]="$t"; done
     [ "$n" -gt 0 ] || continue
+    # A quoted compound (e.g. a `bash -lc "<script>"` argument, or Codex's argv list joined with its
+    # quotes) can hide a whole command. Keep the intact tokens (for accurate -C and destinations) and
+    # also append the words inside any spaced token, so a push hidden in one still gets found.
+    for ((i = 0; i < n; i++)); do
+      case "${w[$i]}" in *[[:space:]]*) for t in ${w[$i]}; do w[${#w[@]}]="$t"; done ;; esac
+    done
+    n=${#w[@]}
     # NAME=value (or export NAME=value) on its own, or PowerShell's $name = value: remember it, so a
     # later "cd $NAME" can be followed. (A PowerShell assignment can also run a command, "$x = git push",
     # so its segment is still checked.)
@@ -220,7 +258,11 @@ check_shell() {
     if [ "$i" -lt "$n" ]; then
       for ((j = i; j < n; j++)); do case "${w[$j]}" in [A-Za-z_]*=*) case "${w[$j]%%=*}" in *[!A-Za-z0-9_]*) break ;; esac ;; *) break ;; esac; done
       if [ "$j" -eq "$n" ]; then
-        for ((j = i; j < n; j++)); do assigns="$assigns"$'\n'"${w[$j]%%=*}=$(expand_vars "${w[$j]#*=}")"; done
+        for ((j = i; j < n; j++)); do
+          assigns="$assigns"$'\n'"${w[$j]%%=*}=$(expand_vars "${w[$j]#*=}")"
+          # git's own config env vars set here reach a later "git push" in the same command.
+          case "${w[$j]%%=*}" in GIT_CONFIG*|GIT_DIR|GIT_WORK_TREE|GIT_COMMON_DIR) staged=1 ;; esac
+        done
         continue
       fi
     fi
@@ -257,41 +299,68 @@ check_shell() {
     for ((i = 0; i < n - 1; i++)); do
       case "${w[$i]}" in [Gg][Hh]|*[/\\][Gg][Hh]|[Gg][Hh].[Ee][Xx][Ee]|*[/\\][Gg][Hh].[Ee][Xx][Ee]) ;; *) continue ;; esac   # GH.EXE: Windows names ignore case
       rest=" ${w[*]:$((i+1))} "
-      case "${w[$((i+1))]} ${w[$((i+2))]:-}" in
+      # Skip gh's global flags (and their values) so "gh --repo X release upload" dispatches on "release".
+      local sp=$((i + 1)) ghrepo=""
+      while [ "$sp" -lt "$n" ]; do
+        case "${w[$sp]}" in
+          -R|--repo) ghrepo="${w[$((sp+1))]:-}"; sp=$((sp + 1)) ;;
+          --repo=*) ghrepo="${w[$sp]#--repo=}" ;;
+          -R?*) ghrepo="${w[$sp]#-R}" ;;
+          --hostname|--jq|-t|--template) sp=$((sp + 1)) ;;
+          -*) ;;
+          *) break ;;
+        esac
+        sp=$((sp + 1))
+      done
+      case "${w[$sp]:-} ${w[$((sp+1))]:-}" in
         "repo create"|"gist create")
           case "$rest" in *" --public "*|*" --public=true "*|*" --public=1 "*|*" --visibility public "*|*" --visibility=public "*) deny "$PUBREPO_MSG" ;; esac
-          [ "${w[$((i+1))]}" = gist ] && case "$rest" in *" -p "*) deny "$PUBREPO_MSG" ;; esac ;;
+          [ "${w[$sp]}" = gist ] && case "$rest" in *" -p "*) deny "$PUBREPO_MSG" ;; esac ;;
         "repo edit")
           case "$rest" in *" --visibility public "*|*" --visibility=public "*) deny "$PUBREPO_MSG" ;; esac ;;
         "release create"|"release upload"|"release edit")
           # Release files are public on a public repository: check the one named with -R/--repo, else this folder's.
-          t=""
-          for ((j = i + 3; j < n; j++)); do
+          t="$ghrepo"
+          for ((j = sp + 2; j < n; j++)); do
             case "${w[$j]}" in -R|--repo) t="${w[$((j+1))]:-}" ;; --repo=*) t="${w[$j]#--repo=}" ;; -R?*) t="${w[$j]#-R}" ;; esac
           done
           if [ -n "$t" ]; then check_gh_repo "$t"; else check_push "$dir"; fi ;;
       esac
-      if [ "${w[$((i+1))]}" = api ]; then
+      if [ "${w[$sp]:-}" = api ]; then
         lw="$(printf '%s' "${rest// /}" | tr 'A-Z' 'a-z')"
         case "$lw" in
           *private=false*|*private:false*|*visibility=public*|*visibility:public*|*visibility:\"public\"*|*public=true*|*public:true*) deny "$PUBREPO_MSG" ;;
           *--input*repos*|*repos*--input*) deny "$UNREAD_MSG" ;;
         esac
         # A call that writes (-X PUT/POST/PATCH/DELETE, or fields, which make it a POST) to repos/<owner>/<repo>/...:
-        # only allowed when that repository is private.
-        local write="" ep=""
-        for ((j = i + 2; j < n; j++)); do
+        # only allowed when that repository is private. The endpoint may be relative or a full api.github.com URL.
+        local write="" ep="" tok=""
+        for ((j = sp + 1; j < n; j++)); do
           case "${w[$j]}" in
             -X|--method) case "${w[$((j+1))]:-}" in [Gg][Ee][Tt]|[Hh][Ee][Aa][Dd]) ;; *) write=1 ;; esac ;;
             -X?*|--method=*) case "${w[$j]}" in *[Gg][Ee][Tt]|*[Hh][Ee][Aa][Dd]) ;; *) write=1 ;; esac ;;
             -f|-F|--field|--raw-field|-f?*|-F?*|--field=*|--raw-field=*) write=1 ;;
-            repos/*/*|/repos/*/*) [ -n "$ep" ] || ep="${w[$j]#/}" ;;
+          esac
+          # the endpoint is the first non-flag word; normalize an absolute URL to its path
+          case "${w[$j]}" in
+            -*) ;;
+            *)
+              [ -n "$ep" ] && continue
+              tok="${w[$j]}"
+              case "$tok" in graphql) ep="graphql" ;; esac
+              case "$tok" in
+                http://*|https://*) tok="${tok#*://}"; tok="${tok#*/}" ;;   # host/path -> path
+              esac
+              case "/$tok" in */repos/*) ep="repos/${tok#*repos/}" ;; esac ;;
           esac
         done
-        if [ -n "$write" ] && [ -n "$ep" ]; then
-          ep="${ep#repos/}"; t="${ep%%/*}"; ep="${ep#*/}"; ep="${ep%%/*}"; ep="${ep%%\?*}"
-          check_gh_repo "$t/$ep"
-        fi
+        case "$ep" in
+          graphql) case "$lw" in *mutation*) deny "$STAGED_MSG" ;; esac ;;
+          repos/*/*) if [ -n "$write" ]; then
+              t="${ep#repos/}"; owner="${t%%/*}"; t="${t#*/}"; repo="${t%%/*}"; repo="${repo%%\?*}"
+              check_gh_repo "$owner/$repo"
+            fi ;;
+        esac
       fi
     done
     # git [-C dir] [-c k=v] [--git-dir=...] ... push|send-pack|subtree push|<alias> [options] [remote|url] ...
@@ -313,7 +382,9 @@ check_shell() {
           -C) j=$((j + 1)); t="${w[$j]:-}"; case "$t" in *'$'*) t="$(expand_vars "$t")" ;; esac
               case "$t" in /*|[A-Za-z]:*) gdir="$t" ;; "~"*) gdir="$HOME${t#\~}" ;; *) gdir="$gdir/$t" ;; esac ;;
           -c) j=$((j + 1)); t="${w[$j]:-}"; gargs+=(-c "$t")
-              case "$t" in alias.*=*) alias_name="${t#alias.}"; alias_name="${alias_name%%=*}"; alias_val="${t#*=}" ;; esac ;;
+              case "$t" in alias.*=*) alias_name="${t#alias.}"; alias_name="${alias_name%%=*}"; alias_val="${t#*=}" ;; esac
+              # -c that rewrites where a push goes (url.X.insteadOf/pushInsteadOf, remote.X.url/pushurl).
+              case "$(printf '%s' "$t" | tr 'A-Z' 'a-z')" in url.*|remote.*|*insteadof=*|*pushurl=*) staged=1 ;; esac ;;
           --git-dir|--work-tree|--namespace) gargs+=("${w[$j]}" "${w[$((j+1))]:-}"); j=$((j + 1)) ;;
           --git-dir=*|--work-tree=*|--namespace=*) gargs+=("${w[$j]}") ;;
           -*) ;;
@@ -340,7 +411,15 @@ check_shell() {
           else val="$(git -C "$gdir" ${gargs[@]+"${gargs[@]}"} config --get "alias.$sub" 2>/dev/null)"; fi
           [ -n "$val" ] || continue
           case "$val" in
-            !*) case "$val" in *push*|*send-pack*) check_push "$gdir" ;; esac ;;   # a shell alias: check every remote
+            !*)   # a shell alias: find its own push and check that destination
+              case "$val" in *push*|*send-pack*)
+                tokenize "${val#!}"
+                local -a bv=(${TOK[@]+"${TOK[@]}"}) ; local bn=${#bv[@]} bi bfound=""
+                for ((bi = 0; bi < bn; bi++)); do
+                  case "${bv[$bi]}" in push|send-pack) bfound=1; check_push "$gdir" "${bv[@]:$((bi+1))}"; break ;; esac
+                done
+                [ -n "$bfound" ] || deny "$UNREAD_MSG" ;;   # pushes, but its destination can't be read
+              esac ;;
             *)
               # shellcheck disable=SC2206
               local -a av=($val)
@@ -445,7 +524,12 @@ DRAFT='^(create|update)(_or_update)?_?draft'
 # "send-chat-message" or "list-mail-messages" put the verb first.
 op="${tool#mcp__}"; op="${op#*__}"
 opn="$(printf '%s' "$op" | tr 'A-Z-' 'a-z_' | sed -E 's/^(gmail|google_?mail|outlook_email|outlook_calendar|outlook|google_?calendar|gcal|superhuman|email|mail|calendar)_//')"
-isread=""; { printf '%s' "$last" | grep -qiE "$READ" || printf '%s' "$opn" | grep -qE "$READ"; } && isread=1
+# A read tool only when the operation starts with a read verb AND no write verb leads it. This keeps
+# "send-and-get" / "send-email-and-get" (where "get" is last) out of the read allow-list, while
+# "get_draft_send_status" (where "get" leads) stays read-only.
+leadwrite=""
+case "$opn" in send*|reply*|forward*|delete*|trash*|post*|share*|publish*|invite*|submit*) leadwrite=1 ;; esac
+isread=""; [ -z "$leadwrite" ] && { printf '%s' "$last" | grep -qiE "$READ" || printf '%s' "$opn" | grep -qE "$READ"; } && isread=1
 if printf '%s' "$tool" | grep -qiE 'mail|outlook|superhuman'; then
   if [ -z "$isread" ] && ! { printf '%s' "$last" | grep -qiE "$DRAFT" || printf '%s' "$opn" | grep -qE "$DRAFT"; }; then
     deny "Blocked: the assistant only reads job email and makes drafts. It never sends, replies, forwards, deletes, labels or archives email; save the message in outbox/ (or as a Gmail draft) and let the user send it themselves."
@@ -490,6 +574,27 @@ if printf '%s' "$tool" | grep -qiE "$BROWSERS" && printf '%s' "$tool" | grep -qi
   CODE="$CODE|$BROWSERS"
 fi
 HIDE='atob|fromCharCode|base64|unescape|decodeURI|\\\\x[0-9a-fA-F]{2}|\\\\u00[0-9a-fA-F]{2}|String\.raw'
+# A browser turns a look-alike host (ideographic or full-width dots, or full-width letters) into
+# mail.google.com / linkedin.com (NFKC + IDNA). Fold the same way before matching: map the three dot
+# look-alikes (fixed UTF-8 byte strings, so this works with no tools), then NFKC-normalize if python3
+# or node is present.
+HAVE_NORM=""; { command -v python3 >/dev/null 2>&1 || command -v node >/dev/null 2>&1; } && HAVE_NORM=1
+dotmap() { printf '%s' "$1" | sed $'s/\xe3\x80\x82/./g; s/\xef\xbc\x8e/./g; s/\xef\xbd\xa1/./g'; }
+norm_idn() {
+  # First turn any JSON \uXXXX / \xXX escapes into real characters (an app may send the host that way),
+  # then NFKC-normalize (folds full-width letters) and map the dot look-alikes.
+  if command -v python3 >/dev/null 2>&1; then
+    printf '%s' "$1" | python3 -I -c 'import sys,re,unicodedata
+s=sys.stdin.buffer.read().decode("utf-8","replace")
+s=re.sub(r"\\u([0-9a-fA-F]{4})", lambda m: chr(int(m.group(1),16)), s)
+s=re.sub(r"\\x([0-9a-fA-F]{2})", lambda m: chr(int(m.group(1),16)), s)
+s=unicodedata.normalize("NFKC", s)
+for a in (chr(0x3002), chr(0xff61), chr(0xff0e)): s=s.replace(a,".")
+sys.stdout.write(s)' 2>/dev/null
+  elif command -v node >/dev/null 2>&1; then
+    JSG_IN="$1" node -e 'let s=(process.env.JSG_IN||"").replace(/\\u([0-9a-fA-F]{4})/g,(m,h)=>String.fromCodePoint(parseInt(h,16))).replace(/\\x([0-9a-fA-F]{2})/g,(m,h)=>String.fromCodePoint(parseInt(h,16))).normalize("NFKC");for(const c of String.fromCharCode(0x3002,0xFF61,0xFF0E))s=s.split(c).join(".");process.stdout.write(s)' 2>/dev/null
+  else printf '%s' "$1"; fi
+}
 b64tokens() { # decodes quoted base64-looking strings (12+ characters) found in the input
   printf '%s' "$1" | grep -oE '[A-Za-z0-9+/]{12,}={0,2}' | head -20 | while IFS= read -r t; do
     t="${t%%=*}"; t="${t:0:$(( ${#t} / 4 * 4 ))}"   # whole 4-character groups only, like guard.ps1
@@ -499,6 +604,7 @@ b64tokens() { # decodes quoted base64-looking strings (12+ characters) found in 
 if printf '%s' "$tool" | grep -qiE "$CODE"; then
   scan="$(printf '%s' "$flat" | sed -E "s/$EMAILS/an-email-address/g")"
   scan="$scan $(urldecode "$scan") $(urldecode "$(urldecode "$scan")") $(b64tokens "$scan")"
+  scan="$scan $(dotmap "$scan")"; [ -n "$HAVE_NORM" ] && scan="$scan $(norm_idn "$scan")"
   if printf '%s' "$scan" | grep -qiE "$SITES" || printf '%s' "$flat" | grep -qiE '"(Mail|Microsoft Outlook|Outlook|LinkedIn)"'; then
     deny "Blocked: the assistant doesn't use Gmail, Outlook, Mail or LinkedIn through the browser or the computer. Draft the message in outbox/ for the user to send themselves. (If this was typing the user's own LinkedIn profile address into an application form, leave that one field for the user to fill in.)"
   fi
@@ -508,8 +614,17 @@ if printf '%s' "$tool" | grep -qiE "$CODE"; then
 elif printf '%s' "$tool" | grep -qiE "$BROWSERS"; then
   nav="$(printf '%s' "$flat" | grep -oiE '\\?"(url|href|link)\\?"[[:space:]]*:[[:space:]]*\\?"[^"\\]*|(createBrowserTab|goto|navigate|newPage|getTab|location\.href|location\.(assign|replace)|location[[:space:]]*=|window\.open)[^;]{0,250}')"
   nav="$nav $(urldecode "$nav") $(urldecode "$(urldecode "$nav")")"
-  if printf '%s' "$nav" | grep -qiE "$SITES"; then
+  navf="$nav $(dotmap "$nav")"; [ -n "$HAVE_NORM" ] && navf="$navf $(norm_idn "$nav")"
+  if printf '%s' "$navf" | grep -qiE "$SITES"; then
     deny "Blocked: the assistant doesn't use the browser on Gmail, Outlook or LinkedIn. Draft the message in outbox/ for the user to send themselves."
+  fi
+  # Without a normalizer, a host with non-ASCII letters or \u/\x escapes (a look-alike of those sites)
+  # can't be folded, so block it.
+  if [ -z "$HAVE_NORM" ]; then
+    navhost="$(printf '%s' "$nav" | grep -oiE '://[^"/?#[:space:]]+')"
+    if printf '%s' "$navhost" | LC_ALL=C grep -q '[^ -~]' || printf '%s' "$navhost" | grep -qiE '\\u[0-9a-f]{4}|\\x[0-9a-f]{2}'; then
+      deny "Blocked to be safe: that web address uses non-standard characters in the site name, which can disguise Gmail, Outlook or LinkedIn. Write the plain address, or ask the user to open it."
+    fi
   fi
   if printf '%s' "$nav" | grep -qiE "$SHORT"; then
     deny "Blocked to be safe: that's a short link, which can hide where it really goes (it could be Gmail, Outlook or LinkedIn, which the browser never visits). Look it up with WebFetch first to see the real address, or ask the user to open it."

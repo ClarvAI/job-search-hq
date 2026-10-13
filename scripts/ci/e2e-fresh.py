@@ -412,8 +412,10 @@ def check_wiring_runs(r, ws, impl, tag, w):
         gc = guard_group(w, c, "guard.sh")
         cmd = [h["command"] for h in gc["hooks"]][0] if gc else "false"
         rc3, o3 = run([find_bash(), "-c", cmd], cwd=sub, input_text=GMAIL_SEND.encode())
+        # Codex's Unix hook blocks the way Codex documents: exit 2 with the reason on stderr (a JSON deny
+        # on stdout is accepted too, as the Windows wrapper still answers that way).
         r.ok("%s: Codex's guard hook, run as wired from a subfolder, blocks a Gmail send" % tag,
-             DENY.search(o3), "exit %d: %s" % (rc3, o3))
+             DENY.search(o3) or (rc3 == 2 and "Blocked:" in o3), "exit %d: %s" % (rc3, o3))
         data = b'{"session_id":"e2e-wired"}'
         rc4, o4 = run([find_bash(), "-c", first_cmd(w, s, "SessionStart")], cwd=ws, env=env, input_text=data)
         rc5, o5 = run([find_bash(), "-c", first_cmd(w, c, "SessionStart")], cwd=sub, input_text=data)

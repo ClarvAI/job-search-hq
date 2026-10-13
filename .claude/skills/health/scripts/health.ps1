@@ -313,7 +313,11 @@ if ((Test-Path -LiteralPath (Join-Path $root '.git')) -and (Has-Command 'git')) 
     $hp = $null; try { $hp = @(& git -C $root config --get core.hooksPath 2>$null) | Select-Object -First 1 } catch {}
     $hpn = ("$hp").Trim().TrimEnd('\', '/')
     if ($hpn -eq '.githooks' -or $hpn -eq (Join-Path $root '.githooks') -or $hpn -eq ($root.Replace('\', '/') + '/.githooks')) {
-        Say-Ok 'git push check' 'on (stops pushes to a public GitHub repository, and keeps AI attribution lines out of commit messages)'
+        if (-not (Test-Path -LiteralPath (Join-Path $root '.githooks/pre-push') -PathType Leaf)) {
+            Say-Fix 3 'git push check' "it's turned on (core.hooksPath is .githooks) but .githooks/pre-push is missing, so pushes aren't actually checked. $repair."
+        } else {
+            Say-Ok 'git push check' 'on (stops pushes to a public GitHub repository, and keeps AI attribution lines out of commit messages)'
+        }
     } else {
         Say-Note 'git push check' "this folder uses git, and the extra check that stops pushes to a public GitHub repository isn't turned on. The assistant can turn it on for you (it runs: git config core.hooksPath .githooks). It also catches pushes the built-in safety check can't see, like ones made through scripts, and keeps AI attribution lines out of commit messages."
     }

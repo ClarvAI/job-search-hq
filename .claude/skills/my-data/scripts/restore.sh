@@ -84,11 +84,14 @@ for e in "$B"/* "$B"/.[!.]* "$B"/..?* "$B"/knowledge/* "$B"/knowledge/.[!.]* "$B
 done
 [ -L "$B/knowledge" ] && echo "skipped link: knowledge"
 
-# Every file and link in the backup's user folders (find does not follow links; a linked folder is listed, not entered).
-list="$(cd "$B" && for x in $DIRS; do
-  if [ "${x%%/*}" = knowledge ] && [ -L knowledge ]; then continue; fi   # (no case here: bash 3.2 misreads it inside $( ))
-  if [ -e "$x" ] || [ -L "$x" ]; then find "$x" \( -type f -o -type l \) -print; fi
-done | LC_ALL=C sort)" || die "could not list the backup's files (nothing was changed)"
+# Every file and link in the backup's user folders (find does not follow links; a linked folder is listed, not
+# entered), NUL-separated in a temporary file, so a name with a line break in it can't turn into another path.
+list="$(mktemp 2>/dev/null || mktemp -t jshq)" || die "cannot make a temporary file (nothing was changed)"
+trap 'rm -f "$list"' EXIT
+(cd "$B" && for x in $DIRS; do
+  if [ "${x%%/*}" = knowledge ] && [ -L knowledge ]; then continue; fi
+  if [ -e "$x" ] || [ -L "$x" ]; then find "$x" \( -type f -o -type l \) -print0; fi
+done | LC_ALL=C sort -z) > "$list" || die "could not list the backup's files (nothing was changed)"
 
 same_text() { [ "$(tr -d '\r' < "$1" | cksum)" = "$(tr -d '\r' < "$2" | cksum)" ]; }
 parent_state() {  # "link" if a folder between the workspace and this file is a link, "file" if one is a file
@@ -111,11 +114,13 @@ merge_log() {  # the backup's log, then the lines here that it doesn't have
 }
 
 n_rest=0; n_rep=0; n_merge=0; n_diff=0
-old_ifs="$IFS"; IFS='
+cr="$(printf '\r')"; nl='
 '
-set -f
-for r in $list; do
+while IFS= read -r -d '' r; do
   [ -n "$r" ] || continue
+  # Only plain relative paths inside the user folders: no "." or ".." parts, no line breaks.
+  case "$r" in *"$nl"*|*"$cr"*) echo "skipped odd name: a file in ${r%%/*}/ has a line break in its name"; continue ;; esac
+  case "/$r/" in */../*|*/./*|*//*) echo "skipped odd name: $r"; continue ;; esac
   if [ -L "$B/$r" ]; then echo "skipped link: $r"; continue; fi
   case "${r##*/}" in '~$'*|.DS_Store|Thumbs.db|*.restore-tmp) continue ;; esac   # lock files and clutter
   dst="$ROOT/$r"
@@ -142,8 +147,7 @@ for r in $list; do
     merged) n_merge=$((n_merge + 1)) ;;
     differs) n_diff=$((n_diff + 1)) ;;
   esac
-done
-set +f; IFS="$old_ifs"
+done < "$list"
 
 counts="$n_rest restored, $n_rep replaced starter, $n_merge merged, $n_diff differ"
 if [ -n "$dry" ]; then

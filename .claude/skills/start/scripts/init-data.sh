@@ -38,7 +38,9 @@ for rel in $list; do
   if [ -e "$dst" ] || [ -L "$dst" ]; then continue; fi
   n=$((n + 1))
   if [ -n "$dry" ]; then echo "would create: $rel"; continue; fi
-  if mkdir -p "$(dirname "$dst")" 2>/dev/null && cp "$BLANK/$rel" "$dst" 2>/dev/null; then
+  # cp -n never overwrites, so if another starter-copy run (or the other app) wins the race between the
+  # check above and here, the file it wrote is kept, not clobbered. Matches init-data.ps1's no-overwrite copy.
+  if mkdir -p "$(dirname "$dst")" 2>/dev/null && cp -n "$BLANK/$rel" "$dst" 2>/dev/null; then
     [ -n "$quiet" ] || echo "created: $rel"
   else
     failed=$((failed + 1)); echo "error: could not create $rel"
