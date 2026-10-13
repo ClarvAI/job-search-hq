@@ -20,17 +20,20 @@ brief() {
     *"init: created"*) echo "Missing starter files were just set up from the blank copies (${INIT##*init: created }). In a new folder that's normal (first run); otherwise tell the user a personal file was missing and came back blank." ;;
     *error:*) echo "Some starter files could not be set up ($(printf '%s' "$INIT" | grep 'error:' | head -1)). Tell the user, and run bash .claude/skills/start/scripts/init-data.sh to see why." ;;
   esac
+  # The setup checklist (finished sections) lives in profile/setup-progress.md; a folder set up with an
+  # earlier version may still have the line in preferences.md, which counts while the new file is blank.
+  progress="$(sed -n 's/^setup_progress:[[:space:]]*//p' profile/setup-progress.md 2>/dev/null | head -1 | tr -d '\r' | sed 's/[[:space:]]*$//')"
+  [ -n "$progress" ] || progress="$(sed -n 's/^setup_progress:[[:space:]]*//p' profile/preferences.md 2>/dev/null | head -1 | tr -d '\r' | sed 's/[[:space:]]*$//')"
   if [ ! -f profile/preferences.md ] || grep -q '^SETUP: not done' profile/preferences.md 2>/dev/null; then
-    progress="$(sed -n 's/^setup_progress:[[:space:]]*//p' profile/preferences.md 2>/dev/null | head -1 | tr -d '\r' | sed 's/[[:space:]]*$//')"
     if [ -n "$progress" ]; then
       echo "The user started setup but stopped partway (done so far: $progress). When they first write, offer to pick up where they left off with $START; it skips the parts already done."
     else
       echo "The user has not finished setup. When they first write, welcome them in one or two sentences and suggest $START (about 15 to 20 minutes)."
     fi
   fi
-  # Essentials done, but some later setup sections not yet (only when a setup_progress line exists).
-  if [ -f profile/preferences.md ] && ! grep -q '^SETUP: not done' profile/preferences.md && grep -q '^setup_progress:' profile/preferences.md; then
-    progress="$(sed -n 's/^setup_progress:[[:space:]]*//p' profile/preferences.md | head -1 | tr -d '\r')"
+  # Essentials done, but some later setup sections not yet (only when the checklist lists something:
+  # done with nothing listed means setup finished before the checklist existed).
+  if [ -f profile/preferences.md ] && ! grep -q '^SETUP: not done' profile/preferences.md && [ -n "$progress" ]; then
     left=""
     for sec in resume status preferences field-pack story forms look first-week; do
       case ",$(printf '%s' "$progress" | tr -d ' ')," in *",$sec,"*) ;; *) left="${left:+$left, }$sec" ;; esac

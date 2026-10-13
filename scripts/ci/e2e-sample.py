@@ -211,6 +211,11 @@ def check_data(r, sample, tag, today):
     r.ok("%s preferences: setup done, sample name, sample banner" % tag,
          re.search(r"(?m)^SETUP: done \d{4}-\d{2}-\d{2}$", prefs) and "\nname: Alex Rivera (sample)\n" in prefs
          and "SAMPLE WORKSPACE" in prefs)
+    sp_p = P(sample, "profile/setup-progress.md")
+    sp = read(sp_p).replace("\r", "") if os.path.isfile(sp_p) else ""
+    r.ok("%s setup checklist: every section done, in profile/setup-progress.md (not in preferences)" % tag,
+         "\nsetup_progress: resume, status, preferences, field-pack, story, forms, look, first-week\n" in sp
+         and not re.search(r"(?m)^setup_progress:", prefs), sp[:300])
 
     # Tracker
     jobs = check_csv(r, sample, "jobs/tracker.csv", tag)
@@ -380,7 +385,7 @@ def main():
         rc, out = session_start(sample, impl)
         r.ok("%s session start reports the sample pipeline, not 'set up first'" % tag,
              rc == 0 and "Pipeline:" in out and "1 offer" in out and "not finished setup" not in out
-             and "Initech (Product Marketing Lead)" in out, out)
+             and "skipped or not reached yet" not in out and "Initech (Product Marketing Lead)" in out, out)
         r.ok("%s session start shows the unclear date and the sample notice" % tag,
              "Date unclear" in out and "SAMPLE workspace" in out, out)
         snapshot_ok(r, ws, before, "%s the user's workspace is still byte-identical" % tag)

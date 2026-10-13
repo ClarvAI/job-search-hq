@@ -468,6 +468,12 @@ def check_init(r, ws, impl, tag, full):
     prefs = read(P(ws, "profile/preferences.md")) if os.path.isfile(P(ws, "profile/preferences.md")) else ""
     r.ok("%s: profile/preferences.md says 'SETUP: not done'" % tag,
          re.search(r"(?m)^SETUP: not done\r?$", prefs) is not None, prefs[:300])
+    sp_p = P(ws, "profile/setup-progress.md")
+    sp = read(sp_p) if os.path.isfile(sp_p) else ""
+    r.ok("%s: the setup checklist is its own file (profile/setup-progress.md, nothing listed), not a line in "
+         "preferences.md (so setup progress never touches the preferences file)" % tag,
+         re.search(r"(?m)^setup_progress:\r?$", sp) is not None
+         and re.search(r"(?m)^setup_progress:", prefs) is None, sp[:300])
     csvs = [f for f in expected if f.endswith(".csv")]
     probs = ["%s: %s" % (f, csv_problem(rb(P(ws, f)))) for f in csvs if csv_problem(rb(P(ws, f)))]
     r.ok("%s: the blank CSVs (%d) start with a UTF-8 BOM and hold only the header row" % (tag, len(csvs)),

@@ -3,9 +3,7 @@
 > SAMPLE WORKSPACE. Everything in this folder is made up: Alex Rivera is not a real person, and the companies, people, emails and numbers are invented. Try anything here; nothing is sent unless you press Send in Gmail yourself. Your own job search lives in your own folder, never in this one.
 
 SETUP: done {{D-30}}
-<!-- Assistant: /start fills this in with the user and then changes the line above to "SETUP: done YYYY-MM-DD". -->
-setup_progress: resume, status, preferences, field-pack, story, forms, look, first-week
-<!-- /start adds each setup section here as it finishes, as a comma list (names are in the start skill), so a setup that stops partway picks up at the first section not listed. Blank = nothing done yet. -->
+<!-- Assistant: /start fills this in with the user and then changes the line above to "SETUP: done YYYY-MM-DD". Which setup sections are finished is kept in profile/setup-progress.md. -->
 
 ## Settings
 

@@ -1,9 +1,7 @@
 # Job Search Preferences
 
 SETUP: not done
-<!-- Assistant: /start fills this in with the user and then changes the line above to "SETUP: done YYYY-MM-DD". -->
-setup_progress:
-<!-- /start adds each setup section here as it finishes, as a comma list (names are in the start skill), so a setup that stops partway picks up at the first section not listed. Blank = nothing done yet. -->
+<!-- Assistant: /start fills this in with the user and then changes the line above to "SETUP: done YYYY-MM-DD". Which setup sections are finished is kept in profile/setup-progress.md. -->
 
 ## Settings
 

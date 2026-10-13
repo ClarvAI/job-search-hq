@@ -2,7 +2,7 @@
 
 Part of the `start` skill (how to ask, saving and progress tracking: its SKILL.md).
 
-Section 7a of setup; its name in `setup_progress:` is `look`.
+Section 7a of setup; its name in the setup checklist (`setup_progress:` in `profile/setup-progress.md`) is `look`.
 
 16. **[choices]** "Nearly done, and optional: do you have a brand or design system you'd like your pages to use?" Options: "Yes, a design system in Claude" (only offer this in Claude Code when the Artifact tool is available) · "Yes, my website or portfolio" · "Yes, a brand guide file" · "No, show me the looks" · "Skip, keep the default". (Figma only if a Figma connector is connected: add "Yes, in Figma".)
    - Follow the matching route in `.claude/skills/page-design/references/importing-a-design-system.md`: it maps their colors and fonts into `profile/design.md`, shows them the exact lines before saving, applies the theme to every page and checks contrast (fixing any color that's too light by changing its lightness, and saying so in one line). The resume and cover letter only take the safe parts.

@@ -143,17 +143,24 @@ if ($init -match 'init: created (.*)') {
 } elseif ($init -match 'error:') {
     $lines.Add('Some starter files could not be set up. Tell the user, and run .claude\skills\start\scripts\init-data.ps1 to see why.')
 }
+# The setup checklist (finished sections) lives in profile/setup-progress.md; a folder set up with an
+# earlier version may still have the line in preferences.md, which counts while the new file is blank.
+$progress = ''
+foreach ($l in @(Read-Lines 'profile/setup-progress.md')) {
+    if ($l -cmatch '^setup_progress:[ \t]*(.*)$') { $progress = (($Matches[1] -replace '\s*<!--.*$', '').Trim()); break }
+}
+if ($progress -eq '') { $progress = Get-Pref 'setup_progress' }
 if ($preferences.Count -eq 0 -or $preferences -cmatch '^SETUP: not done') {
-    $progress = Get-Pref 'setup_progress'
     if ($progress -ne '') {
         $lines.Add("The user started setup but stopped partway (done so far: $progress). When they first write, offer to pick up where they left off with `$start; it skips the parts already done.")
     } else {
         $lines.Add('The user has not finished setup. When they first write, welcome them in one or two sentences and suggest $start, or just say "set me up" (about 15 to 20 minutes).')
     }
 }
-# Essentials done, but some later setup sections not yet (only when a setup_progress line exists).
-if ($preferences.Count -gt 0 -and -not ($preferences -cmatch '^SETUP: not done') -and ($preferences -cmatch '^setup_progress:')) {
-    $done = @((Get-Pref 'setup_progress') -split ',' | ForEach-Object { $_.Trim() })
+# Essentials done, but some later setup sections not yet (only when the checklist lists something:
+# done with nothing listed means setup finished before the checklist existed).
+if ($preferences.Count -gt 0 -and -not ($preferences -cmatch '^SETUP: not done') -and $progress -ne '') {
+    $done = @($progress -split ',' | ForEach-Object { $_.Trim() })
     $left = @('resume', 'status', 'preferences', 'field-pack', 'story', 'forms', 'look', 'first-week') | Where-Object { $done -notcontains $_ }
     if (@($left).Count -gt 0) {
         $lines.Add("Setup is done, but some setup sections were skipped or not reached yet ($(@($left) -join ', ')). When it fits, offer once to pick them up with `$start; it skips the parts already done.")

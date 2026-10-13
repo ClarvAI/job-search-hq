@@ -515,6 +515,12 @@ def start_check(c, t, ws, ctx):
     setup = re.findall(r"^SETUP:.*$", prefs, re.M)
     c.ok("preferences: exactly one SETUP line, done today", setup == ["SETUP: done %s" % TODAY.isoformat()], setup)
     c.ok("preferences: name is Alex Rivera", re.search(r"^name:\s*Alex Rivera\s*$", prefs, re.M), "")
+    sp_p = os.path.join(ws, "profile", "setup-progress.md")
+    sp = re.findall(r"^setup_progress:(.*)$", read(sp_p), re.M) if os.path.isfile(sp_p) else []
+    done = [x.strip() for x in sp[0].split(",")] if sp else []
+    c.ok("setup checklist kept in profile/setup-progress.md (resume, status, preferences), not in preferences",
+         all(x in done for x in ("resume", "status", "preferences"))
+         and not re.search(r"^setup_progress:", prefs, re.M), sp)
     c.ok("master resume: built from the resume (Built from: names the file)",
          re.search(r"Built from:.*alex-rivera-resume", mr), re.findall(r"Built from:.*", mr))
     emp = employers(mr)
@@ -545,6 +551,7 @@ def start_check(c, t, ws, ctx):
                                                        json.dumps(a["input"]))]
         c.ok("the project's ask rule fired for profile edits (a permission box would have shown)",
              asked, [a["tool"] for a in t.approvals][:10])
+        c.note("permission boxes for profile edits (master resume and preferences)", len(asked))
     q = [turn_["final"].count("?") for turn_ in t.turns]
     c.note("questions per assistant turn", q)
     if ctx.get("withheld"):

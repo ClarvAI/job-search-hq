@@ -173,6 +173,38 @@ else fail=$((fail + 1)); echo "FAIL  sample workspace named first (first line: $
 OUT="$(run contacts)"
 hasnt "no sample line in a real workspace" "SAMPLE workspace"
 
+# The setup checklist in the startup note: profile/setup-progress.md, else (blank or missing) a
+# setup_progress line an earlier build left in preferences.md.
+prog() { # prog <name> <SETUP line> <checklist in setup-progress.md, or - for no file> <old line in preferences.md, or ->
+  local d="$T/$1"
+  mkdir -p "$d/profile" "$d/.claude/hooks"
+  { printf '%s\n' "$2"; [ "$4" = - ] || printf 'setup_progress: %s\n' "$4"; printf 'search_status: active\n'; } > "$d/profile/preferences.md"
+  [ "$3" = - ] || printf '# Setup checklist\n\nsetup_progress: %s\n' "$3" > "$d/profile/setup-progress.md"
+  cp "$REPO/.claude/hooks/session-start.ps1" "$d/.claude/hooks/"
+  if [ "$IMPL" = ps ]; then run "$1"
+  else cp "$REPO/.claude/hooks/session-start.sh" "$REPO/.claude/hooks/summary.sh" "$d/.claude/hooks/"; (cd "$d" && printf '{}' | CLAUDE_PROJECT_DIR="$d" bash .claude/hooks/session-start.sh 2>/dev/null); fi
+}
+OUT="$(prog pnew 'SETUP: not done' 'resume, status' -)"
+has  "partway: from the checklist file" "stopped partway (done so far: resume, status)."
+OUT="$(prog pold 'SETUP: not done' - 'resume')"
+has  "partway: old line, no checklist file" "stopped partway (done so far: resume)."
+OUT="$(prog pblank 'SETUP: not done' '' 'resume, status')"
+has  "partway: old line, blank checklist" "stopped partway (done so far: resume, status)."
+OUT="$(prog pboth 'SETUP: not done' 'resume, status, preferences' 'resume')"
+has  "partway: checklist file wins" "stopped partway (done so far: resume, status, preferences)."
+OUT="$(prog pnone 'SETUP: not done' '' -)"
+has  "not started: blank checklist" "The user has not finished setup."
+hasnt "not started: no partway line" "stopped partway"
+OUT="$(prog dpart 'SETUP: done 2026-01-01' 'resume, status, preferences, field-pack' -)"
+has  "done: sections left, from checklist" "skipped or not reached yet (story, forms, look, first-week)."
+OUT="$(prog dall 'SETUP: done 2026-01-01' 'resume, status, preferences, field-pack, story, forms, look, first-week' -)"
+hasnt "done: every section listed" "not reached yet"
+hasnt "done: not 'not finished'" "not finished setup"
+OUT="$(prog dlegacy 'SETUP: done 2026-01-01' '' -)"
+hasnt "done before the checklist existed" "not reached yet"
+OUT="$(prog doldpart 'SETUP: done 2026-01-01' '' 'resume, status, preferences')"
+has  "done: sections left, from old line" "skipped or not reached yet (field-pack, story, forms, look, first-week)."
+
 if [ "$IMPL" = sh ]; then
   # Status line: reads the folder from Claude Code's JSON on stdin (not the current folder or env).
   sl() { printf '{"workspace":{"current_dir":"/","project_dir":"%s"}}' "$T/$1" | (cd / && env -u CLAUDE_PROJECT_DIR bash "$REPO/.claude/hooks/statusline.sh"); }

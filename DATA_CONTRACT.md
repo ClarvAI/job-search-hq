@@ -10,7 +10,7 @@ Never part of the app's download or its git repository (`.gitignore` lists them)
 
 | Path | What it holds |
 |---|---|
-| `profile/` (except `profile/README.md`) | Master resume, stories, preferences, writing style, references, signature, page look (`design.md`), your themed resume and cover-letter templates (`profile/templates/`), resume copies |
+| `profile/` (except `profile/README.md`) | Master resume, stories, preferences, writing style, references, signature, page look (`design.md`), setup checklist (`setup-progress.md`), your themed resume and cover-letter templates (`profile/templates/`), resume copies |
 | `jobs/` (except `jobs/README.md`) | Tracker, leads, one folder per job |
 | `contacts/` (except `contacts/README.md`) | Your contacts list |
 | `outbox/` (except the `.gitkeep` placeholders in `outbox/sent/` and `outbox/discarded/`) | Drafts, sent and discarded messages |
