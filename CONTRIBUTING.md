@@ -27,7 +27,7 @@ CI (`.github/workflows/ci.yml`) runs the same scripts on every push and pull req
 | Shell scripts parse and pass shellcheck | `scripts/ci/lint-shell.sh` |
 | JSON files parse | `scripts/ci/check-json.sh` |
 | JavaScript modules parse | `scripts/ci/check-node.sh` |
-| Every Claude skill has a Codex wrapper with the same description; blank starter files hold no real-looking contact details; the blank CSVs are header-only with a BOM; no data block in the blank pages holds a raw `</` | `scripts/ci/check-parity.sh` |
+| Every Claude skill has a Codex wrapper with the same description, and every review agent a Codex twin; `AGENTS.md` is under 30,000 bytes; blank starter files hold no real-looking contact details; the blank CSVs are header-only with a BOM; no data block in the blank pages holds a raw `</` | `scripts/ci/check-parity.sh` |
 | `product-manifest.json` matches the app files | `bash scripts/build-manifest.sh --check` |
 | Blank pages are still on the Default theme | `node .claude/skills/page-design/scripts/apply-theme.mjs --check-blank` |
 | The safety guard blocks and allows what it should (bash and PowerShell), and both versions agree | `scripts/ci/guard-fixtures.sh`, `scripts/ci/guard-parity.sh` |
@@ -39,11 +39,15 @@ CI (`.github/workflows/ci.yml`) runs the same scripts on every push and pull req
 | `/update` installs, checks, rolls back, keeps user files and edited app files, and refuses bad releases | `scripts/ci/e2e-update.py` |
 | `/my-data` backup, reset and restore round-trip every user file, skip links, respect Excel locks | `scripts/ci/e2e-mydata.py` |
 | A user's theme stays out of git, and `git pull` of a new version stays clean | `scripts/ci/e2e-theme-git.py` |
+| Published dashboard copies hold only the job list, and the Claude Dashboard page takes every figure from its data | `scripts/ci/check-dashboard-type.py` |
 
 ## Conventions
 
 - **Plain English.** Users aren't programmers. Short sentences, no jargon, one clear next step. In instructions to the assistant, refer to the user as "the user" and they/them.
-- **Claude and Codex stay in step.** Every `.claude/skills/<name>/SKILL.md` has a wrapper in `.agents/skills/<name>/SKILL.md` with the same `name` and the identical `description`. Behaviour rules shared by both apps go in `AGENTS.md`; Claude-only notes go in `CLAUDE.md`.
+- **Claude and Codex stay in step.** Every `.claude/skills/<name>/SKILL.md` has a wrapper in `.agents/skills/<name>/SKILL.md` with the same `name` and the identical `description`, and every `.claude/agents/<name>.md` has a `.codex/agents/<name>.toml` with the same description. Behaviour rules shared by both apps go in `AGENTS.md`; Claude-only notes go in `CLAUDE.md`.
+- **`AGENTS.md` stays under 30,000 bytes** (CI checks it). Codex reads at most 32 KiB of it by default and silently cuts off the rest, and the Codex section is at the end. `.codex/config.toml` raises Codex's limit, but only in trusted folders. Put procedures in the skill that runs them and keep only the rules in `AGENTS.md`.
+- **Settings keys need a version check.** Before adding a key to `.claude/settings.json` or `.codex/`, confirm in the official docs which version introduced it and what older versions do with it. An invalid value in `.codex/config.toml` stops Codex from starting in the folder; a key an older Claude Code doesn't accept can make it skip the whole settings file, safety hooks included.
+- **No AI attribution in commits.** Commit messages and pull requests made in this repository carry no `Co-authored-by: Claude…`/`Codex…` trailers, `Claude-Session:` lines or "Generated with…" lines. `.claude/settings.json` turns Claude Code's off; Codex's comes from your ChatGPT account, not from the folder. As a backstop, `.githooks/commit-msg` strips those lines. In the clone you use to maintain the product, install just that hook (`cp .githooks/commit-msg .git/hooks/commit-msg`) rather than setting `core.hooksPath`, which would also turn on the pre-push check that blocks pushes to the public repository.
 - **Every script has both versions.** A `.sh` script (it must run on macOS bash 3.2 and Git Bash) has a `.ps1` twin (Windows PowerShell 5.1 and PowerShell 7) that behaves the same. Keep `guard.sh`, `guard.ps1` and `.githooks/pre-push` in step.
 - **Starter files are blank.** New personal files go in `templates/blank/` as blank starting copies, never directly in a user-owned folder. They hold no real data, and `profile/preferences.md` starts as `SETUP: not done`. The blank CSVs are a header row saved as UTF-8 with a byte-order mark; keep it.
 - **User data stays out of app files.** Anything made for one user (a theme, a template in their look, a preview) goes in a user-owned path (`profile/templates/`, `pages/.preview/`; see `DATA_CONTRACT.md`), never in a file the app ships, so updates and `git pull` never conflict with it.

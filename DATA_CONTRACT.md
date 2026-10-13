@@ -17,14 +17,14 @@ Never part of the app's download or its git repository (`.gitignore` lists them)
 | `interviews/` (except `interviews/.gitkeep`) | Interview notes, scorecards, weekly reviews |
 | `history/` | The activity log |
 | `imports/` (except `imports/README.md`) | Files you drop in |
-| `pages/` (except `pages/README.md`) | Your dashboard, flashcards, portfolio, interview-brief template, publish copies (`pages/.publish/`), theme previews (`pages/.preview/`) |
+| `pages/` (except `pages/README.md`) | Your dashboard, flashcards, portfolio, interview-brief template, publish copies (`pages/.publish/`, including the Claude Dashboard files in `pages/.publish/claude-dashboard/`), theme previews (`pages/.preview/`) |
 | `knowledge/field/` | Your field pack: primer, background, resume keywords, target employers, role questions |
 
 Also local and never shipped: `.claude/settings.local.json`, `.claude/.health/`, `.backup/` (copies of the app's own files kept by updates, for undoing one), and any `*.local` file (your edited version of an app file, set aside by an update). "Delete everything" in `/my-data` removes these too, so the folder ends up exactly like a fresh download after its first run.
 
 ## App-owned (the product)
 
-Everything else, for example: `AGENTS.md`, `CLAUDE.md`, `README.md`, `HOW-IT-WORKS.md`, `.claude/` (skills, agents, hooks, panels, settings), `.agents/`, `.codex/`, `.githooks/`, `.github/`, `scripts/`, `migrations/`, `templates/` (including `templates/blank/`), `knowledge/job-search-playbook.md`, `knowledge/interview-questions.md`, the folder guides listed as exceptions above, `VERSION`, `CHANGELOG.md`, `DATA_CONTRACT.md`, `product-manifest.json`, `LICENSE`, `THIRD_PARTY_NOTICES.md`, `DISCLAIMER.md`, `SECURITY.md`. The exact list, with a fingerprint (SHA-256, carriage returns removed) of each file, is `product-manifest.json`.
+Everything else, for example: `AGENTS.md`, `CLAUDE.md`, `README.md`, `HOW-IT-WORKS.md`, `.claude/` (skills, agents, hooks, panels, settings), `.agents/`, `.codex/` (hooks, review agents, and the folder's Codex settings in `.codex/config.toml`), `.githooks/`, `.github/`, `scripts/`, `migrations/`, `templates/` (including `templates/blank/`), `knowledge/job-search-playbook.md`, `knowledge/interview-questions.md`, the folder guides listed as exceptions above, `VERSION`, `CHANGELOG.md`, `DATA_CONTRACT.md`, `product-manifest.json`, `LICENSE`, `THIRD_PARTY_NOTICES.md`, `DISCLAIMER.md`, `SECURITY.md`. The exact list, with a fingerprint (SHA-256, carriage returns removed) of each file, is `product-manifest.json`.
 
 ## How your files start, and how they change
 

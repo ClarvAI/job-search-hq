@@ -1,0 +1,15 @@
+# Codex settings for this folder. Codex reads them only after you trust the folder.
+# Every value must be one Codex accepts: a wrong value stops Codex from starting here.
+
+# AGENTS.md (the assistant's rules) is close to Codex's default 32 KiB limit, and Codex
+# silently cuts off anything past the limit. This leaves room so no rule is ever lost.
+project_doc_max_bytes = 65536
+
+# Search the live web. The default ("cached") uses an index that can show job postings
+# that have already closed.
+web_search = "live"
+
+[memories]
+# Keep job-search chats out of Codex's memories, which live outside this folder
+# (in ~/.codex/memories) where a backup or "delete everything" can't reach them.
+generate_memories = false

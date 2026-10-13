@@ -1,6 +1,6 @@
 # Job Search HQ
 
-A folder that turns an AI assistant into your job-search partner. It works with **Claude** (the Claude desktop app or Claude Code) and with **ChatGPT's Codex** (the Codex app or terminal), so use whichever you have, or both. It finds jobs that fit you, writes resumes and cover letters from your real experience, keeps track of every application, runs mock interviews, and drafts follow-ups. **You stay in control: nothing gets sent or submitted unless you do it yourself.**
+A folder that turns an AI assistant into your job-search partner. It works with **Claude** (the Claude desktop app or Claude Code) and with **ChatGPT's Codex** (in the ChatGPT desktop app, or the terminal), so use whichever you have, or both. It finds jobs that fit you, writes resumes and cover letters from your real experience, keeps track of every application, runs mock interviews, and drafts follow-ups. **You stay in control: nothing gets sent or submitted unless you do it yourself.**
 
 Works for any field and any stage: students, new grads, experienced professionals, career changers, and people returning to work. Setup asks who you are and builds a starter kit for your field (a primer, resume keywords, and a list of employers to target).
 
@@ -14,11 +14,11 @@ Works for any field and any stage: students, new grads, experienced professional
 
 Using only one app? Follow just its section below.
 
-**Got it as a zip?** Unzip first. Mac: double-click the zip. Windows: right-click it → **Properties** → tick **Unblock** → **OK**, then right-click → **Extract All** (just double-clicking only opens a preview). Move the folder somewhere you'll keep it, like Documents. Always open the folder that has `README.md`, `AGENTS.md` and `CLAUDE.md` directly inside it.
+**Got it as a zip?** Unzip first. Mac: double-click the zip. Windows: right-click it → **Properties** → tick **Unblock** → **OK**, then right-click → **Extract All** (just double-clicking only opens a preview). Move the folder somewhere you'll keep it, like Documents. Always open the folder that has `README.md`, `AGENTS.md` and `CLAUDE.md` directly inside it, never a folder inside it: opened one level down, the assistant doesn't get its rules and the safety checks don't run.
 
 ### With Claude (adds panels and read-aloud interviews in recent versions)
 
-**You need:** a paid Claude plan (Pro works; see [Cost and plans](#cost-and-plans)) and the **Claude desktop app** (claude.ai/download), updated to the latest version. **Windows only:** first install **Git for Windows** (git-scm.com/download/win; click Next through every screen), then restart. Claude needs it to run this folder's safety checks.
+**You need:** a paid Claude plan (Pro works; see [Cost and plans](#cost-and-plans)) and the **Claude desktop app** (claude.ai/download), updated to the latest version (the panels need version 2.1.286 or later; the terminal version needs 2.1.287). **Windows only:** first install **Git for Windows** (git-scm.com/download/win; click Next through every screen), then restart. Claude needs it to run this folder's safety checks.
 
 1. Open the Claude desktop app → **Code** tab → choose **Local** (not Cloud) → **Open folder** → pick this folder.
 2. If Claude asks whether you trust this folder, click **Trust**. That turns on the safety rules and the daily greeting.
@@ -26,19 +26,20 @@ Using only one app? Follow just its section below.
 
 > **Check:** when you type `/`, you should see `/start` in the list. If you don't, you opened the wrong folder.
 
-> Prefer the terminal? Install Claude Code (claude.ai/code), then in this folder run `claude` and type `/start`.
+> Prefer the terminal? Install Claude Code (claude.ai/code; on Windows, Git for Windows first, as above), then in this folder run `claude` and type `/start`.
 
 ### With Codex (ChatGPT)
 
-**You need:** a ChatGPT account (Codex is included in ChatGPT plans; Plus or higher recommended, see [Cost and plans](#cost-and-plans)), and the **Codex app**, updated to the latest version. Install it from OpenAI's [Codex quickstart](https://developers.openai.com/codex/quickstart) (pick Mac or Windows) and sign in with your ChatGPT account. On Windows the safety scripts run with PowerShell, so you don't need Git Bash for Codex.
+**You need:** a ChatGPT account (Codex is included in ChatGPT plans; Plus or higher recommended, see [Cost and plans](#cost-and-plans)), and the **ChatGPT desktop app** (Mac, Windows or Linux), updated to the latest version. Download it from OpenAI's [Codex quickstart](https://learn.chatgpt.com/docs/quickstart) and sign in with your ChatGPT account. On Windows the safety scripts run with PowerShell, so you don't need Git for Windows for Codex.
 
-1. Open Codex and open this folder as your project.
-
-> Prefer the terminal? Install the Codex CLI using the CLI instructions linked from that quickstart, open a terminal in this folder, and run `codex`.
-2. If Codex asks whether to trust this folder, say yes. When it says **Hooks need review**, choose **Trust all and continue**. Hooks are this folder's safety checks and daily greeting; without them, nothing blocks email sending.
-3. Type **set me up** (or `$start`) and press Enter.
+1. In the ChatGPT desktop app, switch to **Codex** and add this folder as a new local project. If the project has more than one folder, make this one the **primary** folder: Codex only reads the rules and settings of the primary folder.
+2. If Codex asks whether to trust this folder, say yes. Without that, Codex skips this folder's settings and safety checks, and if you choose "don't trust" it skips the assistant's rules too.
+3. When it says **Hooks need review**, choose **Trust all and continue**. Hooks are this folder's safety checks and daily greeting; without them, nothing blocks email sending.
+4. Type **set me up** (or `$start`) and press Enter.
 
 > **Check:** type `$` and you should see `start`, `today` and the other workflows in the list. If you don't, you opened the wrong folder.
+
+> Prefer the terminal? Install the Codex CLI (linked from that quickstart), open a terminal in this folder, run `codex`, and follow steps 2 to 4.
 
 ### Using both
 
@@ -96,12 +97,12 @@ If your visa depends on having a job, `/today` can count the days left.
 - **Due alerts**: when you open Claude, a short pop-up lists what's due today or tomorrow. Nothing to type.
 - **`/interview-room`**: during `/mock-interview`, the interviewer's question appears here and is read out loud, a clock times your answer, and a scorecard fills in.
 
-In Codex the same things happen in the chat: say **show my board**, **show my outbox**, **show my contacts**, **show my job inbox**, **apply kit for Acme**, or **mock interview**. For mock interviews, turn on Codex's voice conversation and it interviews you out loud; in text mode it can still read questions aloud if you allow it the first time, and it times your answers.
+In Codex the same things happen in the chat: say **show my board**, **show my outbox**, **show my contacts**, **show my job inbox**, **apply kit for Acme**, or **mock interview**. For mock interviews in the ChatGPT desktop app, start a voice chat and it interviews you out loud; in text mode it can still read questions aloud if you allow it the first time, and it times your answers.
 
 ### Talk instead of type
 
 - **Claude desktop app:** click the microphone in the message box. **Claude terminal:** type `/voice` once, then hold **Space** while you talk.
-- **Codex:** turn on Codex's **voice conversation** for mock interviews: it talks and listens like a real interviewer. Otherwise use the app's microphone, or your computer's dictation (Mac: the Dictation shortcut set in **System Settings → Keyboard → Dictation**, often **Fn** twice or the microphone key; Windows: **Win + H**).
+- **Codex:** in the ChatGPT desktop app, start a **voice chat** for mock interviews (paid plans): it talks and listens like a real interviewer. The terminal doesn't have it. Otherwise use the app's microphone, or your computer's dictation (Mac: the Dictation shortcut set in **System Settings → Keyboard → Dictation**, often **Fn** twice or the microphone key; Windows: **Win + H**).
 - **Mac tip (Claude):** the Interview Room reads questions in your computer's voice. If it sounds robotic: System Settings → Accessibility → **Read & Speak**, click the **ⓘ** button next to **System voice**, download a higher-quality English voice, then choose it as your System voice (Siri voices can't be used for this). On older macOS the section is called Spoken Content.
 
 Mock interviews are much more useful out loud. That's how the real thing works. Ask for a **one-way video** practice round too: many big companies screen new grads with recorded video interviews.
@@ -114,11 +115,11 @@ Your pages (dashboard, flashcards, portfolio, interview briefs) share one look, 
 
 ## Optional connections
 
-In Claude: **Settings → Connectors**. In Codex: connect apps under **Apps** in Codex or ChatGPT settings.
+In Claude: **Settings → Connectors**. In Codex: install the Gmail (or Google Calendar) plugin from the **Plugins** tab in the ChatGPT desktop app, or with `/plugins` in the terminal.
 
 - **Gmail**: lets Claude spot recruiter replies and put approved drafts into your Gmail. It never sends on its own.
 - **Google Calendar**: lets Claude check your schedule and add interviews (after you say yes).
-- **Browser**: the Claude and Codex desktop apps each have a built-in browser (nothing to set up). The assistant uses it to read job pages that block normal fetching, like Handshake after you sign in there once, and to show you your pages. Claude in Chrome works too if you prefer. It's set up not to use a browser on your email or LinkedIn (a safety check blocks going to those sites).
+- **Browser**: the Claude desktop app and the ChatGPT desktop app (Codex) each have a built-in browser (nothing to set up; the terminal versions don't). The assistant uses it to read job pages that block normal fetching, like Handshake after you sign in there once, and to show you your pages. Claude in Chrome works too if you prefer. It's set up not to use a browser on your email or LinkedIn (a safety check blocks going to those sites).
 
 Want the assistant to fill out application forms for you, or Claude's Outbox to send emails when you press Send? Both are off by default. Ask about "assisted mode" or "send mode," and it will explain the tradeoffs before you switch. Even when one is on, you confirm it again: Claude's Outbox asks you once in the panel before its first real send, and the assistant asks you in the chat before the first form it fills in each session. (Codex always makes drafts only.)
 
@@ -171,6 +172,7 @@ Plans and limits change; check claude.com/pricing and OpenAI's Codex pricing pag
 Your job-search files stay in this folder on your computer. Job Search HQ has no server, no account and no telemetry. What you work on is sent to the AI provider you use (Anthropic for Claude Code, OpenAI for Codex) under that provider's terms and your plan's data settings. Gmail, Google Calendar, publishing pages, and a Dropbox/OneDrive/iCloud folder each share data with that service, and only if you turn them on. Pages load fonts and a few small libraries from public CDNs (listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)). Your data files are kept out of git; back them up with `/my-data`. Details: [DISCLAIMER.md](DISCLAIMER.md) and [SECURITY.md](SECURITY.md).
 
 - Gmail (if you connect it) is only read for job-related mail (a rule the assistant follows). The assistant makes drafts and never sends, replies, forwards or deletes (see the next section). You can of course still do anything yourself in Gmail.
+- Codex is set not to save chats in this folder to its memories (which are kept outside this folder, where a backup or "delete everything" can't reach). Claude Code's own memory feature, if it's on, also keeps its notes outside this folder.
 - Pages you publish (Claude only, where your session supports publishing) are private links on your claude.ai account until you choose to share them.
 - Never paste your SSN or other ID numbers, bank details, or passwords here. Be very wary of anyone asking for bank details or money before a written offer from a verified company. ID and right-to-work checks before an offer are normal in some countries; give those only through the employer's official process.
 
@@ -180,17 +182,25 @@ Your job-search files stay in this folder on your computer. Job Search HQ has no
 
 Under the assistant's rules sits a safety check (a "hook") that looks at certain actions before they run, in both apps. It blocks:
 
-- sending, replying to, forwarding or deleting email through the Gmail connection (or sending or deleting through any other connected app);
+- sending, replying, forwarding, posting, sharing or deleting through the Gmail connection or any other connected app (making drafts is fine);
 - inviting people to calendar events or meetings, or changing, cancelling or deleting them;
-- sending an automated browser to Gmail, Outlook or LinkedIn;
+- automation services (IFTTT, Zapier, n8n and similar) doing anything but read: Claude asks you first, Codex blocks;
+- sending an automated browser to Gmail, Outlook or LinkedIn, including through short links or a script run on the page;
+- sending mail from the computer itself (the Mail app, Outlook, mail commands) or opening Gmail, Outlook or LinkedIn from a command;
 - in Claude, web addresses that look like they carry your email, phone, name or large blocks of data (a pattern check that can't catch every disguise);
-- pushing this folder to a public GitHub repository, or creating a public repository or gist, or making one public.
+- pushing this folder to a public GitHub repository, creating or uploading to a public repository, release or gist, or making one public, including through git aliases, remote changes in the same command, or text piped into a shell.
 
-If the check crashes or is missing, the action is blocked. What it doesn't cover:
+In Claude, the main email and calendar actions (send, reply, forward, delete, respond, change) are also switched off in the folder's permission settings, so they stay blocked even if the check can't run. If the check crashes or is missing, the action is blocked. If it takes too long (30 seconds): Claude Code 2.1.295 or later blocks the action, older versions and Codex let it go ahead.
 
-- **Claude:** it runs only after you trust the folder. It checks shell commands (including the PowerShell tool on Windows), web fetches and connections (Gmail, Calendar, the browser, computer use), but not file edits or web searches.
-- **Codex:** it runs only after you trust the hooks (`/hooks`), and again after they change, for example after an update. It doesn't check file edits or Codex's built-in web search, and some Codex tool paths skip hooks.
-- **Both:** if a check ever hangs past its time limit, the app lets the action go ahead (in practice it finishes in under a second). It sees the assistant's requests, not your screen: not clicks in a browser tab that's already open, and not everything a script does. It can't see inside a script saved in a file (the optional pre-push safety net above catches pushes from those inside git), and it only knows GitHub: other hosting sites aren't checked. A site that redirects on its own to Gmail, Outlook or LinkedIn, and what the assistant types into a form on any other site, aren't checked either; that part rests on the assistant's rules.
+Claude starts in auto mode: it works without asking about routine steps, and a separate reviewer checks its actions. It still asks before changing your profile or preferences with a command, before undoing an update, and for anything the settings mark "ask". Press Shift+Tab to switch to asking about everything.
+
+What the check doesn't cover:
+
+- **Claude:** it runs only when you open the top folder and trust it. On Windows it needs Git for Windows; without it the check doesn't run (the permission settings above still block the main email and calendar actions), so install Git for Windows first. It doesn't check file edits or web searches.
+- **Codex:** it runs only after you trust the folder and the hooks (`/hooks`), and again after they change, for example after an update. It doesn't check file edits or Codex's built-in web search, and some Codex tool paths skip hooks.
+- **Both:** it sees the assistant's requests, not your screen: not clicks in a browser tab that's already open, and not everything a script does. It can't see inside a script saved in a file, and it only knows GitHub: other hosting sites aren't checked. A site that redirects on its own to Gmail, Outlook or LinkedIn, and what the assistant types into a form on any other site, aren't checked either; that part rests on the assistant's rules.
+
+Optional git safety nets: `git config core.hooksPath .githooks` turns on two git hooks. `pre-push` blocks pushes to a public GitHub repository even from a script; `commit-msg` removes AI attribution lines (such as "Co-authored-by: Claude") from your commit messages.
 
 It's a backstop. The main protection is that the assistant drafts and you send. Full details: [SECURITY.md](SECURITY.md).
 
@@ -210,7 +220,7 @@ It's a backstop. The main protection is that the assistant drafts and you send. 
 
 - **Something not working?** Type `/health` (Codex: `$health`). It checks the folder, app version, safety checks, panels, Gmail and Calendar, and setup, changes nothing, and tells you the most important fix.
 - **No panels or summary line above the message box in Claude?** Check that you opened the top folder and clicked **Trust**. Panels need a recent version of Claude Code, so updating may help, but you don't need them: say "show my board", "show my outbox" or "mock interview" and Claude does the same things in the chat.
-- **Codex doesn't greet you with today's date and your pipeline?** Its hooks aren't on, and that also means its safety checks are off. Make sure you opened the top folder (the one with `AGENTS.md` in it, not a folder inside it), then turn hooks on: type `/hooks` in Codex, trust them, and start a new chat.
+- **Codex doesn't greet you with today's date and your pipeline?** Its hooks aren't on, and that also means its safety checks are off. Make sure you opened the top folder (the one with `AGENTS.md` in it, not a folder inside it; in the desktop app, the project's primary folder) and that you trusted it, then turn hooks on: type `/hooks` in Codex, trust them, and start a new chat. If you once told Codex not to trust the folder, it also skips the assistant's rules: trust it, then start a new chat.
 - **The assistant asks before changing your master resume or preferences.** That's on purpose, so nothing changes your source of truth without you seeing it. In Claude, the app also asks you before any command that would copy over, move, delete or rewrite those files.
 - **Your tracker shows "date unclear" or a damaged-file warning?** Excel changed the dates or saved it with semicolons. Ask the assistant to fix it; it shows you the repaired copy first.
 - **Stuck?** Type "I'm lost, what should I do?" or ask for the menu.
