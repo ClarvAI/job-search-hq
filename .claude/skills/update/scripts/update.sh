@@ -78,7 +78,11 @@ ver_cmp() {        # prints -1, 0 or 1 comparing dotted versions $1 and $2
 }
 install_file() {   # install_file <source> <relative dest>: write via a temporary file + rename (safe even for this script)
   local d="$ROOT/$2"
-  mkdir -p "$(dirname "$d")" && cp "$1" "$d.update-tmp" && mv -f "$d.update-tmp" "$d"
+  mkdir -p "$(dirname "$d")" && cp "$1" "$d.update-tmp" || return 1
+  # Scripts and git hooks stay executable even when the zip was unpacked without permissions (Python's
+  # zipfile drops them): git silently skips a hook that isn't executable.
+  case "$2" in *.sh|.githooks/*) chmod +x "$d.update-tmp" 2>/dev/null ;; esac
+  mv -f "$d.update-tmp" "$d"
 }
 
 OLDV="$(ver_of "$ROOT/VERSION")"; [ -n "$OLDV" ] || die "VERSION has no version: line"

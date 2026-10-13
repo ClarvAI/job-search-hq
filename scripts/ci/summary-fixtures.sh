@@ -100,6 +100,22 @@ OUT="$(run closed)"
 has  "closed search still lists withdrawals" "Withdrawal notes still to send: Acme (Eng)."
 has  "closed search still counts drafts" "1 draft(s) still waiting in the Outbox."
 
+if [ "$IMPL" = sh ]; then
+  # Status line: reads the folder from Claude Code's JSON on stdin (not the current folder or env).
+  sl() { printf '{"workspace":{"current_dir":"/","project_dir":"%s"}}' "$T/$1" | (cd / && env -u CLAUDE_PROJECT_DIR bash "$REPO/.claude/hooks/statusline.sh"); }
+  OUT="$(sl main)"
+  has  "status line shows the top item" "Job search: next: Offer (Eng): answer the offer by 2000-01-02 (passed)"
+  has  "status line counts the rest" "more: /today)"
+  { printf '%s\n' "$HDR"; printf 'Acme,Eng,applied,2099-01-01,Follow up,,A,4,X,,,,,,,,,0,acme,\n'; } | ws calm ""
+  OUT="$(sl calm)"
+  has  "status line, nothing due" "Job search: nothing due today (/today for a plan)"
+  OUT="$(sl semi)"
+  has  "status line, damaged tracker" "Job search: tracker saved with semicolons"
+  mkdir -p "$T/fresh/profile"; printf 'SETUP: not done\n' > "$T/fresh/profile/preferences.md"
+  OUT="$(sl fresh)"
+  has  "status line before setup" "Job search: not set up yet (type /start)"
+fi
+
 if [ "$IMPL" = ps ]; then
   for c in main order semi open closed; do
     a="$(CLAUDE_PROJECT_DIR="$T/$c" bash "$REPO/.claude/hooks/summary.sh" long)"; b="$(run "$c")"

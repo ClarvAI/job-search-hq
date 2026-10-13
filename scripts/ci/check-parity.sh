@@ -6,7 +6,9 @@
 #     addresses and 555 numbers), and its preferences.md starts out as "SETUP: not done";
 #  3. the blank CSVs start with a UTF-8 BOM and hold only their comma-separated header line;
 #  4. no JSON data block in templates/blank/pages/*.html holds a raw "</" (escape "<" as \u003c).
-#  5. the five copies of the panels' csvdate.ts are identical.
+#  5. the five copies of the panels' csvdate.ts are identical, and so are their csvdate.test.ts copies;
+#  6. every review agent in .claude/agents/ has a .codex/agents/ twin with the identical description;
+#  7. AGENTS.md stays within its size budget (30000 bytes).
 # Usage: bash scripts/ci/check-parity.sh      Exits 1 on any problem.
 set -u
 REPO="$(cd "$(dirname "$0")/../.." && pwd -P)"
@@ -15,7 +17,7 @@ PY=""
 for c in python3 python; do "$c" -c 'import json' >/dev/null 2>&1 && { PY="$c"; break; }; done
 [ -n "$PY" ] || { echo "python is needed"; exit 2; }
 "$PY" - <<'PY'
-import os, re, sys
+import json, os, re, sys
 bad = 0
 def fail(msg):
     global bad
@@ -155,5 +157,59 @@ if copies:
         print("ok    csvdate.ts: %d identical copies" % len(copies))
     if len(copies) < 5:
         fail("expected csvdate.ts in 5 mods, found %d" % len(copies))
+
+# 6. ...and their tests: every mod that carries csvdate.ts carries the same tests/csvdate.test.ts.
+tests = []
+for c in copies:
+    t = os.path.join(os.path.dirname(os.path.dirname(c)), "tests", "csvdate.test.ts")
+    if os.path.isfile(t):
+        tests.append(t)
+    else:
+        fail("%s has no tests/csvdate.test.ts next to it" % os.path.dirname(os.path.dirname(c)))
+if tests:
+    first = open(tests[0], "rb").read()
+    diff = [t for t in tests[1:] if open(t, "rb").read() != first]
+    for t in diff:
+        fail("%s differs from %s (change all copies of csvdate.test.ts together)" % (t, tests[0]))
+    if not diff:
+        print("ok    csvdate.test.ts: %d identical copies" % len(tests))
+
+# 7. Review agents: each .claude/agents/<name>.md has a Codex twin .codex/agents/<name>.toml with the
+#    same name and the identical description.
+TOML_STR = re.compile(r'^(name|description)\s*=\s*("(?:[^"\\]|\\.)*")\s*$', re.M)
+agents = 0
+for fn in sorted(os.listdir(".claude/agents")):
+    if not fn.endswith(".md"):
+        continue
+    agents += 1
+    name = fn[:-3]
+    c = os.path.join(".claude/agents", fn)
+    x = os.path.join(".codex/agents", name + ".toml")
+    cf = front(c) or {}
+    if cf.get("name") != name:
+        fail("%s: name is %r, file is %r" % (c, cf.get("name"), name))
+    if not os.path.isfile(x):
+        fail("%s has no Codex twin at %s" % (c, x)); continue
+    xf = {k: json.loads(v) for k, v in TOML_STR.findall(open(x, encoding="utf-8").read())}
+    if xf.get("name") != name:
+        fail("%s: name should be %r" % (x, name))
+    elif xf.get("description") != cf.get("description"):
+        fail("%s and %s have different descriptions" % (c, x))
+    else:
+        print("ok    agent %s" % name)
+for fn in sorted(os.listdir(".codex/agents")):
+    if fn.endswith(".toml") and not os.path.isfile(os.path.join(".claude/agents", fn[:-5] + ".md")):
+        fail(".codex/agents/%s has no .claude/agents twin" % fn)
+if agents == 0:
+    fail("no review agents found in .claude/agents")
+
+# 8. AGENTS.md is read in full at the start of every Codex session (and by Claude through CLAUDE.md):
+#    keep it within budget so it isn't cut off and doesn't crowd out the conversation.
+BUDGET = 30000
+size = os.path.getsize("AGENTS.md")
+if size > BUDGET:
+    fail("AGENTS.md is %d bytes; keep it at %d or less (move detail into the skills or the playbook)" % (size, BUDGET))
+else:
+    print("ok    AGENTS.md: %d bytes (budget %d)" % (size, BUDGET))
 sys.exit(1 if bad else 0)
 PY

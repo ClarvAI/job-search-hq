@@ -47,6 +47,8 @@ if [ ! -f "$ROOT/AGENTS.md" ]; then
   say_fix 1 "folder" "this copy of the workspace is incomplete (AGENTS.md is missing). Download a fresh copy, then move your data into it with /my-data."
 elif [ "$(pwd -P)" != "$ROOT" ]; then
   say_fix 1 "folder" "the app is open on $(pwd -P), not on the workspace folder itself. Close it and open the folder \"$(basename "$ROOT")\" (the one with AGENTS.md in it); the safety checks and commands only load from there."
+elif [ ! -f "$ROOT/.claude/settings.json" ]; then
+  say_fix 1 "folder" "the file .claude/settings.json is missing, so Claude Code has no safety checks here. $REPAIR."
 else
   say_ok "folder" "opened at the workspace root ($(basename "$ROOT"))"
 fi
@@ -68,7 +70,16 @@ else
   say_skip "Claude Code version" "the claude command isn't installed here (fine if you use the desktop app or Codex; the desktop app needs version 2.1.286 or later for panels)"
 fi
 if command -v codex >/dev/null 2>&1; then
-  say_ok "Codex version" "$(codex --version 2>/dev/null | head -1)"
+  xv="$(codex --version 2>/dev/null | head -1)"; xvn="${xv##* }"
+  if [ -z "$xvn" ]; then
+    say_skip "Codex version" "the codex command didn't report a version"
+  elif ver_ge "$xvn" 0.160; then
+    say_ok "Codex version" "$xvn (0.160 or later is needed for this folder's safety checks)"
+  elif [ "$APP" = codex ]; then
+    say_fix 2 "Codex version" "$xvn is too old: this folder's safety checks need Codex 0.160 or later. Update Codex (run 'codex update', or update the Codex app), then type /hooks and trust the hooks again."
+  else
+    say_note "Codex version" "$xvn is too old for this folder's safety checks (they need 0.160 or later). That only matters if you also use Codex: run 'codex update' there."
+  fi
 else
   say_skip "Codex version" "Codex isn't installed here (fine if you only use Claude)"
 fi
@@ -85,10 +96,11 @@ else
     grep -qE '"disableAllHooks"[[:space:]]*:[[:space:]]*true' "$f" 2>/dev/null && off="$f"
   done
   for f in "/Library/Application Support/ClaudeCode/managed-settings.json" /etc/claude-code/managed-settings.json /c/ProgramData/ClaudeCode/managed-settings.json; do
-    grep -qE '"disableAllHooks"[[:space:]]*:[[:space:]]*true' "$f" 2>/dev/null && managed="$f"
+    # disableAllHooks turns every hook off; allowManagedHooksOnly turns off this folder's own hooks.
+    grep -qE '"(disableAllHooks|allowManagedHooksOnly)"[[:space:]]*:[[:space:]]*true' "$f" 2>/dev/null && managed="$f"
   done
   if [ -n "$managed" ]; then
-    say_fix 2 "hook setup" "hooks are switched off for the whole computer by its managed settings ($managed), so in Claude Code nothing blocks email sending. Only whoever manages this computer can change that; until then, don't connect Gmail in Claude Code."
+    say_fix 2 "hook setup" "this computer's managed settings ($managed) switch off this folder's hooks, so in Claude Code nothing blocks email sending. Only whoever manages this computer can change that; until then, don't connect Gmail in Claude Code."
   elif [ -n "$off" ]; then
     say_fix 2 "hook setup" "hooks are switched off in $off (\"disableAllHooks\": true), so nothing blocks email sending. Remove that line, then restart the app."
   else
@@ -143,6 +155,9 @@ if [ ! -f .claude/hooks/guard.sh ]; then
   say_fix 2 "safety check (bash)" "the safety check file .claude/hooks/guard.sh is missing. $REPAIR."
 else
   r="$(CLAUDE_PROJECT_DIR="$ROOT" guard_test bash .claude/hooks/guard.sh)"
+  # Codex mode blocks with exit 2 and the reason on stderr.
+  printf '%s' '{"tool_name":"mcp__gmail__send_email","tool_input":{}}' | CLAUDE_PROJECT_DIR="$ROOT" bash .claude/hooks/guard.sh codex >/dev/null 2>&1
+  [ $? -eq 2 ] || r="${r:+$r; }a Gmail send was not blocked in Codex mode"
   if [ -z "$r" ]; then say_ok "safety check (bash)" "blocks a Gmail send, allows a Gmail search, blocks empty input"
   else say_fix 2 "safety check (bash)" "the self-test failed ($r). $REPAIR; until then, don't connect Gmail."; fi
 fi
@@ -167,7 +182,7 @@ crlf=""; cr="$(printf '\r')"
 shfiles="$(find .claude/hooks .claude/skills scripts -name '*.sh' -type f 2>/dev/null)"
 oldifs="$IFS"; IFS='
 '
-for f in $shfiles .githooks/pre-push; do
+for f in $shfiles .githooks/pre-push .githooks/commit-msg; do
   [ -f "$f" ] && LC_ALL=C grep -q "$cr" "$f" && crlf="${crlf:+$crlf, }$f"
 done
 IFS="$oldifs"
@@ -228,9 +243,9 @@ if [ -e .git ] && command -v git >/dev/null 2>&1; then
   hp="$(git config --get core.hooksPath 2>/dev/null)"
   case "$hp" in
     .githooks|.githooks/|"$ROOT/.githooks"|"$ROOT/.githooks/")
-      say_ok "git push check" "on (stops pushes to a public GitHub repository)" ;;
+      say_ok "git push check" "on (stops pushes to a public GitHub repository, and keeps AI attribution lines out of commit messages)" ;;
     *)
-      say_note "git push check" "this folder uses git, and the extra check that stops pushes to a public GitHub repository isn't turned on. The assistant can turn it on for you (it runs: git config core.hooksPath .githooks). It also catches pushes the built-in safety check can't see, like ones made through git aliases or scripts." ;;
+      say_note "git push check" "this folder uses git, and the extra check that stops pushes to a public GitHub repository isn't turned on. The assistant can turn it on for you (it runs: git config core.hooksPath .githooks). It also catches pushes the built-in safety check can't see, like ones made through scripts, and keeps AI attribution lines out of commit messages." ;;
   esac
 else
   say_skip "git push check" "this folder doesn't use git (that's fine)"

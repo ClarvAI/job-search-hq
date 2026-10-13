@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Prints the job-search summary used by the session-start hook and status line.
-# Usage: summary.sh [short|long]. Plain bash + awk so it runs on macOS, Linux, and Git Bash on Windows.
+# Usage: summary.sh [short|next|long] (short: counts; next: the most urgent item, for the status line;
+# long: the startup note). Plain bash + awk so it runs on macOS, Linux, and Git Bash on Windows.
 # session-start.ps1 is the Windows port of this file: keep the two in step.
 cd "${CLAUDE_PROJECT_DIR:-$(dirname "$0")/../..}" 2>/dev/null || exit 0
 MODE="${1:-short}"
@@ -23,7 +24,7 @@ DRAFTS="$(awk -v bom="$BOM" '
 # pref <key>: the value on the first "key:" line of the preferences (comments and blanks give "").
 pref() { sed -n "s/^$1:[[:space:]]*//p" "$PREFS" 2>/dev/null | head -1 | tr -d '\r' | sed 's/[[:space:]]*<!--.*//; s/[[:space:]]*$//'; }
 CLOSED=0; case "$(pref search_status)" in closed*) CLOSED=1 ;; esac
-if [ "$CLOSED" = 0 ] && [ "$MODE" = "short" ] && { [ ! -f "$PREFS" ] || grep -q '^SETUP: not done' "$PREFS" 2>/dev/null; }; then echo "not set up yet (type /start)"; exit 0; fi
+if [ "$CLOSED" = 0 ] && [ "$MODE" != "long" ] && { [ ! -f "$PREFS" ] || grep -q '^SETUP: not done' "$PREFS" 2>/dev/null; }; then echo "not set up yet (type /start)"; exit 0; fi
 TRACKER=jobs/tracker.csv
 if [ ! -f "$TRACKER" ]; then
   if [ "$CLOSED" = 1 ]; then echo "search closed. Congratulations!"; else echo "no tracker"; fi
@@ -172,7 +173,7 @@ END {
       s = "tracker header looks wrong; ask the assistant to fix it"
       l = "jobs/tracker.csv does not start with the usual header row (company,role,status,...), so it cannot be read. Read it and offer the user a fix before changing anything."
     }
-    print (mode == "short" ? s : l); exit
+    print (mode == "long" ? l : s); exit
   }
   # Layoff plan: unchecked dated lines due within 3 days or overdue.
   while ((getline ln < layoff) > 0) {
@@ -205,7 +206,7 @@ END {
   }
   if (closed) {
     line = "search closed. Congratulations!"
-    if (mode == "short") {
+    if (mode != "long") {
       if (open > 0) line = line " " open " still open"
       if (drafts > 0) line = line (open > 0 ? "," : "") " " drafts " in Outbox"
       print line; exit
@@ -225,8 +226,16 @@ END {
   if (drafts > 0) line = line ", " drafts " in Outbox"
   if (cert) line = line ", certify benefits today"
   if (vleft != "" && vleft <= 30) line = line ", visa days left: " vleft
-  if (total == 0 && drafts == 0 && due == 0 && !cert && vleft == "") { print (mode == "short" ? "nothing tracked yet (try /find-jobs)" : "Pipeline: nothing tracked yet."); exit }
+  if (total == 0 && drafts == 0 && due == 0 && !cert && vleft == "") { print (mode != "long" ? "nothing tracked yet (try /find-jobs)" : "Pipeline: nothing tracked yet."); exit }
   if (mode == "short") { print line; exit }
+  if (mode == "next") {
+    nx = ""
+    if (cert) nx = "certify benefits today; "
+    if (vleft != "" && vleft <= 30) nx = nx "visa days left: " vleft "; "
+    if (due > 0) { t = T[1]; if (length(t) > 90) t = substr(t, 1, 87) "..."; nx = nx "next: " t (due > 1 ? " (+" due - 1 " more: /today)" : "") }
+    else nx = nx "nothing due today (/today for a plan)"
+    print nx; exit
+  }
   print "Pipeline: " line
   if (cert) print "Today is the user'"'"'s benefits certification day (" certday "). Offer to bring their work-search log up to date (the work-search-log skill) before they certify."
   if (vleft != "") print "Visa clock" (vtype != "" ? " (" vtype ")" : "") ": about " vleft " of " vallowed " unemployment days left (estimate from the preferences; the official count always wins)." (vleft <= 30 ? " Urgent: mention it today." : "")

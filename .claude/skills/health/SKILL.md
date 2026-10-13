@@ -1,6 +1,6 @@
 ---
 name: health
-description: "Check that the user's job-search workspace is set up and working: right folder, app version, safety checks, hooks, panels, Gmail and Calendar connections, Excel, optional tools (Chrome or Edge, Node.js, pdftotext), setup and starter files. Read-only: it changes nothing and offers fixes. Use when the user says something isn't working, the panels or the daily greeting are missing, a command does nothing, right after installing, moving or updating the folder, or asks \"is everything working\", \"check my setup\", \"health check\" or \"run a checkup\"."
+description: "Use when the user says something isn't working, the panels or the daily greeting are missing, a command does nothing, or right after installing, moving or updating the folder, or asks \"is everything working\", \"check my setup\", \"health check\" or \"run a checkup\". Read-only check of the job-search workspace: right folder, app version, safety checks, hooks, panels, Gmail and Calendar connections, Excel, optional tools, setup and starter files. It changes nothing and offers fixes."
 ---
 
 # /health
@@ -32,8 +32,8 @@ Plain English, short, no file paths unless they help, no code:
 
 1. One line: "Everything important is working" or "N things need fixing".
 2. The FIX items as a short list, each with the plain fix. Then any NOTE items worth mentioning (skip notes the user can do nothing about). Don't list OK and SKIP lines unless the user asks; mention a SKIP only when it hides something they care about.
-3. **The one most important fix**, in one sentence, and offer to help with it. Rank: the folder isn't the workspace root > a safety check failed or hooks are off > Git Bash missing (Claude Code on Windows; a Codex-only user doesn't need it, so it's only a note for them) or files blocked (Windows) > setup not done or starter files missing > Excel has the tracker open > app too old for panels > notes.
-4. If the folder uses git and the git push check is off (a NOTE), offer once to turn it on: it's optional. Say why in one line: the built-in safety check only recognizes plain push commands, while this check also catches pushes made through git aliases, URL rewrites or scripts.
+3. **The one most important fix**, in one sentence, and offer to help with it. Rank: the folder isn't the workspace root > a safety check failed, hooks are off, or Codex is too old for the safety checks > Git Bash missing (Claude Code on Windows; a Codex-only user doesn't need it, so it's only a note for them) or files blocked (Windows) > setup not done or starter files missing > Excel has the tracker open > app too old for panels > notes.
+4. If the folder uses git and the git push check is off (a NOTE), offer once to turn it on: it's optional. Say why in one line: the built-in safety check only sees commands the assistant types, while this check also catches pushes made from scripts; it also keeps AI attribution lines out of commit messages.
 
 ## 4. Offering fixes (only after a yes)
 

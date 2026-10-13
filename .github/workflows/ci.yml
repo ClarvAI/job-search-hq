@@ -15,6 +15,11 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # The Claude Code version the panels were last tested with (raise it after mods-latest passes).
+  # Users need at least 2.1.287 (health.sh checks that); this is the newest one checked here.
+  CLAUDE_CODE_TESTED: "2.1.296"
+
 jobs:
   linux:
     name: Linux (lint, JSON, mods, guard, parity)
@@ -80,6 +85,8 @@ jobs:
           python scripts/ci/e2e-update.py --impl sh
           python scripts/ci/e2e-mydata.py --impl sh
           python scripts/ci/e2e-theme-git.py
+      - name: Published dashboard copies and the Claude Dashboard page
+        run: python scripts/ci/check-dashboard-type.py
       - name: End-to-end, PowerShell 7 (fresh clone, /update, /my-data)
         env:
           PS_EXE: pwsh
@@ -87,9 +94,36 @@ jobs:
           python scripts/ci/e2e-fresh.py --impl ps
           python scripts/ci/e2e-update.py --impl ps
           python scripts/ci/e2e-mydata.py --impl ps
-      - name: Install Claude Code
+      - name: Install Claude Code (the version the panels were last tested with)
         run: |
-          npm install -g @anthropic-ai/claude-code
+          npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_TESTED}"
+          claude --version
+      - name: Mods (claude plugin validate --strict, claude plugin test)
+        env:
+          DISABLE_AUTOUPDATER: "1"
+          DISABLE_TELEMETRY: "1"
+        run: bash scripts/ci/check-mods.sh
+
+  mods-latest:
+    # The newest Claude Code release, to hear early when an update changes the panel API. A failure
+    # here doesn't fail the build; when it passes on a newer version, raise CLAUDE_CODE_TESTED.
+    name: Mods on the latest Claude Code (early warning)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    continue-on-error: true
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Install the latest Claude Code
+        run: |
+          npm install -g @anthropic-ai/claude-code@latest
           claude --version
       - name: Mods (claude plugin validate --strict, claude plugin test)
         env:
@@ -133,6 +167,7 @@ jobs:
           python3 scripts/ci/e2e-update.py --impl sh
           python3 scripts/ci/e2e-mydata.py --impl sh
           python3 scripts/ci/e2e-theme-git.py
+          python3 scripts/ci/check-dashboard-type.py
 
   windows:
     name: Windows (PowerShell 5.1, PowerShell 7, Git Bash)
@@ -224,7 +259,9 @@ jobs:
           python scripts/ci/e2e-mydata.py --impl ps
       - name: End-to-end, theme + git pull (Windows line endings)
         shell: bash
-        run: python scripts/ci/e2e-theme-git.py
+        run: |
+          python scripts/ci/e2e-theme-git.py
+          python scripts/ci/check-dashboard-type.py
       - name: Health check (Windows PowerShell 5.1)
         shell: powershell
         run: |

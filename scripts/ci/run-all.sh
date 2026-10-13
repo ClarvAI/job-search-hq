@@ -38,6 +38,7 @@ if [ -n "$PY" ]; then
   step "e2e: /my-data export, reset, restore (bash)" "$PY" "$HERE/e2e-mydata.py" --impl sh
   if command -v node >/dev/null 2>&1; then
     step "e2e: theme, then git pull stays clean" "$PY" "$HERE/e2e-theme-git.py"
+    step "published dashboard data and Claude Dashboard page" "$PY" "$HERE/check-dashboard-type.py"
   else
     echo; echo "######## e2e theme + git pull skipped (no node)"
   fi

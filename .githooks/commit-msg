@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Removes AI attribution lines from commit messages made in this folder: "Co-authored-by:" trailers
+# naming Claude, Codex, Anthropic or OpenAI, "Claude-Session:" trailers, and "Generated with Claude
+# Code" lines. People's own Co-authored-by lines are kept.
+# Turn it on once with:   git config core.hooksPath .githooks   (this also turns on .githooks/pre-push)
+# Works with macOS bash 3.2 and Git for Windows bash. Git calls it with $1 = the message file.
+msg="${1:-}"
+[ -n "$msg" ] && [ -f "$msg" ] || exit 0
+tmp="$msg.attribution-tmp"
+awk '
+  {
+    l = tolower($0); sub(/\r$/, "", l)
+    if (l ~ /^[ \t]*co-authored-by:/ && l ~ /(claude|codex|anthropic|openai|chatgpt|copilot)/) next
+    if (l ~ /^[ \t]*claude-session:/) next
+    if (l ~ /generated (with|by) \[?(claude( code)?|codex)\]?/) next
+    lines[++n] = $0
+  }
+  END {
+    while (n > 0 && lines[n] ~ /^[ \t\r]*$/) n--          # no blank lines left at the end
+    for (i = 1; i <= n; i++) print lines[i]
+  }' "$msg" > "$tmp" 2>/dev/null || { rm -f "$tmp"; exit 0; }
+# Never leave the message empty because of this hook (git would then stop the commit).
+if grep -q '[^[:space:]]' "$tmp" 2>/dev/null; then cat "$tmp" > "$msg"; fi
+rm -f "$tmp"
+exit 0

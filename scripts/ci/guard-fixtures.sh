@@ -108,7 +108,8 @@ check() {
   out="$(printf '%s' "$3" | eval "$RUN" 2>"$T/stderr.txt")"; rc=$?
   if [ $rc -eq 2 ]; then got=block2
   elif [ $rc -ne 0 ]; then got="exit$rc"
-  elif printf '%s' "$out" | grep -qE '"permissionDecision"[[:space:]]*:[[:space:]]*"deny"'; then got=deny; fi
+  elif printf '%s' "$out" | grep -qE '"permissionDecision"[[:space:]]*:[[:space:]]*"deny"'; then got=deny
+  elif printf '%s' "$out" | grep -qE '"permissionDecision"[[:space:]]*:[[:space:]]*"ask"'; then got=ask; fi
   if [ -s "$T/stderr.txt" ] && [ "$got" != block2 ]; then got="$got+stderr"; fi
   [ "$RUN" = "$RUN_DEFAULT" ] && record "$1" "$got"
   if [ "$got" = "$2" ]; then pass=$((pass + 1)); printf 'PASS  %-62s %s\n' "$1" "$got"
@@ -281,6 +282,88 @@ check "PowerShell FromBase64String + iex (deny hidden)" deny "$(shelljson "$TN/p
 check "PowerShell Get-Content -Encoding UTF8 (allow)" allow "$(shelljson "$TN/pub" 'Get-Content -Encoding UTF8 jobs/tracker.csv' PowerShell)"
 check "base64 encode a file, no shell (allow)" allow "$(shelljson "$TN/pub" 'base64 -i photo.png -o photo.txt')"
 
+echo "== guard ($IMPL): ways around the push check (2026-10 audit)"
+check "cd \"\$PWD\" && git $PU, public (deny unread)" deny "$(shelljson "$TN/pub" "cd \"\$PWD\" && git $PU")"
+check "git -C \"\$PWD\" $PU, public (deny unread)" deny "$(shelljson "$TN/pub" "git -C \"\$PWD\" $PU")"
+check "D=<dir>; cd \"\$D\" && git $PU, public (deny)" deny "$(shelljson "$TN" "D=$TN/pub; cd \"\$D\" && git $PU")"
+check "export D=<dir>; git -C \"\${D}\" $PU, public (deny)" deny "$(shelljson "$TN" "export D=$TN/pub; git -C \"\${D}\" $PU")"
+check "D=<private>; cd \"\$D\" && git $PU (allow)" allow "$(shelljson "$TN" "D=$TN/priv; cd \"\$D\" && git $PU origin main")"
+check "PowerShell: \$d = <dir>; Set-Location \$d; git $PU (deny)" deny "$(shelljson "$TN" "\$d = '$TN/pub'; Set-Location \$d; git $PU" PowerShell)"
+check "PowerShell: \$x = git $PU runs the push (deny)" deny "$(shelljson "$TN/pub" "\$x = git $PU origin main" PowerShell)"
+check "cd to an unset variable stays put, then $PU (deny)" deny "$(shelljson "$TN/pub" "cd \"\$NOT_SET_ANYWHERE_ZZ\" && git $PU")"
+check "ok: 'git $PU' inside a grep pattern after cd \"\$F\" (allow)" allow "$(shelljson "$TN" "F=$TN/none; cd \"\$F\" && grep -E \"a|git $PU|b\" notes.txt")"
+case "$T" in
+  "$HOME"/*) check "git -C ~/<public repo> $PU (deny)" deny "$(shelljson "$TN" "git -C ~/${T#"$HOME"/}/pub $PU")" ;;
+  *) skip "git -C ~/<public repo> $PU" "the test folder isn't under the home folder" ;;
+esac
+check "ok: text mentioning git $PU, folder without git (allow)" allow "$(shelljson "$TN/proj" "echo 'run git $PU later' > notes.txt")"
+check "alias made and used in one command (deny)" deny "$(shelljson "$TN/priv" "git config alias.p $PU && git p")"
+check "remote added and pushed in one command (deny)" deny "$(shelljson "$TN/priv" "git remote add pub $PUBURL && git $PU pub")"
+check "remote set-url then $PU in one command (deny)" deny "$(shelljson "$TN/priv" "git remote set-url origin $PUBURL && git $PU origin")"
+check "ok: text mentioning \"git $PU check\" (allow, no such remote)" allow "$(shelljson "$TN/priv" "echo 'git $PU check' > notes.txt")"
+check "GIT_DIR=<public repo> git $PU (deny)" deny "$(shelljson "$TN/priv" "GIT_DIR=$TN/pub/.git git $PU")"
+check "line continuation git \\\\<newline>$PU (deny)" deny "{\"tool_name\":\"Bash\",\"cwd\":$(j "$TN/pub"),\"tool_input\":{\"command\":\"git \\\\\\n$PU origin\"}}"
+check "backslash inside the word: git p\\\\ush (deny unread)" deny "$(shelljson "$TN/pub" 'git p\ush origin')"
+check "ANSI-C quoting: git \$'$PU' (deny unread)" deny "$(shelljson "$TN/pub" "git \$'$PU' origin")"
+check "program in a variable: \$g $PU (deny unread)" deny "$(shelljson "$TN/pub" "g=git; \$g $PU origin")"
+check "program from a subcommand: \"\$(command -v git)\" $PU (deny unread)" deny "$(shelljson "$TN/pub" "\"\$(command -v git)\" $PU origin")"
+check "macOS base64 -D into sh (deny hidden)" deny "$(shelljson "$TN/pub" 'echo Z2l0 | base64 -D | sh')"
+check "printf assembled text piped into sh (deny hidden)" deny "$(shelljson "$TN/pub" "printf 'git pu%s origin' sh | sh")"
+check "text piped into /bin/sh (deny hidden)" deny "$(shelljson "$TN/pub" 'echo nigiro | rev | /bin/sh')"
+check "pwsh -ec <base64> (deny hidden)" deny "$(shelljson "$TN/pub" 'pwsh -NoProfile -ec ZwBpAHQA')"
+check "powershell -e <base64> (deny hidden)" deny "$(shelljson "$TN/pub" 'powershell.exe -e ZwBpAHQA' PowerShell)"
+check "gh api PUT a file into a public repo (deny)" deny "$(shelljson "$TN" 'gh api -X PUT repos/octocat/Hello-World/contents/notes.md -f message=x -f content=YWJj')"
+check "gh api POST to a private repo (allow)" allow "$(shelljson "$TN" 'gh api -X POST repos/octocat/this-repo-does-not-exist-zz9/issues -f title=x')"
+check "gh api graphql createRepository visibility:PUBLIC (deny)" deny "$(shelljson "$TN" "gh api graphql -f query='mutation{createRepository(input:{name:\"x\",visibility:PUBLIC}){repository{url}}}'")"
+check "gh release upload -R <public> (deny)" deny "$(shelljson "$TN" 'gh release upload v1 notes.md -R octocat/Hello-World')"
+check "gh release upload -R <private> (allow)" allow "$(shelljson "$TN" 'gh release upload v1 notes.md -R octocat/this-repo-does-not-exist-zz9')"
+check "gh release create, this folder's remote public (deny)" deny "$(shelljson "$TN/pub" 'gh release create v1 notes.md')"
+check "ok: pdftotext -enc UTF-8 (allow)" allow "$(shelljson "$TN/pub" 'pdftotext -enc UTF-8 jobs/acme-pm/Alex-Rivera-Resume-Acme.pdf -')"
+check "ok: pipe into sort and head (allow)" allow "$(shelljson "$TN/pub" 'cat jobs/tracker.csv | sort | head -5')"
+check "ok: python3 -c reading stdin (allow)" allow "$(shelljson "$TN/pub" "cat notes.txt | python3 -c 'import sys; print(len(sys.stdin.read()))'")"
+check "ok: git config user.name, then $PU to private (allow)" allow "$(shelljson "$TN/priv" "git config --get user.name; git $PU origin main")"
+check "ok: git remote -v (allow)" allow "$(shelljson "$TN/pub" 'git remote -v')"
+check "ok: searching a file for linkedin.com (allow)" allow "$(shelljson "$TN/pub" 'grep -c linkedin.com jobs/leads.csv')"
+check "ok: open a job page in the browser (allow)" allow "$(shelljson "$TN/pub" 'open https://jobs.example.com/123')"
+
+echo "== guard ($IMPL): sending mail or opening those sites from the shell"
+check "osascript telling Mail to send (deny)" deny "$(shelljson "$TN/pub" "osascript -e 'tell application \"Mail\" to send (make new outgoing message)'")"
+check "Outlook COM automation .Send() (deny)" deny "$(shelljson "$TN/pub" "\$o = New-Object -ComObject Outlook.Application; \$m = \$o.CreateItem(0); \$m.Send()" PowerShell)"
+check "Send-MailMessage (deny)" deny "$(shelljson "$TN/pub" 'Send-MailMessage -To a@example.com -Subject hi -SmtpServer smtp.example.com' PowerShell)"
+check "python smtplib (deny)" deny "$(shelljson "$TN/pub" "python3 -c 'import smtplib'")"
+check "open LinkedIn in the user's browser (deny)" deny "$(shelljson "$TN/pub" 'open -a "Google Chrome" https://www.linkedin.com/feed')"
+check "python webbrowser to Gmail (deny)" deny "$(shelljson "$TN/pub" "python3 -c \"import webbrowser; webbrowser.open('https://mail.google.com')\"")"
+check "Start-Process LinkedIn messaging (deny)" deny "$(shelljson "$TN/pub" 'Start-Process https://www.LinkedIn.com/messaging' PowerShell)"
+
+echo "== guard ($IMPL): connected apps and browsers (2026-10 audit)"
+check "kebab-case send-chat-message (deny)" deny '{"tool_name":"mcp__ms365__send-chat-message","tool_input":{}}'
+check "kebab-case reply-to-chat-message (deny)" deny '{"tool_name":"mcp__ms365__reply-to-chat-message","tool_input":{}}'
+check "kebab-case delete-onedrive-file (deny)" deny '{"tool_name":"mcp__ms365__delete-onedrive-file","tool_input":{}}'
+check "kebab-case list-mail-messages (allow)" allow '{"tool_name":"mcp__ms365__list-mail-messages","tool_input":{}}'
+check "kebab-case create-draft-email (allow)" allow '{"tool_name":"mcp__ms365__create-draft-email","tool_input":{}}'
+check "Drive share_file (deny)" deny '{"tool_name":"mcp__claude_ai_Google_Drive__share_file","tool_input":{"email":"r@example.com"}}'
+check "Slack post_message (deny)" deny '{"tool_name":"mcp__slack__slack_post_message","tool_input":{}}'
+check "website publish (deny)" deny '{"tool_name":"mcp__site__publish_website","tool_input":{}}'
+check "IFTTT get_actions (allow, reading)" allow '{"tool_name":"mcp__claude_ai_IFTTT__get_actions","tool_input":{}}'
+check "Playwright browser_evaluate window.location= Gmail (deny)" deny '{"tool_name":"mcp__playwright__browser_evaluate","tool_input":{"function":"() => { window.location = '"'"'https://mail.google.com/'"'"' }"}}'
+check "Playwright browser_evaluate harmless (allow)" allow '{"tool_name":"mcp__playwright__browser_evaluate","tool_input":{"function":"() => document.title"}}'
+check "browser script setting location= LinkedIn (deny)" deny '{"tool_name":"mcp__Claude_Browser__navigate","tool_input":{"script":"location='"'"'https://www.linkedin.com/feed'"'"'"}}'
+check "browser to g.co short link (deny)" deny '{"tool_name":"mcp__claude-in-chrome__navigate","tool_input":{"url":"https://g.co/kgs/abc"}}'
+check "browser to aka.ms short link (deny)" deny '{"tool_name":"mcp__claude-in-chrome__navigate","tool_input":{"url":"https://aka.ms/abcd"}}'
+check "browser to t.ly short link (deny)" deny '{"tool_name":"mcp__claude-in-chrome__navigate","tool_input":{"url":"https://t.ly/abcd"}}'
+check "browser to a site with s.id inside its name (allow)" allow '{"tool_name":"mcp__claude-in-chrome__navigate","tool_input":{"url":"https://careers.acmes.id/jobs"}}'
+IFTTT_RUN='{"tool_name":"mcp__claude_ai_IFTTT__run_action","tool_input":{"service_slug":"gmail","slug":"send_an_email","fields":{"to":"r@example.com"}}}'
+if [ "$IMPL" = sh ]; then
+  check "IFTTT run_action, Claude: ask the user" ask "$IFTTT_RUN"
+  RUN="$RUN_DEFAULT codex" check "IFTTT run_action, Codex mode: block (exit 2)" block2 "$IFTTT_RUN"
+  RUN="$RUN_DEFAULT codex" check "Codex mode: gmail send blocks with exit 2" block2 '{"tool_name":"mcp__gmail__send_email","tool_input":{}}'
+  RUN="$RUN_DEFAULT codex" check "Codex mode: gmail search allowed" allow '{"tool_name":"mcp__gmail__search_emails","tool_input":{}}'
+  RUN="$RUN_DEFAULT codex" check "Codex mode: git $PU public blocks with exit 2" block2 "$(shelljson "$TN/pub" "git $PU")"
+  RUN="$RUN_DEFAULT"
+else
+  check "IFTTT run_action, Codex: block" deny "$IFTTT_RUN"
+fi
+
 echo "== guard ($IMPL): input shape"
 check "empty stdin (deny)" deny ''
 check "whitespace-only stdin (deny)" deny $'  \n'
@@ -362,8 +445,15 @@ if [ "$IMPL" = sh ]; then
   RUN="$SC" check "settings.json cmd, guard missing -> block" block2 '{"tool_name":"WebFetch","tool_input":{"url":"https://x.com"}}'
   RUN="set +u; unset CLAUDE_PROJECT_DIR; $SC" check "settings.json cmd, CLAUDE_PROJECT_DIR unset -> block" block2 '{"tool_name":"WebFetch","tool_input":{"url":"https://x.com"}}'
   mkdir -p "$T/cproj/.claude/hooks/sub" "$T/noagents" && touch "$T/cproj/AGENTS.md" && cp "$T/m/guard.sh" "$T/cproj/.claude/hooks/guard.sh"
-  RUN="cd \"$T/cproj/.claude/hooks/sub\" && $CC" check "codex cmd from a subfolder, gmail send -> deny" deny '{"tool_name":"mcp__gmail__send_email","tool_input":{}}'
+  RUN="cd \"$T/cproj/.claude/hooks/sub\" && $CC" check "codex cmd from a subfolder, gmail send -> block" block2 '{"tool_name":"mcp__gmail__send_email","tool_input":{}}'
+  if grep -q 'only reads job email' "$T/stderr.txt" && ! grep -q 'could not run' "$T/stderr.txt"; then pass=$((pass + 1)); echo "PASS  codex cmd block gives the guard's own reason on stderr"
+  else fail=$((fail + 1)); echo "FAIL  codex cmd block reason: $(head -c 300 "$T/stderr.txt")"; fi
+  # Codex runs hooks in a login shell; text a shell profile prints must not hide the block.
+  RUN="echo 'Welcome back from .zprofile'; cd \"$T/cproj/.claude/hooks/sub\" && $CC" check "codex cmd with profile noise on stdout, send -> block" block2 '{"tool_name":"mcp__gmail__send_email","tool_input":{}}'
   RUN="cd \"$T/cproj/.claude/hooks/sub\" && $CC" check "codex cmd from a subfolder, gmail search -> allow" allow '{"tool_name":"mcp__gmail__search_emails","tool_input":{}}'
+  if command -v fish >/dev/null 2>&1; then
+    RUN="cd \"$T/cproj\" && fish -c $(printf '%q' "$CC")" check "codex cmd under fish, send -> block" block2 '{"tool_name":"mcp__gmail__send_email","tool_input":{}}'
+  else skip "codex cmd under fish" "fish is not installed"; fi
   rm "$T/cproj/.claude/hooks/guard.sh"
   RUN="cd \"$T/cproj\" && $CC" check "codex cmd, guard missing -> block" block2 '{"tool_name":"mcp__gmail__search","tool_input":{}}'
   RUN="cd \"$T/noagents\" && $CC" check "codex cmd, no AGENTS.md found -> block" block2 '{"tool_name":"mcp__gmail__search","tool_input":{}}'
@@ -409,6 +499,25 @@ if [ "$IMPL" = sh ]; then
   else fail=$((fail + 1)); echo "FAIL  e2e: failed, but not because of the hook:"; sed 's/^/      | /' "$T/e2e"; fi
   if git -C "$T/priv" "$PU" -q origin HEAD:refs/heads/x >"$T/e2e2" 2>&1; then pass=$((pass + 1)); echo "PASS  e2e: real git $PU to a non-GitHub (local) URL allowed"
   else fail=$((fail + 1)); echo "FAIL  e2e: allowed case failed"; sed 's/^/      | /' "$T/e2e2"; fi
+
+  echo "== .githooks/commit-msg"
+  CM="$REPO/.githooks/commit-msg"
+  if [ -n "$WIN" ] || [ -x "$CM" ]; then pass=$((pass + 1)); echo "PASS  commit-msg is executable"
+  else fail=$((fail + 1)); echo "FAIL  commit-msg is not executable (git won't run it)"; fi
+  cmcheck() { # cmcheck <name> <message> <expected message>
+    printf '%s' "$2" > "$T/cmsg"; bash "$CM" "$T/cmsg"; local rc=$?
+    if [ "$rc" = 0 ] && [ "$(cat "$T/cmsg")" = "$3" ]; then pass=$((pass + 1)); printf 'PASS  %s\n' "$1"
+    else fail=$((fail + 1)); printf 'FAIL  %s (rc=%s)\n      got: %s\n' "$1" "$rc" "$(tr '\n' '|' < "$T/cmsg")"; fi
+  }
+  cmcheck "commit-msg strips Claude and Codex trailers" $'Fix the tracker\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nCo-authored-by: Codex <codex@openai.com>\n' 'Fix the tracker'
+  cmcheck "commit-msg strips session link and Generated-with line" $'Add a page\n\nBody text.\n\n\xf0\x9f\xa4\x96 Generated with [Claude Code](https://claude.com/claude-code)\nClaude-Session: https://claude.ai/code/x\n' $'Add a page\n\nBody text.'
+  cmcheck "commit-msg keeps a person's Co-authored-by" $'Pair work\n\nCo-authored-by: Alex Rivera <alex@example.com>\n' $'Pair work\n\nCo-authored-by: Alex Rivera <alex@example.com>'
+  cmcheck "commit-msg leaves a plain message alone" $'Just a message\n' 'Just a message'
+  # End to end: git runs it through core.hooksPath.
+  git -C "$T/priv" config core.hooksPath "$(native "$REPO")/.githooks"
+  git -C "$T/priv" commit -q --allow-empty -m $'Update notes\n\nCo-Authored-By: Claude <noreply@anthropic.com>' >/dev/null 2>&1
+  if [ "$(git -C "$T/priv" log -1 --format=%B | sed '/^$/d')" = "Update notes" ]; then pass=$((pass + 1)); echo "PASS  e2e: git commit through core.hooksPath drops the AI trailer"
+  else fail=$((fail + 1)); echo "FAIL  e2e: commit message kept: $(git -C "$T/priv" log -1 --format=%B | tr '\n' '|')"; fi
 fi
 
 if [ "$IMPL" = ps ]; then

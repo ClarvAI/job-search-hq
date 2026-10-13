@@ -44,6 +44,8 @@ if (-not (Test-Path -LiteralPath (Join-Path $root 'AGENTS.md'))) {
     Say-Fix 1 'folder' 'this copy of the workspace is incomplete (AGENTS.md is missing). Download a fresh copy, then move your data into it with /my-data.'
 } elseif (-not $same) {
     Say-Fix 1 'folder' "the app is open on $cwd, not on the workspace folder itself. Close it and open the folder `"$rootName`" (the one with AGENTS.md in it); the safety checks and commands only load from there."
+} elseif (-not (Test-Path -LiteralPath (Join-Path $root '.claude/settings.json'))) {
+    Say-Fix 1 'folder' "the file .claude/settings.json is missing, so Claude Code has no safety checks here. $repair."
 } else {
     Say-Ok 'folder' "opened at the workspace root ($rootName)"
 }
@@ -81,7 +83,16 @@ if (Has-Command 'claude') {
 if (Has-Command 'codex') {
     $xv = ''
     try { $xv = (@(& codex --version 2>$null) | Select-Object -First 1) } catch {}
-    Say-Ok 'Codex version' ("$xv")
+    $xvn = ("$xv").Trim().Split(' ')[-1]
+    if (-not $xvn) {
+        Say-Skip 'Codex version' "the codex command didn't report a version"
+    } elseif (Version-AtLeast $xvn '0.160') {
+        Say-Ok 'Codex version' "$xvn (0.160 or later is needed for this folder's safety checks)"
+    } elseif ($App -eq 'codex') {
+        Say-Fix 2 'Codex version' "$xvn is too old: this folder's safety checks need Codex 0.160 or later. Update Codex (run 'codex update', or update the Codex app), then type /hooks and trust the hooks again."
+    } else {
+        Say-Note 'Codex version' "$xvn is too old for this folder's safety checks (they need 0.160 or later). That only matters if you also use Codex: run 'codex update' there."
+    }
 } else {
     Say-Skip 'Codex version' "Codex isn't installed here (fine if you only use Claude)"
 }
@@ -99,10 +110,11 @@ if (-not ($settings.Contains('guard.sh') -and $settings.Contains('session-start.
     $managedFiles = @('/Library/Application Support/ClaudeCode/managed-settings.json', '/etc/claude-code/managed-settings.json')
     if ($env:ProgramData) { $managedFiles += (Join-Path $env:ProgramData 'ClaudeCode\managed-settings.json') }
     foreach ($f in $managedFiles) {
-        if ((Read-Text $f) -match '"disableAllHooks"\s*:\s*true') { $managed = $f }
+        # disableAllHooks turns every hook off; allowManagedHooksOnly turns off this folder's own hooks.
+        if ((Read-Text $f) -match '"(disableAllHooks|allowManagedHooksOnly)"\s*:\s*true') { $managed = $f }
     }
     if ($managed) {
-        Say-Fix 2 'hook setup' "hooks are switched off for the whole computer by its managed settings ($managed), so in Claude Code nothing blocks email sending. Only whoever manages this computer can change that; until then, don't connect Gmail in Claude Code."
+        Say-Fix 2 'hook setup' "this computer's managed settings ($managed) switch off this folder's hooks, so in Claude Code nothing blocks email sending. Only whoever manages this computer can change that; until then, don't connect Gmail in Claude Code."
     } elseif ($off) {
         Say-Fix 2 'hook setup' "hooks are switched off in $off (`"disableAllHooks`": true), so nothing blocks email sending. Remove that line, then restart the app."
     } else {
@@ -200,6 +212,9 @@ if (-not (Test-Path -LiteralPath $guardSh)) {
     Say-Skip 'safety check (bash)' 'bash is not installed (see the Git Bash line)'
 } else {
     $r = Test-Guard $bashExe @($guardSh)
+    # Codex mode blocks with exit 2 and the reason on stderr.
+    $c = Invoke-Guard $bashExe @($guardSh, 'codex') '{"tool_name":"mcp__gmail__send_email","tool_input":{}}'
+    if ($c.Code -ne 2) { $r = (@($r, 'a Gmail send was not blocked in Codex mode') | Where-Object { $_ }) -join '; ' }
     if (-not $r) { Say-Ok 'safety check (bash)' 'blocks a Gmail send, allows a Gmail search, blocks empty input' }
     else { Say-Fix 2 'safety check (bash)' "the self-test failed ($r). $repair; until then, don't connect Gmail." }
 }
@@ -224,7 +239,7 @@ foreach ($d in @('.claude/hooks', '.claude/skills', 'scripts')) {
     $p = Join-Path $root $d
     if (Test-Path -LiteralPath $p) { $shFiles += @(Get-ChildItem -LiteralPath $p -Recurse -Filter '*.sh' -File -ErrorAction SilentlyContinue) }
 }
-$pp = Join-Path $root '.githooks/pre-push'; if (Test-Path -LiteralPath $pp) { $shFiles += Get-Item -LiteralPath $pp }
+foreach ($h in @('.githooks/pre-push', '.githooks/commit-msg')) { $pp = Join-Path $root $h; if (Test-Path -LiteralPath $pp) { $shFiles += Get-Item -LiteralPath $pp } }
 foreach ($f in $shFiles) { if ((Read-Text $f.FullName).Contains("`r")) { $crlf += $f.FullName.Substring($root.Length + 1).Replace('\', '/') } }
 if ($crlf.Count -gt 0) {
     Say-Fix 2 'script line endings' "these scripts have Windows line endings, which stops them running: $($crlf -join ', '). Download a fresh copy as a zip (or re-clone with git config core.autocrlf false)."
@@ -239,7 +254,7 @@ if ($isWin) {
     else { Say-Fix 2 'Git Bash' "not found. Claude Code's safety checks need it: install Git for Windows from git-scm.com (the default options are fine), then restart Claude. Codex doesn't need it." }
     $blocked = @()
     $dirs = @('.claude', '.agents', '.codex', '.githooks') | ForEach-Object { Join-Path $root $_ } | Where-Object { Test-Path -LiteralPath $_ }
-    foreach ($f in @(Get-ChildItem -LiteralPath $dirs -Recurse -File -Include '*.ps1', '*.sh', '*.mjs', '*.js', '*.ts', '*.tsx', 'pre-push' -ErrorAction SilentlyContinue)) {
+    foreach ($f in @(Get-ChildItem -LiteralPath $dirs -Recurse -File -Include '*.ps1', '*.sh', '*.mjs', '*.js', '*.ts', '*.tsx', 'pre-push', 'commit-msg' -ErrorAction SilentlyContinue)) {
         if (Get-Item -LiteralPath $f.FullName -Stream 'Zone.Identifier' -ErrorAction SilentlyContinue) { $blocked += $f }
     }
     if ($blocked.Count -gt 0) {
@@ -298,9 +313,9 @@ if ((Test-Path -LiteralPath (Join-Path $root '.git')) -and (Has-Command 'git')) 
     $hp = $null; try { $hp = @(& git -C $root config --get core.hooksPath 2>$null) | Select-Object -First 1 } catch {}
     $hpn = ("$hp").Trim().TrimEnd('\', '/')
     if ($hpn -eq '.githooks' -or $hpn -eq (Join-Path $root '.githooks') -or $hpn -eq ($root.Replace('\', '/') + '/.githooks')) {
-        Say-Ok 'git push check' 'on (stops pushes to a public GitHub repository)'
+        Say-Ok 'git push check' 'on (stops pushes to a public GitHub repository, and keeps AI attribution lines out of commit messages)'
     } else {
-        Say-Note 'git push check' "this folder uses git, and the extra check that stops pushes to a public GitHub repository isn't turned on. The assistant can turn it on for you (it runs: git config core.hooksPath .githooks). It also catches pushes the built-in safety check can't see, like ones made through git aliases or scripts."
+        Say-Note 'git push check' "this folder uses git, and the extra check that stops pushes to a public GitHub repository isn't turned on. The assistant can turn it on for you (it runs: git config core.hooksPath .githooks). It also catches pushes the built-in safety check can't see, like ones made through scripts, and keeps AI attribution lines out of commit messages."
     }
 } else {
     Say-Skip 'git push check' "this folder doesn't use git (that's fine)"
