@@ -25,6 +25,18 @@ Job Search HQ is a folder you download and open in an AI app: **Claude** (the Cl
 
 <sub>Screenshots use made-up sample data (Alex Rivera, a fictional product marketing manager).</sub>
 
+### Watch the 70-second trailer
+
+https://github.com/user-attachments/assets/d8f7bc63-ce08-40f8-b45c-4405b96cf07f
+
+<details>
+<summary>Trailer transcript</summary>
+
+Looking for work is a second job. Job Search HQ keeps track of all of it. Every job, every next step, on a board that saves to a spreadsheet you own. It finds openings that fit you, and writes your resume from your real experience. Nothing made up. Applications go faster, with every answer ready to copy. It drafts your follow-ups. You send them. Practice interviews out loud, with a clock and a scorecard, and take your prep with you. Works in Claude or ChatGPT, in plain words. No coding. Job Search HQ. Try it with sample data first.
+
+The video shows a rebuilt version of the app with made-up sample data; the board, the panels and read-aloud interviews are in Claude, and Codex does the same in the chat.
+</details>
+
 ## What it does
 
 - **Finds jobs that fit you** and sorts out scams and stale postings, then saves every detail of the ones you like before the posting disappears.
