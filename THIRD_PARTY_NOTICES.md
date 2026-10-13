@@ -6,6 +6,10 @@ Job Search HQ is released under the PolyForm Noncommercial License 1.0.0 (see `L
 
 `docs/images/hero.jpg` and `docs/images/social-preview.jpg`: illustration generated for this project with OpenAI's image model (gpt-image-2, through Codex image generation, on the maintainer's account); the wordmark is set in a system font. The screenshots in `docs/images/` are of Job Search HQ itself, with fictional sample data. All are the project's own and covered by its license.
 
+## The trailer
+
+The trailer video was built with [Remotion](https://www.remotion.dev) (free for individuals under its license; the build source is in `docs/maintainers/video-build/`, not part of the app's download). Its narration was generated with ElevenLabs on the maintainer's account, and it uses the fonts listed below and made-up sample data.
+
 ## Libraries used by the pages (bundled in `templates/assets/lib/`)
 
 Each one is pinned to an exact version. The CDN fallback (cdn.jsdelivr.net) is checked with a Subresource Integrity hash, so the browser refuses a changed file.

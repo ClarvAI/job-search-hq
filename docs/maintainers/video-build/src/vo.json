@@ -1,0 +1,60 @@
+{
+ "voice": "Megan - Warm & Trusted Training Voice (ElevenLabs eleven_v4)",
+ "lines": [
+  {
+   "file": "audio/vo/trailer-00.wav",
+   "text": "Looking for work is a second job.",
+   "seconds": 2.27
+  },
+  {
+   "file": "audio/vo/trailer-01.wav",
+   "text": "Job Search HQ keeps track of all of it.",
+   "seconds": 2.52
+  },
+  {
+   "file": "audio/vo/trailer-02.wav",
+   "text": "Every job, every next step, on a board that saves to a spreadsheet you own.",
+   "seconds": 4.91
+  },
+  {
+   "file": "audio/vo/trailer-03.wav",
+   "text": "It finds openings that fit you...",
+   "seconds": 1.92
+  },
+  {
+   "file": "audio/vo/trailer-04.wav",
+   "text": "and writes your resume from your real experience. Nothing made up.",
+   "seconds": 3.63
+  },
+  {
+   "file": "audio/vo/trailer-05.wav",
+   "text": "Applications go faster, with every answer ready to copy.",
+   "seconds": 3.54
+  },
+  {
+   "file": "audio/vo/trailer-06.wav",
+   "text": "It drafts your follow-ups. You send them.",
+   "seconds": 2.43
+  },
+  {
+   "file": "audio/vo/trailer-07.wav",
+   "text": "Practice interviews out loud, with a clock and a scorecard...",
+   "seconds": 3.48
+  },
+  {
+   "file": "audio/vo/trailer-08.wav",
+   "text": "and take your prep with you.",
+   "seconds": 1.36
+  },
+  {
+   "file": "audio/vo/trailer-09.wav",
+   "text": "Works in Claude or ChatGPT, in plain words. No coding.",
+   "seconds": 4.7
+  },
+  {
+   "file": "audio/vo/trailer-10.wav",
+   "text": "Job Search HQ. Try it with sample data first.",
+   "seconds": 3.37
+  }
+ ]
+}

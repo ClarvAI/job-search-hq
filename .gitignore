@@ -47,3 +47,10 @@ __pycache__/
 
 # Page-count check PDFs
 *.check.pdf
+
+# ---- Maintainer tooling ----
+# Installed packages (npm ci recreates them) and rendered videos (published on the GitHub release, not in git)
+node_modules/
+/docs/maintainers/video-build/out/
+# Left behind by git filter-branch
+/.git-rewrite/

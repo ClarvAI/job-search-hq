@@ -86,7 +86,7 @@ What "trust" means: it lets the app use this folder's own settings, including th
 
 > **Check:** as you type `/` in Claude (or `$` in Codex), `start` should show in the list. If it doesn't, you opened the wrong folder: go back to step 2.
 
-**What you'll see:** a short welcome, then a request for your resume. Setup is a conversation of about 14 short questions: where your search stands, what you're looking for (roles, places, pay, deal-breakers) and a story or two in your own words. It also builds a starter pack about your field: the words its job postings use, and employers to look at. Before it saves anything about you, it shows you the exact lines and asks "OK to save?". In Claude, a box may also pop up asking to let it edit the file: that's an extra lock, so click Yes if it matches what you approved. Setup ends with a short plan for your first week. If you stop partway, it picks up where you left off next time.
+**What you'll see:** a short welcome, then a request for your resume. Setup is a conversation of about 14 short questions: where your search stands, what you're looking for (roles, places, pay, deal-breakers) and a story or two in your own words. It also builds a starter pack about your field: the words its job postings use, and employers to look at. Before it saves anything about you, it shows you the exact lines and asks "OK to save?". In Claude, saving your resume facts or preferences also shows a small permission box (a few times during setup, rarely after): that's a deliberate second lock on your source of truth, so choose Yes when it matches what you just approved. Everything else, like job folders, the tracker and drafts, is saved without asking. Setup ends with a short plan for your first week. If you stop partway, it picks up where you left off next time.
 
 **Want to look around first?** Ask for **the sample workspace**: a separate practice copy filled with a made-up job search (Alex Rivera), so you can try the boards and pages before you share anything. Your own folder isn't touched.
 
@@ -140,6 +140,8 @@ flowchart LR
 
 In words: you talk to the assistant; it reads and updates your files (master resume, tracker, contacts, drafts); panels (in Claude), the chat (in Codex) and pages in your browser show them; a safety check stops the assistant's own attempts to send, post or delete; and you send and submit everything yourself. More in [HOW-IT-WORKS.md](HOW-IT-WORKS.md).
 
+**Under the hood** (for the technically curious): Job Search HQ turns Claude Code or Codex into a job-search assistant with agent skills (`SKILL.md` workflows in `.claude/skills/`, shared with Codex through `.agents/skills/`), shared rules (`AGENTS.md`, `CLAUDE.md`), review subagents (`.claude/agents/`, `.codex/agents/`), safety hooks for both apps, Claude Code mods (the panels), Codex settings and rules (`.codex/`), and HTML templates for the pages, resumes and cover letters. It has no server and no code of its own beyond small shell, PowerShell and Node scripts. Details: [HOW-IT-WORKS.md](HOW-IT-WORKS.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## If something goes wrong
 
 - **`start` isn't in the list when you type `/` (or `$` in Codex).** You opened the wrong folder, often the outer one of two folders with the same name. Open the one with `README.md`, `AGENTS.md` and `CLAUDE.md` directly inside it, and trust it.
@@ -180,7 +182,7 @@ The main protection is that the assistant drafts and you send. Under the assista
 
 In Claude, the main email and calendar actions (send, reply, forward, delete, respond, change) are also switched off in the folder's permission settings, so they stay blocked even if the check can't run. If the check crashes or is missing, the action is blocked. If it takes too long (30 seconds): Claude Code 2.1.295 or later blocks the action, older versions and Codex let it go ahead.
 
-Claude starts in auto mode: it works without asking about routine steps, and a separate reviewer checks its actions. It still asks before changing your profile or preferences with a command, before undoing an update, and for anything the settings mark "ask". Press Shift+Tab to switch to asking about everything.
+Claude starts in auto mode: it works without asking about routine steps, and a separate reviewer checks its actions. It still asks before changing your profile or preferences with a command, before undoing an update, and for anything the settings mark "ask". If it asks before almost every step instead, the session is in Manual mode (an older model, your organization's settings, or a choice made earlier in the desktop app): press Shift+Tab until it shows auto mode, or pick it in the desktop app's mode selector (`/health` also checks this). Codex, in a trusted folder, edits and runs things in this folder without asking, makes PDFs without asking, and asks before going online or saving outside the folder (a backup, for example).
 
 What the check doesn't cover:
 
