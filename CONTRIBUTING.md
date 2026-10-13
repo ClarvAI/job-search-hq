@@ -14,7 +14,7 @@ From the top folder:
 bash scripts/ci/run-all.sh
 ```
 
-Set `PS_EXE=pwsh` (or `PS_EXE=powershell` on Windows) to include the PowerShell checks; without a PowerShell it skips them and says so. It exits 1 if anything that ran failed.
+Set `PS_EXE=pwsh` (or `PS_EXE=powershell` on Windows) to include the PowerShell checks; without a PowerShell it skips them and says so. It exits 1 if anything that ran failed. The end-to-end tests (`scripts/ci/e2e-*.py`) need Python 3.8 or newer (standard library only) and work on copies in a temp folder, never on your workspace; each takes `--impl sh|ps|both` and `--keep` (leave the temp folder for debugging).
 
 CI (`.github/workflows/ci.yml`) runs the same scripts on every push and pull request, on Linux, macOS (the system bash 3.2, as on users' Macs) and Windows (Windows PowerShell 5.1, PowerShell 7 and Git Bash). It needs no secrets and no sign-in. The checks:
 
@@ -31,6 +31,10 @@ CI (`.github/workflows/ci.yml`) runs the same scripts on every push and pull req
 | `/my-data` backup and reset work | `scripts/ci/mydata-smoke.sh` |
 | `/health` runs on a fresh checkout | the health step in `ci.yml` |
 | Claude Code panels validate and their tests pass | `scripts/ci/check-mods.sh` |
+| A fresh clone has no user data, and first run, the startup hook and `/health` work on it | `scripts/ci/e2e-fresh.py` |
+| `/update` installs, checks, rolls back, keeps user files and edited app files, and refuses bad releases | `scripts/ci/e2e-update.py` |
+| `/my-data` backup, reset and restore round-trip every user file, skip links, respect Excel locks | `scripts/ci/e2e-mydata.py` |
+| A user's theme stays out of git, and `git pull` of a new version stays clean | `scripts/ci/e2e-theme-git.py` |
 
 ## Conventions
 

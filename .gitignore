@@ -41,5 +41,9 @@
 Thumbs.db
 ~$*
 
+# Python bytecode from the CI scripts
+__pycache__/
+*.pyc
+
 # Page-count check PDFs
 *.check.pdf

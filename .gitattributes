@@ -3,5 +3,6 @@
 .githooks/* text eol=lf
 *.ps1 text eol=crlf
 *.csv text eol=lf
+product-manifest.json text eol=lf
 *.pdf binary
 *.zip binary

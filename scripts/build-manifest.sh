@@ -39,7 +39,7 @@ is_protected() {
   return 1
 }
 if command -v sha256sum >/dev/null 2>&1; then H="sha256sum"; else H="shasum -a 256"; fi
-fp() { tr -d '\r' < "$1" | $H | awk '{print $1}'; }
+fp() { LC_ALL=C tr -d '\r' < "$1" | $H | awk '{print $1}'; }
 
 if git -C "$ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1 && [ "$(git -C "$ROOT" rev-parse --show-toplevel 2>/dev/null)" -ef "$ROOT" ]; then
   list="$(git -c core.quotepath=off ls-files --cached --others --exclude-standard)"
@@ -84,9 +84,10 @@ EOF
 } > "$tmp" || die "could not write the manifest"
 
 if [ "$mode" = check ]; then
-  if cmp -s "$tmp" product-manifest.json; then echo "manifest: up to date"
+  # Carriage returns don't count: a Windows checkout may have given the manifest CRLF line endings.
+  if [ -f product-manifest.json ] && LC_ALL=C tr -d '\r' < product-manifest.json | cmp -s "$tmp" -; then echo "manifest: up to date"
   else
-    diff product-manifest.json "$tmp" | head -20
+    LC_ALL=C tr -d '\r' < product-manifest.json 2>/dev/null | diff - "$tmp" | head -20
     die "product-manifest.json is out of date; run bash scripts/build-manifest.sh"
   fi
 else
@@ -95,7 +96,7 @@ else
 fi
 
 if [ -n "$zipout" ]; then
-  case "$zipout" in /*) ;; *) zipout="$OLDPWD/$zipout" ;; esac
+  case "$zipout" in /*|[A-Za-z]:[\\/]*) ;; *) zipout="$OLDPWD/$zipout" ;; esac   # absolute, or a Windows C:\ or C:/ path
   stage="$(mktemp -d 2>/dev/null || mktemp -d -t jshqzip)" || die "cannot make a temporary folder"
   top="job-search-hq-$ver"
   mkdir -p "$stage/$top"

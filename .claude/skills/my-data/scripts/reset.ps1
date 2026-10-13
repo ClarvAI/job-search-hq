@@ -9,6 +9,7 @@
 #   powershell -NoProfile -ExecutionPolicy Bypass -File .claude\skills\my-data\scripts\reset.ps1 -YesDelete   do it (only after the user typed the confirm phrase)
 # Works only on the workspace this script lives in (four levels up), and only if AGENTS.md and a
 # complete templates\blank\ are there. Output ends with "reset: done" or "error: ...".
+[CmdletBinding()]
 param(
   [switch]$YesDelete,
   [switch]$DryRun

@@ -42,7 +42,7 @@ while [ $# -gt 0 ]; do
 done
 
 if command -v sha256sum >/dev/null 2>&1; then H="sha256sum"; elif command -v shasum >/dev/null 2>&1; then H="shasum -a 256"; else die "no SHA-256 tool found (sha256sum or shasum)"; fi
-fp() { tr -d '\r' < "$1" | $H | awk '{print $1}'; }            # fingerprint, as in product-manifest.json
+fp() { LC_ALL=C tr -d '\r' < "$1" | $H | awk '{print $1}'; }            # fingerprint, as in product-manifest.json
 rawsha() { $H < "$1" | awk '{print $1}'; }
 
 is_protected() {   # user-owned or local-only: never written, moved or deleted by an update
@@ -111,6 +111,12 @@ restore_from() {   # restore_from <backup dir>: undo one update. Prints what it 
     while IFS= read -r p; do
       [ -n "$p" ] && safe_path "$p" && ! is_protected "$p" || continue
       [ -f "$b/files/$p" ] || { echo "error: the backup has no copy of $p"; bad=1; continue; }
+      # Already as it was (an update that failed before reaching it): nothing to write, so a file that
+      # can't be written (open in another program) doesn't turn a clean undo into "could not put back".
+      if [ -f "$ROOT/$p" ] && [ ! -L "$ROOT/$p" ] && cmp -s "$b/files/$p" "$ROOT/$p" \
+        && { [ -x "$b/files/$p" ] && [ -x "$ROOT/$p" ] || { [ ! -x "$b/files/$p" ] && [ ! -x "$ROOT/$p" ]; }; }; then
+        echo "restored: $p"; continue
+      fi
       install_file "$b/files/$p" "$p" && echo "restored: $p" || bad=1
     done < "$b/changed.txt"
   fi

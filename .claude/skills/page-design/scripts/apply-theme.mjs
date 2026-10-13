@@ -63,11 +63,14 @@ if (!fs.existsSync(path.join(ROOT, 'AGENTS.md'))) die(`${ROOT} is not a Job Sear
 const rel = p => path.relative(ROOT, p).split(path.sep).join('/')
 
 // ---- Resolve the theme -------------------------------------------------------------------------
-function loadTheme(presetOverride) {
+// blank: true ignores profile/design.md entirely (maintainer modes that write or check shipped files: the
+// user's layouts and documents block would otherwise come along, since a forced preset keeps them).
+function loadTheme(presetOverride, { blank = false } = {}) {
   const designFile = opt('--design') ? path.resolve(opt('--design')) : path.join(ROOT, 'profile', 'design.md')
   let parsed = {}
   const notes = []
-  if (fs.existsSync(designFile)) {
+  if (blank) { /* the Default look with default layouts, whatever the user chose */ }
+  else if (fs.existsSync(designFile)) {
     parsed = parseDesign(fs.readFileSync(designFile, 'utf8'))
     if (!parsed.design) notes.push(`${rel(designFile)} has no \`\`\`design block; using the Default preset.`)
   } else notes.push('profile/design.md not found; using the Default preset (setup or page-design creates it).')
@@ -93,6 +96,19 @@ function contrastLines({ t, R, fails }) {
 }
 
 // ---- Edit helpers ------------------------------------------------------------------------------
+// Pages and templates are edited with LF line endings and written back with the file's own (a Windows
+// checkout has CRLF), so "unchanged" means unchanged there too and git sees no line-ending churn.
+const EOL = new Map()
+function readHtml(file) {
+  const raw = fs.readFileSync(file, 'utf8')
+  EOL.set(file, raw.includes('\r\n') ? '\r\n' : '\n')
+  return raw.replace(/\r\n/g, '\n')
+}
+function writeHtml(file, html, like) {
+  const eol = EOL.get(file) || (like && EOL.get(like)) || '\n'
+  fs.writeFileSync(file, eol === '\r\n' ? html.replace(/\r?\n/g, '\r\n') : html)
+  EOL.set(file, eol)
+}
 function replaceRegion(html, start, end, block, legacyEnd) {
   const i = html.indexOf(start)
   if (i < 0) return null
@@ -179,12 +195,12 @@ function apply({ t, R }, { write }) {
   let updated = 0, same = 0, differs = 0, skipped = 0
   for (const { file, kind } of targets()) {
     if (fs.lstatSync(file).isSymbolicLink()) { out(`skipped: ${rel(file)} (a link; only real files are changed)`); skipped++; continue }
-    const html = fs.readFileSync(file, 'utf8')
+    const html = readHtml(file)
     const r = themePage(html, t, R, file)
     if (r.skip) { out(`skipped: ${rel(file)} (${r.skip})`); skipped++; continue }
     if (r.html === html) { out(`unchanged: ${rel(file)}`); same++; continue }
     if (!write) { out(`differs: ${rel(file)}`); differs++; continue }
-    fs.writeFileSync(file, r.html)
+    writeHtml(file, r.html)
     out(`updated: ${rel(file)}`); updated++
   }
   const tr = applyTemplates({ t, R }, { write })
@@ -215,25 +231,25 @@ function applyTemplates({ t, R }, { write }) {
     const product = path.join(ROOT, 'templates', name), mine = path.join(USER_TPL, name)
     if (fs.existsSync(mine)) {
       if (isLink(mine)) { out(`skipped: ${rel(mine)} (a link; only real files are changed)`); skipped++; continue }
-      const html = fs.readFileSync(mine, 'utf8')
+      const html = readHtml(mine)
       const r = themeTemplate(html, kind, t, R, name)
       if (r.skip) { out(`skipped: ${rel(mine)} (${r.skip})`); skipped++; continue }
       if (r.html === html) { out(`unchanged: ${rel(mine)}`); same++; continue }
       if (!write) { out(`differs: ${rel(mine)}`); differs++; continue }
-      fs.writeFileSync(mine, r.html)
+      writeHtml(mine, r.html)
       // Only a copy this script made and nobody changed since stays "as generated"; a hand-edited one keeps its old record.
       if (record[name] === sha(html)) { record[name] = sha(r.html); recordChanged = true }
       out(`updated: ${rel(mine)}`); updated++
       continue
     }
     if (!fs.existsSync(product)) { out(`skipped: templates/${name} (missing; restore the app's files with /update or a fresh download)`); skipped++; continue }
-    const base = fs.readFileSync(product, 'utf8')
+    const base = readHtml(product)
     const r = themeTemplate(base, kind, t, R, name)
     if (r.skip) { out(`skipped: templates/${name} (${r.skip})`); skipped++; continue }
     if (r.html === base) { out(`unchanged: templates/${name} (the app's copy already has this look; no copy of your own needed)`); same++; continue }
     if (!write) { out(`differs: ${rel(mine)} (not made yet; applying the theme creates it from templates/${name})`); differs++; continue }
     fs.mkdirSync(USER_TPL, { recursive: true })
-    fs.writeFileSync(mine, r.html)
+    writeHtml(mine, r.html, product)
     record[name] = sha(r.html); recordChanged = true
     out(`created: ${rel(mine)} (templates/${name} with your theme)`); updated++
   }
@@ -252,18 +268,19 @@ function regenerate({ t, R }, which) {
     if (!names.includes(name)) continue
     const product = path.join(ROOT, 'templates', name), mine = path.join(USER_TPL, name)
     if (!fs.existsSync(product)) { out(`skipped: templates/${name} (missing)`); continue }
-    const r = themeTemplate(fs.readFileSync(product, 'utf8'), kind, t, R, name)
+    const productHtml = readHtml(product)
+    const r = themeTemplate(productHtml, kind, t, R, name)
     if (r.skip) { out(`skipped: templates/${name} (${r.skip})`); continue }
     if (!fs.existsSync(mine)) {
       // No copy of their own: the app's template is used as is, unless the theme now makes it differ.
-      if (r.html === fs.readFileSync(product, 'utf8')) { out(`unchanged: templates/${name} (no copy of your own needed)`); continue }
+      if (r.html === productHtml) { out(`unchanged: templates/${name} (no copy of your own needed)`); continue }
       fs.mkdirSync(USER_TPL, { recursive: true })
-      fs.writeFileSync(mine, r.html); record[name] = sha(r.html); n++
+      writeHtml(mine, r.html, product); record[name] = sha(r.html); n++
       out(`created: ${rel(mine)} (the new templates/${name} with your theme)`)
       continue
     }
     if (isLink(mine)) { out(`skipped: ${rel(mine)} (a link; only real files are changed)`); continue }
-    const old = fs.readFileSync(mine, 'utf8')
+    const old = readHtml(mine)
     // The user's own CSS (the Custom region) moves over to the new version.
     const oldCustom = customRegion(old)
     const carried = oldCustom != null && oldCustom.trim() && customRegion(r.html) != null
@@ -271,8 +288,8 @@ function regenerate({ t, R }, which) {
     if (old === r.html) { out(`unchanged: ${rel(mine)}`); continue }
     const handEdited = record[name] !== sha(old)
     const prev = path.join(USER_TPL, previousName(name))
-    fs.writeFileSync(prev, old)
-    fs.writeFileSync(mine, r.html)
+    writeHtml(prev, old, mine)
+    writeHtml(mine, r.html)
     record[name] = sha(r.html); n++
     if (handEdited) kept++
     out(`refreshed: ${rel(mine)} (the new version of the app's template, with your theme; the earlier copy is ${rel(prev)}${carried ? '; your Custom CSS region was carried over' : ''}${handEdited ? '; it has changes made by hand, so offer to carry the rest over' : ''})`)
@@ -319,7 +336,7 @@ function previewLayouts(dir, which, th) {
     const [src, kind] = PREVIEW_SOURCES[name]
     const file = path.join(ROOT, src)
     if (!fs.existsSync(file)) die(`${src} is missing`)
-    let base = fs.readFileSync(file, 'utf8')
+    let base = readHtml(file)
     if (name === 'dashboard') {
       const json = JSON.stringify(sampleData(), null, 2).replace(/</g, '\\u003c')
       base = base.replace(/(<script type="application\/json" id="data">)[\s\S]*?(<\/script>)/, (_, a, b) => `${a}\n${json}\n${b}`)
@@ -341,7 +358,7 @@ function previewLayouts(dir, which, th) {
 function preview(dir) {
   const src = path.join(ROOT, 'templates', 'blank', 'pages', 'dashboard.html')
   if (!fs.existsSync(src)) die('templates/blank/pages/dashboard.html is missing')
-  const base = fs.readFileSync(src, 'utf8')
+  const base = readHtml(src)
   const json = JSON.stringify(sampleData(), null, 2).replace(/</g, '\\u003c')
   const withData = base.replace(/(<script type="application\/json" id="data">)[\s\S]*?(<\/script>)/, (_, a, b) => `${a}\n${json}\n${b}`)
   fs.mkdirSync(dir, { recursive: true })
@@ -415,7 +432,7 @@ function buildPresets() {
   const dir = path.join(here, '..', 'presets')
   fs.mkdirSync(dir, { recursive: true })
   for (const name of PRESET_NAMES) {
-    const th = loadTheme(name)
+    const th = loadTheme(name, { blank: true })
     const { lines, ok } = contrastLines(th)
     if (!ok) die(`preset ${name} fails contrast: ${lines.join('; ')}`)
     const P = PRESETS[name]
@@ -472,24 +489,24 @@ if (flag('--preview')) {
 if (flag('--write-blank')) {
   // Maintainers only: put templates/blank/pages/*.html and templates/*.html on the Default preset, the default layout
   // (the token block, fonts line and data-layout attribute; nothing else), so --check-blank passes.
-  const th0 = loadTheme('default')
+  const th0 = loadTheme('default', { blank: true })
   const dir = path.join(ROOT, 'templates', 'blank', 'pages')
   if (!fs.existsSync(dir)) die('templates/blank/pages/ is missing')
   let n = 0
   const put = (file, r, html) => {
     if (r.skip) { out(`skipped: ${rel(file)} (${r.skip})`); return }
     if (r.html === html) { out(`unchanged: ${rel(file)}`); return }
-    fs.writeFileSync(file, r.html); n++; out(`updated: ${rel(file)}`)
+    writeHtml(file, r.html); n++; out(`updated: ${rel(file)}`)
   }
   for (const f of fs.readdirSync(dir).sort()) {
     if (!f.endsWith('.html')) continue
-    const file = path.join(dir, f), html = fs.readFileSync(file, 'utf8')
+    const file = path.join(dir, f), html = readHtml(file)
     put(file, themePage(html, th0.t, th0.R, f), html)
   }
   for (const [name, kind] of TEMPLATES) {
     const file = path.join(ROOT, 'templates', name)
     if (!fs.existsSync(file)) { out(`skipped: templates/${name} (missing)`); continue }
-    const html = fs.readFileSync(file, 'utf8')
+    const html = readHtml(file)
     put(file, themeTemplate(html, kind, th0.t, th0.R, name), html)
   }
   out(`result: ${n} blank page(s) and app template(s) rewritten to the Default preset (run --check-blank next; rebuild the product manifest)`)
@@ -497,13 +514,13 @@ if (flag('--write-blank')) {
 }
 if (flag('--check-blank')) {
   // Maintainers and CI: the blank page copies (and templates/blank/profile/design.md's look) must stay on the Default preset.
-  const th0 = loadTheme('default')
+  const th0 = loadTheme('default', { blank: true })
   const dir = path.join(ROOT, 'templates', 'blank', 'pages')
   if (!fs.existsSync(dir)) die('templates/blank/pages/ is missing')
   let bad = 0, good = 0
   for (const f of fs.readdirSync(dir).sort()) {
     if (!f.endsWith('.html')) continue
-    const file = path.join(dir, f), html = fs.readFileSync(file, 'utf8')
+    const file = path.join(dir, f), html = readHtml(file)
     const r = themePage(html, th0.t, th0.R, f), problem = blankProblem(html, f)
     if (r.skip) { out(`differs: ${rel(file)} (${r.skip})`); bad++ }
     else if (r.html !== html) { out(`differs: ${rel(file)} (${blankReasons(html, r.html, f, 'not on the Default preset')})`); bad++ }
@@ -514,7 +531,7 @@ if (flag('--check-blank')) {
   for (const [name, kind] of TEMPLATES) {
     const file = path.join(ROOT, 'templates', name)
     if (!fs.existsSync(file)) { out(`differs: templates/${name} (missing)`); bad++; continue }
-    const html = fs.readFileSync(file, 'utf8'), r = themeTemplate(html, kind, th0.t, th0.R, name), problem = blankProblem(html, name)
+    const html = readHtml(file), r = themeTemplate(html, kind, th0.t, th0.R, name), problem = blankProblem(html, name)
     if (r.skip) { out(`differs: templates/${name} (${r.skip})`); bad++ }
     else if (r.html !== html) { out(`differs: templates/${name} (${blankReasons(html, r.html, name, "theme block not on the Default look; a user's theme belongs in profile/templates/")})`); bad++ }
     else if (problem) { out(`differs: templates/${name} (${problem})`); bad++ }

@@ -137,6 +137,10 @@ function Restore-From([string]$b) {
     if (-not (Test-SafePath $p) -or (Test-Protected $p)) { continue }
     $copy = Join-Path (Join-Path $b 'files') $p
     if (-not (Test-Path -LiteralPath $copy -PathType Leaf)) { Write-Output "error: the backup has no copy of $p"; $bad = $true; continue }
+    # Already as it was (an update that failed before reaching it): nothing to write, so a file that
+    # can't be written (open in another program) doesn't turn a clean undo into "could not put back".
+    $cur = P $p
+    if ((Test-Path -LiteralPath $cur -PathType Leaf) -and -not ((Get-Item -LiteralPath $cur -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) -and ((Get-RawSha $cur) -eq (Get-RawSha $copy))) { Write-Output "restored: $p"; continue }
     try { Install-File $copy $p; Write-Output "restored: $p" } catch { $bad = $true }
   }
   foreach ($line in (Read-Lines (Join-Path $b 'local.txt'))) {

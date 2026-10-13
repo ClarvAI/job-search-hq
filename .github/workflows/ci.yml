@@ -19,7 +19,7 @@ jobs:
   linux:
     name: Linux (lint, JSON, mods, guard, parity)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     defaults:
       run:
         shell: bash
@@ -74,6 +74,19 @@ jobs:
           printf '%s\n' "$out"
           printf '%s\n' "$out" | grep -q '^OK: safety check (bash)'
           printf '%s\n' "$out" | grep -q '^summary: '
+      - name: End-to-end, bash (fresh clone, /update, /my-data, theme + git pull)
+        run: |
+          python scripts/ci/e2e-fresh.py --impl sh
+          python scripts/ci/e2e-update.py --impl sh
+          python scripts/ci/e2e-mydata.py --impl sh
+          python scripts/ci/e2e-theme-git.py
+      - name: End-to-end, PowerShell 7 (fresh clone, /update, /my-data)
+        env:
+          PS_EXE: pwsh
+        run: |
+          python scripts/ci/e2e-fresh.py --impl ps
+          python scripts/ci/e2e-update.py --impl ps
+          python scripts/ci/e2e-mydata.py --impl ps
       - name: Install Claude Code
         run: |
           npm install -g @anthropic-ai/claude-code
@@ -87,7 +100,7 @@ jobs:
   macos:
     name: macOS (bash 3.2)
     runs-on: macos-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
         with:
@@ -109,11 +122,22 @@ jobs:
           out="$(/bin/bash .claude/skills/health/scripts/health.sh)"
           printf '%s\n' "$out"
           printf '%s\n' "$out" | grep -q '^OK: safety check (bash)'
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: End-to-end with /bin/bash 3.2 and BSD tools (fresh clone, /update, /my-data, theme + git pull)
+        env:
+          BASH_EXE: /bin/bash
+        run: |
+          python3 scripts/ci/e2e-fresh.py --impl sh
+          python3 scripts/ci/e2e-update.py --impl sh
+          python3 scripts/ci/e2e-mydata.py --impl sh
+          python3 scripts/ci/e2e-theme-git.py
 
   windows:
     name: Windows (PowerShell 5.1, PowerShell 7, Git Bash)
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       # Keep Windows' usual line-ending conversion on, as on users' machines; .gitattributes keeps .sh files LF.
       - uses: actions/checkout@v6
@@ -122,6 +146,9 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
       - name: PowerShell scripts parse (Windows PowerShell 5.1)
         shell: powershell
         run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts\ci\parse-powershell.ps1
@@ -131,6 +158,9 @@ jobs:
       - name: Product manifest matches a Windows (CRLF) checkout, under Git Bash
         shell: bash
         run: bash scripts/build-manifest.sh --check
+      - name: Blank pages are on the Default theme (CRLF checkout)
+        shell: bash
+        run: node .claude/skills/page-design/scripts/apply-theme.mjs --check-blank
       - name: Guard fixtures, guard.ps1 + Codex wrappers under Windows PowerShell 5.1
         shell: bash
         env:
@@ -171,6 +201,30 @@ jobs:
         run: |
           bash scripts/ci/health-fixtures.sh --impl sh
           bash scripts/ci/health-fixtures.sh --impl ps
+      - name: End-to-end, Git Bash (fresh clone, /update, /my-data)
+        shell: bash
+        run: |
+          python scripts/ci/e2e-fresh.py --impl sh
+          python scripts/ci/e2e-update.py --impl sh
+          python scripts/ci/e2e-mydata.py --impl sh
+      - name: End-to-end, Windows PowerShell 5.1 (fresh clone, /update, /my-data)
+        shell: bash
+        env:
+          PS_EXE: powershell
+        run: |
+          python scripts/ci/e2e-fresh.py --impl ps
+          python scripts/ci/e2e-update.py --impl ps
+          python scripts/ci/e2e-mydata.py --impl ps
+      - name: End-to-end, PowerShell 7 (/update, /my-data)
+        shell: bash
+        env:
+          PS_EXE: pwsh
+        run: |
+          python scripts/ci/e2e-update.py --impl ps
+          python scripts/ci/e2e-mydata.py --impl ps
+      - name: End-to-end, theme + git pull (Windows line endings)
+        shell: bash
+        run: python scripts/ci/e2e-theme-git.py
       - name: Health check (Windows PowerShell 5.1)
         shell: powershell
         run: |

@@ -32,10 +32,19 @@ case "$dest" in "~"|"~/"*) dest="$HOME${dest#\~}" ;; esac
 made=""; [ -d "$dest" ] || made=1
 mkdir -p "$dest" 2>/dev/null || die "cannot create the folder $dest"
 dest="$(cd "$dest" && pwd -P)" || die "cannot open the folder $dest"
-case "$dest/" in "$ROOT/"*)
+# Inside the workspace? Compare each folder up from $dest with the workspace itself (-ef: same folder), so a
+# path typed in other capitals on a Mac or Windows, or reached through a link, is caught too.
+inside=""
+case "$dest/" in "$ROOT/"*) inside=1 ;; esac
+d="$dest"
+while [ -z "$inside" ]; do
+  [ "$d" -ef "$ROOT" ] && inside=1
+  p="$(dirname "$d")"; [ "$p" = "$d" ] && break; d="$p"
+done
+if [ -n "$inside" ]; then
   [ -n "$made" ] && rmdir "$dest" 2>/dev/null
-  die "the backup folder must be outside the workspace (pick e.g. Downloads or Documents)" ;;
-esac
+  die "the backup folder must be outside the workspace (pick e.g. Downloads or Documents)"
+fi
 
 stamp="$(date +%Y-%m-%d)"
 name="job-search-backup-$stamp"
@@ -82,12 +91,39 @@ fi
 } > "$stage/READ-ME.txt" || die "could not write the backup's READ-ME (nothing was saved)"
 
 count="$(find "$stage" -type f | wc -l | tr -d ' ')"
-if command -v zip >/dev/null 2>&1; then
+# The zip must mark names like "Müller" as UTF-8, or Windows and other unzip tools show them garbled. Python's
+# zipfile and Perl's IO::Compress::Zip (Efs) do; the Mac's zip and ditto don't, so zip is the last resort.
+# On a Mac without the developer tools, /usr/bin/python3 is a stub that pops an install dialog: skip it there.
+py=""
+for c in python3 python; do
+  p="$(command -v "$c" 2>/dev/null)" || continue
+  if [ "$p" = /usr/bin/python3 ] && [ "$(uname -s)" = Darwin ] && ! xcode-select -p >/dev/null 2>&1; then continue; fi
+  "$c" -c 1 >/dev/null 2>&1 && { py="$c"; break; }   # -c 1: also skips the Windows Store stub
+done
+# Perl version: every file and folder under $name, links left out, names flagged UTF-8 (Efs), read in 1 MB chunks.
+# (No single quotes inside: it is one shell argument.)
+# shellcheck disable=SC2016  # Perl code, not shell
+perl_zip='use strict; use warnings; use File::Find; use IO::Compress::Zip qw($ZipError :zip_method);
+my ($out, $name) = @ARGV; my @items;
+find({ no_chdir => 1, wanted => sub { push @items, $File::Find::name unless -l $File::Find::name } }, $name);
+my $z;
+for my $p (sort @items) {
+  my @st = stat $p; my $d = -d _; my $n = $d ? "$p/" : $p;
+  my %o = (Name => $n, Efs => 1, Method => ($d ? ZIP_CM_STORE : ZIP_CM_DEFLATE), Time => $st[9],
+           ExtAttr => ($st[2] << 16) | ($d ? 0x10 : 0), exTime => [@st[8, 9, 10]]);
+  if ($z) { $z->newStream(%o) or die "zip: $ZipError\n" } else { $z = IO::Compress::Zip->new($out, %o) or die "zip: $ZipError\n" }
+  next if $d;
+  open(my $fh, "<:raw", $p) or die "cannot read $p\n"; my $buf;
+  while (my $r = read($fh, $buf, 1048576)) { $z->print($buf) }
+  close $fh;
+}
+$z->close or die "zip: $ZipError\n";'
+if [ -n "$py" ]; then
+  (cd "$tmp" && "$py" -I -m zipfile -c "$out" "$name") || die "zip failed"
+elif command -v perl >/dev/null 2>&1 && perl -MIO::Compress::Zip -e 1 >/dev/null 2>&1; then
+  (cd "$tmp" && perl -e "$perl_zip" "$out" "$name") || die "zip failed"
+elif command -v zip >/dev/null 2>&1; then
   (cd "$tmp" && zip -q -r -X "$out" "$name") || die "zip failed"
-elif command -v python3 >/dev/null 2>&1 && python3 -c 1 >/dev/null 2>&1; then   # -c 1: skip the Windows Store stub
-  (cd "$tmp" && python3 -I -m zipfile -c "$out" "$name") || die "zip failed"
-elif command -v python >/dev/null 2>&1 && python -c 1 >/dev/null 2>&1; then
-  (cd "$tmp" && python -I -m zipfile -c "$out" "$name") || die "zip failed"
 else
   die "no zip tool found (on Windows, use export.ps1 instead)"
 fi

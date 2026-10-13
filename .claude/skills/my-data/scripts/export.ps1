@@ -6,6 +6,7 @@
 # the top if profile\resume.json exists. Never .claude, .agents, .codex, .git; templates and imports only when asked.
 # Links (shortcuts) are left out, each reported as "skipped link: <path>".
 # Output: last line "saved: <path>" on success; "error: ..." and exit 1 otherwise.
+[CmdletBinding()]
 param(
   [string]$Destination = "",
   [switch]$IncludeImports,
@@ -24,8 +25,36 @@ if (-not (Test-Path -LiteralPath $Destination)) {
   try { [IO.Directory]::CreateDirectory($Destination) | Out-Null; $made = $true } catch { Fail "cannot create the folder $Destination" }
 }
 $Dest = (Resolve-Path -LiteralPath $Destination).Path.TrimEnd('\', '/')
+# The real folder behind a path: every link (symbolic link, junction) on the way is followed, so a shortcut
+# outside the workspace that points into it is caught. (Windows PowerShell 5.1 has no ResolvedTarget.)
+function Get-RealPath([string]$Path) {
+  $cur = [IO.Path]::GetPathRoot($Path)
+  $todo = New-Object System.Collections.Generic.List[string]
+  $todo.AddRange([string[]]@($Path.Substring($cur.Length) -split '[\\/]' | Where-Object { $_ -ne '' }))
+  $hops = 0
+  while ($todo.Count -gt 0) {
+    $part = $todo[0]; $todo.RemoveAt(0)
+    if ($part -eq '.') { continue }
+    if ($part -eq '..') { $up = [IO.Path]::GetDirectoryName($cur.TrimEnd('\', '/')); if ($up) { $cur = $up }; continue }
+    $next = Join-Path $cur $part
+    $item = Get-Item -LiteralPath $next -Force -ErrorAction SilentlyContinue
+    if ($item -and ($item.LinkType -eq 'SymbolicLink' -or $item.LinkType -eq 'Junction') -and $hops -lt 40) {
+      $hops++
+      $t = [string](@($item.Target)[0])
+      if (-not [IO.Path]::IsPathRooted($t)) { $t = Join-Path $cur $t }
+      $t = [IO.Path]::GetFullPath($t)
+      $cur = [IO.Path]::GetPathRoot($t)
+      $todo.InsertRange(0, [string[]]@($t.Substring($cur.Length) -split '[\\/]' | Where-Object { $_ -ne '' }))
+    } else { $cur = $next }
+  }
+  return $cur.TrimEnd('\', '/')
+}
+$realDest = Get-RealPath $Dest
+$realRoot = Get-RealPath $Root
 if (($Dest + '\').StartsWith($Root + '\', [StringComparison]::OrdinalIgnoreCase) -or
-    ($Dest + '/').StartsWith($Root + '/', [StringComparison]::OrdinalIgnoreCase)) {
+    ($Dest + '/').StartsWith($Root + '/', [StringComparison]::OrdinalIgnoreCase) -or
+    ($realDest + '\').StartsWith($realRoot + '\', [StringComparison]::OrdinalIgnoreCase) -or
+    ($realDest + '/').StartsWith($realRoot + '/', [StringComparison]::OrdinalIgnoreCase)) {
   if ($made) { Remove-Item -LiteralPath $Dest -Force -ErrorAction SilentlyContinue }
   Fail "the backup folder must be outside the workspace (pick e.g. Downloads or Documents)"
 }

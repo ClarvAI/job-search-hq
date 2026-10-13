@@ -5,6 +5,7 @@
 #   -DryRun  list what would be created; change nothing
 # Output: "created: <path>" per file, then "init: created N file(s)" or "init: nothing to do";
 # "error: ..." and exit 1 if the workspace or templates\blank\ can't be found.
+[CmdletBinding()]
 param([switch]$Quiet, [switch]$DryRun)
 $ErrorActionPreference = 'Stop'
 function Fail($msg) { Write-Output "error: $msg"; exit 1 }
