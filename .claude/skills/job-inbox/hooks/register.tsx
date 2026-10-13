@@ -2,8 +2,9 @@ import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
 import type { Decision, Inbox, Lead, Notice } from '../types'
-import { dateOrder, daysBetween, isIso, isTracked, localDate, orderFor, plain, readCsv, records, savedNote, toCsv, toIso, trackerIndex, trackerRefs } from './leads'
-import { activityLine, colOf, csvTrouble, isExcelLock, pageOf, rowKept } from './csvdate'
+import { dateOrder, daysBetween, isIso, isTracked, localDate, orderFor, readCsv, records, savedNote, toIso, trackerIndex, trackerRefs } from './leads'
+import { activityLine, appendLine, csvTrouble, fingerprint, pageOf, rowKey, saveRow } from './csvdate'
+import type { FileIo } from './csvdate'
 import type { DateOrder, TrackerIndex } from './leads'
 
 // Job Inbox: /find-jobs writes new leads to jobs/leads.csv; the user goes through them here.
@@ -76,7 +77,8 @@ async function load($: any): Promise<Inbox> {
   const hasFile = await $.fs.exists(LEADS)
   const tracked = trackerIndex(trackerRefs(await readText($, TRACKER).catch(() => '')))
   const order = dateOrder(await readText($, 'profile/preferences.md').catch(() => ''))
-  const leadsText = await readText($, LEADS)
+  const leadsRaw: string = hasFile ? String(await $.fs.read(LEADS)) : ''
+  const leadsText = noBom(leadsRaw)
   const problem = readCsv(leadsText).problem
   const leads = (problem !== '' ? [] : records(leadsText)).filter(r => (r.company ?? '') !== '').map(r => toLead(r, tracked, order))
   const counts: Record<string, number> = {}
@@ -94,6 +96,7 @@ async function load($: any): Promise<Inbox> {
     counts,
     hasFile,
     problem: csvTrouble(problem, 'Your leads file (jobs/leads.csv)'),
+    sig: fingerprint(leadsRaw),
   }
 }
 
@@ -133,35 +136,12 @@ async function flushLog($: any): Promise<void> {
     skipped.length > 0 ? `skipped ${skipped.length}` : '',
     nope.length > 0 ? `not for me ${nope.length} (${Object.entries(why).map(([k, n]) => (n > 1 ? `${k} x${n}` : k)).join(', ')})` : '',
   ].filter(Boolean)
-  await appendLine($, ACTIVITY, activityLine(await $.clock.now(), 'Job Inbox panel (Claude)', `Job leads reviewed: ${parts.join(', ')}`))
+  await appendLine(io($), ACTIVITY, activityLine(await $.clock.now(), 'Job Inbox panel (Claude)', `Job leads reviewed: ${parts.join(', ')}`))
 }
 
-// One line added to the end of history/activity.md. The file is re-read right before the write and
-// checked afterwards, so a line another app added meanwhile is kept and this one is not lost.
-async function appendLine($: any, path: string, lineOut: string): Promise<boolean> {
-  const readNow = async (): Promise<string> => ((await $.fs.exists(path)) ? String(await $.fs.read(path)) : '# Recent activity\n\n')
-  let wrote = false
-  try {
-    for (let attempt = 0; attempt < 4; attempt++) {
-      const before = await readNow()
-      if (wrote && before.includes(lineOut)) return true
-      if ((await readNow()) !== before) continue
-      await $.fs.write(path, before.replace(/\n*$/, '\n') + lineOut)
-      wrote = true
-      if ((await readNow()).includes(lineOut)) return true
-    }
-  } catch { /* the log is a convenience; the decisions are already saved in leads.csv */ }
-  return false
-}
-
-// True when Excel seems to have the file open (its "~$" lock file is next to it). Without a lock file
-// it may still be open, so a failed save also asks the user to save and close Excel.
-async function openInExcel($: any, path: string): Promise<boolean> {
-  const at = path.lastIndexOf('/')
-  try {
-    const entries: Array<{ name: string }> = await $.fs.list(at < 0 ? '.' : path.slice(0, at))
-    return entries.some(e => isExcelLock(String(e.name), path.slice(at + 1)))
-  } catch { return false }
+// The file calls the shared helpers in csvdate.ts use (the engine interface can't cross an import).
+function io($: any): FileIo {
+  return { exists: p => $.fs.exists(p), read: async p => String(await $.fs.read(p)), write: (p, t) => $.fs.write(p, t), list: d => $.fs.list(d) }
 }
 
 function scheduleLog($: any): void {
@@ -169,52 +149,22 @@ function scheduleLog($: any): void {
   logTimer = $.clock.after(LOG_AFTER_MS, () => void flushLog($).catch(() => undefined))
 }
 
-// Read leads.csv fresh, change one lead's row, write it back. Retries if another app changed the file meanwhile.
+// Re-read leads.csv, change one lead's row, write it back. Refused when the file changed since the
+// inbox read it (no file lock exists; /find-jobs may be adding leads): the inbox then shows the new version.
 async function saveLead($: any, id: string, change: (get: (c: string) => string, set: (c: string, v: string) => void, today: string) => boolean): Promise<boolean> {
   const today = localDate(await $.clock.now())
-  for (let attempt = 0; ; attempt++) {
-    const original: string = await $.fs.read(LEADS).catch(() => '')
-    const { rows, problem } = readCsv(original)
-    // A damaged file is never written back: that would spread the damage.
-    if (problem !== '') { await refresh($).catch(() => undefined); await say($, csvTrouble(problem, 'Your leads file (jobs/leads.csv)'), true); return false }
-    const header = rows[0] ?? []
-    const idx = (c: string) => {
-      let i = colOf(header, c)
-      if (i < 0) { header.push(c); i = header.length - 1 }
-      return i
-    }
-    const idCol = colOf(header, 'id')
-    const target = idCol < 0 ? undefined : rows.slice(1).find(r => (r[idCol] ?? '').trim() === id)
-    if (!target) { await say($, 'That lead is no longer in jobs/leads.csv. Press Refresh.', true); return false }
-    const get = (c: string) => (target[idx(c)] ?? '').trim()
-    const set = (c: string, v: string) => { const i = idx(c); while (target.length <= i) target.push(''); target[i] = plain(v) }
-    if (!change(get, set, today)) { await refresh($); return false }
-    for (const r of rows) while (r.length < header.length) r.push('')
-    const next = (original.startsWith(BOM) ? BOM : '') + toCsv(rows)
-    if (await openInExcel($, LEADS)) {
-      await say($, 'Your leads file is open in Excel. Save and close it there, then try again (otherwise Excel would later put back its older copy).', true)
-      return false
-    }
-    try {
-      // Compare and write back to back, so another app's save has the smallest window to slip in.
-      if ((await $.fs.read(LEADS)) !== original) {
-        if (attempt < 3) continue
-        await say($, 'Your leads file kept changing while saving (another app may be editing it). Try again in a moment.', true)
-        return false
-      }
-      await $.fs.write(LEADS, next)
-    } catch {
-      await say($, 'Your leads file is open in another app (like Excel). Close it there, then try again.', true)
-      return false
-    }
-    // If another app saved at the same instant, don't redo the change; check the saved row is still there.
-    const back: string = await $.fs.read(LEADS).catch(() => next)
-    if (back !== next && !rowKept(back, target)) {
-      await say($, 'Another app saved your leads file at the same moment, so this choice may not have stuck. Press Refresh and check.', true)
-      return false
-    }
-    return true
-  }
+  const seen = (await read($, inbox))?.sig ?? ''
+  const saved = await saveRow(io($), LEADS, {
+    seen,
+    name: 'Your leads file',
+    label: 'Your leads file (jobs/leads.csv)',
+    find: (header, rows) => rows.find(r => rowKey(header, r, get => get('id')) === id),
+    edit: (_target, get, set) => (change(get, set, today) ? true : undefined),
+  })
+  if (saved.ok) return true
+  await refresh($).catch(() => undefined)
+  if (saved.why !== 'refused') await say($, saved.why === 'no-row' ? 'That lead is no longer in jobs/leads.csv. Press Refresh.' : saved.text, true)
+  return false
 }
 
 async function decide($: any, lead: Lead, status: 'saved' | 'skipped' | 'not-for-me', reason = ''): Promise<void> {

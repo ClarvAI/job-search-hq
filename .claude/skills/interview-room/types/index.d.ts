@@ -23,6 +23,7 @@ declare module 'claude-code' {
       now: number
       scores: Score[]
       isVoice: boolean
+      isSound: boolean
       voiceNote: string
       voiceTip: string
       isTimed: boolean

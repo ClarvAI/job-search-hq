@@ -2,8 +2,8 @@ import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
 import type { Job, Notice, Summary } from '../types'
-import { activityLine, addDays, alsoOf, colOf, csvTrouble, dateOrder, daysBetween, isExcelLock, isIso, jobKey, localDate, orderFor, pageOf, plain, readCsv, rowKept, toCsv, toIso } from './csvdate'
-import type { DateOrder } from './csvdate'
+import { activityLine, addDays, alsoOf, appendLine, colOf, columnsOf, csvTrouble, dateOrder, daysBetween, fingerprint, isIso, jobKey, localDate, orderFor, pageOf, readCsv, rowKey, saveRow, toIso } from './csvdate'
+import type { DateOrder, FileIo } from './csvdate'
 
 // Pipeline: the user's interactive job board. It reads jobs/tracker.csv (the single source of truth),
 // shows a one-line band above the prompt, and lets the user change a job's stage, next step and date.
@@ -60,33 +60,14 @@ const isInterview = (text: string) => /interview/i.test(text) && !/prep|thank|sc
 // Cards per page: a panel draws at most 100,000 characters, so long lists are paged.
 const SHOWN = 20
 
-// True when Excel seems to have the file open (its "~$" lock file is next to it). Without a lock file
-// it may still be open, so a failed save also asks the user to save and close Excel.
-async function openInExcel($: any, path: string): Promise<boolean> {
-  const at = path.lastIndexOf('/')
-  try {
-    const entries: Array<{ name: string }> = await $.fs.list(at < 0 ? '.' : path.slice(0, at))
-    return entries.some(e => isExcelLock(String(e.name), path.slice(at + 1)))
-  } catch { return false }
+// The file calls the shared helpers in csvdate.ts use (the engine interface can't cross an import).
+function io($: any): FileIo {
+  return { exists: p => $.fs.exists(p), read: async p => String(await $.fs.read(p)), write: (p, t) => $.fs.write(p, t), list: d => $.fs.list(d) }
 }
 
-// One line added to the end of history/activity.md. The file is re-read right before the write and
-// checked afterwards, so a line another app added meanwhile is kept and this one is not lost.
-async function appendLine($: any, path: string, lineOut: string): Promise<boolean> {
-  const readNow = async (): Promise<string> => ((await $.fs.exists(path)) ? String(await $.fs.read(path)) : '# Recent activity\n\n')
-  let wrote = false
-  try {
-    for (let attempt = 0; attempt < 4; attempt++) {
-      const before = await readNow()
-      if (wrote && before.includes(lineOut)) return true
-      if ((await readNow()) !== before) continue
-      await $.fs.write(path, before.replace(/\n*$/, '\n') + lineOut)
-      wrote = true
-      if ((await readNow()).includes(lineOut)) return true
-    }
-  } catch { /* the log is a convenience; never block a save on it */ }
-  return false
-}
+// Which Outbox files are drafts, by file name, with the size and time they had when read (a cache: a
+// reload just starts it over).
+const draftCache = new Map<string, { stamp: string; isDraft: boolean }>()
 
 async function load($: any): Promise<Summary> {
   const today = localDate(await $.clock.now())
@@ -94,7 +75,8 @@ async function load($: any): Promise<Summary> {
   const prefs: string = (await $.fs.exists('profile/preferences.md')) ? await $.fs.read('profile/preferences.md').catch(() => '') : ''
   const order = dateOrder(prefs)
   const { rows: [header = [], ...rows], problem } = readCsv(raw)
-  const at = (r: string[], name: string) => { const i = colOf(header, name); return i >= 0 ? (r[i] ?? '').trim() : '' }
+  const col = columnsOf(header)
+  const at = (r: string[], name: string) => { const i = col(name); return i >= 0 ? (r[i] ?? '').trim() : '' }
   const jobs: Job[] = problem !== '' ? [] : rows.map(r => {
     const o = orderFor(r, order)
     const also = alsoOf(at(r, 'notes'), o)
@@ -130,17 +112,24 @@ async function load($: any): Promise<Summary> {
   const due = active.filter(isDue)
   let drafts = 0
   if (await $.fs.exists('outbox')) {
+    const seen = new Set<string>()
     for (const entry of await $.fs.list('outbox')) {
       // Same reading as the Outbox panel: skip examples and README, ignore case in the status.
       if (entry.kind !== 'file' || !entry.name.endsWith('.md') || entry.name.startsWith('_') || entry.name.toLowerCase() === 'readme.md') continue
+      seen.add(entry.name)
+      // A file is read again only when its size or time changed (hundreds of drafts stay quick).
+      const stamp = `${entry.size}|${entry.mtimeMs}`
+      const known = draftCache.get(entry.name)
+      if (known && known.stamp === stamp && entry.mtimeMs > 0) { if (known.isDraft) drafts++; continue }
       const text: string = noBom(String(await $.fs.read(`outbox/${entry.name}`).catch(() => ''))).replace(/\r\n?/g, '\n').replace(/^\s+(?=---)/, '')
-      if (!/^---\n[\s\S]*?\n---/.test(text)) continue
-      const status = (/^status:\s*["']?([^\s#"']+)/m.exec(text.split(/\n---/)[0] ?? '')?.[1] ?? 'draft').toLowerCase()
+      const status = /^---\n[\s\S]*?\n---/.test(text) ? (/^status:\s*["']?([^\s#"']+)/m.exec(text.split(/\n---/)[0] ?? '')?.[1] ?? 'draft').toLowerCase() : ''
+      draftCache.set(entry.name, { stamp, isDraft: status === 'draft' })
       if (status === 'draft') drafts++
     }
+    for (const name of [...draftCache.keys()]) if (!seen.has(name)) draftCache.delete(name)
   }
   const isClosed = /^search_status:\s*closed/m.test(prefs)
-  return { today, active, closed, due, counts, drafts, isClosed, problem: csvTrouble(problem, 'Your tracker (jobs/tracker.csv)') }
+  return { today, active, closed, due, counts, drafts, isClosed, problem: csvTrouble(problem, 'Your tracker (jobs/tracker.csv)'), sig: fingerprint(raw) }
 }
 
 async function refresh($: any): Promise<Summary> {
@@ -163,7 +152,7 @@ async function say($: any, text: string, isError = false): Promise<void> {
 // One line in history/activity.md, so Codex (or a later Claude session) knows what the user changed
 // here. Only what happened goes in the log; requests for Claude go in the note to Claude.
 async function logActivity($: any, what: string): Promise<void> {
-  await appendLine($, ACTIVITY, activityLine(await $.clock.now(), 'Pipeline panel (Claude)', what))
+  await appendLine(io($), ACTIVITY, activityLine(await $.clock.now(), 'Pipeline panel (Claude)', what))
 }
 
 async function readOrder($: any): Promise<DateOrder> {
@@ -183,64 +172,35 @@ function tidyAlso(notes: string, order: DateOrder): string {
 
 type Change = (get: (c: string) => string, set: (c: string, v: string) => void, today: string, order: DateOrder) => string | { what: string; forClaude?: string }
 
-// Read the tracker fresh, change one job's row, write it back, and tell Claude what changed.
+// Re-read the tracker, change one job's row, write it back, and tell Claude what changed. Refused when
+// the file changed since the board read it (no file lock exists): the board then shows the new version.
 async function saveJob($: any, key: string, change: Change): Promise<void> {
   const today = localDate(await $.clock.now())
   const order = await readOrder($)
-  let result: { what: string; forClaude?: string } = { what: '' }
-  // Optimistic save: if the file changes (Claude, Codex, Excel) between our read and our write, start over from the new version.
-  for (let attempt = 0; ; attempt++) {
-    const original: string = await $.fs.read(TRACKER)
-    const { rows, problem } = readCsv(original)
-    // A damaged file (an unclosed quote, or saved with semicolons) is never written back: that would spread the damage.
-    if (problem !== '') { await refresh($).catch(() => undefined); await say($, csvTrouble(problem, 'Your tracker (jobs/tracker.csv)'), true); return }
-    const header = rows[0] ?? []
-    const idx = (c: string) => {
-      let i = colOf(header, c)
-      if (i < 0) { header.push(c); i = header.length - 1 }
-      return i
-    }
-    // Find the row by the cells exactly as the board read them, before any date in it is tidied.
-    const target = rows.slice(1).find(r => jobKey(c => (colOf(header, c) >= 0 ? (r[colOf(header, c)] ?? '') : '').trim()) === key)
-    if (!target) { await say($, 'That job is no longer in jobs/tracker.csv. Press Refresh, or ask Claude to check the tracker.', true); return }
-    // Only this row's dates are tidied, and only when their meaning is certain; other rows stay as they are.
-    const o = orderFor(target, order)
-    for (const c of DATE_COLS) { const i = colOf(header, c); if (i >= 0 && target[i]) target[i] = toIso(target[i], o) }
-    const ni = colOf(header, 'notes')
-    if (ni >= 0 && target[ni]) target[ni] = tidyAlso(target[ni] ?? '', o)
-    const get = (c: string) => (target[idx(c)] ?? '').trim()
-    const set = (c: string, v: string) => { const i = idx(c); while (target.length <= i) target.push(''); target[i] = plain(v) }
-    const out = change(get, set, today, o)
-    result = typeof out === 'string' ? { what: out } : out
-    for (const r of rows) while (r.length < header.length) r.push('')
-    const next = (original.startsWith(BOM) ? BOM : '') + toCsv(rows)
-    if (await openInExcel($, TRACKER)) {
-      await say($, 'Your tracker is open in Excel. Save and close it there, then try again (otherwise Excel would later put back its older copy).', true)
-      return
-    }
-    try {
-      // Compare and write back to back, so the window for another app's save to slip in stays as small as it can.
-      if ((await $.fs.read(TRACKER)) !== original) {
-        if (attempt < 3) continue
-        await say($, 'Your tracker kept changing while saving (another app may be editing it). Try again in a moment.', true)
-        return
-      }
-      await $.fs.write(TRACKER, next)
-    } catch {
-      await say($, 'Your tracker is open in another app (like Excel). Close it there, then try again.', true)
-      return
-    }
-    // Another app may have saved at the same instant. The change is never applied a second time (that
-    // could push a date back twice); instead, check that the row as saved is still there.
-    const back: string = await $.fs.read(TRACKER).catch(() => next)
-    if (back !== next && !rowKept(back, target)) {
-      await refresh($).catch(() => undefined)
-      await say($, 'Another app saved your tracker at the same moment, so this change may not have stuck. Check the job below and try again if needed.', true)
-      return
-    }
-    await logActivity($, result.what)
-    break
+  const seen = (await read($, summary))?.sig ?? ''
+  const saved = await saveRow(io($), TRACKER, {
+    seen,
+    name: 'Your tracker',
+    label: 'Your tracker (jobs/tracker.csv)',
+    // Found by the cells exactly as the board read them, before any date in the row is tidied.
+    find: (header, rows) => rows.find(r => rowKey(header, r, jobKey) === key),
+    edit: (target, get, set, header) => {
+      // Only this row's dates are tidied, and only when their meaning is certain; other rows stay as they are.
+      const o = orderFor(target, order)
+      for (const c of DATE_COLS) { const i = colOf(header, c); if (i >= 0 && target[i]) target[i] = toIso(target[i], o) }
+      const ni = colOf(header, 'notes')
+      if (ni >= 0 && target[ni]) target[ni] = tidyAlso(target[ni] ?? '', o)
+      const out = change(get, set, today, o)
+      return typeof out === 'string' ? { what: out } : out
+    },
+  })
+  if (!saved.ok) {
+    await refresh($).catch(() => undefined)
+    await say($, saved.why === 'no-row' ? 'That job is no longer in jobs/tracker.csv. Press Refresh, or ask Claude to check the tracker.' : saved.text, true)
+    return
   }
+  const result = saved.result
+  await logActivity($, result.what)
   await refresh($)
   await say($, `Saved: ${result.what}.`)
   const ask = result.forClaude ? ` ${result.forClaude}` : ''

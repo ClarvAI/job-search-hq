@@ -2,8 +2,8 @@ import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
 import type { Contact, Notice, Summary } from '../types'
-import type { DateOrder } from './csvdate'
-import { activityLine, addDays, colOf, csvTrouble, dateOrder, daysBetween, isExcelLock, isIso, localDate, orderFor, pageOf, plain, readCsv, rowKept, toCsv, toIso } from './csvdate'
+import type { DateOrder, FileIo } from './csvdate'
+import { activityLine, addDays, appendLine, colOf, columnsOf, csvTrouble, dateOrder, daysBetween, fingerprint, isIso, localDate, orderFor, pageOf, plain, readCsv, rowKey, saveRow, toIso } from './csvdate'
 
 // Contacts board: the user's networking board over contacts/contacts.csv (the single source of truth).
 // The user records what actually happened (a message sent, a reply, a conversation, a referral);
@@ -14,7 +14,6 @@ const PANE = 'contacts'
 const CONTACTS = 'contacts/contacts.csv'
 const TRACKER = 'jobs/tracker.csv'
 const ACTIVITY = 'history/activity.md'
-const BOM = String.fromCharCode(0xfeff)
 // The files this board reads: when one changes on disk (Claude, Codex, Excel), the board refreshes.
 const WATCHED = ['contacts/contacts.csv', 'jobs/tracker.csv', 'profile/preferences.md']
 // The same words, in the same place (right under the panel's first line), in every panel.
@@ -117,7 +116,8 @@ async function load($: any): Promise<Summary> {
   const { rows: [header = [], ...all], problem } = readCsv(raw)
   // A damaged file shows nothing but the message: its rows can't be trusted.
   const rows = problem === '' ? all : []
-  const at = (r: string[], name: string) => { const i = colOf(header, name); return i >= 0 ? (r[i] ?? '').trim() : '' }
+  const col = columnsOf(header)
+  const at = (r: string[], name: string) => { const i = col(name); return i >= 0 ? (r[i] ?? '').trim() : '' }
   const jobs = await jobStatuses($)
   const order = await readOrder($)
   const contacts: Contact[] = rows.map(r => {
@@ -144,7 +144,7 @@ async function load($: any): Promise<Summary> {
   const byDate = (a: Contact, b: Contact) => (a.nextFollowup || '9999').localeCompare(b.nextFollowup || '9999') || a.name.localeCompare(b.name)
   contacts.sort(byDate)
   const due = contacts.filter(c => isDueContact(c, today))
-  return { today, contacts, due, counts, hasFile, problem: csvTrouble(problem, 'Your contacts file (contacts/contacts.csv)') }
+  return { today, contacts, due, counts, hasFile, problem: csvTrouble(problem, 'Your contacts file (contacts/contacts.csv)'), sig: fingerprint(raw) }
 }
 
 async function refresh($: any): Promise<Summary> {
@@ -173,98 +173,48 @@ async function tellClaude($: any, text: string): Promise<void> {
 
 // One line in history/activity.md, so Codex (or a later Claude session) knows what the user changed here.
 async function logActivity($: any, what: string): Promise<void> {
-  await appendLine($, ACTIVITY, activityLine(await $.clock.now(), 'Contacts panel (Claude)', what))
+  await appendLine(io($), ACTIVITY, activityLine(await $.clock.now(), 'Contacts panel (Claude)', what))
 }
 
-// One line added to the end of history/activity.md. The file is re-read right before the write and
-// checked afterwards, so a line another app added meanwhile is kept and this one is not lost.
-async function appendLine($: any, path: string, lineOut: string): Promise<boolean> {
-  const readNow = async (): Promise<string> => ((await $.fs.exists(path)) ? String(await $.fs.read(path)) : '# Recent activity\n\n')
-  let wrote = false
-  try {
-    for (let attempt = 0; attempt < 4; attempt++) {
-      const before = await readNow()
-      if (wrote && before.includes(lineOut)) return true
-      if ((await readNow()) !== before) continue
-      await $.fs.write(path, before.replace(/\n*$/, '\n') + lineOut)
-      wrote = true
-      if ((await readNow()).includes(lineOut)) return true
-    }
-  } catch { /* the log is a convenience; never block a save on it */ }
-  return false
-}
-
-// True when Excel seems to have the file open (its "~$" lock file is next to it). Without a lock file
-// it may still be open, so a failed save also asks the user to save and close Excel.
-async function openInExcel($: any, path: string): Promise<boolean> {
-  const at = path.lastIndexOf('/')
-  try {
-    const entries: Array<{ name: string }> = await $.fs.list(at < 0 ? '.' : path.slice(0, at))
-    return entries.some(e => isExcelLock(String(e.name), path.slice(at + 1)))
-  } catch { return false }
+// The file calls the shared helpers in csvdate.ts use (the engine interface can't cross an import).
+function io($: any): FileIo {
+  return { exists: p => $.fs.exists(p), read: async p => String(await $.fs.read(p)), write: (p, t) => $.fs.write(p, t), list: d => $.fs.list(d) }
 }
 
 type Change = (get: (c: string) => string, set: (c: string, v: string) => void, today: string) => { what: string; forClaude?: string } | string
 
-// Read contacts.csv fresh, change one person's row, write it back, log it, and tell Claude.
+// Re-read contacts.csv, change one person's row, write it back, log it, and tell Claude. Refused when
+// the file changed since the board read it (no file lock exists): the board then shows the new version.
 // Returns false when nothing was saved (the pane already says why).
 async function saveContact($: any, key: string, change: Change): Promise<boolean> {
   const today = localDate(await $.clock.now())
-  let result: { what: string; forClaude?: string } = { what: '' }
   const order = await readOrder($)
-  for (let attempt = 0; ; attempt++) {
-    if (!(await $.fs.exists(CONTACTS))) { await say($, 'Your contacts file (contacts/contacts.csv) is missing. Ask Claude to check it.', true); return false }
-    const original: string = await $.fs.read(CONTACTS)
-    const { rows, problem } = readCsv(original)
-    // A damaged file is never written back: that would spread the damage.
-    if (problem !== '') { await refresh($).catch(() => undefined); await say($, csvTrouble(problem, 'Your contacts file (contacts/contacts.csv)'), true); return false }
-    if (rows.length === 0) rows.push([...HEADER])
-    const header = rows[0] ?? []
-    const find = (c: string) => colOf(header, c)
-    const idx = (c: string) => {
-      let i = find(c)
-      if (i < 0) { header.push(c); i = header.length - 1 }
-      return i
-    }
-    const target = rows.slice(1).find(r => keyOf(c => (find(c) >= 0 ? (r[find(c)] ?? '') : '')) === key)
-    if (!target) { await say($, 'That person is no longer in your contacts file. Press Refresh, or ask Claude to check it.', true); return false }
-    // Only this person's dates are tidied, and only when their order is certain; other rows stay as they are.
-    const o = orderFor(target, order)
-    for (const c of DATE_COLS) { const i = find(c); if (i >= 0 && target[i]) target[i] = toIso(target[i], o) }
-    const get = (c: string) => (find(c) >= 0 ? (target[find(c)] ?? '') : '').trim()
-    const set = (c: string, v: string) => { const i = idx(c); while (target.length <= i) target.push(''); target[i] = safeCell(v) }
-    const out = change(get, set, today)
-    result = typeof out === 'string' ? { what: out } : out
-    if (result.what === '') return false
-    for (const r of rows) while (r.length < header.length) r.push('')
-    const next = (original.startsWith(BOM) ? BOM : '') + toCsv(rows)
-    if (await openInExcel($, CONTACTS)) {
-      await say($, 'Your contacts file is open in Excel. Save and close it there, then try again (otherwise Excel would later put back its older copy).', true)
-      return false
-    }
-    try {
-      // Re-read right before writing: if Claude, Codex or Excel changed the file meanwhile, redo the change on the new version.
-      if ((await $.fs.read(CONTACTS)) !== original) {
-        if (attempt < 3) continue
-        await say($, 'Your contacts file kept changing while saving (another app may be editing it). Try again in a moment.', true)
-        return false
-      }
-      await $.fs.write(CONTACTS, next)
-    } catch {
-      await say($, 'Your contacts file is open in another app (like Excel). Save and close it there, then try again.', true)
-      return false
-    }
-    // If another app saved at the same instant, never redo the change (it would count a message twice);
-    // check that the saved row is still there instead.
-    const back: string = await $.fs.read(CONTACTS).catch(() => next)
-    if (back !== next && !rowKept(back, target)) {
-      await update($, armed, () => '')
-      await refresh($).catch(() => undefined)
-      await say($, 'Another app saved your contacts file at the same moment, so this change may not have stuck. Check the person below and try again if needed.', true)
-      return false
-    }
-    break
+  const seen = (await read($, summary))?.sig ?? ''
+  const saved = await saveRow(io($), CONTACTS, {
+    seen,
+    name: 'Your contacts file',
+    label: 'Your contacts file (contacts/contacts.csv)',
+    blank: HEADER,
+    clean: safeCell,
+    find: (header, rows) => rows.find(r => rowKey(header, r, keyOf) === key),
+    edit: (target, get, set, header) => {
+      // Only this person's dates are tidied, and only when their order is certain; other rows stay as they are.
+      const o = orderFor(target, order)
+      for (const c of DATE_COLS) { const i = colOf(header, c); if (i >= 0 && target[i]) target[i] = toIso(target[i], o) }
+      const out = change(get, set, today)
+      const result = typeof out === 'string' ? { what: out } : out
+      return result.what === '' ? undefined : result
+    },
+  })
+  if (!saved.ok) {
+    if (saved.why === 'refused') return false
+    await update($, armed, () => '')
+    await refresh($).catch(() => undefined)
+    await say($, saved.why === 'no-row' ? 'That person is no longer in your contacts file. Press Refresh, or ask Claude to check it.'
+      : saved.why === 'missing' ? 'Your contacts file (contacts/contacts.csv) is missing. Ask Claude to check it.' : saved.text, true)
+    return false
   }
+  const result = saved.result
   await logActivity($, result.what)
   await update($, armed, () => '')
   await refresh($)

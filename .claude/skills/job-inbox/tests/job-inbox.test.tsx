@@ -226,3 +226,20 @@ test('accessibility: an empty inbox says so in plain (not dim) text', async ($, 
   expect(JSON.stringify(await ui.drawn())).toContain('{"type":"Text","children":["No new leads right now.')
   await ui.unmount()
 })
+
+test('a choice is refused when leads.csv changed since the inbox read it (find-jobs added leads); the inbox shows them and the next press saves', async ($, on) => {
+  const { files } = setup(on, { 'jobs/leads.csv': LEADS, 'jobs/tracker.csv': TRACKER })
+  await $.command.run({ command: 'job-inbox', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'job-inbox', surface: 'terminal', ...PANE } as never)
+  const more = LEADS + 'L-20261006-01,2026-10-06,Contoso,Office Manager,Austin TX,,,,https://contoso.example/1,,,company site,B,Close to home,,new,,\n'
+  files['jobs/leads.csv'] = more
+  await ui.press({ key: 'L-20261005-02:skip' })
+  expect(files['jobs/leads.csv']).toBe(more)
+  const drawn = JSON.stringify(await ui.drawn())
+  expect(drawn).toContain('Your leads file changed in another app since this panel read it, so nothing was saved')
+  expect(drawn).toContain('Contoso · Office Manager')
+  await ui.press({ key: 'L-20261005-02:skip' })
+  expect(row(files, 'L-20261005-02')).toContain(',skipped,,2026-10-06')
+  expect(row(files, 'L-20261006-01')).toContain('Contoso')
+  await ui.unmount()
+})

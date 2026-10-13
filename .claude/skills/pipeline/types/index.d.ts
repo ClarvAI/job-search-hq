@@ -23,6 +23,8 @@ export type Summary = {
   isClosed: boolean
   // What's wrong with the tracker file ('' when it reads cleanly); nothing is saved while it is set.
   problem: string
+  // Fingerprint of the file's text as last read: a save is refused when the file no longer matches it.
+  sig: string
 }
 
 export type Notice = { text: string; isError: boolean }

@@ -2,8 +2,8 @@ import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
 import type { Field, FileItem, Job, Kit, Notice, Section } from '../types'
-import { activityLine, addDays, colOf, csvTrouble, dateOrder, isExcelLock, isIso, jobKey, localDate, orderFor, pageOf, plain, readCsv, rowKept, toCsv, toIso } from './csvdate'
-import type { DateOrder } from './csvdate'
+import { activityLine, addDays, appendLine, colOf, columnsOf, csvTrouble, dateOrder, fingerprint, isIso, jobKey, localDate, orderFor, pageOf, readCsv, rowKey, saveRow, toIso } from './csvdate'
+import type { DateOrder, FileIo } from './csvdate'
 
 // Apply Kit: while the user fills in an online application form themselves, this pane shows every
 // answer the form will ask for (from profile/ and the job's folder), each with a Copy button.
@@ -222,6 +222,11 @@ function eligibilitySection(prefs: string, salaryAnswer = '', posted = ''): Sect
   const relocValue = relocate !== undefined ? tidy(relocate) : /relocat/i.test(locations) && !isUnset(locations) ? locations : ''
   fields.push(field('relocate', 'Willing to relocate', relocValue))
   fields.push(field('travel', 'Willing to travel', tidy(valueOf(want, /travel/i))))
+  // Hourly and shift work: shown only when the user filled them in (forms for those jobs ask for them).
+  for (const [id, label, key] of [['availability', 'Availability', /^availability$/i], ['hours', 'Hours wanted', /^hours wanted$/i], ['shifts', 'Shifts', /^shifts$/i]] as const) {
+    const v = tidy(valueOf(want, key))
+    if (!isUnset(v)) fields.push(field(id, label, v))
+  }
   fields.push(...salaryFields(want, salaryAnswer, posted))
   return { title: 'Eligibility and preferences', note: auth.note, fields }
 }
@@ -427,7 +432,8 @@ async function loadJobs($: any): Promise<Job[]> {
   const { rows: [header = [], ...rows], problem } = readCsv(raw)
   // A damaged tracker shows no jobs (only the message); its rows can't be trusted.
   if (problem !== '') return []
-  const at = (r: string[], name: string) => { const i = colOf(header, name); return i >= 0 ? (r[i] ?? '').trim() : '' }
+  const col = columnsOf(header)
+  const at = (r: string[], name: string) => { const i = col(name); return i >= 0 ? (r[i] ?? '').trim() : '' }
   return rows.map(r => {
     const folder = at(r, 'folder')
     const o = orderFor(r, order)
@@ -500,8 +506,10 @@ async function build($: any, want: string): Promise<Kit> {
   // A question about what you earn now or earned before is not your salary expectation.
   const salaryAnswer = questions.find(q => /salary|compensation|pay (?:expectation|requirement|range)|expected pay/i.test(q.label) && !/current|previous|prior|last|history|present/i.test(q.label) && q.copy !== '')?.copy ?? ''
   sections.push(contact.section, eligibilitySection(prefs, salaryAnswer, posted), eeoSection(prefs), ...historySections(resume))
-  const problem = csvTrouble(readCsv(await readText($, TRACKER)).problem, 'Your tracker (jobs/tracker.csv)')
-  return { today, job, jobs, sections, questions, hasAnswers, files, followUpDate: addDays(today, FOLLOW_UP_BUSINESS_DAYS, true), problem }
+  // The tracker as it is now: its problems, and the fingerprint "Mark applied" checks before saving.
+  const rawTracker: string = (await $.fs.exists(TRACKER).catch(() => false)) ? await $.fs.read(TRACKER).then(String, () => '') : ''
+  const problem = csvTrouble(readCsv(rawTracker).problem, 'Your tracker (jobs/tracker.csv)')
+  return { today, job, jobs, sections, questions, hasAnswers, files, followUpDate: addDays(today, FOLLOW_UP_BUSINESS_DAYS, true), problem, sig: fingerprint(rawTracker) }
 }
 
 async function refresh($: any): Promise<Kit> {
@@ -522,109 +530,63 @@ async function say($: any, text: string, isError = false): Promise<void> {
 }
 
 async function logActivity($: any, what: string): Promise<void> {
-  await appendLine($, ACTIVITY, activityLine(await $.clock.now(), 'Apply Kit panel (Claude)', what))
+  await appendLine(io($), ACTIVITY, activityLine(await $.clock.now(), 'Apply Kit panel (Claude)', what))
 }
 
-// One line added to the end of history/activity.md. The file is re-read right before the write and
-// checked afterwards, so a line another app added meanwhile is kept and this one is not lost.
-async function appendLine($: any, path: string, lineOut: string): Promise<boolean> {
-  const readNow = async (): Promise<string> => ((await $.fs.exists(path)) ? String(await $.fs.read(path)) : '# Recent activity\n\n')
-  let wrote = false
-  try {
-    for (let attempt = 0; attempt < 4; attempt++) {
-      const before = await readNow()
-      if (wrote && before.includes(lineOut)) return true
-      if ((await readNow()) !== before) continue
-      await $.fs.write(path, before.replace(/\n*$/, '\n') + lineOut)
-      wrote = true
-      if ((await readNow()).includes(lineOut)) return true
-    }
-  } catch { /* the log is a convenience; never block a save on it */ }
-  return false
+// The file calls the shared helpers in csvdate.ts use (the engine interface can't cross an import).
+function io($: any): FileIo {
+  return { exists: p => $.fs.exists(p), read: async p => String(await $.fs.read(p)), write: (p, t) => $.fs.write(p, t), list: d => $.fs.list(d) }
 }
 
-// True when Excel seems to have the file open (its "~$" lock file is next to it). Without a lock file
-// it may still be open, so a failed save also asks the user to save and close Excel.
-async function openInExcel($: any, path: string): Promise<boolean> {
-  const at = path.lastIndexOf('/')
-  try {
-    const entries: Array<{ name: string }> = await $.fs.list(at < 0 ? '.' : path.slice(0, at))
-    return entries.some(e => isExcelLock(String(e.name), path.slice(at + 1)))
-  } catch { return false }
-}
-
-// Re-read the tracker, set the one row to applied, write it back, log it, and tell Claude.
+// Re-read the tracker, set the one row to applied, write it back, log it, and tell Claude. Refused when
+// the tracker changed since the kit read it (no file lock exists): the kit then shows the new version.
 async function markApplied($: any, job: Job): Promise<void> {
   const today = localDate(await $.clock.now())
-  let what = ''
-  let saved = { nextAction: '', nextDate: '' }
   const order = dateOrder(await readText($, PREFS))
-  for (let attempt = 0; ; attempt++) {
-    let original = ''
-    try { original = await $.fs.read(TRACKER) } catch { await say($, 'I couldn\'t read your tracker (jobs/tracker.csv). Ask Claude to check it.', true); return }
-    const { rows, problem } = readCsv(original)
-    // A damaged tracker is never written back: that would spread the damage.
-    if (problem !== '') { await update($, armed, () => false); await say($, csvTrouble(problem, 'Your tracker (jobs/tracker.csv)'), true); return }
-    const header = rows[0] ?? []
-    const find = (c: string) => colOf(header, c)
-    const idx = (c: string) => { let i = find(c); if (i < 0) { header.push(c); i = header.length - 1 } return i }
-    // Find the row by its cells as read, before any of its dates is tidied; other rows stay as they are.
-    const target = rows.slice(1).find(r => jobKey(c => (find(c) >= 0 ? (r[find(c)] ?? '') : '').trim()) === job.key)
-    if (!target) { await say($, 'That job is no longer in your tracker. Press Refresh, or ask Claude to check it.', true); return }
-    const o = orderFor(target, order)
-    for (const c of DATE_COLS) { const i = find(c); if (i >= 0 && target[i]) target[i] = toIso(target[i], o) }
-    const ni = find('notes')
-    if (ni >= 0 && target[ni]) target[ni] = tidyAlso(target[ni] ?? '', o)
-    const get = (c: string) => (target[idx(c)] ?? '').trim()
-    const set = (c: string, v: string) => { const i = idx(c); while (target.length <= i) target.push(''); target[i] = plain(v) }
-    if (get('status').toLowerCase() !== 'interested') {
-      await update($, armed, () => false)
-      await say($, `${job.company} is already marked "${get('status')}" in your tracker, so nothing was changed.`, true)
-      await refresh($)
-      return
-    }
-    const contact = get('contact').split(/[;,]/)[0]?.trim() ?? ''
-    saved = { nextAction: contact ? `Follow up with ${contact}` : 'Follow up', nextDate: addDays(today, FOLLOW_UP_BUSINESS_DAYS, true) }
-    set('status', 'applied')
-    set('date_applied', today)
-    set('next_action', saved.nextAction)
-    set('next_action_date', saved.nextDate)
-    set('followups', '0')
-    for (const r of rows) while (r.length < header.length) r.push('')
-    what = `${job.company} (${job.role}): marked applied on ${today}; follow-up set for ${saved.nextDate}`
-    const next = (original.startsWith(BOM) ? BOM : '') + toCsv(rows)
-    if (await openInExcel($, TRACKER)) {
-      await say($, 'Your tracker is open in Excel. Save and close it there, then press "Yes, I submitted it" again (otherwise Excel would later put back its older copy).', true)
-      return
-    }
-    try {
-      // Compare and write back to back, so another app's save has the smallest window to slip in.
-      if ((await $.fs.read(TRACKER)) !== original) {
-        if (attempt < 3) continue
-        await say($, 'Your tracker kept changing while saving (another app may be editing it). Try again in a moment.', true)
-        return
-      }
-      await $.fs.write(TRACKER, next)
-    } catch {
-      await say($, 'Your tracker is open in another app (like Excel). Save and close it there, then try again.', true)
-      return
-    }
-    // If another app saved at the same instant, never redo the change; check the saved row is still there.
-    const back: string = await $.fs.read(TRACKER).catch(() => next)
-    if (back !== next && !rowKept(back, target)) {
-      await update($, armed, () => false)
-      await refresh($).catch(() => undefined)
-      await say($, 'Another app saved your tracker at the same moment, so "applied" may not have been recorded. Check the job, and tell Claude you applied if it still shows "interested".', true)
-      return
-    }
-    break
+  const seen = (await read($, kit))?.sig ?? ''
+  const nextAction = (contact: string) => (contact ? `Follow up with ${contact}` : 'Follow up')
+  let already = ''
+  const saved = await saveRow(io($), TRACKER, {
+    seen,
+    name: 'Your tracker',
+    label: 'Your tracker (jobs/tracker.csv)',
+    // Found by its cells as read, before any of its dates is tidied; other rows stay as they are.
+    find: (header, rows) => rows.find(r => rowKey(header, r, jobKey) === job.key),
+    edit: (target, get, set, header) => {
+      if (get('status').toLowerCase() !== 'interested') { already = get('status'); return undefined }
+      const o = orderFor(target, order)
+      for (const c of DATE_COLS) { const i = colOf(header, c); if (i >= 0 && target[i]) target[i] = toIso(target[i], o) }
+      const ni = colOf(header, 'notes')
+      if (ni >= 0 && target[ni]) target[ni] = tidyAlso(target[ni] ?? '', o)
+      const out = { nextAction: nextAction(get('contact').split(/[;,]/)[0]?.trim() ?? ''), nextDate: addDays(today, FOLLOW_UP_BUSINESS_DAYS, true) }
+      set('status', 'applied')
+      set('date_applied', today)
+      set('next_action', out.nextAction)
+      set('next_action_date', out.nextDate)
+      set('followups', '0')
+      return out
+    },
+  })
+  if (!saved.ok) {
+    await update($, armed, () => false)
+    await refresh($).catch(() => undefined)
+    const text = saved.why === 'refused' ? `${job.company} is already marked "${already}" in your tracker, so nothing was changed.`
+      : saved.why === 'no-row' ? 'That job is no longer in your tracker. Press Refresh, or ask Claude to check it.'
+      : saved.why === 'excel' ? 'Your tracker is open in Excel. Save and close it there, then press "Yes, I submitted it" again (otherwise Excel would later put back its older copy).'
+      : saved.why === 'changed' ? 'Your tracker changed in another app since this kit read it, so nothing was saved. The kit now shows the latest version: check it, then press "Yes, I submitted it" again.'
+      : saved.why === 'lost' ? 'Another app saved your tracker at the same moment, so "applied" may not have been recorded. Check the job, and tell Claude you applied if it still shows "interested".'
+      : saved.text
+    await say($, text, true)
+    return
   }
+  const result = saved.result
+  const what = `${job.company} (${job.role}): marked applied on ${today}; follow-up set for ${result.nextDate}`
   await logActivity($, what)
   await update($, armed, () => false)
   await refresh($)
-  await say($, `Marked applied today (${today}). Follow-up is set for ${saved.nextDate}. Save or screenshot the confirmation page.`)
+  await say($, `Marked applied today (${today}). Follow-up is set for ${result.nextDate}. Save or screenshot the confirmation page.`)
   await $.session.append({
-    message: { type: 'user', content: [{ type: 'text', text: `[Apply Kit] The user marked ${job.company} (${job.role}) as applied from the Apply Kit. jobs/tracker.csv now has status=applied, date_applied=${today}, next_action=${saved.nextAction}, next_action_date=${saved.nextDate}, followups=0. If they actually applied on another day, ask and correct the dates. Finish what the apply skill does after submitting (e.g. a recruiter question in the Outbox, contacts/contacts.csv if someone referred them). If the dashboard is published (profile/published-pages.md), republish it the next time the user talks to you.` }] },
+    message: { type: 'user', content: [{ type: 'text', text: `[Apply Kit] The user marked ${job.company} (${job.role}) as applied from the Apply Kit. jobs/tracker.csv now has status=applied, date_applied=${today}, next_action=${result.nextAction}, next_action_date=${result.nextDate}, followups=0. If they actually applied on another day, ask and correct the dates. Finish what the apply skill does after submitting (e.g. a recruiter question in the Outbox, contacts/contacts.csv if someone referred them). If the dashboard is published (profile/published-pages.md), republish it the next time the user talks to you.` }] },
   }).catch(() => undefined)
 }
 

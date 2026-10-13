@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
-import type { Draft, Notice } from '../types'
+import type { AttachFile, AttachPlan, Draft, Notice } from '../types'
 
 // Outbox: Claude writes drafts as files in outbox/; the user reviews them here.
 // Only the user's press of a confirm button creates a Gmail draft or sends email.
@@ -15,8 +15,19 @@ const LINKEDIN_NOTE_LIMIT = 200
 // Blanks left to fill in: [Name], {First name}, {{name}}, <Company> (an address in angle brackets is
 // fine), or a run of underscores.
 const PLACEHOLDER = /\[[^\]\n]{1,60}\]|\{\{?[^{}\n]{1,60}\}\}?|<[^<>@:/\n]{1,40}>|_{3,}/
-// The Outbox can't attach files: a message that says it has one is sent from Gmail by the user.
+// A message that says it has an attachment never goes out with the panel's Send: it becomes a Gmail
+// draft, with the file attached when it can be found safely (below), and the user sends it from Gmail.
 const ATTACHMENT = /\battach(?:ed|ment|ing)\b|\benclosed\b/i
+// Attachments (Gmail drafts only): a PDF in the draft's own job folder (`job:` header), named in the
+// `attach:` header or, failing that, the one finished resume or cover letter PDF there when the text
+// mentions it. Never a "-CHECK" PDF (it hasn't passed its checks), never a link, never a file outside
+// jobs/<folder>/. One read is at most 4 MiB (the engine's limit for $.fs.read); Gmail takes 25 MB per
+// message in all, so 10 MiB in all is well inside it. Anything off: the draft is made without that
+// file and the panel says plainly what to attach by hand.
+const MAX_ATTACH_BYTES = 4 * 1024 * 1024
+const MAX_ATTACH_TOTAL = 10 * 1024 * 1024
+const MIN_PDF_BYTES = 3000
+const FOLDER_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
 // Drafts with a Gmail call in progress (a plain Set: checked and set with no await in between).
 const inFlight = new Set<string>()
 
@@ -24,7 +35,8 @@ const drafts = atom({ plugin: 'outbox', key: 'drafts' } as const, [] as Draft[])
 const waiting = atom({ plugin: 'outbox', key: 'waiting' } as const, [] as Draft[])
 const broken = atom({ plugin: 'outbox', key: 'broken' } as const, [] as string[])
 const armed = atom({ plugin: 'outbox', key: 'armed' } as const, '')
-const notice = atom({ plugin: 'outbox', key: 'notice' } as const, { text: '', isError: false } as Notice)
+const notice = atom({ plugin: 'outbox', key: 'notice' } as const, { text: '', isError: false, link: '' } as Notice)
+const attachPlan = atom({ plugin: 'outbox', key: 'attachPlan' } as const, null as AttachPlan | null)
 // draft-only (default): approving makes a Gmail draft the user sends themselves.
 // send: the user switched this on in profile/preferences.md; approving sends.
 const mode = atom({ plugin: 'outbox', key: 'mode' } as const, 'draft-only')
@@ -88,6 +100,8 @@ function parse(file: string, raw: string): Draft | undefined {
     status: (get('status') || 'draft').toLowerCase(),
     replyTo: get('reply_to'),
     body: (match[2] ?? '').trim(),
+    attach: get('attach'),
+    sig: hash(raw),
   }
 }
 
@@ -250,6 +264,9 @@ async function sendBlocked($: any, d: Draft): Promise<string> {
     : `A send of this message at ${r.at ?? 'an earlier time'} was never confirmed, so it won't be sent again from here until you check. Look in your Gmail Sent folder: if it's there, press "Mark sent…". If it isn't, press "Not in my Sent folder…".`
 }
 
+// Parsed drafts by file name, with the size and time they had when read (a cache: a reload starts it over).
+const fileCache = new Map<string, { stamp: string; draft: Draft | undefined }>()
+
 async function scan($: any): Promise<Draft[]> {
   await settings($).catch(() => undefined)
   const found0 = await findGmail($, configuredServer).catch(() => ({ server: configuredServer, state: 'unknown' }))
@@ -262,18 +279,32 @@ async function scan($: any): Promise<Draft[]> {
   const pending: Draft[] = []
   const bad: string[] = []
   const entries = (await $.fs.exists(DIR)) ? await $.fs.list(DIR) : []
+  const names = new Set<string>()
   for (const entry of entries) {
     if (entry.kind !== 'file' || !entry.name.endsWith('.md') || entry.name.startsWith('_') || entry.name.toLowerCase() === 'readme.md') continue
-    const draft = parse(entry.name, await $.fs.read(`${DIR}/${entry.name}`).catch(() => ''))
+    names.add(entry.name)
+    // A file is read again only when its size or time changed (the list is polled; hundreds stay quick).
+    const stamp = `${entry.size}|${entry.mtimeMs}`
+    const known = fileCache.get(entry.name)
+    const draft = known && known.stamp === stamp && entry.mtimeMs > 0 ? known.draft : parse(entry.name, await $.fs.read(`${DIR}/${entry.name}`).catch(() => ''))
+    fileCache.set(entry.name, { stamp, draft })
     if (!draft) { bad.push(entry.name); continue }
     if (draft.status === 'draft') found.push(draft)
     else if (draft.status === 'in-gmail-drafts') pending.push(draft)
   }
+  for (const name of [...fileCache.keys()]) if (!names.has(name)) fileCache.delete(name)
   found.sort((a, b) => a.file.localeCompare(b.file))
   pending.sort((a, b) => a.file.localeCompare(b.file))
   bad.sort()
   const held2: string[] = []
+  // Send records are looked up only for drafts that have one (one look at the store's keys, not two to
+  // four reads per draft).
+  const root = await rootOf($)
+  // If the keys can't be listed, every draft is checked the slow way.
+  const stored: Set<string> | null = await Promise.resolve().then(() => $.store.keys()).then((k: unknown) => (Array.isArray(k) ? new Set(k.map(String)) : null), () => null)
   for (const d of found) {
+    const may = stored === null || [root, ''].some(rt => stored.has(receiptKey(d.file, rt)) || stored.has(messageKey(d, rt)))
+    if (!may) continue
     const r = await Promise.resolve().then(() => receiptOf($, d)).catch(() => undefined)
     if (r && r.state !== 'sent') held2.push(d.file)
   }
@@ -297,8 +328,8 @@ async function focusFirst($: any): Promise<void> {
   focusOn($, !first ? 'refresh' : first.status === 'in-gmail-drafts' ? `${first.file}:marksent` : first.channel === 'email' ? `${first.file}:approve` : `${first.file}:copy`)
 }
 
-async function say($: any, text: string, isError = false): Promise<void> {
-  await update($, notice, () => ({ text, isError }))
+async function say($: any, text: string, isError = false, link = ''): Promise<void> {
+  await update($, notice, () => ({ text, isError, link }))
 }
 
 async function tellClaude($: any, text: string): Promise<void> {
@@ -347,14 +378,17 @@ async function stampNow($: any): Promise<string> {
 // happened: Gmail already did it (sent, or made the Gmail draft), so the file must record that even
 // if someone edited the draft meanwhile; it is never left looking like a draft to approve again.
 // sentOn: the day the user says they sent it themselves (YYYY-MM-DD); blank means today.
-async function mark($: any, draft: Draft, status: string, logText: string, paneText: string, happened = false, sentOn = ''): Promise<void> {
+// link: an "Open in Gmail" address to show with the message ('' for none).
+async function mark($: any, draft: Draft, status: string, logText: string, paneText: string, happened = false, sentOn = '', link = ''): Promise<void> {
   const path = `${DIR}/${draft.file}`
   const stamp = await stampNow($)
   // Re-read first: the file may have changed in another app since the pane was drawn.
   const current: string = await (async () => ((await $.fs.exists(path)) ? await $.fs.read(path) : ''))().catch(() => '')
   const now = parse(draft.file, current)
   const changed = now !== undefined && (now.body !== draft.body || now.to !== draft.to || now.subject !== draft.subject || now.cc !== draft.cc)
-  if (!happened && (!now || now.status === 'sent' || now.status === status || changed)) {
+  // Any change to the file since the panel read it (there is no file lock): the user looks again first.
+  const touched = now !== undefined && now.sig !== draft.sig
+  if (!happened && (!now || now.status === 'sent' || now.status === status || changed || touched)) {
     await update($, armed, () => '')
     await say($, now?.status === 'sent' ? `"${title(draft)}" is already marked sent, so it was left as is.` : 'That draft changed or moved since this list was drawn. Look it over again.', true)
     await scan($)
@@ -377,7 +411,7 @@ async function mark($: any, draft: Draft, status: string, logText: string, paneT
     : ''
   await logActivity($, stamp, `${title(draft)}: ${status === 'sent' ? (sentOn && sentOn !== stamp.slice(0, 10) ? `sent on ${sentOn}` : 'sent') : status === 'discarded' ? 'discarded' : 'Gmail draft created (not sent yet)'}`)
   await update($, armed, () => '')
-  await say($, paneText)
+  await say($, paneText, false, link)
   await scan($)
   const followUp = status === 'sent' && sentOn !== ''
     ? ` The user says they sent it on ${sentOn}: use that date. Update contacts/contacts.csv for the contact(s) named in the draft following the playbook rule "When the user sends someone a message" (never move a replied/talked/referred contact back to contacted), update jobs/tracker.csv if it relates to a job, add a line to history/activity.md for those changes (the panel already logged the send), then move the file to outbox/sent/.`
@@ -407,6 +441,120 @@ function title(d: Draft): string {
   if (d.channel === 'email') return d.subject || '(no subject)'
   // Words, not an arrow: a screen reader reads "→" as "right arrow".
   return `${d.channel === 'linkedin' ? 'LinkedIn message' : d.channel} to ${d.to || '(no one named)'}`
+}
+
+// ---- Attachments ----
+
+// True when the message says it carries a file (or names one in `attach:`): it is never sent from the
+// panel; it becomes a Gmail draft, with the file attached when it can be found safely.
+const mentionsAttachment = (d: Draft) => d.attach.trim() !== '' || ATTACHMENT.test(d.body)
+
+const sizeText = (n: number) => (n >= 1024 * 1024 ? `${(n / (1024 * 1024)).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`)
+
+// Where a path really lands, with '/' between folders, or '' when it can't be told (then nothing is attached).
+async function realOf($: any, path: string): Promise<{ real: string; isLink: boolean; kind: string }> {
+  const st: any = await $.fs.stat(path, { resolve: true }).catch(() => undefined)
+  return { real: String(st?.realPath ?? '').replace(/\\/g, '/').replace(/\/+$/, ''), isLink: Boolean(st?.isLink), kind: String(st?.kind ?? '') }
+}
+
+// Which files "Create Gmail draft" will attach for this draft, checked before the user sees them.
+async function planAttachments($: any, d: Draft): Promise<AttachPlan> {
+  const plan: AttachPlan = { file: d.file, isWanted: mentionsAttachment(d), files: [], problems: [] }
+  if (!plan.isWanted) return plan
+  const folder = d.job.trim()
+  if (folder === '' || !FOLDER_NAME.test(folder) || folder.includes('..')) {
+    plan.problems.push(folder === '' ? "the draft doesn't say which job folder the file is in" : `"${folder}" isn't a job folder name`)
+    return plan
+  }
+  const dir = `jobs/${folder}`
+  let listing: Array<{ name: string; kind: string; size: number; mtimeMs: number; isLink?: boolean }> = []
+  try { listing = await $.fs.list(dir) } catch { plan.problems.push(`the job folder ${dir} wasn't found`); return plan }
+  const isPdf = (n: string) => /\.pdf$/i.test(n)
+  const isCheck = (n: string) => /-check\.pdf$/i.test(n)
+  // What to attach: the names in `attach:`, else the finished resume and/or cover letter PDF the text mentions.
+  const picks: Array<{ name: string; label: string; source: string }> = []
+  const named = d.attach.split(/[,;]/).map(n => n.trim()).filter(Boolean)
+  if (named.length > 0) {
+    for (const n of named) {
+      if (/[\\/]/.test(n) || n.startsWith('.') || !isPdf(n)) plan.problems.push(`${n} isn't a PDF file name in ${dir}`)
+      else if (isCheck(n)) plan.problems.push(`${n} is a check copy that hasn't passed its checks (ask Claude to make the PDF again)`)
+      else picks.push({ name: n, label: n, source: /-cover-letter-/i.test(n) ? 'cover-letter.html' : /-resume-/i.test(n) ? 'resume.html' : '' })
+    }
+  } else {
+    const kinds = [
+      { label: 'resume', test: /\b(?:resume|résumé|cv)\b/i, file: /-resume-[^/]*\.pdf$/i, source: 'resume.html' },
+      { label: 'cover letter', test: /\bcover letter\b/i, file: /-cover-letter-[^/]*\.pdf$/i, source: 'cover-letter.html' },
+    ].filter(k => k.test.test(d.body))
+    if (kinds.length === 0) plan.problems.push("the message doesn't say which file it means (your resume or cover letter)")
+    for (const k of kinds) {
+      const found = listing.filter(e => e.kind === 'file' && isPdf(e.name) && !isCheck(e.name) && k.file.test(e.name))
+      if (found.length === 1) picks.push({ name: found[0]?.name ?? '', label: k.label, source: k.source })
+      else if (found.length === 0) plan.problems.push(`there's no finished ${k.label} PDF in ${dir} yet`)
+      else plan.problems.push(`there's more than one ${k.label} PDF in ${dir} (${found.map(e => e.name).join(', ')}), so the panel won't guess`)
+    }
+  }
+  if (picks.length === 0) return plan
+  const base = await realOf($, '.')
+  const dirReal = await realOf($, dir)
+  const isInside = base.real !== '' && dirReal.real !== '' && !dirReal.isLink && dirReal.real.toLowerCase().startsWith(`${base.real.toLowerCase()}/jobs/`)
+  let total = 0
+  for (const pk of picks) {
+    const e = listing.find(x => x.name === pk.name)
+    const path = `${dir}/${pk.name}`
+    if (!e) { plan.problems.push(`${pk.name} isn't in ${dir}`); continue }
+    if (e.kind !== 'file' || e.isLink) { plan.problems.push(`${pk.name} is a link or not a plain file, so it isn't attached`); continue }
+    const at = await realOf($, path)
+    if (!isInside || at.isLink || at.kind !== 'file' || at.real !== `${dirReal.real}/${pk.name}`) { plan.problems.push(`${pk.name} isn't a plain file inside ${dir}, so it isn't attached`); continue }
+    if (e.size < MIN_PDF_BYTES) { plan.problems.push(`${pk.name} looks empty or broken (ask Claude to make it again)`); continue }
+    if (e.size > MAX_ATTACH_BYTES) { plan.problems.push(`${pk.name} is ${sizeText(e.size)}, too big to attach from here (4 MB at most)`); continue }
+    const src = pk.source ? listing.find(x => x.name === pk.source) : undefined
+    if (src && src.mtimeMs > e.mtimeMs) { plan.problems.push(`${pk.name} is older than your latest ${pk.label} (${pk.source}), so it may be out of date (ask Claude to rebuild the PDF)`); continue }
+    if (total + e.size > MAX_ATTACH_TOTAL) { plan.problems.push(`${pk.name} would make the email too big (10 MB in all at most)`); continue }
+    total += e.size
+    plan.files.push({ name: pk.name, path, size: e.size, mtimeMs: e.mtimeMs })
+  }
+  return plan
+}
+
+// The confirm row's words about attachments ('' when the message mentions none).
+function attachText(plan: AttachPlan | null): string {
+  if (!plan || !plan.isWanted) return ''
+  const will = plan.files.length > 0 ? `It will attach ${plan.files.map(f => `${f.name} (${sizeText(f.size)})`).join(' and ')} from jobs/${plan.files[0]?.path.split('/')[1] ?? ''}. ` : ''
+  const wont = plan.problems.length > 0 ? `This message mentions an attachment, but ${plan.problems.join('; ')}. The draft will be made without it: attach the file in Gmail before you send. ` : ''
+  return (will + wont).trim()
+}
+
+// Reads the planned files again right before the Gmail call: the same file (name, size, date) as shown,
+// a real PDF, within the size limit. What can't be attached now is named, never silently dropped.
+async function loadAttachments($: any, d: Draft, shown: AttachPlan | null): Promise<{ list: Array<{ filename: string; mimeType: string; content: string }>; names: string[]; problems: string[] }> {
+  const out = { list: [] as Array<{ filename: string; mimeType: string; content: string }>, names: [] as string[], problems: [] as string[] }
+  if (!shown || shown.file !== d.file || !shown.isWanted) return out
+  out.problems.push(...shown.problems)
+  const now = await planAttachments($, d).catch(() => ({ file: d.file, isWanted: true, files: [] as AttachFile[], problems: [] as string[] }))
+  for (const f of shown.files) {
+    const same = now.files.find(x => x.name === f.name && x.size === f.size && x.mtimeMs === f.mtimeMs)
+    if (!same) { out.problems.push(`${f.name} changed or moved after you opened this, so it wasn't attached`); continue }
+    const bytes: any = await $.fs.read(same.path, { as: 'bytes' }).catch(() => undefined)
+    const b64 = String(bytes?.base64 ?? '')
+    // A PDF starts with "%PDF-" ("JVBER" in base64), and is no bigger than what was checked.
+    if (!b64.startsWith('JVBER') || Math.floor((b64.replace(/=+$/, '').length * 3) / 4) > MAX_ATTACH_BYTES) { out.problems.push(`${f.name} couldn't be read as a PDF, so it wasn't attached`); continue }
+    out.list.push({ filename: f.name, mimeType: 'application/pdf', content: b64 })
+    out.names.push(f.name)
+  }
+  return out
+}
+
+// The "Open in Gmail" address Gmail gives for a new draft (only a mail.google.com address is used).
+function viewUrlOf(result: any): string {
+  const ok = (v: unknown) => (typeof v === 'string' && /^https:\/\/mail\.google\.com\/[^\s"'<>]*$/.test(v) ? v : '')
+  const sc = result?.structuredContent
+  const found = [ok(sc?.viewUrl), ok(sc?.draft?.viewUrl)]
+  for (const c of (result?.content ?? []) as any[]) {
+    const text = String(c?.text ?? '')
+    try { const j = JSON.parse(text); found.push(ok(j?.viewUrl), ok(j?.draft?.viewUrl)) } catch { /* not JSON */ }
+    found.push(ok(/"viewUrl"\s*:\s*"([^"]+)"/.exec(text)?.[1]), ok(/(https:\/\/mail\.google\.com\/[^\s"'<>)\]]+)/.exec(text)?.[1]))
+  }
+  return found.find(Boolean) ?? ''
 }
 
 // The Gmail connector's name from the plugin's settings (gmail_server), used when it is connected.
@@ -494,9 +642,14 @@ export const register: Register = (on, options) => {
     const listPage = pageOf(list, await read($, page), SHOWN)
     const heldPage = pageOf(held, await read($, waitingPage), SHOWN)
     const firstFile = listPage.items[0]?.file ?? ''
+    const plan = await read($, attachPlan)
 
     const card = (d: Draft) => {
       const isEmail = d.channel === 'email'
+      // A message that mentions an attachment is never sent from here, even in send mode: it becomes a
+      // Gmail draft (with the file attached when it can be found safely) that the user sends from Gmail.
+      const hasFile = mentionsAttachment(d)
+      const useSend = canSend && !hasFile
       const name = d.subject || d.file
       const action = target.startsWith(`${d.file}|`) ? target.slice(d.file.length + 1) : ''
       const meta = [isEmail ? `To: ${d.to || '(no recipient)'}` : '', d.cc && `cc: ${d.cc}`, d.job && `job: ${d.job}`, d.replyTo && 'reply in the same thread']
@@ -526,14 +679,16 @@ export const register: Register = (on, options) => {
                 : `${chars} characters (message to an existing connection)`}
             </Text>
           )}
-          {action === 'sending' && <Text bold wrap="wrap">{canSend ? 'Sending…' : 'Creating the Gmail draft…'}</Text>}
+          {canSend && hasFile && isEmail && d.status === 'draft' && <Text wrap="wrap">This message mentions an attachment, so it goes to your Gmail drafts (with the file attached when it can be found) and you send it from Gmail. The Outbox never sends attachments itself.</Text>}
+          {action === 'sending' && <Text bold wrap="wrap">{useSend ? 'Sending…' : 'Creating the Gmail draft…'}</Text>}
           {action === 'approve' && (
             <Box flexDirection="column">
-              <Text bold wrap="wrap">{canSend
+              <Text bold wrap="wrap">{useSend
                 ? `Send "${name}" from your Gmail (connection: ${server}) to ${d.to} now? This can't be undone.`
                 : `Create a Gmail draft to ${d.to} in your Gmail (connection: ${server})? Nothing is sent; you send it from Gmail when you're ready.`}</Text>
+              {!useSend && attachText(plan && plan.file === d.file ? plan : null) !== '' && <Text wrap="wrap">{attachText(plan && plan.file === d.file ? plan : null)}</Text>}
               <Box flexDirection="row" gap={1}>
-                <Button key={`${d.file}:confirm`} label={canSend ? 'Send email' : 'Create Gmail draft'} variant="primary" onPress={async () => {
+                <Button key={`${d.file}:confirm`} label={useSend ? 'Send email' : 'Create Gmail draft'} variant="primary" onPress={async () => {
                   // Lock synchronously before any await, so a second press can't send twice.
                   if (inFlight.has(d.file)) return
                   inFlight.add(d.file)
@@ -559,13 +714,13 @@ export const register: Register = (on, options) => {
                   }
                   // The signature is part of what the user approved: a changed one means reading it again.
                   const sigNow = await read($, signature)
-                  if (!fresh || fresh.status !== 'draft' || fresh.body !== d.body || fresh.to !== d.to || fresh.subject !== d.subject || fresh.cc !== d.cc || stillSend !== canSend || sigNow !== sig) {
+                  if (!fresh || fresh.status !== 'draft' || fresh.sig !== d.sig || fresh.body !== d.body || fresh.to !== d.to || fresh.subject !== d.subject || fresh.cc !== d.cc || stillSend !== canSend || sigNow !== sig) {
                     await update($, armed, () => '')
                     await say($, 'This draft (or your Outbox setting) changed since you opened it. Read it again before approving.', true)
                     await scan($)
                     return
                   }
-                  if (canSend) {
+                  if (useSend) {
                     // Never send the same draft twice: check for an earlier send, then leave a receipt
                     // before calling Gmail. If either step can't be done, nothing is sent.
                     const blocked = await sendBlocked($, d)
@@ -585,9 +740,12 @@ export const register: Register = (on, options) => {
                   const content = compose(d.body, sig)
                   const args: Record<string, unknown> = { to: addresses(d.to), cc: d.cc ? addresses(d.cc) : undefined, subject: d.subject, ...content }
                   if (d.replyTo) args.replyToMessageId = d.replyTo  // reply_to holds a Gmail message ID
-                  const result: any = await $.mcp.call(server, canSend ? 'send_message' : 'create_draft', args)
+                  // Gmail drafts only: the files shown in the confirm row, read again now. Never on a send.
+                  const att = useSend ? { list: [], names: [] as string[], problems: [] as string[] } : await loadAttachments($, d, hasFile ? await read($, attachPlan) : null)
+                  if (att.list.length > 0) args.attachments = att.list
+                  const result: any = await $.mcp.call(server, useSend ? 'send_message' : 'create_draft', args)
                     .catch((err: unknown) => ({ isError: true, content: [{ type: 'text', text: String(err) }] }))
-                  if (canSend) {
+                  if (useSend) {
                     // An error or a lost answer can still mean Gmail sent it: the receipt stays as "uncertain"
                     // (never removed here), so nothing goes out again until the user has checked Sent.
                     const done: Receipt = { at: await stampNow($), to: d.to, subject: d.subject, state: result.isError ? 'uncertain' : 'sent', file: d.file }
@@ -595,7 +753,7 @@ export const register: Register = (on, options) => {
                   }
                   if (result.isError) {
                     await update($, armed, () => '')
-                    await say($, canSend
+                    await say($, useSend
                       ? "I couldn't confirm whether it sent. Check your Gmail Sent folder: if it's there, press \"Mark sent…\". If it isn't, press \"Not in my Sent folder…\", then send it again or press Copy and send it from Gmail."
                       : gmailState === 'connected'
                         ? "I couldn't confirm the Gmail draft was created. Check your Gmail Drafts before trying again, so you don't end up with two."
@@ -603,12 +761,15 @@ export const register: Register = (on, options) => {
                     await scan($).catch(() => undefined)
                     const detail = (result.content ?? []).map((c: any) => c.text ?? '').join(' ').slice(0, 400)
                     await tellClaude($, `[Outbox] Gmail call failed for ${DIR}/${d.file} via "${server}": ${detail}. If the user asks, help them check the Gmail connector.`)
-                  } else if (canSend) {
+                  } else if (useSend) {
                     await mark($, d, 'sent', `The user sent "${name}" to ${d.to}`, `Sent "${name}" to ${d.to}.`, true)
                     await focusFirst($)
                   } else {
-                    const attach = ATTACHMENT.test(d.body) ? ' This message mentions an attachment: attach the file in Gmail before you send it.' : ''
-                    await mark($, d, 'in-gmail-drafts', `"${name}" is now a draft in the user's Gmail (not sent yet; they send it from Gmail)${attach ? '. It mentions an attachment; the user attaches the file in Gmail' : ''}`, `Gmail draft created for "${name}". Open Gmail to send it, then press "Mark sent…" under "Waiting in Gmail".${attach}`, true)
+                    const attached = att.names.length > 0 ? ` Attached: ${att.names.join(' and ')}.` : ''
+                    const byHand = att.problems.length > 0 ? ` Not attached: ${att.problems.join('; ')}. Attach the file in Gmail before you send.` : ''
+                    const forClaude = `${att.names.length > 0 ? `, with ${att.names.join(' and ')} attached` : ''}${att.problems.length > 0 ? `. A file it mentions was not attached (${att.problems.join('; ')}); the user attaches it in Gmail` : ''}`
+                    await update($, attachPlan, () => null)
+                    await mark($, d, 'in-gmail-drafts', `"${name}" is now a draft in the user's Gmail (not sent yet; they send it from Gmail)${forClaude}`, `Gmail draft created for "${name}".${attached}${byHand} Open Gmail to send it, then press "Mark sent…" under "Waiting in Gmail".`, true, '', viewUrlOf(result))
                     await focusFirst($)
                   }
                   } catch {
@@ -667,7 +828,7 @@ export const register: Register = (on, options) => {
           )}
           {action === '' && d.status === 'draft' && (
             <Box flexDirection="row" gap={1} flexWrap="wrap">
-              {isEmail && <Button key={`${d.file}:approve`} label={named(canSend ? 'Send…' : 'Create Gmail draft…')} variant="primary" autoFocus={d.file === firstFile ? true : undefined} onPress={async () => {
+              {isEmail && <Button key={`${d.file}:approve`} label={named(useSend ? 'Send…' : 'Create Gmail draft…')} variant="primary" autoFocus={d.file === firstFile ? true : undefined} onPress={async () => {
                 const bad2 = addresses(d.to + ',' + d.cc).filter(a => !EMAIL.test(a))
                 if (addresses(d.to).length === 0 || bad2.length > 0) {
                   await say($, `The recipient address needs fixing (${bad2.join(', ') || 'no "to" address'}). Press "Ask Claude to edit".`, true)
@@ -681,24 +842,23 @@ export const register: Register = (on, options) => {
                   await say($, 'This email has no subject. Press "Ask Claude to edit".', true)
                   return
                 }
-                if (canSend && ATTACHMENT.test(d.body)) {
-                  await say($, 'This message mentions an attachment, and the Outbox can\'t attach files. Press Copy and send it from Gmail with the file attached, or ask Claude to edit it.', true)
-                  return
-                }
                 if (gmailState === 'ambiguous') {
                   await say($, ambiguousText(server), true)
                   return
                 }
-                const blocked = canSend ? await sendBlocked($, d) : ''
+                const blocked = useSend ? await sendBlocked($, d) : ''
                 if (blocked !== '') {
                   await say($, blocked, true)
                   return
                 }
                 await say($, '')
+                // The files a Gmail draft will carry are checked now and shown in the confirm row.
+                const shown = hasFile ? await planAttachments($, d).catch(() => ({ file: d.file, isWanted: true, files: [] as AttachFile[], problems: ["the files couldn't be checked just now"] })) : null
+                await update($, attachPlan, () => shown)
                 await update($, armed, () => `${d.file}|approve`)
                 // Sending can't be undone, so its confirm row starts on Cancel; a Gmail draft sends nothing.
-                focusOn($, canSend ? `${d.file}:cancel` : `${d.file}:confirm`)
-              }}>{canSend ? 'Send…' : 'Create Gmail draft…'}</Button>}
+                focusOn($, useSend ? `${d.file}:cancel` : `${d.file}:confirm`)
+              }}>{useSend ? 'Send…' : 'Create Gmail draft…'}</Button>}
               <Button key={`${d.file}:copy`} label={named('Copy')} autoFocus={!isEmail && d.file === firstFile ? true : undefined} onPress={async press => {
                 if (PLACEHOLDER.test(d.body) || PLACEHOLDER.test(d.to)) {
                   await say($, `This draft still has a placeholder (${(PLACEHOLDER.exec(d.body + d.to) ?? [''])[0]}). Press "Ask Claude to edit" to fill it in.`, true)
@@ -768,7 +928,8 @@ export const register: Register = (on, options) => {
           ? 'Gmail doesn\'t look connected, so "Send…" may not work. Connect Gmail (desktop app: Settings → Connectors; terminal: claude.ai/customize/connectors, then type /mcp), or press Copy and send it yourself.'
           : 'Gmail doesn\'t look connected, so "Create Gmail draft…" may not work. Connect Gmail (desktop app: Settings → Connectors; terminal: claude.ai/customize/connectors, then type /mcp), or press Copy and send it yourself.'}</Text>}
         {!ownSig && <Text color="warning" wrap="wrap">Your signature isn't set up, so emails go without one. Ask Claude to set it up (part of /start).</Text>}
-        {note.text !== '' && <Text color={note.isError ? 'error' : 'success'}>{note.isError ? `Not done: ${note.text}` : note.text}</Text>}
+        {note.text !== '' && <Text color={note.isError ? 'error' : 'success'} wrap="wrap">{note.isError ? `Not done: ${note.text}` : note.text}</Text>}
+        {note.text !== '' && !note.isError && (note.link ?? '') !== '' && <els.Link key="open-gmail" href={note.link} label="Open in Gmail" />}
         {list.length === 0 && held.length === 0 && <Text>No drafts waiting. Ask Claude to draft a follow-up, thank-you note, or networking message.</Text>}
         {listPage.items.map(card)}
         {pager('drafts', listPage, list.length, to => update($, page, () => to))}

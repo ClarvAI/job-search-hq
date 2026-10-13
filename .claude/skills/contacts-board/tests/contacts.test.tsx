@@ -383,3 +383,22 @@ test('"We talked" sets last_contact to today (a later date stays; an unclear one
   expect(files['contacts/contacts.csv']).toContain('Pat Lee,Initech,Analyst,alum,meetup,03/04/2026,,talked,0')
   await ui.unmount()
 })
+
+test('a save is refused when contacts.csv changed in another app since the board read it; the board shows the new version and the next press saves', async ($, on) => {
+  const { files } = setup(on)
+  const ui = await open($, 'terminal')
+  await ui.press({ key: `${K.alex}:replied` })
+  // Codex adds a person while the confirm row is open.
+  const changed = CSV + 'Robin Fox,Globex,Recruiter,recruiter,career fair,,,to-contact,0,,,,\n'
+  files['contacts/contacts.csv'] = changed
+  await ui.press({ key: `${K.alex}:confirm-replied` })
+  expect(files['contacts/contacts.csv']).toBe(changed)
+  const drawn = JSON.stringify(await ui.drawn())
+  expect(drawn).toContain('Your contacts file changed in another app since this panel read it, so nothing was saved')
+  expect(drawn).toContain('Robin Fox')
+  await ui.press({ key: `${K.alex}:replied` })
+  await ui.press({ key: `${K.alex}:confirm-replied` })
+  expect(row(files, 'Alex Kim')).toBe('Alex Kim,Initech,Operations Manager,former-manager,internship,2026-09-28,,replied,0,,,,')
+  expect(row(files, 'Robin Fox')).toContain('Robin Fox,Globex')
+  await ui.unmount()
+})

@@ -190,7 +190,7 @@ test('Mark applied saves the row and logs it', async ($, on) => {
   await ui.unmount()
 })
 
-test('Mark applied changes nothing if another app already moved the job on', async ($, on) => {
+test('Mark applied changes nothing if another app changed the tracker since the kit read it (e.g. moved the job on)', async ($, on) => {
   const { files } = setup(on, FULL())
   await $.command.run({ command: 'apply-kit', args: '' } as never)
   const ui = await $.ui.mount({ plugin: 'apply-kit', surface: 'desktop', ...PANE } as never)
@@ -200,11 +200,11 @@ test('Mark applied changes nothing if another app already moved the job on', asy
   await ui.press({ key: 'confirm-applied' })
   expect(files['jobs/tracker.csv']).toBe(moved)
   expect(files['history/activity.md']).toBeUndefined()
-  expect(JSON.stringify(await ui.drawn())).toContain('already marked')
+  expect(JSON.stringify(await ui.drawn())).toContain('Your tracker changed in another app since this kit read it, so nothing was saved')
   await ui.unmount()
 })
 
-test('an Excel-saved tracker changed by another app mid-save is re-read, and Excel quirks are kept clean', async ($, on) => {
+test('an Excel-saved tracker changed by another app mid-save is refused, saves once the kit shows the new version, and Excel quirks are kept clean', async ($, on) => {
   const excel = '﻿' + HEAD + '\r\n' + 'Globex,Project Manager,interested,10/7/26,Review package and submit,10/20/2026,A,5,Denver CO,10/2/2026,,,,,,,,,globex-pm1,\r\n'
   let saving = false
   let reads = 0
@@ -215,6 +215,10 @@ test('an Excel-saved tracker changed by another app mid-save is re-read, and Exc
   const ui = await $.ui.mount({ plugin: 'apply-kit', surface: 'terminal', ...PANE } as never)
   await ui.press({ key: 'mark-applied' })
   saving = true
+  await ui.press({ key: 'confirm-applied' })
+  expect(files['jobs/tracker.csv']).toContain('Globex,Project Manager,interested,10/7/26')
+  expect(JSON.stringify(await ui.drawn())).toContain('changed in another app since this kit read it')
+  await ui.press({ key: 'mark-applied' })
   await ui.press({ key: 'confirm-applied' })
   const csv = files['jobs/tracker.csv']
   expect((csv ?? '').charCodeAt(0)).toBe(0xfeff)
@@ -458,7 +462,7 @@ test('Mark applied with the tracker gone says so plainly and writes nothing', as
   await ui.press({ key: 'mark-applied' })
   await ui.press({ key: 'confirm-applied' })
   const drawn = JSON.stringify(await ui.drawn())
-  expect(drawn).toContain('Not done: That job is no longer in your tracker')
+  expect(drawn).toContain('Not done: Your tracker is missing')
   expect(files['jobs/tracker.csv']).toBeUndefined()
   await ui.unmount()
 })
@@ -527,5 +531,18 @@ test('Mark applied keeps the row\'s Also: date readable (it is tidied together w
   await ui.press({ key: 'mark-applied' })
   await ui.press({ key: 'confirm-applied' })
   expect(files['jobs/tracker.csv']).toContain('Also: Interview 2026-11-04')
+  await ui.unmount()
+})
+
+test('availability, hours and shifts are copyable when filled in, and left out when blank', async ($, on) => {
+  const prefs = PREFS.replace('- Willing to travel for work: up to 25%', '- Willing to travel for work: up to 25%\n- Availability: weekdays after 3pm, all day weekends\n- Hours wanted: 25-30 a week\n- Shifts: [ASK]')
+  setup(on, { ...FULL(), 'profile/preferences.md': prefs })
+  await $.command.run({ command: 'apply-kit', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'apply-kit', surface: 'terminal', ...PANE } as never)
+  const drawn = JSON.stringify(await ui.drawn())
+  expect(drawn).toContain('weekdays after 3pm, all day weekends')
+  expect(drawn).toContain('25-30 a week')
+  expect(drawn).toContain('"key":"copy:availability"')
+  expect(drawn).not.toContain('"key":"copy:shifts"')
   await ui.unmount()
 })

@@ -96,7 +96,7 @@ test('an application deadline within 3 days is shown and counted as due', async 
   await ui.unmount()
 })
 
-test('an offer answer-by date within 3 days is due, and a save retries when another app changed the file', async ($, on) => {
+test('an offer answer-by date within 3 days is due; a save is refused when another app changed the file since the board read it, and works once the board shows the new version', async ($, on) => {
   const csv = HEAD + '\n' + 'Acme Corp,Sales & Marketing Associate,offer,2026-10-20,Decide on offer,2026-10-07,A,5,Austin TX,2026-09-01,2026-09-05,acme-sma,\n'
   let reads = 0
   // Simulate Codex adding a row right after the panel's save reads the tracker.
@@ -107,6 +107,13 @@ test('an offer answer-by date within 3 days is due, and a save retries when anot
   const drawn = JSON.stringify(await ui.drawn())
   expect(drawn).toContain('Answer the offer by: 2026-10-07')
   saving = true
+  await ui.press({ key: 'acme corp|sales & marketing associate|acme-sma:week' })
+  // Refused: the file is not the version the board was drawn from (there is no file lock to hold).
+  expect(files['jobs/tracker.csv']).toContain('Acme Corp,Sales & Marketing Associate,offer,2026-10-20')
+  const after = JSON.stringify(await ui.drawn())
+  expect(after).toContain('Your tracker changed in another app since this panel read it, so nothing was saved')
+  expect(after).toContain('Umbrella Health')
+  // The board now shows the new version: pressing again saves, and the other app's row is kept.
   await ui.press({ key: 'acme corp|sales & marketing associate|acme-sma:week' })
   expect(files['jobs/tracker.csv']).toContain('Acme Corp,Sales & Marketing Associate,offer,2026-10-27')
   expect(files['jobs/tracker.csv']).toContain('Umbrella Health,Nurse Educator,interested')
@@ -473,7 +480,11 @@ test('a clear date shown on the board but changed to an unclear one in the file 
   files['jobs/tracker.csv'] = csv.replace('2026-10-08', '03/04/2026')
   await ui.press({ key: 'globex|planner|globex-pl:week' })
   expect(files['jobs/tracker.csv']).toContain('Globex,Planner,interviewing,03/04/2026,Follow up')
-  expect(JSON.stringify(await ui.drawn())).toContain('is unclear (03/04/2026), so it wasn')
+  const drawn = JSON.stringify(await ui.drawn())
+  expect(drawn).toContain('changed in another app since this panel read it')
+  // The board shows the file as it is now: the date is unclear, so the button is gone.
+  expect(drawn).toContain('date unclear: 03/04/2026')
+  expect(drawn).not.toContain('globex|planner|globex-pl:week')
   await ui.unmount()
 })
 

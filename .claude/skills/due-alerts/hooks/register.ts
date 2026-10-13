@@ -5,8 +5,10 @@ import type { DateOrder } from './csvdate'
 
 // Due alerts: one short toast when a session opens (and again if the date rolls over while it is
 // open) listing what is due today or tomorrow, most urgent first. It only reads the user's files
-// (jobs/tracker.csv, contacts/contacts.csv, outbox/, jobs/layoff-plan.md, profile/preferences.md); the session-start hook already gives Claude the
-// same facts as context, so this is for the user's eyes only and never adds anything to the chat.
+// (jobs/tracker.csv, contacts/contacts.csv, outbox/, jobs/layoff-plan.md, profile/preferences.md). The
+// startup note (.claude/hooks/summary.sh, session-start.ps1) gives Claude the same facts as context: job
+// items in full, contact follow-ups and Gmail drafts left over 2 days as one short line. So this pop-up is
+// for the user's eyes only and never adds anything to the chat.
 // What it has shown today is remembered in the plugin's own store (outside this folder), so the
 // same alert doesn't come back the same day, even after a restart.
 
@@ -235,7 +237,10 @@ export async function collect($: any, today: string): Promise<Alert[]> {
     const name = get('name')
     const date = toIso(get('next_followup'), rowOrder)
     if (name === '' || !isIso(date) || date > today) continue
-    if (get('status').toLowerCase() === 'cold' || Number(get('touches') || 0) >= 2) continue
+    // Not cold; not after 2 unanswered messages (the cap is for people who haven't replied: a reminder the
+    // user set for someone at replied, talked or referred still counts). Same rule as the Contacts board.
+    const status = get('status').toLowerCase() || 'to-contact'
+    if (status === 'cold' || (['to-contact', 'contacted'].includes(status) && (parseInt(get('touches'), 10) || 0) >= 2)) continue
     if (get('job') && ownedFolders.has(get('job').toLowerCase())) continue
     const company = get('company')
     alerts.push({ id: `contact|${name.toLowerCase()}|${company.toLowerCase()}|${date}`, rank: RANK.followup, date, text: `Follow up with ${name}${company ? ` (${company})` : ''}, ${when(date, today)}.` })

@@ -10,16 +10,31 @@ WDAY="$(LC_ALL=C date +%A)"
 PREFS=profile/preferences.md
 
 BOM="$(printf '\357\273\277')"
-# One awk pass over every draft (fast with hundreds of files). Counts files with front matter whose status is blank or draft, like the Outbox panel.
-DRAFTS="$(awk -v bom="$BOM" '
-  function done_file() { if (valid && (st == "" || st == "draft")) n++ }
-  FNR == 1 { if (NR > 1) done_file(); valid = 0; h = 0; st = ""; if (index($0, bom) == 1) $0 = substr($0, length(bom) + 1) }
+# One awk pass over every draft (fast with hundreds of files). Counts files with front matter whose status is blank or draft, like the Outbox panel,
+# and Gmail drafts (status in-gmail-drafts) made more than 2 days ago (status_at, else created) that the user hasn't marked sent, like due-alerts.
+read -r DRAFTS GMAIL_OLD <<EOF
+$(awk -v bom="$BOM" -v today="$TODAY" '
+  function dnum(s,   y, m, d) { y = substr(s, 1, 4) + 0; m = substr(s, 6, 2) + 0; d = substr(s, 9, 2) + 0; if (m <= 2) { y--; m += 12 }
+    return 365 * y + int(y / 4) - int(y / 100) + int(y / 400) + int((153 * (m - 3) + 2) / 5) + d }
+  function val(line, key) { sub("^" key ":[ \t]*", "", line); sub(/[ \t]+#.*$/, "", line); gsub(/^["\047]|["\047]$/, "", line); return line }
+  function done_file(   since) {
+    if (valid && (st == "" || st == "draft")) n++
+    if (valid && st == "in-gmail-drafts") {
+      since = substr(sa != "" ? sa : cr, 1, 10)
+      if (since ~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]$/ && dnum(today) - dnum(since) > 2) old++
+    }
+  }
+  FNR == 1 { if (NR > 1) done_file(); valid = 0; h = 0; st = ""; sa = ""; cr = ""; if (index($0, bom) == 1) $0 = substr($0, length(bom) + 1) }
   { sub(/\r$/, "") }
   FNR == 1 { if ($0 ~ /^---/) { h = 1; next } else nextfile }
   h == 1 && /^---/ { valid = 1; done_file(); valid = 0; nextfile }
   h == 1 && /^status:/ { v = $0; sub(/^status:[ \t]*/, "", v); sub(/[ \t#].*$/, "", v); st = tolower(v) }
-  END { print n + 0 }' outbox/[!_]*.md 2>/dev/null)"
+  h == 1 && /^status_at:/ { sa = val($0, "status_at") }
+  h == 1 && /^created:/ { cr = val($0, "created") }
+  END { print n + 0, old + 0 }' outbox/[!_]*.md 2>/dev/null)
+EOF
 [ -n "$DRAFTS" ] || DRAFTS=0
+[ -n "$GMAIL_OLD" ] || GMAIL_OLD=0
 
 # pref <key>: the value on the first "key:" line of the preferences (comments and blanks give "").
 pref() { sed -n "s/^$1:[[:space:]]*//p" "$PREFS" 2>/dev/null | head -1 | tr -d '\r' | sed 's/[[:space:]]*<!--.*//; s/[[:space:]]*$//'; }
@@ -31,6 +46,7 @@ if [ ! -f "$TRACKER" ]; then
   exit 0
 fi
 LAYOFF=/dev/null; [ -f jobs/layoff-plan.md ] && LAYOFF=jobs/layoff-plan.md
+CONTACTS=""; [ -f contacts/contacts.csv ] && CONTACTS=contacts/contacts.csv
 
 # date_order (csvdate.ts dateOrder): the first "date_order:" line outside HTML comments, optionally
 # written as a list item ("- date_order: DMY"); MDY, DMY or YMD in any case; anything else = unknown.
@@ -45,7 +61,7 @@ DATE_ORDER="$(tr -d '\r' < "$PREFS" 2>/dev/null | awk '{
   } }')"
 
 LC_ALL=C tr '\r' '\n' < "$TRACKER" | LC_ALL=C awk -v today="$TODAY" -v wday="$WDAY" -v mode="$MODE" -v drafts="$DRAFTS" -v bom="$BOM" \
-  -v closed="$CLOSED" -v order="$DATE_ORDER" -v layoff="$LAYOFF" \
+  -v closed="$CLOSED" -v order="$DATE_ORDER" -v layoff="$LAYOFF" -v contacts="$CONTACTS" -v gmailold="$GMAIL_OLD" \
   -v vtype="$(pref visa_type)" -v vstart="$(pref visa_clock_start)" -v vallowed="$(pref visa_days_allowed)" \
   -v vused="$(pref visa_days_used)" -v vasof="$(pref visa_days_used_as_of)" -v certday="$(pref benefits_cert_day)" '
 function isodate(s,   p) { if (s !~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]$/) return 0; split(s, p, "-"); return mk(p[1], p[2] + 0, p[3] + 0) == s }
@@ -122,9 +138,10 @@ function col(name) { return (name in H) ? F[H[name]] : "" }
 # deadlines, 2 = everything else; earliest date first within a rank.
 function addDue(rank, date, text) { due++; R[due] = rank; D[due] = date; T[due] = text }
 function addList(name, text) { cnt[name]++; if (cnt[name] <= 5) L[name] = L[name] (L[name] == "" ? "" : "; ") text }
-function row(   co, role, st, act, d, dl, k, o, rank, text, extra, nd) {
+function row(   co, role, st, act, d, dl, k, o, rank, text, extra, nd, fo) {
   co = trim(col("company")); if (co == "") return
   role = col("role"); st = tolower(trim(col("status"))); act = col("next_action")
+  fo = tolower(trim(col("folder"))); if (fo != "") JS[fo] = st      # a contact tied to this job folder follows its status
   total++; count[st]++
   if (act ~ /^[ \t]*[Ss]end withdrawal/) addList("withdraw", co " (" role ")")
   if (st !~ /^(interested|applied|screening|interviewing|offer)$/) return
@@ -151,6 +168,52 @@ function row(   co, role, st, act, d, dl, k, o, rank, text, extra, nd) {
   if (st == "offer") rank = 0
   else if (act ~ /[Ii]nterview|[Tt]ake-home/) rank = 1
   addDue(rank, nd, co " (" role "): " text (text != "" && extra != "" ? "; " : "") extra)
+}
+# The order the slash dates of one row prove (rowo), as for tracker rows.
+function roworder(   k, o) {
+  rowo = ""
+  for (k = 1; k <= n; k++) { o = slashorder(F[k]); if (o == "") continue; if (rowo == "" || rowo == o) rowo = o; else { rowo = "?"; break } }
+  if (rowo == "?") rowo = ""
+}
+function cget(name) { return (name in CH) ? F[CH[name]] : "" }
+# Contacts: networking follow-ups due today or earlier, by the playbook rules the Contacts board and
+# due alerts use: not cold; not after 2 unanswered messages (to-contact / contacted); not when the linked
+# job is applied or later (its tracker row owns the follow-up). Dates by the same rules as the tracker.
+function contacts_scan(   ln, cc, hd, first, i, k, nm, st, tc, jb, d, blankrow) {
+  cdue = 0; cbad = ""; cnames = ""
+  if (contacts == "") return
+  cc = 0; hd = 0; first = 1
+  while ((getline ln < contacts) > 0) {
+    sub(/\r$/, "", ln)
+    if (first) { first = 0; if (index(ln, bom) == 1) ln = substr(ln, length(bom) + 1) }
+    if (!cc) { split("", F); n = 0; f = ""; q = 0; cs = 1 } else f = f "\n"
+    feed(ln)
+    if (q) { cc = 1; continue }
+    cc = 0; F[++n] = f
+    blankrow = 1; for (i = 1; i <= n; i++) if (trim(F[i]) != "") { blankrow = 0; break }
+    if (blankrow) continue
+    if (!hd) {
+      hd = 1; h1 = F[1]
+      if (n == 1 && gsub(/;/, ";", h1) >= 2) { cbad = "semicolons"; break }
+      for (i = 1; i <= n; i++) { k = tolower(trim(F[i])); if (!(k in CH)) CH[k] = i }
+      continue
+    }
+    nm = trim(cget("name")); if (nm == "") continue
+    st = tolower(trim(cget("status"))); if (st == "") st = "to-contact"
+    if (st == "cold") continue
+    tc = cget("touches") + 0
+    if ((st == "to-contact" || st == "contacted") && tc >= 2) continue
+    jb = tolower(trim(cget("job")))
+    if (jb != "" && (jb in JS) && JS[jb] ~ /^(applied|screening|interviewing|offer|accepted|rejected|withdrawn|ghosted)$/) continue
+    roworder()
+    d = iso(cget("next_followup"))
+    if (amb) { addList("unclear", nm " (contact): follow-up " d); continue }
+    if (!isodate(d) || d > today) continue
+    cdue++
+    if (cdue <= 3) cnames = cnames (cnames == "" ? "" : ", ") nm (trim(cget("company")) != "" ? " (" trim(cget("company")) ")" : "")
+  }
+  close(contacts)
+  if (cc && cbad == "") cbad = "open-quote"
 }
 BEGIN { cont = 0 }
 {
@@ -184,6 +247,7 @@ END {
     }
     print (mode == "long" ? l : s); exit
   }
+  contacts_scan()
   # Layoff plan: unchecked dated lines due within 3 days or overdue.
   while ((getline ln < layoff) > 0) {
     sub(/\r$/, "", ln)
@@ -243,7 +307,7 @@ END {
   if (drafts > 0) line = line ", " drafts " in Outbox"
   if (cert) line = line ", certify benefits today"
   if (vleft != "" && vleft <= 30) line = line ", visa days left: " vleft
-  if (total == 0 && drafts == 0 && due == 0 && !cert && vleft == "") { print (mode != "long" ? "nothing tracked yet (try /find-jobs)" : "Pipeline: nothing tracked yet."); exit }
+  if (total == 0 && drafts == 0 && due == 0 && !cert && vleft == "" && cdue == 0 && gmailold == 0 && cbad == "") { print (mode != "long" ? "nothing tracked yet (try /find-jobs)" : "Pipeline: nothing tracked yet."); exit }
   if (mode == "short") { print line; exit }
   if (mode == "next") {
     nx = ""
@@ -261,6 +325,13 @@ END {
     for (i = 1; i <= due && i <= 10; i++) print "- " T[i]
     if (due > 10) print "- ...and " due - 10 " more"
   }
+  # Contact follow-ups and old Gmail drafts: one short line (the today skill has the full list).
+  xline = ""
+  if (cdue > 0) xline = (cdue == 1 ? "1 contact follow-up (" : cdue " contact follow-ups (") cnames (cdue > 3 ? " and " cdue - 3 " more" : "") ")"
+  if (gmailold > 0) xline = xline (xline == "" ? "" : "; ") (gmailold == 1 ? "1 Gmail draft" : gmailold " Gmail drafts") " made more than 2 days ago and not marked sent"
+  if (xline != "") print "Also due: " xline ". The today skill lists them."
+  if (cbad == "semicolons") print "contacts/contacts.csv was saved with semicolons between the columns, so contact follow-ups were not counted. Offer to fix it (the panels will not save to it until then)."
+  else if (cbad != "") print "contacts/contacts.csv looks damaged (a quote that never closes), so contact follow-ups were not counted. Offer to fix it (the panels will not save to it until then)."
   if (cnt["passed"] > 0) print "Application deadline passed (suggest marking skipped unless the posting is still open): " L["passed"] (cnt["passed"] > 5 ? "; and " cnt["passed"] - 5 " more" : "")
   if (cnt["unclear"] > 0) print "Date unclear (could be day/month or month/day), so not counted above: " L["unclear"] (cnt["unclear"] > 5 ? "; and " cnt["unclear"] - 5 " more" : "") ". Ask the user which they mean before giving deadline advice, then save it as YYYY-MM-DD; never guess. If date_order is blank in the preferences, ask whether their spreadsheet puts the day or the month first."
 }'

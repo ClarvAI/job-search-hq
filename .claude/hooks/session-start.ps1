@@ -18,6 +18,8 @@ $culture = [Globalization.CultureInfo]::InvariantCulture
 $today = (Get-Date).Date
 $todayIso = $today.ToString('yyyy-MM-dd', $culture)
 $lines = New-Object 'System.Collections.Generic.List[string]'
+# The try-it sample workspace (made by the tour) carries this marker file.
+if (Test-Path -LiteralPath (Join-Path $root '.sample-workspace') -PathType Leaf) { $lines.Add("This is the SAMPLE workspace (made-up data). Don't run setup or save the user's details here; their own folder is separate.") }
 function Read-Lines([string]$RelativePath) {
     $path = Join-Path $root $RelativePath
     if (Test-Path -LiteralPath $path -PathType Leaf) {
@@ -168,23 +170,37 @@ if (Test-Path -LiteralPath $jobs -PathType Container) {
         }
     }
 }
-# Only top-level, non-underscore .md files with closed front matter count.
+# Only top-level, non-underscore .md files with closed front matter count. Also counts Gmail drafts
+# (status in-gmail-drafts) made more than 2 days ago (status_at, else created), like summary.sh.
 $drafts = 0
+$gmailOld = 0
 $outbox = Join-Path $root 'outbox'
+function Get-HeadValue([string]$Line, [string]$Key) {
+    $v = ($Line -creplace ('^' + $Key + ':[ \t]*'), '') -replace '[ \t]+#.*$', ''
+    return ($v -replace '^["'']|["'']$', '')
+}
 if (Test-Path -LiteralPath $outbox -PathType Container) {
     foreach ($file in (Get-ChildItem -LiteralPath $outbox -File -Filter '*.md')) {
         if ($file.Name -cmatch '^[_.]' -or $file.Name -cnotlike '*.md') { continue }
         $content = @([IO.File]::ReadAllLines($file.FullName, [Text.Encoding]::UTF8))
         if ($content.Count -eq 0 -or $content[0] -cnotmatch '^---') { continue }
-        $status = ''
+        $status = ''; $statusAt = ''; $created = ''
         for ($i = 1; $i -lt $content.Count; $i++) {
             if ($content[$i] -cmatch '^---') {
                 if ($status -eq '' -or $status -eq 'draft') { $drafts++ }  # -eq ignores case, like summary.sh
+                if ($status -eq 'in-gmail-drafts') {
+                    $since = if ($statusAt -ne '') { $statusAt } else { $created }
+                    if ($since.Length -ge 10) { $since = $since.Substring(0, 10) }
+                    $waited = Get-DayDiff $since $todayIso
+                    if ($null -ne $waited -and $waited -gt 2) { $gmailOld++ }
+                }
                 break
             }
             if ($content[$i] -cmatch '^status:') {
                 $status = ($content[$i] -creplace '^status:[ \t]*', '') -creplace '[ \t#].*$', ''
             }
+            if ($content[$i] -cmatch '^status_at:') { $statusAt = Get-HeadValue $content[$i] 'status_at' }
+            if ($content[$i] -cmatch '^created:') { $created = Get-HeadValue $content[$i] 'created' }
         }
     }
 }
@@ -220,6 +236,7 @@ if (-not $hasTracker) {
         $passed = New-Object 'System.Collections.Generic.List[string]'
         $unclear = New-Object 'System.Collections.Generic.List[string]'
         $withdraw = New-Object 'System.Collections.Generic.List[string]'
+        $jobStatus = @{}
         for ($r = 1; $r -lt $rows.Count; $r++) {
             $row = $rows[$r]
             $get = { param($n) if ($header.ContainsKey($n) -and $header[$n] -lt $row.Count) { [string]$row[$header[$n]] } else { '' } }
@@ -227,6 +244,8 @@ if (-not $hasTracker) {
             if ($company -eq '') { continue }
             $total++
             $status = (& $get 'status').Trim().ToLowerInvariant()
+            $folderKey = (& $get 'folder').Trim().ToLowerInvariant()
+            if ($folderKey -ne '') { $jobStatus[$folderKey] = $status }   # a contact tied to this job folder follows its status
             if ($counts.ContainsKey($status)) { $counts[$status]++ } else { $counts[$status] = 1 }
             if ((& $get 'next_action') -match '^\s*send withdrawal') { $withdraw.Add("$company ($(& $get 'role'))") }
             if ($status -notin $open) { continue }
@@ -264,6 +283,48 @@ if (-not $hasTracker) {
             if ($status -eq 'offer') { $rank = 0 } elseif ($act -match 'interview|take-home') { $rank = 1 }
             $sep = if ($text -ne '' -and $extra -ne '') { '; ' } else { '' }
             $due.Add([pscustomobject]@{ Rank = $rank; Date = $nd; Order = $due.Count; Text = "$company ($role): $text$sep$extra" })
+        }
+        # Contacts: networking follow-ups due today or earlier, by the playbook rules the Contacts board
+        # and due alerts use (like summary.sh): not cold; not after 2 unanswered messages (to-contact /
+        # contacted); not when the linked job is applied or later (its tracker row owns the follow-up).
+        $contactDue = 0; $contactNames = New-Object 'System.Collections.Generic.List[string]'; $contactBad = ''
+        $contactsPath = Join-Path $root 'contacts/contacts.csv'
+        if (Test-Path -LiteralPath $contactsPath -PathType Leaf) {
+            $crows = $null
+            try { $crows = Read-Csv ([IO.File]::ReadAllText($contactsPath, [Text.Encoding]::UTF8)) } catch { $crows = $null }
+            if ($null -ne $crows -and $crows.Count -gt 0) {
+                $ch = $crows[0]; if ($ch.Count -gt 0) { $ch[0] = $ch[0].TrimStart([char]0xFEFF) }
+                if ($ch.Count -eq 1 -and $ch[0].Split(';').Count -ge 3) { $contactBad = 'semicolons' }
+                elseif ($script:csvOpenQuote) { $contactBad = 'open-quote' }
+                else {
+                    $cHeader = @{}
+                    for ($k = 0; $k -lt $ch.Count; $k++) { $name = $ch[$k].Trim().ToLowerInvariant(); if (-not $cHeader.ContainsKey($name)) { $cHeader[$name] = $k } }
+                    $owned = @('applied', 'screening', 'interviewing', 'offer', 'accepted', 'rejected', 'withdrawn', 'ghosted')
+                    for ($r = 1; $r -lt $crows.Count; $r++) {
+                        $row = $crows[$r]
+                        $cget = { param($n) if ($cHeader.ContainsKey($n) -and $cHeader[$n] -lt $row.Count) { [string]$row[$cHeader[$n]] } else { '' } }
+                        $cname = (& $cget 'name').Trim(); if ($cname -eq '') { continue }
+                        $cstatus = (& $cget 'status').Trim().ToLowerInvariant(); if ($cstatus -eq '') { $cstatus = 'to-contact' }
+                        if ($cstatus -eq 'cold') { continue }
+                        $touches = 0; if ((& $cget 'touches').Trim() -match '^[0-9]+') { $touches = [int]$Matches[0] }
+                        if ($cstatus -in @('to-contact', 'contacted') -and $touches -ge 2) { continue }
+                        $cjob = (& $cget 'job').Trim().ToLowerInvariant()
+                        if ($cjob -ne '' -and $jobStatus.ContainsKey($cjob) -and $jobStatus[$cjob] -in $owned) { continue }
+                        $script:rowOrder = ''
+                        foreach ($cell in $row) {
+                            $o = Get-SlashOrder ([string]$cell)
+                            if ($o -eq '') { continue }
+                            if ($script:rowOrder -eq '' -or $script:rowOrder -eq $o) { $script:rowOrder = $o } else { $script:rowOrder = '?'; break }
+                        }
+                        if ($script:rowOrder -eq '?') { $script:rowOrder = '' }
+                        $fu = Get-Iso (& $cget 'next_followup')
+                        if ($script:ambiguous) { $unclear.Add("$cname (contact): follow-up $fu"); continue }
+                        if (-not (Test-Iso $fu) -or $fu -gt $todayIso) { continue }
+                        $contactDue++
+                        if ($contactDue -le 3) { $cco = (& $cget 'company').Trim(); $contactNames.Add($(if ($cco -ne '') { "$cname ($cco)" } else { $cname })) }
+                    }
+                }
+            }
         }
         # Layoff plan: unchecked dated lines due within 3 days or overdue.
         foreach ($ln in @(Read-Lines 'jobs/layoff-plan.md')) {
@@ -318,7 +379,7 @@ if (-not $hasTracker) {
                 $shown = if ($vLeft -lt 0) { 0 } else { $vLeft }
                 $lines.Add("Visa clock${vt}: about $shown of $allowed unemployment days left (estimate from the preferences; the official count always wins).$urgent")
             }
-        } elseif ($total -eq 0 -and $drafts -eq 0 -and $due.Count -eq 0 -and -not $cert -and $null -eq $vLeft) {
+        } elseif ($total -eq 0 -and $drafts -eq 0 -and $due.Count -eq 0 -and -not $cert -and $null -eq $vLeft -and $contactDue -eq 0 -and $gmailOld -eq 0 -and $contactBad -eq '') {
             $lines.Add('Pipeline: nothing tracked yet.')
         } else {
             $c = { param($n) if ($counts.ContainsKey($n)) { $counts[$n] } else { 0 } }
@@ -344,6 +405,19 @@ if (-not $hasTracker) {
                 for ($k = 0; $k -lt $sorted.Count -and $k -lt 10; $k++) { $lines.Add('- ' + $sorted[$k].Text) }
                 if ($sorted.Count -gt 10) { $lines.Add(('- ...and {0} more' -f ($sorted.Count - 10))) }
             }
+            # Contact follow-ups and old Gmail drafts: one short line (the today skill has the full list).
+            $xline = ''
+            if ($contactDue -gt 0) {
+                $more = if ($contactDue -gt 3) { ' and {0} more' -f ($contactDue - 3) } else { '' }
+                $xline = $(if ($contactDue -eq 1) { '1 contact follow-up (' } else { "$contactDue contact follow-ups (" }) + (@($contactNames) -join ', ') + $more + ')'
+            }
+            if ($gmailOld -gt 0) {
+                $sep = if ($xline -ne '') { '; ' } else { '' }
+                $xline += $sep + $(if ($gmailOld -eq 1) { '1 Gmail draft' } else { "$gmailOld Gmail drafts" }) + ' made more than 2 days ago and not marked sent'
+            }
+            if ($xline -ne '') { $lines.Add("Also due: $xline. The today skill lists them.") }
+            if ($contactBad -eq 'semicolons') { $lines.Add('contacts/contacts.csv was saved with semicolons between the columns, so contact follow-ups were not counted. Offer to fix it (the panels will not save to it until then).') }
+            elseif ($contactBad -ne '') { $lines.Add('contacts/contacts.csv looks damaged (a quote that never closes), so contact follow-ups were not counted. Offer to fix it (the panels will not save to it until then).') }
             if ($passed.Count -gt 0) {
                 $more = if ($passed.Count -gt 5) { '; and {0} more' -f ($passed.Count - 5) } else { '' }
                 $lines.Add('Application deadline passed (suggest marking skipped unless the posting is still open): ' + ((@($passed) | Select-Object -First 5) -join '; ') + $more)

@@ -2,7 +2,8 @@ import { expect, test } from 'claude-code/testing'
 
 // The same test file sits next to every copy of csvdate.ts (Pipeline, Contacts, Apply Kit, Job Inbox,
 // Due Alerts), so all five copies are held to the same rules.
-import { activityLine, addDays, alsoOf, colOf, csvTrouble, dateOrder, isExcelLock, isIso, jobKey, orderFor, pageOf, parseCsv, plain, readCsv, rowKept, rowOrder, toCsv, toIso } from '../hooks/csvdate'
+import { activityLine, addDays, alsoOf, appendLine, colOf, columnsOf, csvTrouble, dateOrder, fingerprint, isExcelLock, isIso, jobKey, openInExcel, orderFor, pageOf, parseCsv, plain, readCsv, rowKept, rowKey, rowOrder, saveRow, toCsv, toIso } from '../hooks/csvdate'
+import type { FileIo } from '../hooks/csvdate'
 
 test('a quote mark only opens a quoted cell at the start of the cell', async () => {
   const text = 'company,role,notes\nAcme,Analyst,Said "maybe" on the phone\nGlobex,Planner,"a, b"\nInitech,5" display tech,\n'
@@ -119,3 +120,87 @@ test('row identity, saved-row check, activity line and pages', async () => {
   expect(pageOf(list, 9, 20).to).toBe(45)
   expect(pageOf([], 3, 20)).toEqual({ items: [], page: 0, pages: 1, from: 0, to: 0 })
 })
+
+// An in-memory folder standing in for the engine's file calls. `onRead` runs before each read (another
+// app saving at that moment); `failWrite` makes the write throw (a file held open elsewhere).
+function memory(files: Record<string, string>, opts: { onRead?: (n: number) => void; failWrite?: boolean; afterWrite?: () => void } = {}): FileIo {
+  let reads = 0
+  return {
+    exists: async p => p in files,
+    read: async p => { opts.onRead?.(++reads); if (!(p in files)) throw new Error('ENOENT'); return files[p] ?? '' },
+    write: async (p, t) => { if (opts.failWrite) throw new Error('EBUSY'); files[p] = t; opts.afterWrite?.() },
+    list: async d => Object.keys(files).filter(f => f.startsWith(`${d}/`)).map(f => ({ name: f.slice(d.length + 1) })),
+  }
+}
+
+const SAVE = (seen: string, extra: Partial<Parameters<typeof saveRow>[2]> = {}) => ({
+  seen,
+  name: 'Your tracker',
+  label: 'Your tracker (jobs/tracker.csv)',
+  find: (header: string[], rows: string[][]) => rows.find(r => rowKey(header, r, jobKey) === 'globex|planner|globex-pl'),
+  edit: (_row: string[], _get: (c: string) => string, set: (c: string, v: string) => void) => { set('status', 'applied'); return 'ok' },
+  ...extra,
+})
+
+test('fingerprints tell file versions apart', async () => {
+  expect(fingerprint('a,b\n')).toBe(fingerprint('a,b\n'))
+  expect(fingerprint('a,b\n')).not.toBe(fingerprint('a,c\n'))
+  expect(fingerprint('')).not.toBe(fingerprint('\uFEFF'))
+})
+
+test('a save changes one row of the version the panel read, keeps the byte-order mark, and logs nothing itself', async () => {
+  const csv = '\uFEFFcompany,role,status,folder\nGlobex,Planner,interested,globex-pl\nAcme,Analyst,applied,acme-an\n'
+  const files: Record<string, string> = { 'jobs/tracker.csv': csv }
+  const out = await saveRow(memory(files), 'jobs/tracker.csv', SAVE(fingerprint(csv)))
+  expect(out.ok).toBe(true)
+  expect(files['jobs/tracker.csv']).toBe('\uFEFFcompany,role,status,folder\nGlobex,Planner,applied,globex-pl\nAcme,Analyst,applied,acme-an\n')
+  expect(Object.keys(files)).toEqual(['jobs/tracker.csv'])
+})
+
+test('a save is refused when the file changed since the panel read it, or changes between the last check and the write', async () => {
+  const csv = 'company,role,status,folder\nGlobex,Planner,interested,globex-pl\n'
+  const seen = fingerprint(csv)
+  const files: Record<string, string> = { 'jobs/tracker.csv': csv + 'Initech,Clerk,interested,initech-cl\n' }
+  const before = await saveRow(memory(files), 'jobs/tracker.csv', SAVE(seen))
+  expect(before).toEqual({ ok: false, why: 'changed', text: 'Your tracker changed in another app since this panel read it, so nothing was saved. The panel now shows the latest version: check it and try again.' })
+  expect(files['jobs/tracker.csv']).toContain('Globex,Planner,interested')
+  const files2: Record<string, string> = { 'jobs/tracker.csv': csv }
+  const racing = memory(files2, { onRead: n => { if (n === 2) files2['jobs/tracker.csv'] = csv + 'Initech,Clerk,interested,initech-cl\n' } })
+  const mid = await saveRow(racing, 'jobs/tracker.csv', SAVE(seen))
+  expect(mid.ok ? '' : mid.why).toBe('changed')
+  expect(files2['jobs/tracker.csv']).toContain('Globex,Planner,interested')
+})
+
+test('a damaged file, an Excel lock, a missing row, a refusal, a held file and a lost save each say why and change nothing', async () => {
+  const csv = 'company,role,status,folder\nGlobex,Planner,interested,globex-pl\n'
+  const semi = 'company;role;status;folder\nGlobex;Planner;interested;globex-pl\n'
+  const why = async (files: Record<string, string>, opts: Parameters<typeof memory>[1] = {}, extra: Partial<Parameters<typeof saveRow>[2]> = {}) => {
+    const out = await saveRow(memory(files, opts), 'jobs/tracker.csv', SAVE(fingerprint(files['jobs/tracker.csv'] ?? ''), extra))
+    return out.ok ? 'ok' : `${out.why}: ${out.text}`
+  }
+  expect(await why({ 'jobs/tracker.csv': semi })).toContain('damaged: Your tracker (jobs/tracker.csv) was saved with semicolons')
+  expect(await why({ 'jobs/tracker.csv': csv, 'jobs/~$tracker.csv': '' })).toContain('excel: Your tracker is open in Excel')
+  expect(await why({ 'jobs/tracker.csv': csv.replace('globex-pl', 'other') })).toContain('no-row: That row is no longer in your tracker')
+  expect(await why({ 'jobs/tracker.csv': csv }, {}, { edit: () => undefined })).toBe('refused: ')
+  expect(await why({ 'jobs/tracker.csv': csv }, { failWrite: true })).toContain('locked: Your tracker is open in another app')
+  expect(await why({})).toContain('missing: Your tracker is missing')
+  const files: Record<string, string> = { 'jobs/tracker.csv': csv }
+  expect(await why(files, { afterWrite: () => { files['jobs/tracker.csv'] = csv } })).toContain('lost: Another app saved your tracker at the same moment')
+})
+
+test('an empty contacts file starts from its header; the Excel lock check and the activity log use the same file calls', async () => {
+  const files: Record<string, string> = { 'contacts/contacts.csv': '' }
+  const out = await saveRow(memory(files), 'contacts/contacts.csv', {
+    seen: fingerprint(''), name: 'Your contacts file', label: 'Your contacts file', blank: ['name', 'company'],
+    find: (_h, rows) => rows[0], edit: () => 'never',
+  })
+  expect(out.ok ? '' : out.why).toBe('no-row')
+  expect(await openInExcel(memory({ 'jobs/~$acker.csv': '' }), 'jobs/tracker.csv')).toBe(true)
+  expect(await openInExcel(memory({ 'jobs/tracker.csv': '' }), 'jobs/tracker.csv')).toBe(false)
+  const log: Record<string, string> = {}
+  expect(await appendLine(memory(log), 'history/activity.md', '- line one\n')).toBe(true)
+  expect(log['history/activity.md']).toBe('# Recent activity\n- line one\n')
+  expect(await appendLine(memory(log, { onRead: n => { if (n === 1) log['history/activity.md'] += '- from Codex\n' } }), 'history/activity.md', '- line two\n')).toBe(true)
+  expect(log['history/activity.md']).toBe('# Recent activity\n- line one\n- from Codex\n- line two\n')
+})
+test('columnsOf finds columns like colOf', async () => { const col = columnsOf([' Company ', 'role', 'role']); expect(col('company')).toBe(0); expect(col('role')).toBe(1); expect(col('x')).toBe(-1) })

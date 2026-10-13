@@ -1,8 +1,8 @@
 // Shared CSV, date and file helpers for the Pipeline, Contacts, Apply Kit, Job Inbox and Due Alerts mods.
 // Each mod carries an identical copy of this file (a mod can only import its own files): change all
 // five together. Plain helpers with no engine calls, so tests can use them directly. The file helpers
-// that need the engine (openInExcel, appendLine) live in each register file, because the engine
-// interface can't be handed across an import.
+// (openInExcel, appendLine, saveRow) take a `FileIo`: four file calls each register file builds from
+// its own `$.fs`, because the engine interface itself can't be handed across an import.
 
 // ---- CSV ----
 
@@ -220,6 +220,13 @@ export function colOf(header: string[], name: string): number {
   return header.findIndex(h => h.trim().toLowerCase() === name)
 }
 
+// colOf for many lookups (every cell of a long file): the header's column numbers, worked out once.
+export function columnsOf(header: string[]): (name: string) => number {
+  const map = new Map<string, number>()
+  header.forEach((h, i) => { const k = h.trim().toLowerCase(); if (!map.has(k)) map.set(k, i) })
+  return name => map.get(name) ?? -1
+}
+
 // After a save, if another app wrote the file at the same instant: is the row as we saved it still
 // there? (The change is never applied a second time; that could count a message or push a date twice.)
 export function rowKept(back: string, target: string[]): boolean {
@@ -233,4 +240,140 @@ export function pageOf<T>(list: T[], page: number, size: number): { items: T[]; 
   const p = Math.min(Math.max(0, Math.floor(page) || 0), pages - 1)
   const start = p * size
   return { items: list.slice(start, start + size), page: p, pages, from: list.length === 0 ? 0 : start + 1, to: Math.min(list.length, start + size) }
+}
+
+// ---- Files ----
+// The engine interface can't be handed across an import, so each panel passes in four small file
+// calls of its own (`FileIo`, built in its register file from `$.fs`); everything else lives here.
+
+export type FileIo = {
+  exists: (path: string) => Promise<boolean>
+  read: (path: string) => Promise<string>
+  write: (path: string, text: string) => Promise<void>
+  list: (dir: string) => Promise<Array<{ name: string }>>
+}
+
+// A short fingerprint of a file's text (53-bit cyrb53): enough to tell "the file changed since the
+// panel read it" from "it didn't". Not a secret.
+export function fingerprint(text: string): string {
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57
+  for (let i = 0; i < text.length; i++) {
+    const ch = text.charCodeAt(i)
+    h1 = Math.imul(h1 ^ ch, 2654435761)
+    h2 = Math.imul(h2 ^ ch, 1597334677)
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909)
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909)
+  return `${text.length}:${(4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36)}`
+}
+
+// True when Excel seems to have the file open (its "~$" lock file is next to it). Without a lock file
+// it may still be open (Excel for Mac often leaves none), so a failed save also asks the user to close it.
+export async function openInExcel(io: FileIo, path: string): Promise<boolean> {
+  const at = path.lastIndexOf('/')
+  try {
+    const entries = await io.list(at < 0 ? '.' : path.slice(0, at))
+    return entries.some(e => isExcelLock(String(e.name), path.slice(at + 1)))
+  } catch { return false }
+}
+
+// One line added to the end of history/activity.md. The file is re-read right before the write and
+// checked afterwards, so a line another app added meanwhile is kept and this one is not lost.
+// The log is a convenience: a failure here never blocks the save it describes.
+export async function appendLine(io: FileIo, path: string, lineOut: string): Promise<boolean> {
+  const readNow = async (): Promise<string> => ((await io.exists(path)) ? String(await io.read(path)) : '# Recent activity\n\n')
+  let wrote = false
+  try {
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const before = await readNow()
+      if (wrote && before.includes(lineOut)) return true
+      if ((await readNow()) !== before) continue
+      await io.write(path, before.replace(/\n*$/, '\n') + lineOut)
+      wrote = true
+      if ((await readNow()).includes(lineOut)) return true
+    }
+  } catch { /* see above */ }
+  return false
+}
+
+// A row found by its identity (the panel's own key: jobKey for the tracker, name+company for contacts,
+// id for leads), read from the cells exactly as they are in the file.
+// The header's column numbers are worked out once per header (rowKey runs for every row of a file).
+let keyHeader: string[] | undefined
+let keyLength = -1
+let keyCols: (name: string) => number = () => -1
+export function rowKey(header: string[], row: string[], key: (get: (c: string) => string) => string): string {
+  if (keyHeader !== header || keyLength !== header.length) { keyHeader = header; keyLength = header.length; keyCols = columnsOf(header) }
+  return key(c => { const i = keyCols(c); return i >= 0 ? (row[i] ?? '').trim() : '' })
+}
+
+// Why a save didn't happen. 'changed': the file is not what the panel last read (another app saved
+// it), so nothing was written; the panel shows the latest version and the user tries again.
+export type SaveWhy = 'missing' | 'unreadable' | 'changed' | 'damaged' | 'no-row' | 'refused' | 'excel' | 'locked' | 'lost'
+export type SaveResult<R> = { ok: true; result: R; text: string } | { ok: false; why: SaveWhy; text: string }
+
+// What to tell the user for each reason, for a file called `name` ("Your tracker").
+export function saveTrouble(why: SaveWhy, name: string, problem = '', label = name): string {
+  const lower = name.charAt(0).toLowerCase() + name.slice(1)
+  switch (why) {
+    case 'missing': return `${name} is missing. Ask Claude to check it.`
+    case 'unreadable': return `${name} couldn't be read just now (it may be open or syncing). Try again in a moment.`
+    case 'changed': return `${name} changed in another app since this panel read it, so nothing was saved. The panel now shows the latest version: check it and try again.`
+    case 'damaged': return csvTrouble(problem, label)
+    case 'no-row': return `That row is no longer in ${lower}. Press Refresh, or ask Claude to check it.`
+    case 'refused': return ''
+    case 'excel': return `${name} is open in Excel. Save and close it there, then try again (otherwise Excel would later put back its older copy).`
+    case 'locked': return `${name} is open in another app (like Excel). Save and close it there, then try again.`
+    case 'lost': return `Another app saved ${lower} at the same moment, so this change may not have stuck. Check it and try again if needed.`
+  }
+}
+
+// The one save every panel uses for a CSV: re-read the file right before saving, refuse when it isn't
+// the version the panel read (`seen`, its fingerprint; there is no file lock to hold), refuse a damaged
+// file or one Excel has open, change one row, compare once more and write back to back, then check the
+// row as saved is still there. The change is never applied twice (that could count a message twice).
+//   find:  picks the row to change from the rows as read (before any tidying).
+//   edit:  changes that row in place through get/set; returns the result, or undefined to refuse (the
+//          panel then says why itself).
+//   blank: the header to start an empty file with (contacts), else an empty file is 'missing'.
+export async function saveRow<R>(io: FileIo, path: string, opts: {
+  seen: string
+  name: string
+  label: string
+  find: (header: string[], rows: string[][]) => string[] | undefined
+  edit: (row: string[], get: (c: string) => string, set: (c: string, v: string) => void, header: string[]) => R | undefined
+  clean?: (v: string) => string
+  blank?: string[]
+}): Promise<SaveResult<R>> {
+  const BOM_ = String.fromCharCode(0xfeff)
+  const fail = (why: SaveWhy, problem = ''): SaveResult<R> => ({ ok: false, why, text: saveTrouble(why, opts.name, problem, opts.label) })
+  let original: string
+  try {
+    if (!(await io.exists(path))) return fail('missing')
+    original = String(await io.read(path))
+  } catch { return fail('unreadable') }
+  if (opts.seen !== '' && fingerprint(original) !== opts.seen) return fail('changed')
+  const { rows, problem } = readCsv(original)
+  // A damaged file is never written back: that would spread the damage.
+  if (problem !== '') return fail('damaged', problem)
+  if (rows.length === 0) { if (!opts.blank) return fail('missing'); rows.push([...opts.blank]) }
+  const header = rows[0] ?? []
+  const target = opts.find(header, rows.slice(1))
+  if (!target) return fail('no-row')
+  const idx = (c: string) => { let i = colOf(header, c); if (i < 0) { header.push(c); i = header.length - 1 } return i }
+  const get = (c: string) => { const i = colOf(header, c); return i >= 0 ? (target[i] ?? '').trim() : '' }
+  const set = (c: string, v: string) => { const i = idx(c); while (target.length <= i) target.push(''); target[i] = (opts.clean ?? plain)(v) }
+  const result = opts.edit(target, get, set, header)
+  if (result === undefined) return { ok: false, why: 'refused', text: '' }
+  for (const r of rows) while (r.length < header.length) r.push('')
+  const next = (original.startsWith(BOM_) ? BOM_ : '') + toCsv(rows)
+  if (await openInExcel(io, path)) return fail('excel')
+  try {
+    // Compare and write back to back, so the window for another app's save to slip in stays as small as it can.
+    if (String(await io.read(path)) !== original) return fail('changed')
+    await io.write(path, next)
+  } catch { return fail('locked') }
+  const back = await io.read(path).then(String, () => next)
+  if (back !== next && !rowKept(back, target)) return fail('lost')
+  return { ok: true, result, text: '' }
 }

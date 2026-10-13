@@ -264,7 +264,7 @@ test('an uncertain send is never retried by itself, even from a renamed copy, un
   await ui.unmount()
 })
 
-test('other placeholder styles are caught, the card shows the signature that will be added, and attachments are not sent from here', async ($, on) => {
+test('other placeholder styles are caught, the card shows the signature that will be added, and a message with an attachment is never sent from here', async ($, on) => {
   const files: Record<string, string> = {
     'outbox/a.md': '---\nchannel: email\nto: pat@drummond.com\nsubject: Hi\n---\nHi {First name},\nThanks.\n',
     'outbox/b.md': '---\nchannel: email\nto: pat@drummond.com\nsubject: Hi\n---\nHi <Name>, thanks.\n',
@@ -283,9 +283,17 @@ test('other placeholder styles are caught, the card shows the signature that wil
   expect(JSON.stringify(await ui.drawn())).toContain('placeholder (<Name>)')
   await ui.press({ key: 'c.md:approve' })
   expect(JSON.stringify(await ui.drawn())).toContain('placeholder (___)')
-  await ui.press({ key: 'd.md:approve' })
-  expect(JSON.stringify(await ui.drawn())).toContain("can't attach files")
   expect(calls.length).toBe(0)
+  // Send mode, but the message mentions an attachment: it goes to Gmail drafts, never out from here.
+  expect(JSON.stringify(await ui.drawn())).toContain('The Outbox never sends attachments itself')
+  await ui.press({ key: 'd.md:approve' })
+  const confirm = JSON.stringify(await ui.drawn())
+  expect(confirm).toContain('Create a Gmail draft to pat@drummond.com')
+  expect(confirm).toContain("the draft doesn't say which job folder the file is in")
+  await ui.press({ key: 'd.md:confirm' })
+  expect(calls.length).toBe(1)
+  expect(calls[0].tool).toBe('create_draft')
+  expect(JSON.stringify(calls[0])).not.toContain('attachments')
   await ui.unmount()
 })
 
@@ -516,5 +524,27 @@ test('quote marks are escaped in the Gmail HTML and a link stops at a quote mark
   await ui.press({ key: 'q.md:confirm' })
   const html = String(calls[0]?.args?.htmlBody ?? JSON.stringify(calls[0]))
   expect(html).toContain('&quot;<a href="https://alex.example/work">https://alex.example/work</a>&quot;')
+  await ui.unmount()
+})
+
+test('any change to a draft file since the panel read it (even a header line) refuses Discard, Mark sent and Create Gmail draft until the user looks again', async ($, on) => {
+  const { files, calls } = setup(on, { 'outbox/2026-10-06-jane.md': DRAFT, 'profile/signature.txt': 'Alex Rivera' })
+  await $.command.run({ command: 'outbox', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'outbox', surface: 'terminal', ...PANE } as never)
+  const edited = DRAFT.replace('status: Draft', 'job: globex-mc\r\nstatus: Draft')
+  await ui.press({ key: '2026-10-06-jane.md:discard' })
+  files['outbox/2026-10-06-jane.md'] = edited
+  await ui.press({ key: '2026-10-06-jane.md:confirm-discard' })
+  expect(files['outbox/2026-10-06-jane.md']).toBe(edited)
+  expect(JSON.stringify(await ui.drawn())).toContain('That draft changed or moved since this list was drawn')
+  // The list now shows the new version: the same press works.
+  await ui.press({ key: '2026-10-06-jane.md:approve' })
+  files['outbox/2026-10-06-jane.md'] = edited.replace('job: globex-mc', 'job: globex-mc2')
+  await ui.press({ key: '2026-10-06-jane.md:confirm' })
+  expect(calls.length).toBe(0)
+  expect(JSON.stringify(await ui.drawn())).toContain('changed since you opened it')
+  await ui.press({ key: '2026-10-06-jane.md:discard' })
+  await ui.press({ key: '2026-10-06-jane.md:confirm-discard' })
+  expect(files['outbox/2026-10-06-jane.md']).toContain('status: discarded')
   await ui.unmount()
 })

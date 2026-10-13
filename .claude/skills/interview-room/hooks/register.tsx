@@ -5,8 +5,10 @@ import type { Clock, Line, Room, Score } from '../types'
 
 // Interview Room: Claude runs a mock interview through four tools
 // (interview_start, interview_say, interview_score, interview_end). The pane
-// shows the interviewer's line, reads it aloud, runs a clock while the user
-// answers out loud (dictation), and keeps a scorecard.
+// shows the interviewer's line, runs a clock while the user answers out loud
+// (dictation), and keeps a scorecard. Nothing makes a sound until the user opts in:
+// reading aloud ("Turn on voice") and the clock's beeps ("Turn on sounds") are off in
+// a new folder, and the choice is kept per folder. Every spoken line is also shown.
 
 const PANE = 'interview-room'
 // The same words, in the same place (right under the panel's first line), in every panel.
@@ -19,7 +21,11 @@ const line = atom({ plugin: 'interview-room', key: 'line' } as const, null as Li
 const clock = atom({ plugin: 'interview-room', key: 'clock' } as const, null as Clock | null)
 const now = atom({ plugin: 'interview-room', key: 'now' } as const, 0)
 const scores = atom({ plugin: 'interview-room', key: 'scores' } as const, [] as Score[])
-const isVoice = atom({ plugin: 'interview-room', key: 'isVoice' } as const, true)
+// Off until the user turns it on (the room's button, or interview_start's `voice: true`, which Claude
+// passes only after the user said yes in chat). Kept per folder in the plugin's store.
+const isVoice = atom({ plugin: 'interview-room', key: 'isVoice' } as const, false)
+// The clock's beeps at its turning points: off until the user turns them on, kept per folder too.
+const isSound = atom({ plugin: 'interview-room', key: 'isSound' } as const, false)
 const voiceNote = atom({ plugin: 'interview-room', key: 'voiceNote' } as const, '')
 const voiceTip = atom({ plugin: 'interview-room', key: 'voiceTip' } as const, '')
 // The answer clock can be turned off (WCAG 2.2.1 and 2.2.2): then no countdown is drawn, nothing
@@ -130,7 +136,8 @@ async function tick($: any): Promise<void> {
     if (cues.has(id)) return
     cues.add(id)
     $.ui.toast(text, { timeoutMs: 5000 })
-    void Promise.resolve().then(() => $.audio.play({ base64: sound, mime: 'audio/wav' })).catch(() => undefined)
+    // The notice always shows; the beep only when the user turned sounds on.
+    void Promise.resolve().then(async () => { if (await read($, isSound)) await $.audio.play({ base64: sound, mime: 'audio/wav' }) }).catch(() => undefined)
   }
   if (prepMs > 0 && total >= prepMs && total < prepMs + 5000) cue('start', 'Think time is over. Start answering now.', CUE)
   if (left <= 0) cue('time', 'Time is up. Finish your sentence.', TIME_UP)
@@ -183,65 +190,132 @@ async function stopClock($: any): Promise<number> {
   return took
 }
 
-// A downloaded "Premium" or "Enhanced" English voice if `say -v ?` labels one
-// (older macOS does); otherwise the user's own System voice. macOS 27 no longer
-// labels quality in `say -v ?`, and Siri voices can't be used by `say` at all,
-// so we never override the System voice the user picked.
-// Looked up at the start of each interview (one quick `say -v ?`).
+// The plugin's store is shared by every folder on this computer, so the voice and sound choices are
+// kept per folder (like the Outbox's send mode). An old folder-less "isVoice" value is never trusted.
+async function folderKey($: any, name: string): Promise<string> {
+  const root: string = await Promise.resolve().then(() => $.session.root()).then((r: unknown) => String(r ?? ''), () => '')
+  return `${name}:${root}`
+}
+
+// The same choice as a module value: a reading in progress checks it between sentences, and $.state
+// reads within one call see one moment, so a press mid-reading would not show there. Set again from
+// the store at every session start (a reload runs that too).
+let voiceNow = false
+
+async function setVoice($: any, on: boolean): Promise<void> {
+  voiceNow = on
+  await update($, isVoice, () => on)
+  await Promise.resolve().then(async () => $.store.set(await folderKey($, 'voice'), on)).catch(() => undefined)
+}
+
+async function setSound($: any, on: boolean): Promise<void> {
+  await update($, isSound, () => on)
+  await Promise.resolve().then(async () => $.store.set(await folderKey($, 'sounds'), on)).catch(() => undefined)
+}
+
+// Which voice reads aloud. English (or no language given): a downloaded "Premium" or "Enhanced"
+// English voice if `say -v ?` labels one (older macOS does); otherwise the user's own System voice.
+// macOS 27 no longer labels quality in `say -v ?`, and Siri voices can't be used by `say` at all, so
+// we never override the System voice the user picked. Another language (BCP-47, "de", "es-MX"): a
+// system voice for that language (the region's own first, then any), on macOS from `say -v ?`, on
+// Windows from System.Speech's installed voices; none installed: the default voice, and Claude and the
+// user are told. Looked up at the start of each interview.
 let chosenVoice: string | undefined
+// A Windows (System.Speech) voice for the interview's language; '' for the default voice.
+let winVoice = ''
 const VOICE_TIP = 'Voice sounds robotic? System Settings → Accessibility → Read & Speak: click the Info (i) button next to System voice, download a higher-quality English voice (not a Siri voice; those can\'t read here), then pick it as the System voice. Older macOS calls this Spoken Content.'
 
-async function pickVoice($: any): Promise<void> {
+function langOf(raw: string): { lang: string; region: string } {
+  const m = /^\s*([A-Za-z]{2,3})(?:[-_]([A-Za-z0-9]{2,4}))?/.exec(raw)
+  return { lang: (m?.[1] ?? '').toLowerCase(), region: (m?.[2] ?? '').toUpperCase() }
+}
+
+// Returns a note for Claude ('' when nothing needs saying).
+async function pickVoice($: any, language = ''): Promise<string> {
   chosenVoice = undefined
+  winVoice = ''
   await update($, voiceTip, () => '')
+  const { lang, region } = langOf(language)
+  const isEnglish = lang === '' || lang === 'en'
+  const missing = `No voice for "${language}" is installed on this computer, so lines are read in the default voice, which will sound wrong in that language. Tell the user once: they can add a voice for it (Mac: System Settings → Accessibility → Read & Speak → System voice; Windows: Settings → Time & language → Speech), or press "Turn off voice".`
   let listing = ''
   try {
     const ran = await $.process.run(['say', '-v', '?'], { timeoutMs: 5000 })
-    if (ran.exitCode !== 0) return
+    if (ran.exitCode !== 0) throw new Error('no say')
     listing = String(ran.stdout ?? '')
   } catch {
-    return // not a Mac: Windows uses its own default voice
+    // Not a Mac. Windows: its default voice for English; for another language, an installed voice for it.
+    if (isEnglish) return ''
+    try {
+      const ran = await $.process.run(['powershell', '-NoProfile', '-NonInteractive', '-Command',
+        'Add-Type -AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).GetInstalledVoices() | Where-Object { $_.Enabled } | ForEach-Object { $_.VoiceInfo.Culture.Name + \'|\' + $_.VoiceInfo.Name }'], { timeoutMs: 10000 })
+      const voices = String(ran.stdout ?? '').split(/\r?\n/).map(l => /^([A-Za-z]{2,3})(?:-([A-Za-z0-9]{2,4}))?[^|]*\|(.+)$/.exec(l.trim())).filter((m): m is RegExpExecArray => m !== null)
+        .map(m => ({ lang: (m[1] ?? '').toLowerCase(), region: (m[2] ?? '').toUpperCase(), name: (m[3] ?? '').trim() }))
+        .filter(v => v.lang === lang && v.name !== '' && !/['\r\n]/.test(v.name))
+        .sort((a, b) => Number(b.region === region) - Number(a.region === region))
+      if (voices[0]) { winVoice = voices[0].name; return `Reading aloud in ${winVoice}.` }
+    } catch { /* no PowerShell either */ }
+    await update($, voiceTip, () => `No voice for "${language}" is installed, so lines are read in the default voice. Add one in Settings → Time & language → Speech, or turn voice off.`)
+    return missing
   }
-  const english = listing.split('\n')
-    .map(l => /^(.+?)\s+(en_[A-Z]{2})\s+#/.exec(l))
+  const all = listing.split('\n')
+    .map(l => /^(.+?)\s+([a-z]{2,3})_([A-Za-z0-9]{2,4})\s+#/.exec(l))
     .filter((m): m is RegExpExecArray => m !== null)
-    .map(m => ({ name: (m[1] ?? '').trim(), locale: m[2] ?? '' }))
-  const rank = (v: { name: string; locale: string }) =>
-    (/\(Premium\)/i.test(v.name) ? 40 : /\(Enhanced\)/i.test(v.name) ? 20 : 0) + (v.locale === 'en_US' ? 2 : 0)
-  const best = english.sort((a, b) => rank(b) - rank(a))[0]
-  if (best && rank(best) >= 20) { chosenVoice = best.name; return }
-  await update($, voiceTip, () => VOICE_TIP)
+    .map(m => ({ name: (m[1] ?? '').trim(), lang: m[2] ?? '', region: (m[3] ?? '').toUpperCase() }))
+  const quality = (v: { name: string }) => (/\(Premium\)/i.test(v.name) ? 40 : /\(Enhanced\)/i.test(v.name) ? 20 : 0)
+  if (isEnglish) {
+    const rank = (v: { name: string; region: string }) => quality(v) + (v.region === (region || 'US') ? 2 : 0)
+    const best = all.filter(v => v.lang === 'en').sort((a, b) => rank(b) - rank(a))[0]
+    if (best && rank(best) >= 20) { chosenVoice = best.name; return '' }
+    await update($, voiceTip, () => VOICE_TIP)
+    return ''
+  }
+  const rank = (v: { name: string; region: string }) => quality(v) + (region !== '' && v.region === region ? 10 : 0)
+  const best = all.filter(v => v.lang === lang).sort((a, b) => rank(b) - rank(a))[0]
+  if (best) { chosenVoice = best.name; return `Reading aloud in ${best.name}.` }
+  await update($, voiceTip, () => `No voice for "${language}" is installed, so lines are read in the default voice. Add one in System Settings → Accessibility → Read & Speak, or turn voice off.`)
+  return missing
 }
 
 // Speak with the computer's own voice: macOS `say` through the engine,
 // Windows through PowerShell's System.Speech. Silent elsewhere.
 // Resolves with the earliest time the reading can have ended.
+// Read a sentence at a time, checking the setting before each, so "Turn off voice" stops the reading
+// after the sentence being spoken (the engine has no way to cut off a sentence midway).
 async function speak($: any, text: string): Promise<number> {
   const began = await $.clock.now()
   if (text.trim() === '' || !(await read($, isVoice))) return began
   const floor = Math.max(began, voiceFreeAt) + readingMs(text)
   voiceFreeAt = floor
-  const isSpoken = await speakAloud($, text)
-  if (!isSpoken) {
-    voiceFreeAt = began
-    return began
+  const parts = text.match(/[^.!?]+(?:[.!?]+["')\]]*|$)\s*/g)?.map(p => p.trim()).filter(Boolean) ?? [text]
+  for (const part of parts) {
+    if (!voiceNow) { voiceFreeAt = began; return await $.clock.now() }
+    const isSpoken = await speakAloud($, part)
+    if (!isSpoken) {
+      voiceFreeAt = began
+      return began
+    }
   }
   return Math.max(await $.clock.now(), floor)
 }
 
 async function speakAloud($: any, text: string): Promise<boolean> {
-  try {
-    await $.audio.speak(text, chosenVoice ? { voice: chosenVoice } : undefined)
-    return true
-  } catch {
-    if (chosenVoice) {
-      try { await $.audio.speak(text); return true } catch { /* fall through to Windows */ }
+  // A Windows voice picked for the interview's language goes straight to System.Speech.
+  if (winVoice === '') {
+    try {
+      await $.audio.speak(text, chosenVoice ? { voice: chosenVoice } : undefined)
+      return true
+    } catch {
+      if (chosenVoice) {
+        try { await $.audio.speak(text); return true } catch { /* fall through to Windows */ }
+      }
     }
   }
   try {
+    const select = winVoice !== '' ? `$s.SelectVoice('${winVoice.replace(/'/g, "''")}'); ` : ''
     const ran = await $.process.run(
       ['powershell', '-NoProfile', '-NonInteractive', '-Command',
-        'Add-Type -AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak([Console]::In.ReadToEnd())'],
+        `Add-Type -AssemblyName System.Speech; $s = New-Object System.Speech.Synthesis.SpeechSynthesizer; ${select}$s.Speak([Console]::In.ReadToEnd())`],
       { stdin: text, timeoutMs: 120000 },
     )
     if (ran.exitCode === 0) return true
@@ -255,8 +329,12 @@ async function speakAloud($: any, text: string): Promise<boolean> {
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'interview-room', description: 'Open the mock interview room (start one with /mock-interview)' })
-    const saved = await $.store.get('isVoice')
-    if (typeof saved === 'boolean') await update($, isVoice, () => saved)
+    // Voice and sounds: this folder's remembered choice, else off (an old folder-less value is ignored).
+    const voiceSaved = await Promise.resolve().then(async () => $.store.get(await folderKey($, 'voice'))).catch(() => undefined)
+    voiceNow = voiceSaved === true
+    await update($, isVoice, () => voiceNow)
+    const soundSaved = await Promise.resolve().then(async () => $.store.get(await folderKey($, 'sounds'))).catch(() => undefined)
+    await update($, isSound, () => soundSaved === true)
     const timed = await Promise.resolve().then(() => $.store.get('isTimed')).catch(() => undefined)
     if (typeof timed === 'boolean') await update($, isTimed, () => timed)
     // After a reload mid-answer the clock's ticker is gone but the clock is still running: start it again.
@@ -267,7 +345,7 @@ export const register: Register = on => {
     }
     await $.tool.register({
       name: 'interview_start',
-      description: 'Mock interviews only. Opens the Interview Room for the user and sets the scene. Call once at the start of /mock-interview.',
+      description: 'Mock interviews only. Opens the Interview Room for the user and sets the scene. Call once at the start of /mock-interview. The room is silent until the user opts in to voice (reading aloud) and sounds (beeps): ask them first; pass voice/sounds true only after a clear yes.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -276,13 +354,16 @@ export const register: Register = on => {
           interviewer: { type: 'string', description: 'Who you are playing, e.g. "Hiring manager, Operations"' },
           style: { type: 'string', description: 'behavioral, technical, mixed, panel, presentation, ai-screen (live AI interviewer practice), or one-way (recorded video interview practice)' },
           total: { type: 'number', description: 'How many main questions you plan to ask' },
+          language: { type: 'string', description: 'The interview\'s language as a BCP-47 tag ("de", "es-MX"), when it is not English: a system voice for it is used if one is installed' },
+          voice: { type: 'boolean', description: 'true turns on reading lines aloud in this folder. Set it ONLY after the user said yes in chat to having questions read aloud; never set it without asking. Leave it out otherwise: the room stays silent unless the user turned voice on before here. false turns it off.' },
+          sounds: { type: 'boolean', description: 'true turns on the answer clock\'s beeps in this folder. Same rule: only after the user said yes in chat; never set it without asking.' },
         },
         required: ['company', 'role', 'interviewer', 'total'],
       },
     })
     await $.tool.register({
       name: 'interview_say',
-      description: 'Mock interviews only. Say one interviewer line to the user: it is shown in the Interview Room and read aloud. kind "question" or "followup" also starts their answer clock once the line has been read. Call it one line at a time and wait for each call to return; never send two in parallel. Keep lines short and spoken, as a real interviewer talks. Never put feedback in a question line.',
+      description: 'Mock interviews only. Say one interviewer line to the user: it is shown in the Interview Room, and read aloud if the user turned voice on. kind "question" or "followup" also starts their answer clock once the line has been read. Call it one line at a time and wait for each call to return; never send two in parallel. Keep lines short and spoken, as a real interviewer talks. Never put feedback in a question line.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -316,7 +397,10 @@ export const register: Register = on => {
   })
 
   on('tool.call', { tool: 'mcp__interview-room__interview_start' }, async ($, e) => {
-    const input = e as unknown as Partial<Room>
+    const input = e as unknown as Partial<Room> & { language?: string; voice?: boolean; sounds?: boolean }
+    // Only an explicit true/false changes the folder's choice (Claude sets it only after asking the user).
+    if (input.voice === true || input.voice === false) await setVoice($, input.voice)
+    if (input.sounds === true || input.sounds === false) await setSound($, input.sounds)
     await update($, room, () => ({
       company: String(input.company ?? ''), role: String(input.role ?? ''),
       interviewer: String(input.interviewer ?? 'Interviewer'), style: String(input.style ?? 'mixed'),
@@ -327,9 +411,14 @@ export const register: Register = on => {
     await update($, clock, () => null)
     await update($, voiceNote, () => '')
     voiceFreeAt = 0
-    await pickVoice($)
+    const language = String(input.language ?? '').trim().slice(0, 35)
+    const voiceText = await pickVoice($, language).catch(() => '')
+    const voiceOn = await read($, isVoice)
+    const silent = voiceOn
+      ? (voiceText ? ` ${voiceText}` : '')
+      : ' Reading aloud is off (the user has not turned voice on in this folder), so lines show on screen only. If they might like questions read aloud, ask them; they can press "Turn on voice" in the room. Never pass voice: true without their yes.'
     const opened = await $.ui.open({ id: PANE, title: 'Interview Room' })
-    return { result: `The Interview Room is open. Now greet the user with interview_say kind "intro", then ask the first question with kind "question".${opened.isPlaced ? '' : NOT_SHOWN}` }
+    return { result: `The Interview Room is open. Now greet the user with interview_say kind "intro", then ask the first question with kind "question".${silent}${opened.isPlaced ? '' : NOT_SHOWN}` }
   }).catch(($, e, next) => (next.called ? next(e) : { result: 'The Interview Room had a problem opening. Run the mock interview in chat instead (the mock-interview skill\'s chat version).' }))
 
   on('tool.call', { tool: 'mcp__interview-room__interview_say' }, async ($, e) => {
@@ -349,14 +438,15 @@ export const register: Register = on => {
       await startClock($, Number(input.seconds) > 0 ? Number(input.seconds) : kind === 'followup' ? 60 : 120, Number(input.prep_seconds) > 0 ? Number(input.prep_seconds) : 0, readAt)
     }
     const isAsking = kind === 'question' || kind === 'followup'
+    const shown = (await read($, isVoice)) ? 'Shown and read aloud' : 'Shown on screen (reading aloud is off)'
     const hidden = opened.isPlaced ? '' : ' The room is not visible in this window: write this line in your reply so the user can read it.'
     const untimed = await read($, isTimed)
       ? ''
       : ' The user turned the answer clock off: never mention time or answer length, and give them as long as they need.'
     return {
       result: isAsking
-        ? `Shown and read aloud; ${untimed ? 'the clock is off' : "the user's clock is running"}. Stop here and wait for their answer. Do not add commentary in this message.${hidden}${untimed}`
-        : `Shown and read aloud.${hidden}${untimed}`,
+        ? `${shown}; ${untimed ? 'the clock is off' : "the user's clock is running"}. Stop here and wait for their answer. Do not add commentary in this message.${hidden}${untimed}`
+        : `${shown}.${hidden}${untimed}`,
     }
   }).catch(($, e, next) => (next.called ? next(e) : { result: 'The Interview Room could not show this line. Write it in your reply and carry on in chat.' }))
 
@@ -417,17 +507,20 @@ export const register: Register = on => {
     const t = await read($, now)
     const list = await read($, scores)
     const voice = await read($, isVoice)
+    const sounds = await read($, isSound)
     const note = await read($, voiceNote)
     const tip = await read($, voiceTip)
     const timed = await read($, isTimed)
 
+    // Same key either way, so the focus stays on it after a press. Turning voice off stops the reading
+    // after the sentence being spoken; nothing is read until it is turned on.
     const toggle = (
-      <Button key="voice" label={voice ? 'Stop reading aloud' : 'Read questions aloud'} onPress={async () => {
-        const nextValue = !(await read($, isVoice))
-        await update($, isVoice, () => nextValue)
-        await $.store.set('isVoice', nextValue)
-      }} />
+      <Button key="voice" label={voice ? 'Turn off voice' : 'Turn on voice'} onPress={async () => { await setVoice($, !(await read($, isVoice))) }} />
     )
+    const soundToggle = timed && (
+      <Button key="sounds" label={sounds ? 'Turn off sounds' : 'Turn on sounds'} onPress={async () => { await setSound($, !(await read($, isSound))) }} />
+    )
+    const silentNote = !voice && <Text wrap="wrap">Questions show here as text. Press "Turn on voice" to have them read aloud too{timed ? ', and "Turn on sounds" for a beep at the clock\'s turning points' : ''}.</Text>
     // Same key either way, so the focus stays on it after a press.
     const clockToggle = (
       <Button key="timer" label={timed ? 'Turn off the clock' : 'Turn on the clock'} onPress={() => setTimed($, !timed)} />
@@ -443,7 +536,8 @@ export const register: Register = on => {
         <Box flexDirection="column" gap={1}>
           <Text bold>Interview Room</Text>
           {keys}
-          <Text>Type /mock-interview and pick a job. Claude plays the interviewer, reads each question aloud, and times your answer. You can turn the clock off.</Text>
+          <Text>Type /mock-interview and pick a job. Claude plays the interviewer, shows each question here (and reads it aloud if you turn voice on), and times your answer. You can turn the clock off.</Text>
+          {silentNote}
           <Box flexDirection="column">
             <Text bold>How to answer out loud</Text>
             {micSteps(e.surface).map((s, i) => <Text key={`mic-${i}`} wrap="wrap">{s}</Text>)}
@@ -454,6 +548,7 @@ export const register: Register = on => {
               : <Button key="practice" label="Start 2-minute practice clock" onPress={async () => { await startClock($, 120); focusOn($, 'stop') }} />)}
             {clockToggle}
             {toggle}
+            {soundToggle}
           </Box>
           {timed && c !== null && <Text bold color={free < 0 ? 'error' : free < 30000 ? 'warning' : 'success'}>{`Time: ${mmss(spent)} of ${mmss(c.limit * 1000)}${free < 0 ? '. Time is up: wrap it up' : free < 30000 && c.limit > 30 ? '. Under 30 seconds left' : ''}`}</Text>}
         </Box>
@@ -503,6 +598,7 @@ export const register: Register = on => {
         {isQuestion && isRunning && !isListening && !isPrep && list.length > 0 && <Text dimColor>{micHint(e.surface)}</Text>}
         {note !== '' && <Text color="warning">{note}</Text>}
         {note === '' && voice && tip !== '' && <Text dimColor wrap="wrap">{tip}</Text>}
+        {!r.isOver && silentNote}
         {!r.isOver && <Text>"Ask for a hint", "Ask for more time" and "Ask to end interview" write a message to Claude. Press Enter to send it.</Text>}
         <Box flexDirection="row" gap={1} flexWrap="wrap">
           {timed && isRunning && !isListening && <Button key="done" label="Done answering" variant="primary" onPress={async () => {
@@ -522,6 +618,7 @@ export const register: Register = on => {
           {!r.isOver && <Button key="end" label="Ask to end interview" onPress={() => $.prompt.fill({ text: 'Let\'s end the interview here. Score what I answered and give me my debrief.' })} />}
           {clockToggle}
           {toggle}
+          {soundToggle}
           <Button key="close" label="Close" role="dismiss" onPress={() => $.ui.close({ id: PANE })} />
         </Box>
         {list.length > 0 && (

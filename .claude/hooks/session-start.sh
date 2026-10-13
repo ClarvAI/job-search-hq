@@ -13,6 +13,8 @@ INIT="$(bash .claude/skills/start/scripts/init-data.sh --quiet 2>/dev/null)"
 if [ "$APP" = codex ]; then START='$start (or just say "set me up")'; else START='/start'; fi
 
 brief() {
+  # The try-it sample workspace (made by the tour) carries this marker file.
+  [ -f .sample-workspace ] && echo "This is the SAMPLE workspace (made-up data). Don't run setup or save the user's details here; their own folder is separate."
   echo "Today is $(date '+%A, %B %d, %Y') ($(date +%Y-%m-%d))."
   case "$INIT" in
     *"init: created"*) echo "Missing starter files were just set up from the blank copies (${INIT##*init: created }). In a new folder that's normal (first run); otherwise tell the user a personal file was missing and came back blank." ;;

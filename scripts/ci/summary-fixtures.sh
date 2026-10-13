@@ -3,7 +3,8 @@
 # Windows port .claude/hooks/session-start.ps1. Checks the CSV rules (a quote opens a quoted cell only
 # at the start of a cell; an unfinished quote or a semicolon header is reported, not misread) and the
 # date rules (YYYY-MM-DD, D.M.YYYY day first, slash dates by their own parts, the row's other dates,
-# then date_order; otherwise "date unclear"), passed deadlines, "Also:" notes and urgent-first order.
+# then date_order; otherwise "date unclear"), passed deadlines, "Also:" notes and urgent-first order,
+# contact follow-ups due (contacts.csv, the playbook's contact rules) and Gmail drafts left over 2 days.
 # With --impl ps it also checks that session-start.ps1 prints the same pipeline lines.
 # Usage: bash scripts/ci/summary-fixtures.sh [--impl sh|ps]   (PowerShell from $PS_EXE, else pwsh)
 # Works in macOS bash 3.2, Linux bash and Git Bash. Nothing in the workspace is changed.
@@ -131,6 +132,47 @@ OUT="$(run closedvisa)"
 has  "visa clock still shown after close" "Visa clock"
 has  "closed search still congratulates" "search closed"
 
+# Contact follow-ups (contacts.csv, by the playbook rules) and Gmail drafts left more than 2 days: one short line.
+CHDR='name,company,title,relationship,how_we_met,last_contact,next_followup,status,touches,job,linkedin,email,notes'
+{ printf '%s\n' "$HDR"
+  printf 'Acme,Eng,applied,2099-01-01,Follow up,,A,4,X,,,,,,,,,0,acme,\n'
+  printf 'Beta,Eng,interested,2099-01-01,Decide,,B,3,X,,,,,,,,,0,beta,\n'; } | ws contacts ""
+{ printf '\357\273\277%s\n' "$CHDR"
+  printf 'Pat Lee,Globex,Recruiter,recruiter,,2000-01-01,2000-01-03,contacted,1,,,,\n'
+  printf 'Cold Kim,Initech,PM,cold,,,2000-01-03,cold,0,,,,\n'
+  printf 'Capped Roe,Initech,PM,cold,,,2000-01-03,contacted,2,,,,\n'
+  printf 'Owned Wu,Acme,Recruiter,recruiter,,,2000-01-03,contacted,1,acme,,,\n'
+  printf 'Beta Park,Beta,Manager,alum,,,2000-01-04,to-contact,0,beta,,,"a note, with ""quotes""\nover two lines"\n'
+  printf 'Unclear Diaz,Contoso,Lead,alum,,,03/04/2000,contacted,1,,,,\n'
+  printf 'Replied Ray,Initech,Lead,alum,,,2000-01-05,replied,3,,,,\n'
+  printf 'Future Fox,Initech,Lead,alum,,,2099-01-01,contacted,1,,,,\n'
+  printf 'Proven Day,Contoso,Lead,alum,,25/12/1999,02/01/2000,contacted,1,,,,\n'; } > "$T/contacts/contacts.csv.tmp"
+mkdir -p "$T/contacts/contacts"; mv "$T/contacts/contacts.csv.tmp" "$T/contacts/contacts/contacts.csv"
+printf -- '---\nchannel: email\nto: a@b.example\nsubject: Old\nstatus: in-gmail-drafts\nstatus_at: 2000-01-01 10:00\n---\nhi\n' > "$T/contacts/outbox/2000-01-01-old.md"
+printf -- '---\nchannel: email\nto: a@b.example\nsubject: Older\ncreated: 2000-01-01\nstatus: In-Gmail-Drafts\n---\nhi\n' > "$T/contacts/outbox/2000-01-01-older.md"
+printf -- '---\nchannel: email\nto: a@b.example\nsubject: New\nstatus: in-gmail-drafts\nstatus_at: %s 09:00\n---\nhi\n' "$("$PY" -c 'import datetime; print((datetime.date.today()-datetime.timedelta(days=1)).isoformat())')" > "$T/contacts/outbox/new.md"
+OUT="$(run contacts)"
+has  "contact follow-ups counted by the rules" "Also due: 4 contact follow-ups (Pat Lee (Globex), Beta Park (Beta), Replied Ray (Initech) and 1 more); 2 Gmail drafts made more than 2 days ago and not marked sent."
+hasnt "cold, capped and job-owned contacts not due" "Cold Kim"
+has  "unclear contact date named, not counted" "Unclear Diaz (contact): follow-up 03/04/2000"
+{ printf '%s\n' "$HDR"; printf 'Acme,Eng,applied,2099-01-01,Follow up,,A,4,X,,,,,,,,,0,acme,\n'; } | ws contactsemi ""
+mkdir -p "$T/contactsemi/contacts"; printf 'name;company;status;next_followup\nPat;Globex;contacted;2000-01-01\n' > "$T/contactsemi/contacts/contacts.csv"
+OUT="$(run contactsemi)"
+has  "semicolon contacts file reported" "contacts/contacts.csv was saved with semicolons"
+hasnt "semicolon contacts not counted" "Also due:"
+
+# The try-it sample workspace (a .sample-workspace marker): the startup note says so first.
+SAMPLE_LINE="This is the SAMPLE workspace (made-up data). Don't run setup or save the user's details here; their own folder is separate."
+{ printf '%s\n' "$HDR"; printf 'Acme,Eng,applied,2099-01-01,Follow up,,A,4,X,,,,,,,,,0,acme,\n'; } | ws sample ""
+: > "$T/sample/.sample-workspace"
+if [ "$IMPL" = ps ]; then OUT="$(run sample)"
+else cp "$REPO/.claude/hooks/session-start.sh" "$REPO/.claude/hooks/summary.sh" "$T/sample/.claude/hooks/"; OUT="$(cd "$T/sample" && printf '{}' | CLAUDE_PROJECT_DIR="$T/sample" bash .claude/hooks/session-start.sh 2>/dev/null)"; fi
+first="$(printf '%s\n' "$OUT" | head -1)"
+if [ "$first" = "$SAMPLE_LINE" ]; then pass=$((pass + 1)); echo "PASS  sample workspace named first"
+else fail=$((fail + 1)); echo "FAIL  sample workspace named first (first line: $first)"; fi
+OUT="$(run contacts)"
+hasnt "no sample line in a real workspace" "SAMPLE workspace"
+
 if [ "$IMPL" = sh ]; then
   # Status line: reads the folder from Claude Code's JSON on stdin (not the current folder or env).
   sl() { printf '{"workspace":{"current_dir":"/","project_dir":"%s"}}' "$T/$1" | (cd / && env -u CLAUDE_PROJECT_DIR bash "$REPO/.claude/hooks/statusline.sh"); }
@@ -148,7 +190,7 @@ if [ "$IMPL" = sh ]; then
 fi
 
 if [ "$IMPL" = ps ]; then
-  for c in main order semi open closed bomq feb31 visablank visafuture closedvisa; do
+  for c in main order semi open closed bomq feb31 visablank visafuture closedvisa contacts contactsemi; do
     a="$(CLAUDE_PROJECT_DIR="$T/$c" bash "$REPO/.claude/hooks/summary.sh" long)"; b="$(run "$c")"
     if [ "$a" = "$b" ]; then pass=$((pass + 1)); echo "PASS  $c: session-start.ps1 matches summary.sh"
     else fail=$((fail + 1)); echo "FAIL  $c: session-start.ps1 differs from summary.sh"; diff <(printf '%s\n' "$a") <(printf '%s\n' "$b") | sed 's/^/      | /'; fi

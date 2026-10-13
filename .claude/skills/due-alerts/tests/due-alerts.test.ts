@@ -328,3 +328,15 @@ test('alerts behind "...and N more" are not marked shown, so they come back next
   expect(toasts.length).toBe(2)
   expect(toasts[1]?.split('\n').length).toBe(2)
 })
+
+test('the 2-message cap is for people who have not replied: a reminder for someone who replied still alerts', async ($, on) => {
+  const { toasts } = setup(on, contacts(
+    'Pat Lee,Globex,Recruiter,recruiter,,2026-09-20,2026-10-06,replied,3,,,,',
+    'Sam Roe,Initech,PM,cold,,2026-09-20,2026-10-06,contacted,2,,,,',
+    'Robin Fox,Contoso,Lead,alum,,2026-09-20,2026-10-06,,2,,,,',
+  ))
+  await $.session.start(START as never)
+  expect(toasts.join('\n')).toContain('Follow up with Pat Lee (Globex), due today.')
+  expect(toasts.join('\n')).not.toContain('Sam Roe')
+  expect(toasts.join('\n')).not.toContain('Robin Fox')
+})
