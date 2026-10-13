@@ -25,7 +25,7 @@ const K = {
   lee: 'lee park|bluth & sons',
 }
 
-function setup(on: any, csv: string | null = CSV, opts: { lock?: boolean } = {}) {
+function setup(on: any, csv: string | null = CSV, opts: { lock?: boolean; notPlaced?: boolean; opens?: any[] } = {}) {
   const files: Record<string, string> = { 'jobs/tracker.csv': TRACKER }
   if (csv !== null) files['contacts/contacts.csv'] = csv
   // Tuesday 2026-10-06, 9:00 local.
@@ -37,7 +37,7 @@ function setup(on: any, csv: string | null = CSV, opts: { lock?: boolean } = {})
   on('fs.read', (_$: any, e: any) => ({ value: files[rel(e.path)] ?? '' }) as never)
   on('fs.write', (_$: any, e: any) => { if (opts.lock && rel(e.path).endsWith('.csv')) throw new Error('EBUSY: resource busy or locked'); files[rel(e.path)] = e.text; return { value: undefined } as never })
   on('fs.list', () => ({ value: [] }) as never)
-  on('ui.open', () => ({ value: { isPlaced: true } }) as never)
+  on('ui.open', (_$: any, e: any) => { opts.opens?.push(e); return { value: opts.notPlaced ? { isPlaced: false, reason: 'no attached surface places panes' } : { isPlaced: true } } as never })
   on('ui.close', () => ({ value: undefined }) as never)
   // The [Contacts] note to Claude goes through $.session.append, which this test kit does not route to a
   // test's hooks (the call resolves to an error the plugin ignores), so the notes are not asserted here.
@@ -293,5 +293,58 @@ test('a contacts file locked by Excel shows a clear message', async ($, on) => {
   await ui.press({ key: `${K.jane}:sent` })
   await ui.press({ key: `${K.jane}:sent-today` })
   expect(JSON.stringify(await ui.drawn())).toContain('open in another app (like Excel)')
+  await ui.unmount()
+})
+
+test('2000 contacts stay within what a panel can draw: each group is paged, cold ones too', async ($, on) => {
+  let csv = HEAD + '\n'
+  for (let i = 0; i < 2000; i++) csv += `Person ${i},Company ${i % 300},Manager,alum,event,2026-09-01,,${i % 4 === 0 ? 'cold' : 'contacted'},1,,,person${i}@example.com,\n`
+  setup(on, csv)
+  const ui = await open($, 'terminal')
+  let drawn = JSON.stringify(await ui.drawn())
+  expect(drawn.length).toBeLessThan(60000)
+  expect(drawn).toContain('Showing 1–10 of 1500')
+  expect(drawn.indexOf('"refresh"')).toBeLessThan(drawn.indexOf('Person 1 '))
+  await ui.press({ key: 'contacted-next' })
+  drawn = JSON.stringify(await ui.drawn())
+  expect(drawn).toContain('Showing 11–20 of 1500')
+  await ui.press({ key: 'cold-toggle' })
+  drawn = JSON.stringify(await ui.drawn())
+  expect(drawn).toContain('Showing 1–10 of 500')
+  expect(drawn.length).toBeLessThan(60000)
+  await ui.unmount()
+})
+
+test('an impossible message date is refused and nothing is saved', async ($, on) => {
+  const { files } = setup(on)
+  const before = files['contacts/contacts.csv']
+  const ui = await open($, 'terminal')
+  await ui.press({ key: `${K.jane}:sent` })
+  await ui.input({ key: `${K.jane}:sent-date`, text: '2026-09-31' } as never)
+  expect(JSON.stringify(await ui.drawn())).toContain('Type a real date')
+  expect(files['contacts/contacts.csv']).toBe(before)
+  await ui.unmount()
+})
+
+test('where panels can\'t show, /contacts says so', async ($, on) => {
+  setup(on, CSV, { notPlaced: true })
+  const out: any = await $.command.run({ command: 'contacts', args: '' } as never)
+  expect(String(out.text)).toContain("can't show in this window")
+  expect(JSON.stringify(out.context)).toContain('chat version of the contacts skill')
+})
+
+test('the board opens ready for the keyboard, watches its files and refreshes when one changes', async ($, on) => {
+  const opens: any[] = []
+  const { files } = setup(on, CSV, { opens })
+  on('classic.SessionStart', () => ({}) as never)
+  on('classic.FileChanged', () => ({}) as never)
+  const out: any = await ($ as any).classic.SessionStart({ source: 'startup', cwd: 'C:\\Users\\alex\\job-search' })
+  expect(out.watchPaths).toContain('C:\\Users\\alex\\job-search\\contacts\\contacts.csv')
+  const ui = await open($, 'terminal')
+  expect(opens[0].focus).toBe(true)
+  expect(JSON.stringify(await ui.drawn())).toContain('Tab moves between buttons')
+  files['contacts/contacts.csv'] += 'Rae Fox,Initech,Engineer,alum,,,,to-contact,0,,,,\n'
+  await ($ as any).classic.FileChanged({ file_path: 'C:\\Users\\alex\\job-search\\contacts\\contacts.csv', event: 'change' })
+  expect(JSON.stringify(await ui.drawn())).toContain('Rae Fox')
   await ui.unmount()
 })

@@ -9,6 +9,9 @@ import type { Clock, Line, Room, Score } from '../types'
 // answers out loud (dictation), and keeps a scorecard.
 
 const PANE = 'interview-room'
+const KEYS_HINT = 'Keys: Tab moves between buttons, Enter presses one, Esc goes back to typing.'
+// Told to Claude when the room can't be seen (a narrow window, or an app that shows no panels).
+const NOT_SHOWN = ' The Interview Room is not visible in this window (it needs a wider window, or this app shows no panels). Tell the user once that they can widen the window or type /interview-room to see it, and also write each interviewer line in your reply so they can read it. Reading aloud, the clock and the scorecard still work.'
 
 const room = atom({ plugin: 'interview-room', key: 'room' } as const, null as Room | null)
 const line = atom({ plugin: 'interview-room', key: 'line' } as const, null as Line | null)
@@ -219,6 +222,12 @@ async function speakAloud($: any, text: string): Promise<boolean> {
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'interview-room', description: 'Open the mock interview room (start one with /mock-interview)' })
+    // After a reload mid-answer the clock's ticker is gone but the clock is still running: start it again.
+    const running = await read($, clock)
+    if (running !== null && running.stoppedAt === 0) {
+      ticker?.cancel()
+      ticker = $.clock.every(1000, () => void tick($).catch(() => undefined))
+    }
     const saved = await $.store.get('isVoice')
     if (typeof saved === 'boolean') await update($, isVoice, () => saved)
     await $.tool.register({
@@ -245,7 +254,7 @@ export const register: Register = on => {
           text: { type: 'string' },
           kind: { type: 'string', enum: ['intro', 'question', 'followup', 'closing'] },
           seconds: { type: 'number', description: 'Target answer length for a question: behavioral 120, technical 180, quick follow-up 60' },
-          prep_seconds: { type: 'number', description: 'One-way (HireVue-style) video practice only: think time before the answer clock starts, usually 30' },
+          prep_seconds: { type: 'number', description: 'Think time before the answer clock starts: 30 for one-way practice; also any question or follow-up for accommodations' },
         },
         required: ['text', 'kind'],
       },
@@ -284,9 +293,9 @@ export const register: Register = on => {
     await update($, voiceNote, () => '')
     voiceFreeAt = 0
     await pickVoice($)
-    await $.ui.open({ id: PANE, title: 'Interview Room' })
-    return { result: 'The Interview Room is open. Now greet the user with interview_say kind "intro", then ask the first question with kind "question".' }
-  })
+    const opened = await $.ui.open({ id: PANE, title: 'Interview Room' })
+    return { result: `The Interview Room is open. Now greet the user with interview_say kind "intro", then ask the first question with kind "question".${opened.isPlaced ? '' : NOT_SHOWN}` }
+  }).catch(($, e, next) => (next.called ? next(e) : { result: 'The Interview Room had a problem opening. Run the mock interview in chat instead (the mock-interview skill\'s chat version).' }))
 
   on('tool.call', { tool: 'mcp__interview-room__interview_say' }, async ($, e) => {
     const input = e as unknown as { text?: string; kind?: string; seconds?: number; prep_seconds?: number }
@@ -298,19 +307,20 @@ export const register: Register = on => {
     if (kind === 'question') await update($, room, r => (r ? { ...r, asked: r.asked + 1 } : r))
     await stopClock($)
     await update($, clock, () => null)  // don't show the last answer's time under the new question
-    await $.ui.open({ id: PANE, title: 'Interview Room' })
+    const opened = await $.ui.open({ id: PANE, title: 'Interview Room' })
     // Read the line aloud first; the answer clock (or one-way think time) starts when the reading ends.
     const readAt = await speak($, text)
     if (kind === 'question' || kind === 'followup') {
       await startClock($, Number(input.seconds) > 0 ? Number(input.seconds) : kind === 'followup' ? 60 : 120, Number(input.prep_seconds) > 0 ? Number(input.prep_seconds) : 0, readAt)
     }
     const isAsking = kind === 'question' || kind === 'followup'
+    const hidden = opened.isPlaced ? '' : ' The room is not visible in this window: write this line in your reply so the user can read it.'
     return {
       result: isAsking
-        ? 'Shown and read aloud; the user\'s clock is running. Stop here and wait for their answer. Do not add commentary in this message.'
-        : 'Shown and read aloud.',
+        ? `Shown and read aloud; the user's clock is running. Stop here and wait for their answer. Do not add commentary in this message.${hidden}`
+        : `Shown and read aloud.${hidden}`,
     }
-  })
+  }).catch(($, e, next) => (next.called ? next(e) : { result: 'The Interview Room could not show this line. Write it in your reply and carry on in chat.' }))
 
   on('tool.call', { tool: 'mcp__interview-room__interview_score' }, async ($, e) => {
     const input = e as unknown as { question?: string; score?: number; note?: string }
@@ -318,7 +328,7 @@ export const register: Register = on => {
       n: list.length + 1, question: String(input.question ?? ''), score: Number(input.score) || 0, note: String(input.note ?? ''),
     }])
     return { result: 'Scored on the user\'s scorecard.' }
-  })
+  }).catch(($, e, next) => (next.called ? next(e) : { result: 'The score could not be shown on the scorecard. Keep it for the written debrief.' }))
 
   on('tool.call', { tool: 'mcp__interview-room__interview_end' }, async ($, e) => {
     const input = e as unknown as { closing?: string }
@@ -332,7 +342,7 @@ export const register: Register = on => {
     const list = await read($, scores)
     const avg = list.length ? (list.reduce((a, s) => a + s.score, 0) / list.length).toFixed(1) : 'n/a'
     return { result: `Round closed. Average ${avg} over ${list.length} scored answers. Now write the debrief to interviews/ and give the user their top 3 fixes.` }
-  })
+  }).catch(($, e, next) => (next.called ? next(e) : { result: 'Round closed. Now write the debrief to interviews/ and give the user their top 3 fixes.' }))
 
   // Sending the answer (without pressing "Done answering") stops the clock too, and Claude is told how
   // long the answer took, for the debrief.
@@ -345,10 +355,16 @@ export const register: Register = on => {
     const took = await stopClock($)
     const answered = Math.max(0, took - (c.prep ?? 0) * 1000)
     return next({ ...e, context: [...(e.context ?? []), `[Interview Room] The user's answer took about ${mmss(answered)} (target ${mmss(c.limit * 1000)}).`] })
-  })
+  }).catch(($, e, next) => next(e))
 
   on('command.run', { command: 'interview-room' }, async $ => {
-    await $.ui.open({ id: PANE, title: 'Interview Room' })
+    const opened = await $.ui.open({ id: PANE, title: 'Interview Room', focus: true })
+    if (!opened.isPlaced) {
+      return {
+        text: 'The Interview Room can\'t show in this window. You can still practice: type /mock-interview and Claude will run it here in the chat.',
+        context: ['The Interview Room panel is not visible in this app or window. For a mock interview, use the chat version in the mock-interview skill.'],
+      }
+    }
     return { text: 'Interview Room opened. Start a practice round with /mock-interview.' }
   })
 
@@ -378,6 +394,7 @@ export const register: Register = on => {
       return (
         <Box flexDirection="column" gap={1}>
           <Text bold>Interview Room</Text>
+          {e.surface === 'terminal' && <Text dimColor>{KEYS_HINT}</Text>}
           <Text>Type /mock-interview and pick a job. Claude plays the interviewer, reads each question aloud, and times your answer.</Text>
           <Box flexDirection="column">
             <Text bold>How to answer out loud</Text>
@@ -389,7 +406,7 @@ export const register: Register = on => {
               : <Button key="practice" label="Start 2-minute practice clock" onPress={() => startClock($, 120)} />}
             {toggle}
           </Box>
-          {c !== null && <Text bold color={free < 0 ? 'error' : free < 30000 ? 'warning' : 'success'}>{`${mmss(spent)} / ${mmss(c.limit * 1000)}${free < 0 ? '   wrap it up' : ''}`}</Text>}
+          {c !== null && <Text bold color={free < 0 ? 'error' : free < 30000 ? 'warning' : 'success'}>{`${mmss(spent)} / ${mmss(c.limit * 1000)}${free < 0 ? '   wrap it up' : free < 30000 && c.limit > 30 ? '   under 30 seconds left' : ''}`}</Text>}
         </Box>
       )
     }
@@ -424,7 +441,7 @@ export const register: Register = on => {
             : `Think time: ${mmss(prepMs - total)} left. Your answer clock starts automatically.`}</Text>
         )}
         {c !== null && !r.isOver && !isListening && !isPrep && (
-          <Text bold color={color}>{`${mmss(elapsed)} / ${mmss(c.limit * 1000)}${left < 0 ? '   wrap it up' : ''}`}</Text>
+          <Text bold color={color}>{`${mmss(elapsed)} / ${mmss(c.limit * 1000)}${left < 0 ? '   wrap it up' : left < 30000 && c.limit > 30 ? '   under 30 seconds left' : ''}`}</Text>
         )}
         {!r.isOver && list.length === 0 && (
           <Box flexDirection="column">
@@ -436,6 +453,7 @@ export const register: Register = on => {
         {note !== '' && <Text color="warning">{note}</Text>}
         {note === '' && voice && tip !== '' && <Text dimColor wrap="wrap">{tip}</Text>}
         {!r.isOver && <Text dimColor>"Ask for a hint" and "Ask to end interview" write a message to Claude. Press Enter to send it.</Text>}
+        {e.surface === 'terminal' && <Text dimColor>{KEYS_HINT}</Text>}
         <Box flexDirection="row" gap={1} flexWrap="wrap">
           {isRunning && !isListening && <Button key="done" label="Done answering" variant="primary" onPress={async () => {
             const took = await stopClock($)

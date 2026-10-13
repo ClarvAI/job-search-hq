@@ -38,6 +38,7 @@ export type Decision = { id: string; label: string; status: string; reason: stri
 
 declare module 'claude-code' {
   interface PluginState {
-    'job-inbox': { inbox: Inbox | null; asking: string; notice: Notice; pending: Decision[]; showAll: boolean }
+    // page: which page of the lead cards is showing (long inboxes are paged).
+    'job-inbox': { inbox: Inbox | null; asking: string; notice: Notice; pending: Decision[]; page: number }
   }
 }

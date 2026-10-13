@@ -2,9 +2,9 @@ import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
 import type { Decision, Inbox, Lead, Notice } from '../types'
-import { dateOrder, daysBetween, isIso, isSamePosting, localDate, orderFor, plain, readCsv, records, savedNote, toCsv, toIso, trackerRefs } from './leads'
-import { csvTrouble, isExcelLock } from './csvdate'
-import type { DateOrder } from './leads'
+import { dateOrder, daysBetween, isIso, isTracked, localDate, orderFor, plain, readCsv, records, savedNote, toCsv, toIso, trackerIndex, trackerRefs } from './leads'
+import { activityLine, colOf, csvTrouble, isExcelLock, pageOf, rowKept } from './csvdate'
+import type { DateOrder, TrackerIndex } from './leads'
 
 // Job Inbox: /find-jobs writes new leads to jobs/leads.csv; the user goes through them here.
 // Save hands the lead to Claude for add-job; Skip and Not for me keep it from being suggested again,
@@ -14,6 +14,12 @@ const PANE = 'job-inbox'
 const LEADS = 'jobs/leads.csv'
 const TRACKER = 'jobs/tracker.csv'
 const ACTIVITY = 'history/activity.md'
+const BOM = String.fromCharCode(0xfeff)
+// A byte-order mark only counts at the very start of a file.
+const noBom = (t: string) => (t.startsWith(BOM) ? t.slice(1) : t)
+// The files this inbox reads: when one changes on disk (find-jobs, Codex, Excel), it refreshes.
+const WATCHED = ['jobs/leads.csv', 'jobs/tracker.csv']
+const KEYS_HINT = 'Keys: Tab moves between buttons, Enter presses one, Esc goes back to typing.'
 const OLDER_THAN_DAYS = 30
 const LOG_AFTER_MS = 5 * 60 * 1000
 
@@ -34,9 +40,12 @@ const inbox = atom({ plugin: 'job-inbox', key: 'inbox' } as const, null as Inbox
 const asking = atom({ plugin: 'job-inbox', key: 'asking' } as const, '')
 const notice = atom({ plugin: 'job-inbox', key: 'notice' } as const, { text: '', isError: false, undoId: '', undoStatus: '' } as Notice)
 const pending = atom({ plugin: 'job-inbox', key: 'pending' } as const, [] as Decision[])
-const showAll = atom({ plugin: 'job-inbox', key: 'showAll' } as const, false)
-// Lead cards shown until the user presses "Show all" (best fits first).
+// Which page of lead cards is showing (best fits first, older leads after): a panel draws at most
+// 100,000 characters, so a long inbox is shown a page at a time.
+const page = atom({ plugin: 'job-inbox', key: 'page' } as const, 0)
 const SHOWN = 15
+// Saved leads listed by name before "and N more".
+const SAVED_SHOWN = 10
 
 // The quiet-time timer for the activity line (a module variable: a reload just drops it, and the
 // pending decisions in $.state are written at the next prompt, close, or session start instead).
@@ -44,7 +53,7 @@ let logTimer: { cancel: () => void } | undefined
 
 const labelOf = (l: { company: string; role: string }) => `${l.company} - ${l.role}`
 
-function toLead(r: Record<string, string>, tracked: ReturnType<typeof trackerRefs>, order: DateOrder): Lead {
+function toLead(r: Record<string, string>, tracked: TrackerIndex, order: DateOrder): Lead {
   const g = (k: string) => r[k] ?? ''
   order = orderFor(Object.values(r), order)
   const lead = {
@@ -53,18 +62,18 @@ function toLead(r: Record<string, string>, tracked: ReturnType<typeof trackerRef
     jobId: g('job_id'), source: g('source'), fitGuess: g('fit_guess').toUpperCase(), why: g('why'), concerns: g('concerns'),
     status: (g('status') || 'new').toLowerCase(), reason: g('reason'), decidedDate: toIso(g('decided_date'), order), isTracked: false,
   }
-  lead.isTracked = tracked.some(t => isSamePosting(lead, t))
+  lead.isTracked = isTracked(tracked, lead)
   return lead
 }
 
 async function readText($: any, path: string): Promise<string> {
-  return (await $.fs.exists(path)) ? String(await $.fs.read(path)).replace(/^\uFEFF/, '') : ''
+  return (await $.fs.exists(path)) ? noBom(String(await $.fs.read(path))) : ''
 }
 
 async function load($: any): Promise<Inbox> {
   const today = localDate(await $.clock.now())
   const hasFile = await $.fs.exists(LEADS)
-  const tracked = trackerRefs(await readText($, TRACKER).catch(() => ''))
+  const tracked = trackerIndex(trackerRefs(await readText($, TRACKER).catch(() => '')))
   const order = dateOrder(await readText($, 'profile/preferences.md').catch(() => ''))
   const leadsText = await readText($, LEADS)
   const problem = readCsv(leadsText).problem
@@ -117,10 +126,7 @@ async function flushLog($: any): Promise<void> {
     skipped.length > 0 ? `skipped ${skipped.length}` : '',
     nope.length > 0 ? `not for me ${nope.length} (${Object.entries(why).map(([k, n]) => (n > 1 ? `${k} x${n}` : k)).join(', ')})` : '',
   ].filter(Boolean)
-  const d = new Date(await $.clock.now())
-  const pad = (n: number) => String(n).padStart(2, '0')
-  const lineOut = `- ${localDate(d.getTime())} ${pad(d.getHours())}:${pad(d.getMinutes())} · Job Inbox panel (Claude) · Job leads reviewed: ${parts.join(', ')}\n`
-  await appendLine($, ACTIVITY, lineOut)
+  await appendLine($, ACTIVITY, activityLine(await $.clock.now(), 'Job Inbox panel (Claude)', `Job leads reviewed: ${parts.join(', ')}`))
 }
 
 // One line added to the end of history/activity.md. The file is re-read right before the write and
@@ -166,18 +172,18 @@ async function saveLead($: any, id: string, change: (get: (c: string) => string,
     if (problem !== '') { await refresh($).catch(() => undefined); await say($, csvTrouble(problem, 'Your leads file (jobs/leads.csv)'), true); return false }
     const header = rows[0] ?? []
     const idx = (c: string) => {
-      let i = header.findIndex(h => h.trim().toLowerCase() === c)
+      let i = colOf(header, c)
       if (i < 0) { header.push(c); i = header.length - 1 }
       return i
     }
-    const idCol = header.findIndex(h => h.trim().toLowerCase() === 'id')
+    const idCol = colOf(header, 'id')
     const target = idCol < 0 ? undefined : rows.slice(1).find(r => (r[idCol] ?? '').trim() === id)
     if (!target) { await say($, 'That lead is no longer in jobs/leads.csv. Press Refresh.', true); return false }
     const get = (c: string) => (target[idx(c)] ?? '').trim()
     const set = (c: string, v: string) => { const i = idx(c); while (target.length <= i) target.push(''); target[i] = plain(v) }
     if (!change(get, set, today)) { await refresh($); return false }
     for (const r of rows) while (r.length < header.length) r.push('')
-    const next = (original.startsWith('\uFEFF') ? '\uFEFF' : '') + toCsv(rows)
+    const next = (original.startsWith(BOM) ? BOM : '') + toCsv(rows)
     if (await openInExcel($, LEADS)) {
       await say($, 'Your leads file is open in Excel. Save and close it there, then try again (otherwise Excel would later put back its older copy).', true)
       return false
@@ -196,7 +202,7 @@ async function saveLead($: any, id: string, change: (get: (c: string) => string,
     }
     // If another app saved at the same instant, don't redo the change; check the saved row is still there.
     const back: string = await $.fs.read(LEADS).catch(() => next)
-    if (back !== next && !readCsv(back).rows.some(r => r.length >= target.length && target.every((v, i) => (r[i] ?? '') === v))) {
+    if (back !== next && !rowKept(back, target)) {
       await say($, 'Another app saved your leads file at the same moment, so this choice may not have stuck. Press Refresh and check.', true)
       return false
     }
@@ -246,9 +252,26 @@ export const register: Register = on => {
     await flushLog($).catch(() => undefined)
     // No toast here: the due-alerts mod is the one pop-up at session start; the line above the prompt shows the count.
     await refresh($).catch(() => null)
+    // A slow poll as a backstop; changed files also refresh the inbox at once (classic.FileChanged below).
     $.clock.every(30000, () => void refresh($).catch(() => undefined))
     return next(e)
   })
+
+  // Ask Claude Code to watch the files this inbox reads, so new leads show at once. The paths must be
+  // absolute: they are built from the session's folder.
+  on('classic.SessionStart', async ($, e, next) => {
+    const out = await next(e)
+    const root = String(e.cwd ?? '').replace(/[\\/]+$/, '')
+    if (root === '') return out
+    const sep = /^[A-Za-z]:\\/.test(root) ? '\\' : '/'
+    return { ...out, watchPaths: [...(out.watchPaths ?? []), ...WATCHED.map(p => root + sep + p.split('/').join(sep))] }
+  }).catch(($, e, next) => next(e))
+
+  on('classic.FileChanged', async ($, e, next) => {
+    const path = String(e.file_path ?? '').replace(/\\/g, '/')
+    if (WATCHED.some(p => path.endsWith(`/${p}`))) await refresh($).catch(() => undefined)
+    return next(e)
+  }).catch(($, e, next) => next(e))
 
   on('session.end', async ($, e, next) => {
     await flushLog($).catch(() => undefined)
@@ -259,7 +282,7 @@ export const register: Register = on => {
   on('prompt.submit', async ($, e, next) => {
     if ((await read($, pending)).length > 0) await flushLog($).catch(() => undefined)
     return next(e)
-  })
+  }).catch(($, e, next) => next(e))
 
   on('turn.complete', async ($, e, next) => {
     await refresh($).catch(() => undefined)
@@ -279,13 +302,19 @@ export const register: Register = on => {
       }
     }
     return ran
-  })
+  }).catch(($, e, next) => next(e))
 
   on('command.run', { command: 'job-inbox' }, async $ => {
     const s = await refresh($)
     await update($, asking, () => '')
     await say($, '')
-    await $.ui.open({ id: PANE, title: 'Job Inbox' })
+    const opened = await $.ui.open({ id: PANE, title: 'Job Inbox', focus: true })
+    if (!opened.isPlaced) {
+      return {
+        text: `Job Inbox: ${headline(s)}. The inbox can't show in this window, so ask Claude to "go through my job leads" here in the chat.`,
+        context: ['The Job Inbox panel is not visible in this app or window. If the user asks, use the chat version of the job-inbox skill (.agents/skills/job-inbox/SKILL.md).'],
+      }
+    }
     return { text: `Job Inbox: ${headline(s)}.` }
   })
 
@@ -299,7 +328,7 @@ export const register: Register = on => {
     const mine = (
       <Box key="job-inbox-band" flexDirection="row" gap={1}>
         <Text>{`Job Inbox: ${n} new ${n === 1 ? 'lead' : 'leads'}`}</Text>
-        <Button key="job-inbox-open" label="Open job inbox" plain onPress={() => $.ui.open({ id: PANE, title: 'Job Inbox' })} />
+        <Button key="job-inbox-open" label="Open job inbox" plain onPress={() => $.ui.open({ id: PANE, title: 'Job Inbox', focus: true })} />
       </Box>
     )
     const below: any = await next(e)
@@ -316,8 +345,11 @@ export const register: Register = on => {
     const s = await read($, inbox)
     const open = await read($, asking)
     const note = await read($, notice)
-    const allShown = await read($, showAll)
     if (s === null) return <Text dimColor>Loading…</Text>
+    // Best fits first, then older leads; one page at a time.
+    const all = [...s.fresh.map(l => ({ l, isOld: false })), ...s.older.map(l => ({ l, isOld: true }))]
+    const pg = pageOf(all, await read($, page), SHOWN)
+    const firstOld = pg.items.findIndex(x => x.isOld)
 
     const card = (l: Lead, isOld: boolean) => {
       const where = [l.location, l.remote && !l.location.toLowerCase().includes(l.remote) ? l.remote : ''].filter(Boolean).join(' · ')
@@ -363,8 +395,13 @@ export const register: Register = on => {
     const savedLinks = s.saved.map(l => l.applyLink || l.link || `${l.company} ${l.role}`)
     return (
       <Box flexDirection="column" gap={1}>
-        <Text bold>{headline(s)}</Text>
+        <Box flexDirection="row" gap={1} flexWrap="wrap">
+          <Text bold>{headline(s)}</Text>
+          <Button key="refresh" label="Refresh" onPress={() => refresh($)} />
+          <Button key="close" label="Close" role="dismiss" onPress={async () => { await flushLog($).catch(() => undefined); await $.ui.close({ id: PANE }) }} />
+        </Box>
         <Text dimColor>Save sends a lead to Claude to add to your tracker. Skip or Not for me hides it, and it won't be suggested again.</Text>
+        {e.surface === 'terminal' && <Text dimColor>{KEYS_HINT}</Text>}
         {note.text !== '' && (
           <Box flexDirection="row" gap={1}>
             <Text color={note.isError ? 'error' : 'success'}>{note.isError ? `Not saved: ${note.text}` : note.text}</Text>
@@ -378,24 +415,25 @@ export const register: Register = on => {
           </Box>
         )}
         {s.problem !== '' && <Text color="error" wrap="wrap">{s.problem}</Text>}
-        {(allShown ? s.fresh : s.fresh.slice(0, SHOWN)).map(l => card(l, false))}
-        {(allShown || s.fresh.length < SHOWN) && s.older.length > 0 && <Text bold>{`Older leads (found more than ${OLDER_THAN_DAYS} days ago)`}</Text>}
-        {(allShown || s.fresh.length < SHOWN) && (allShown ? s.older : s.older.slice(0, SHOWN - s.fresh.length)).map(l => card(l, true))}
-        {s.fresh.length + s.older.length > SHOWN && (
-          <Button key="show-all" label={allShown ? 'Show fewer' : `Show all ${s.fresh.length + s.older.length} leads`} plain onPress={() => update($, showAll, v => !v)} />
+        {pg.items.map((x, i) => (i === firstOld
+          ? [<Text key="older-heading" bold>{`Older leads (found more than ${OLDER_THAN_DAYS} days ago)`}</Text>, card(x.l, true)]
+          : card(x.l, x.isOld)))}
+        {pg.pages > 1 && (
+          <Box key="leads-pager" flexDirection="row" gap={1} flexWrap="wrap">
+            <Text dimColor>{`Showing ${pg.from}–${pg.to} of ${all.length}`}</Text>
+            {pg.page > 0 && <Button key="leads-prev" label="Previous page" plain onPress={() => update($, page, () => pg.page - 1)} />}
+            {pg.page < pg.pages - 1 && <Button key="leads-next" label="Next page" plain onPress={() => update($, page, () => pg.page + 1)} />}
+          </Box>
         )}
         {s.saved.length > 0 && (
           <Box flexDirection="column">
             <Text bold>{`Saved, waiting to be added to your tracker (${s.saved.length})`}</Text>
-            {s.saved.map(l => <Text key={`${l.id}:saved`} dimColor>{`${labelOf(l)}${l.location ? ` · ${l.location}` : ''}`}</Text>)}
+            {s.saved.slice(0, SAVED_SHOWN).map(l => <Text key={`${l.id}:saved`} dimColor>{`${labelOf(l)}${l.location ? ` · ${l.location}` : ''}`}</Text>)}
+            {s.saved.length > SAVED_SHOWN && <Text dimColor>{`and ${s.saved.length - SAVED_SHOWN} more`}</Text>}
             <Button key="add-saved" label="Add saved jobs now" plain onPress={() => $.prompt.fill({ text: `/add-job ${savedLinks.join(' ')}` })} />
           </Box>
         )}
         {(s.counts.tracked ?? 0) > 0 && <Text dimColor>{`${s.counts.tracked} ${s.counts.tracked === 1 ? 'lead is' : 'leads are'} already in your tracker, so not shown.`}</Text>}
-        <Box flexDirection="row" gap={1}>
-          <Button key="refresh" label="Refresh" onPress={() => refresh($)} />
-          <Button key="close" label="Close" role="dismiss" onPress={async () => { await flushLog($).catch(() => undefined); await $.ui.close({ id: PANE }) }} />
-        </Box>
       </Box>
     )
   })

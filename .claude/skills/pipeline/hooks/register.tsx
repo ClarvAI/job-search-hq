@@ -2,7 +2,8 @@ import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
 import type { Job, Notice, Summary } from '../types'
-import { addDays, alsoOf, csvTrouble, dateOrder, daysBetween, isExcelLock, isIso, localDate, orderFor, plain, readCsv, toCsv, toIso } from './csvdate'
+import { activityLine, addDays, alsoOf, colOf, csvTrouble, dateOrder, daysBetween, isExcelLock, isIso, jobKey, localDate, orderFor, pageOf, plain, readCsv, rowKept, toCsv, toIso } from './csvdate'
+import type { DateOrder } from './csvdate'
 
 // Pipeline: the user's interactive job board. It reads jobs/tracker.csv (the single source of truth),
 // shows a one-line band above the prompt, and lets the user change a job's stage, next step and date.
@@ -11,6 +12,9 @@ import { addDays, alsoOf, csvTrouble, dateOrder, daysBetween, isExcelLock, isIso
 const PANE = 'pipeline'
 const TRACKER = 'jobs/tracker.csv'
 const ACTIVITY = 'history/activity.md'
+const BOM = String.fromCharCode(0xfeff)
+// A byte-order mark only counts at the very start of a file.
+const noBom = (t: string) => (t.startsWith(BOM) ? t.slice(1) : t)
 const OPEN = ['interested', 'applied', 'screening', 'interviewing', 'offer']
 const STAGES = [
   { value: 'interested', label: 'To apply' },
@@ -25,13 +29,17 @@ const STAGES = [
   { value: 'ghosted', label: 'No response' },
 ]
 const stageLabel = (v: string) => STAGES.find(s => s.value === v)?.label ?? v
+// The files this board reads: when one changes on disk (Claude, Codex, Excel), the board refreshes.
+const WATCHED = ['jobs/tracker.csv', 'profile/preferences.md']
+const KEYS_HINT = 'Keys: Tab moves between buttons, Enter presses one, Esc goes back to typing.'
 
 const summary = atom({ plugin: 'pipeline', key: 'summary' } as const, null as Summary | null)
 const isHidden = atom({ plugin: 'pipeline', key: 'isHidden' } as const, false)
 const editing = atom({ plugin: 'pipeline', key: 'editing' } as const, '')
 const showClosed = atom({ plugin: 'pipeline', key: 'showClosed' } as const, false)
 const notice = atom({ plugin: 'pipeline', key: 'notice' } as const, { text: '', isError: false } as Notice)
-const showAll = atom({ plugin: 'pipeline', key: 'showAll' } as const, false)
+const page = atom({ plugin: 'pipeline', key: 'page' } as const, 0)
+const closedPage = atom({ plugin: 'pipeline', key: 'closedPage' } as const, 0)
 
 // Excel may rewrite dates as 14/10/2026, 10/14/26 or 14.10.2026. csvdate.ts reads a date only when its
 // meaning is certain (the row's own dates or date_order in profile/preferences.md); anything else is
@@ -47,18 +55,8 @@ function friendlyDate(iso: string, today: string): string {
 }
 
 const isInterview = (text: string) => /interview/i.test(text) && !/prep|thank/i.test(text)
+// Cards per page: a panel draws at most 100,000 characters, so long lists are paged.
 const SHOWN = 20
-
-// Folder is part of the key so two postings with the same company and title stay separate.
-// A row's identity: company + role + folder. Rows typed in by hand may have no folder, so fall
-// back to the job ID, link or date found to keep two postings with the same title apart.
-function keyOf(company: string, role: string, folder = ''): string {
-  const base = `${company.trim().toLowerCase()}|${role.trim().toLowerCase()}`
-  return folder.trim() ? `${base}|${folder.trim().toLowerCase()}` : base
-}
-function rowKey(get: (c: string) => string): string {
-  return keyOf(get('company'), get('role'), get('folder') || get('job_id') || get('link') || get('date_found'))
-}
 
 // True when Excel seems to have the file open (its "~$" lock file is next to it). Without a lock file
 // it may still be open, so a failed save also asks the user to save and close Excel.
@@ -94,13 +92,12 @@ async function load($: any): Promise<Summary> {
   const prefs: string = (await $.fs.exists('profile/preferences.md')) ? await $.fs.read('profile/preferences.md').catch(() => '') : ''
   const order = dateOrder(prefs)
   const { rows: [header = [], ...rows], problem } = readCsv(raw)
-  const col = (name: string) => header.findIndex(h => h.trim().toLowerCase() === name)
-  const at = (r: string[], name: string) => (col(name) >= 0 ? (r[col(name)] ?? '').trim() : '')
+  const at = (r: string[], name: string) => { const i = colOf(header, name); return i >= 0 ? (r[i] ?? '').trim() : '' }
   const jobs: Job[] = problem !== '' ? [] : rows.map(r => {
     const o = orderFor(r, order)
     const also = alsoOf(at(r, 'notes'), o)
     return {
-      key: rowKey(c => at(r, c)),
+      key: jobKey(c => at(r, c)),
       company: at(r, 'company'),
       role: at(r, 'role'),
       status: at(r, 'status').toLowerCase(),
@@ -134,7 +131,7 @@ async function load($: any): Promise<Summary> {
     for (const entry of await $.fs.list('outbox')) {
       // Same reading as the Outbox panel: skip examples and README, ignore case in the status.
       if (entry.kind !== 'file' || !entry.name.endsWith('.md') || entry.name.startsWith('_') || entry.name.toLowerCase() === 'readme.md') continue
-      const text: string = (await $.fs.read(`outbox/${entry.name}`).catch(() => '')).replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n').replace(/^\s+(?=---)/, '')
+      const text: string = noBom(String(await $.fs.read(`outbox/${entry.name}`).catch(() => ''))).replace(/\r\n?/g, '\n').replace(/^\s+(?=---)/, '')
       if (!/^---\n[\s\S]*?\n---/.test(text)) continue
       const status = (/^status:\s*["']?([^\s#"']+)/m.exec(text.split(/\n---/)[0] ?? '')?.[1] ?? 'draft').toLowerCase()
       if (status === 'draft') drafts++
@@ -155,77 +152,80 @@ async function say($: any, text: string, isError = false): Promise<void> {
   await update($, notice, () => ({ text, isError }))
 }
 
-// One line in history/activity.md, so Codex (or a later Claude session) knows what the user changed here.
+// One line in history/activity.md, so Codex (or a later Claude session) knows what the user changed
+// here. Only what happened goes in the log; requests for Claude go in the note to Claude.
 async function logActivity($: any, what: string): Promise<void> {
-  const d = new Date(await $.clock.now())
-  const pad = (n: number) => String(n).padStart(2, '0')
-  const stamp = `${localDate(d.getTime())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
-  const text = what.replace(/\. The user accepted this offer.*$/, '. The user accepted this offer')
-  const lineOut = `- ${stamp} · Pipeline panel (Claude) · ${text.replace(/[\r\n]+/g, ' ')}\n`
-  await appendLine($, ACTIVITY, lineOut)
+  await appendLine($, ACTIVITY, activityLine(await $.clock.now(), 'Pipeline panel (Claude)', what))
 }
 
-// Read the tracker fresh, change one job's row, write it back, and tell Claude what changed.
-async function saveJob($: any, key: string, change: (get: (c: string) => string, set: (c: string, v: string) => void, today: string) => string): Promise<void> {
-  const today = localDate(await $.clock.now())
+async function readOrder($: any): Promise<DateOrder> {
   const prefs: string = (await $.fs.exists('profile/preferences.md').catch(() => false)) ? await $.fs.read('profile/preferences.md').catch(() => '') : ''
-  const order = dateOrder(prefs)
-  let what = ''
+  return dateOrder(prefs)
+}
+
+type Change = (get: (c: string) => string, set: (c: string, v: string) => void, today: string, order: DateOrder) => string | { what: string; forClaude?: string }
+
+// Read the tracker fresh, change one job's row, write it back, and tell Claude what changed.
+async function saveJob($: any, key: string, change: Change): Promise<void> {
+  const today = localDate(await $.clock.now())
+  const order = await readOrder($)
+  let result: { what: string; forClaude?: string } = { what: '' }
   // Optimistic save: if the file changes (Claude, Codex, Excel) between our read and our write, start over from the new version.
   for (let attempt = 0; ; attempt++) {
-  const original: string = await $.fs.read(TRACKER)
-  const { rows, problem } = readCsv(original)
-  // A damaged file (an unclosed quote, or saved with semicolons) is never written back: that would spread the damage.
-  if (problem !== '') { await refresh($).catch(() => undefined); await say($, csvTrouble(problem, 'Your tracker (jobs/tracker.csv)'), true); return }
-  const header = rows[0] ?? []
-  const find = (c: string) => header.findIndex(h => h.trim().toLowerCase() === c)
-  const idx = (c: string) => {
-    let i = find(c)
-    if (i < 0) { header.push(c); i = header.length - 1 }
-    return i
-  }
-  // Find the row by the cells exactly as the board read them, before any date in it is tidied.
-  const target = rows.slice(1).find(r => rowKey(c => (find(c) >= 0 ? (r[find(c)] ?? '') : '').trim()) === key)
-  if (!target) { await say($, 'That job is no longer in jobs/tracker.csv. Press Refresh, or ask Claude to check the tracker.', true); return }
-  // Only this row's dates are tidied, and only when their meaning is certain; other rows stay as they are.
-  const o = orderFor(target, order)
-  for (const c of DATE_COLS) { const i = find(c); if (i >= 0 && target[i]) target[i] = toIso(target[i], o) }
-  const get = (c: string) => (target[idx(c)] ?? '').trim()
-  const set = (c: string, v: string) => { const i = idx(c); while (target.length <= i) target.push(''); target[i] = plain(v) }
-  what = change(get, set, today)
-  for (const r of rows) while (r.length < header.length) r.push('')
-  const next = (original.startsWith('\uFEFF') ? '\uFEFF' : '') + toCsv(rows)
-  if (await openInExcel($, TRACKER)) {
-    await say($, 'Your tracker is open in Excel. Save and close it there, then try again (otherwise Excel would later put back its older copy).', true)
-    return
-  }
-  try {
-    // Compare and write back to back, so the window for another app's save to slip in stays as small as it can.
-    if ((await $.fs.read(TRACKER)) !== original) {
-      if (attempt < 3) continue
-      await say($, 'Your tracker kept changing while saving (another app may be editing it). Try again in a moment.', true)
+    const original: string = await $.fs.read(TRACKER)
+    const { rows, problem } = readCsv(original)
+    // A damaged file (an unclosed quote, or saved with semicolons) is never written back: that would spread the damage.
+    if (problem !== '') { await refresh($).catch(() => undefined); await say($, csvTrouble(problem, 'Your tracker (jobs/tracker.csv)'), true); return }
+    const header = rows[0] ?? []
+    const idx = (c: string) => {
+      let i = colOf(header, c)
+      if (i < 0) { header.push(c); i = header.length - 1 }
+      return i
+    }
+    // Find the row by the cells exactly as the board read them, before any date in it is tidied.
+    const target = rows.slice(1).find(r => jobKey(c => (colOf(header, c) >= 0 ? (r[colOf(header, c)] ?? '') : '').trim()) === key)
+    if (!target) { await say($, 'That job is no longer in jobs/tracker.csv. Press Refresh, or ask Claude to check the tracker.', true); return }
+    // Only this row's dates are tidied, and only when their meaning is certain; other rows stay as they are.
+    const o = orderFor(target, order)
+    for (const c of DATE_COLS) { const i = colOf(header, c); if (i >= 0 && target[i]) target[i] = toIso(target[i], o) }
+    const get = (c: string) => (target[idx(c)] ?? '').trim()
+    const set = (c: string, v: string) => { const i = idx(c); while (target.length <= i) target.push(''); target[i] = plain(v) }
+    const out = change(get, set, today, o)
+    result = typeof out === 'string' ? { what: out } : out
+    for (const r of rows) while (r.length < header.length) r.push('')
+    const next = (original.startsWith(BOM) ? BOM : '') + toCsv(rows)
+    if (await openInExcel($, TRACKER)) {
+      await say($, 'Your tracker is open in Excel. Save and close it there, then try again (otherwise Excel would later put back its older copy).', true)
       return
     }
-    await $.fs.write(TRACKER, next)
-  } catch {
-    await say($, 'Your tracker is open in another app (like Excel). Close it there, then try again.', true)
-    return
-  }
-  // Another app may have saved at the same instant. The change is never applied a second time (that
-  // could push a date back twice); instead, check that the row as saved is still there.
-  const back: string = await $.fs.read(TRACKER).catch(() => next)
-  if (back !== next && !readCsv(back).rows.some(r => r.length >= target.length && target.every((v, i) => (r[i] ?? '') === v))) {
-    await refresh($).catch(() => undefined)
-    await say($, 'Another app saved your tracker at the same moment, so this change may not have stuck. Check the job below and try again if needed.', true)
-    return
-  }
-  await logActivity($, what)
-  break
+    try {
+      // Compare and write back to back, so the window for another app's save to slip in stays as small as it can.
+      if ((await $.fs.read(TRACKER)) !== original) {
+        if (attempt < 3) continue
+        await say($, 'Your tracker kept changing while saving (another app may be editing it). Try again in a moment.', true)
+        return
+      }
+      await $.fs.write(TRACKER, next)
+    } catch {
+      await say($, 'Your tracker is open in another app (like Excel). Close it there, then try again.', true)
+      return
+    }
+    // Another app may have saved at the same instant. The change is never applied a second time (that
+    // could push a date back twice); instead, check that the row as saved is still there.
+    const back: string = await $.fs.read(TRACKER).catch(() => next)
+    if (back !== next && !rowKept(back, target)) {
+      await refresh($).catch(() => undefined)
+      await say($, 'Another app saved your tracker at the same moment, so this change may not have stuck. Check the job below and try again if needed.', true)
+      return
+    }
+    await logActivity($, result.what)
+    break
   }
   await refresh($)
-  await say($, `Saved: ${what}.`)
+  await say($, `Saved: ${result.what}.`)
+  const ask = result.forClaude ? ` ${result.forClaude}` : ''
   await $.session.append({
-    message: { type: 'user', content: [{ type: 'text', text: `[Pipeline] The user updated jobs/tracker.csv from the board: ${what}. Take this into account; if the dashboard is published (profile/published-pages.md), republish it the next time the user talks to you.` }] },
+    message: { type: 'user', content: [{ type: 'text', text: `[Pipeline] The user updated jobs/tracker.csv from the board: ${result.what}.${ask} Take this into account; if the dashboard is published (profile/published-pages.md), republish it the next time the user talks to you.` }] },
   }).catch(() => undefined)
 }
 
@@ -234,6 +234,7 @@ async function setStage($: any, job: Job, status: string): Promise<void> {
   await saveJob($, job.key, (get, set, today) => {
     set('status', status)
     let extra = ''
+    const asks: string[] = []
     if (status === 'applied' && get('date_applied') === '') {
       // Same as the Apply Kit's "Mark applied": follow up in 7 business days (playbook, "Follow-up cadence").
       const contact = get('contact').split(/[;,]/)[0]?.trim() ?? ''
@@ -251,26 +252,28 @@ async function setStage($: any, job: Job, status: string): Promise<void> {
       set('next_action', 'Respond to offer')
       set('next_action_date', today)
       if (old !== '') set('deadline', '')
-      extra += `; ask the user for the answer-by date and put it in deadline${old !== '' ? ` (the old application deadline ${old} was cleared)` : ''}`
+      if (old !== '') extra += `; the old application deadline ${old} was cleared`
+      asks.push('Ask the user for the answer-by date and put it in the deadline column.')
     } else if (['screening', 'interviewing'].includes(status) && /^follow up/i.test(get('next_action'))) {
       // A company that's now screening or interviewing the user doesn't need a follow-up nudge.
       set('next_action', 'Decide next step')
       set('next_action_date', today)
-      extra += '; ask the user for the interview date and set the next step to "Interview <date>"'
+      extra += '; next step is now "Decide next step"'
+      asks.push('Ask the user for the interview date and set the next step to "Interview <date>".')
     } else if (get('next_action_date') === '') {
       set('next_action', get('next_action') || 'Decide next step')
       set('next_action_date', addDays(today, 1, true))
       extra += `; next step due ${get('next_action_date')}`
     }
-    if (status === 'accepted') extra += '. The user accepted this offer: congratulate them, then offer the "closing the search" wrap-up from the offer skill (withdrawals, thank-yous, career log)'
-    return `${job.company} (${job.role}) moved to ${stageLabel(status)}${extra}`
+    if (status === 'accepted') asks.push('The user accepted this offer: congratulate them, then offer the "closing the search" wrap-up from the offer skill (withdrawals, thank-yous, career log).')
+    return { what: `${job.company} (${job.role}) moved to ${stageLabel(status)}${extra}`, forClaude: asks.join(' ') }
   })
   if (status === 'accepted') $.ui.toast(`Congratulations on the job at ${job.company}! Ask Claude to wrap up your search and refresh your dashboard for a little celebration.`, { timeoutMs: 15000 })
 }
 
 async function setDate($: any, job: Job, value: string): Promise<void> {
   const v = value.trim()
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) { await say($, 'Type the date as YYYY-MM-DD, for example 2026-10-14.', true); return }
+  if (!isIso(v)) { await say($, 'Type a real date as YYYY-MM-DD, for example 2026-10-14.', true); return }
   await saveJob($, job.key, (_get, set) => { set('next_action_date', v); return `${job.company}: next step date set to ${v}` })
 }
 
@@ -290,9 +293,10 @@ const ALSO = /^\s*Also:\s*[^;|]*?\s*(?:\d{4}-\d{1,2}-\d{1,2}|\d{1,2}[./]\d{1,2}[
 
 async function markDone($: any, job: Job): Promise<void> {
   // Open jobs always keep a next step (playbook rule). If the notes hold a second commitment, it becomes
-  // the next step; otherwise "done" hands the user a decision due today.
-  await saveJob($, job.key, (get, set, today) => {
-    const also = alsoOf(get('notes'))
+  // the next step; otherwise "done" hands the user a decision due today. The second commitment's date
+  // is read the same way the board read it (the row's own dates, then date_order).
+  await saveJob($, job.key, (get, set, today, order) => {
+    const also = alsoOf(get('notes'), order)
     if (also && also.date !== '') {
       set('next_action', also.text)
       set('next_action_date', also.date)
@@ -300,7 +304,7 @@ async function markDone($: any, job: Job): Promise<void> {
       return `${job.company}: finished "${job.nextAction || 'next step'}"; next step is now "${also.text}"`
     }
     set('next_action', 'Decide next step'); set('next_action_date', today)
-    return `${job.company}: finished "${job.nextAction || 'next step'}"; suggest the user's next step`
+    return { what: `${job.company}: finished "${job.nextAction || 'next step'}"; next step is now "Decide next step"`, forClaude: 'Suggest the user\'s next step for this job.' }
   })
 }
 
@@ -333,9 +337,26 @@ export const register: Register = on => {
     await $.command.register({ name: 'pipeline', description: 'Open your job board: change a job’s stage, next step, or date' })
     // The due-alerts mod shows what's due at startup; the band carries the count.
     await refresh($).catch(() => null)
+    // A slow poll as a backstop; changed files also refresh the board at once (classic.FileChanged below).
     $.clock.every(30000, () => void refresh($).catch(() => undefined))
     return next(e)
   })
+
+  // Ask Claude Code to watch the files this board reads, so an edit made anywhere (Claude, Codex,
+  // Excel) shows at once. The paths must be absolute: they are built from the session's folder.
+  on('classic.SessionStart', async ($, e, next) => {
+    const out = await next(e)
+    const root = String(e.cwd ?? '').replace(/[\\/]+$/, '')
+    if (root === '') return out
+    const sep = /^[A-Za-z]:\\/.test(root) ? '\\' : '/'
+    return { ...out, watchPaths: [...(out.watchPaths ?? []), ...WATCHED.map(p => root + sep + p.split('/').join(sep))] }
+  }).catch(($, e, next) => next(e))
+
+  on('classic.FileChanged', async ($, e, next) => {
+    const path = String(e.file_path ?? '').replace(/\\/g, '/')
+    if (WATCHED.some(p => path.endsWith(`/${p}`))) await refresh($).catch(() => undefined)
+    return next(e)
+  }).catch(($, e, next) => next(e))
 
   on('turn.complete', async ($, e, next) => {
     await refresh($).catch(() => undefined)
@@ -346,7 +367,13 @@ export const register: Register = on => {
     const s = await refresh($)
     await update($, isHidden, () => false)
     await say($, '')
-    await $.ui.open({ id: PANE, title: 'Pipeline' })
+    const opened = await $.ui.open({ id: PANE, title: 'Pipeline', focus: true })
+    if (!opened.isPlaced) {
+      return {
+        text: `Pipeline: ${line(s)}. The board can't show in this window, so ask Claude to "show my pipeline" and go through it here in the chat.`,
+        context: ['The Pipeline panel is not visible in this app or window. If the user asks, use the chat version of the pipeline skill (.agents/skills/pipeline/SKILL.md).'],
+      }
+    }
     return { text: `Pipeline: ${line(s)}` }
   })
 
@@ -360,7 +387,7 @@ export const register: Register = on => {
     const mine = (
       <Box key="pipeline-band" flexDirection="row" gap={1}>
         <Text color={s.due.length > 0 ? 'warning' : undefined}>{`Job search: ${line(s)}`}</Text>
-        <Button key="board" label="Open pipeline" plain onPress={() => $.ui.open({ id: PANE, title: 'Pipeline' })} />
+        <Button key="board" label="Open pipeline" plain onPress={() => $.ui.open({ id: PANE, title: 'Pipeline', focus: true })} />
         <Button key="hide" label="Hide" plain dimColor onPress={() => update($, isHidden, () => true)} />
       </Box>
     )
@@ -379,8 +406,10 @@ export const register: Register = on => {
     const open = await read($, editing)
     const closedShown = await read($, showClosed)
     const note = await read($, notice)
-    const allShown = await read($, showAll)
     if (s === null) return <Text dimColor>Loading…</Text>
+    const activePage = pageOf(s.active, await read($, page), SHOWN)
+    const closedList = pageOf(s.closed, await read($, closedPage), SHOWN)
+    const firstKey = activePage.items[0]?.key ?? ''
 
     const card = (j: Job) => {
       const isOpenJob = OPEN.includes(j.status)
@@ -425,7 +454,9 @@ export const register: Register = on => {
             </Box>
           )}
           <Box flexDirection="row" gap={1} flexWrap="wrap">
-            <Button key={`${j.key}:edit`} label={isEditing ? 'Done editing' : 'Update…'} onPress={() => update($, editing, () => (isEditing ? '' : j.key))} />
+            {j.key === firstKey
+              ? <Button key={`${j.key}:edit`} label={isEditing ? 'Done editing' : 'Update…'} autoFocus onPress={() => update($, editing, () => (isEditing ? '' : j.key))} />
+              : <Button key={`${j.key}:edit`} label={isEditing ? 'Done editing' : 'Update…'} onPress={() => update($, editing, () => (isEditing ? '' : j.key))} />}
             {isOpenJob && j.nextAction !== '' && <Button key={`${j.key}:done`} label="Mark next step done" onPress={() => markDone($, j)} />}
             {isOpenJob && j.nextDate !== '' && <Button key={`${j.key}:week`} label="Push back a week" onPress={() => snooze($, j, 7)} />}
             {j.status === 'interested' && <Button key={`${j.key}:apply`} label="Start application" plain onPress={() => $.prompt.fill({ text: `/apply ${j.folder || `${j.company} ${j.role}`}` })} />}
@@ -435,25 +466,34 @@ export const register: Register = on => {
       )
     }
 
+    // "Showing 21–40 of 52" with Previous / Next: one page at a time keeps the panel within what it can draw.
+    const pager = (id: string, pg: ReturnType<typeof pageOf>, total: number, move: (to: number) => unknown) => pg.pages > 1 && (
+      <Box key={`${id}-pager`} flexDirection="row" gap={1} flexWrap="wrap">
+        <Text dimColor>{`Showing ${pg.from}–${pg.to} of ${total}`}</Text>
+        {pg.page > 0 && <Button key={`${id}-prev`} label="Previous page" plain onPress={() => move(pg.page - 1)} />}
+        {pg.page < pg.pages - 1 && <Button key={`${id}-next`} label="Next page" plain onPress={() => move(pg.page + 1)} />}
+      </Box>
+    )
+
     return (
       <Box flexDirection="column" gap={1}>
-        <Text bold>{line(s)}</Text>
-        <Text dimColor>Changes here save straight to your tracker (jobs/tracker.csv), and Claude is told about them. "Start application" and "Prep for interview" write a message to Claude; press Enter to send it.</Text>
-        {note.text !== '' && <Text color={note.isError ? 'error' : 'success'}>{note.isError ? `Not saved: ${note.text}` : note.text}</Text>}
-        {s.problem !== '' && <Text color="error" wrap="wrap">{s.problem}</Text>}
-        {s.problem === '' && s.active.length === 0 && <Text dimColor>No open applications yet. Type /find-jobs, or paste a job link to Claude.</Text>}
-        {(allShown ? s.active : s.active.slice(0, SHOWN)).map(card)}
-        {s.active.length > SHOWN && (
-          <Button key="show-all" label={allShown ? `Show only the first ${SHOWN}` : `Show all ${s.active.length} open jobs`} plain onPress={() => update($, showAll, v => !v)} />
-        )}
-        {s.closed.length > 0 && (
-          <Button key="closed" label={closedShown ? 'Hide closed jobs' : `Show closed jobs (${s.closed.length})`} plain onPress={() => update($, showClosed, v => !v)} />
-        )}
-        {closedShown && s.closed.map(card)}
-        <Box flexDirection="row" gap={1}>
+        <Box flexDirection="row" gap={1} flexWrap="wrap">
+          <Text bold>{line(s)}</Text>
           <Button key="refresh" label="Refresh" onPress={() => refresh($)} />
           <Button key="close" label="Close" role="dismiss" onPress={() => $.ui.close({ id: PANE })} />
         </Box>
+        <Text dimColor>Changes here save straight to your tracker (jobs/tracker.csv), and Claude is told about them. "Start application" and "Prep for interview" write a message to Claude; press Enter to send it.</Text>
+        {e.surface === 'terminal' && <Text dimColor>{KEYS_HINT}</Text>}
+        {note.text !== '' && <Text color={note.isError ? 'error' : 'success'}>{note.isError ? `Not saved: ${note.text}` : note.text}</Text>}
+        {s.problem !== '' && <Text color="error" wrap="wrap">{s.problem}</Text>}
+        {s.problem === '' && s.active.length === 0 && <Text dimColor>No open applications yet. Type /find-jobs, or paste a job link to Claude.</Text>}
+        {activePage.items.map(card)}
+        {pager('active', activePage, s.active.length, to => update($, page, () => to))}
+        {s.closed.length > 0 && (
+          <Button key="closed" label={closedShown ? 'Hide closed jobs' : `Show closed jobs (${s.closed.length})`} plain onPress={() => update($, showClosed, v => !v)} />
+        )}
+        {closedShown && closedList.items.map(card)}
+        {closedShown && pager('closed', closedList, s.closed.length, to => update($, closedPage, () => to))}
       </Box>
     )
   })

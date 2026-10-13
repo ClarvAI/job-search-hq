@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { dateOrder, isSamePosting, normCompany, normLink, parseCsv, plain, records, savedNote, toCsv, toIso } from '../hooks/leads'
+import { dateOrder, isSamePosting, isTracked, normCompany, normLink, parseCsv, plain, records, savedNote, toCsv, toIso, trackerIndex } from '../hooks/leads'
 
 test('slash dates are read only when the day/month order is certain', async () => {
   expect(toIso('06/10/2026')).toBe('06/10/2026')
@@ -57,4 +57,21 @@ test('two known, different job IDs are separate openings even when the link is t
   expect(isSamePosting({ company: 'Acme', role: 'Analyst', location: 'London', link: page, jobId: 'R-1' }, { company: 'Acme', role: 'Analyst', location: 'London', link: page, jobId: 'R-2' })).toBe(false)
   expect(isSamePosting({ company: 'Acme', role: 'Analyst', link: page, jobId: 'R-1' }, { company: 'Acme Ltd', role: 'Analyst II', link: page, jobId: 'r-1' })).toBe(true)
   expect(isSamePosting({ company: 'Acme', role: 'Analyst', link: page, jobId: 'R-1' }, { company: 'Acme', role: 'Analyst', link: page })).toBe(true)
+})
+
+test('the tracker index gives the same answers as comparing every row', async () => {
+  const refs = [
+    { company: 'Northwind Traders, Inc.', role: 'Operations Analyst', location: 'Columbus OH', link: 'https://www.northwind.example/job/1?utm_source=x', jobId: 'R-1' },
+    { company: 'Globex', role: 'Project Manager', location: 'Denver CO', link: '', jobId: '' },
+    { company: 'Initech', role: 'Analyst', location: '', link: 'https://careers.example/shared', jobId: 'A-1' },
+  ]
+  const leads = [
+    { company: 'Northwind Traders', role: 'Ops Analyst', link: 'https://northwind.example/job/1', jobId: '' },
+    { company: 'Globex Corporation', role: 'Project Manager', location: 'Denver, CO' },
+    { company: 'Initech', role: 'Analyst', link: 'https://careers.example/shared', jobId: 'A-2' },
+    { company: 'Other Co', role: 'Analyst', link: 'https://careers.example/shared', jobId: '' },
+    { company: 'Acme', role: 'Analyst' },
+  ]
+  const index = trackerIndex(refs)
+  for (const l of leads) expect(isTracked(index, l)).toBe(refs.some(r => isSamePosting(l, r)))
 })

@@ -6,7 +6,7 @@ const CSV = 'company,role,status,next_action_date,next_action,priority,fit,locat
 
 const PANE = { component: 'Pane', requestId: 'pipeline', props: { title: 'Pipeline', isFocused: true, bodyColumns: 90 } } as const
 
-function setup(on: any, csv = CSV, opts: { lock?: boolean; list?: (path: string) => unknown[]; onRead?: (path: string, files: Record<string, string>) => void; afterWrite?: (path: string, files: Record<string, string>) => void } = {}) {
+function setup(on: any, csv = CSV, opts: { lock?: boolean; list?: (path: string) => unknown[]; onRead?: (path: string, files: Record<string, string>) => void; afterWrite?: (path: string, files: Record<string, string>) => void; notes?: string[]; opens?: any[]; notPlaced?: boolean } = {}) {
   const files: Record<string, string> = { 'jobs/tracker.csv': csv }
   const time = mock.clock(on, { now: new Date(2026, 9, 6, 9, 0).getTime() } as never)
   const rel = (p: string) => p.replace(/^.*\/pipeline\//, '')
@@ -14,8 +14,8 @@ function setup(on: any, csv = CSV, opts: { lock?: boolean; list?: (path: string)
   on('fs.read', (_$: any, e: any) => { opts.onRead?.(rel(e.path), files); return { value: files[rel(e.path)] ?? '' } as never })
   on('fs.write', (_$: any, e: any) => { if (opts.lock) throw new Error('EBUSY: resource busy or locked'); files[rel(e.path)] = e.text; opts.afterWrite?.(rel(e.path), files); return { value: undefined } as never })
   on('fs.list', (_$: any, e: any) => ({ value: opts.list?.(e.path) ?? [] }) as never)
-  on('ui.open', () => ({ value: { isPlaced: true } }) as never)
-  on('session.append', () => ({ deny: 'recorded by the test' }) as never)  // newer test kits require next() for a value answer; a deny is ignored by the panels
+  on('ui.open', (_$: any, e: any) => { opts.opens?.push(e); return { value: opts.notPlaced ? { isPlaced: false, reason: 'no attached surface places panes' } : { isPlaced: true } } as never })
+  on('session.append', (_$: any, e: any) => { opts.notes?.push(JSON.stringify(e.message)); return { deny: 'recorded by the test' } as never })  // newer test kits require next() for a value answer; a deny is ignored by the panels
   on('command.register', () => ({ value: undefined }) as never)
   return { files, time }
 }
@@ -326,7 +326,7 @@ test('a save is refused while Excel has the tracker open (its lock file is there
   await ui.unmount()
 })
 
-test('a long board shows what is due first and the rest behind "Show all"', async ($, on) => {
+test('a long board shows what is due first, one page at a time', async ($, on) => {
   let csv = HEAD + '\n'
   for (let i = 0; i < 30; i++) csv += `Company ${i},Role,applied,2026-11-${String(i + 1).padStart(2, '0')},Follow up,,B,3,X,2026-09-01,2026-09-02,c${i},\n`
   csv += 'Late Co,Role,offer,2026-11-30,Respond to offer,2026-10-07,A,5,X,2026-09-01,2026-09-02,late,\n'
@@ -336,10 +336,85 @@ test('a long board shows what is due first and the rest behind "Show all"', asyn
   let drawn = JSON.stringify(await ui.drawn())
   expect(drawn.indexOf('Late Co')).toBeLessThan(drawn.indexOf('Company 0 '))
   expect(drawn).not.toContain('Company 29 ')
-  expect(drawn).toContain('Show all 31 open jobs')
-  await ui.press({ key: 'show-all' })
+  expect(drawn).toContain('Showing 1–20 of 31')
+  await ui.press({ key: 'active-next' })
   drawn = JSON.stringify(await ui.drawn())
   expect(drawn).toContain('Company 29 ')
+  expect(drawn).not.toContain('Late Co')
+  expect(drawn).toContain('Showing 21–31 of 31')
+  await ui.press({ key: 'active-prev' })
+  expect(JSON.stringify(await ui.drawn())).toContain('Late Co')
+  await ui.unmount()
+})
+
+test('a very large tracker stays within what a panel can draw, closed jobs included', async ($, on) => {
+  let csv = HEAD + '\n'
+  for (let i = 0; i < 1000; i++) csv += `Company ${i},Analyst ${i},${i % 2 ? 'rejected' : 'applied'},2026-11-01,Follow up with the recruiter about the next round,,B,3,Columbus OH,2026-09-01,2026-09-02,c${i},a note\n`
+  setup(on, csv)
+  await $.command.run({ command: 'pipeline', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'pipeline', surface: 'terminal', ...PANE } as never)
+  await ui.press({ key: 'closed' })
+  const drawn = JSON.stringify(await ui.drawn())
+  expect(drawn.length).toBeLessThan(60000)
+  expect(drawn).toContain('Showing 1–20 of 500')
+  // Refresh and Close sit at the top, so they are never the part that gets cut.
+  expect(drawn.indexOf('"refresh"')).toBeLessThan(drawn.indexOf('Company 0 '))
+  await ui.press({ key: 'closed-next' })
+  expect(JSON.stringify(await ui.drawn())).toContain('Showing 21–40 of 500')
+  await ui.unmount()
+})
+
+test('an impossible date is refused, and the activity log holds what happened, not requests for Claude', async ($, on) => {
+  const notes: string[] = []
+  const { files } = setup(on, CSV, { notes })
+  await $.command.run({ command: 'pipeline', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'pipeline', surface: 'terminal', ...PANE } as never)
+  const before = files['jobs/tracker.csv']
+  await ui.press({ key: 'globex|project manager|globex-pm1:edit' })
+  await ui.input({ key: 'globex|project manager|globex-pm1:date', text: '2026-02-31' } as never)
+  expect(JSON.stringify(await ui.drawn())).toContain('Type a real date')
+  expect(files['jobs/tracker.csv']).toBe(before)
+  await (ui as any).select({ key: 'globex|project manager|globex-pm1:stage', value: 'offer' } as never)
+  expect(files['history/activity.md']).toContain('Globex (Project Manager) moved to Offer')
+  expect(files['history/activity.md']).not.toMatch(/ask the user/i)
+  expect(notes.join('\n')).toContain('Ask the user for the answer-by date')
+  await ui.unmount()
+})
+
+test('"Mark next step done" reads a second commitment with date_order, as the board does', async ($, on) => {
+  const csv = HEAD + '\n' + 'Globex,Planner,interviewing,2026-10-08,Take-home due,,A,5,CO,2026-09-01,2026-09-02,globex-pl,Also: Interview 12/10/2026\n'
+  const { files } = setup(on, csv)
+  files['profile/preferences.md'] = 'date_order: DMY\n'
+  await $.command.run({ command: 'pipeline', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'pipeline', surface: 'terminal', ...PANE } as never)
+  expect(JSON.stringify(await ui.drawn())).toContain('Also: Interview 12/10/2026')
+  await ui.press({ key: 'globex|planner|globex-pl:done' })
+  expect(files['jobs/tracker.csv']).toContain('Globex,Planner,interviewing,2026-10-12,Interview 12/10/2026,')
+  await ui.unmount()
+})
+
+test('where panels can\'t show, /pipeline says so and points to the chat', async ($, on) => {
+  setup(on, CSV, { notPlaced: true })
+  const out: any = await $.command.run({ command: 'pipeline', args: '' } as never)
+  expect(String(out.text)).toContain("can't show in this window")
+  expect(JSON.stringify(out.context)).toContain('chat version of the pipeline skill')
+})
+
+test('the board asks to watch its files and refreshes when one changes on disk', async ($, on) => {
+  const opens: any[] = []
+  const { files } = setup(on, CSV, { opens })
+  on('classic.SessionStart', () => ({}) as never)  // the settings hooks beneath (none in a test)
+  on('classic.FileChanged', () => ({}) as never)
+  const out: any = await ($ as any).classic.SessionStart({ source: 'startup', cwd: '/home/alex/job-search' })
+  expect(out.watchPaths).toContain('/home/alex/job-search/jobs/tracker.csv')
+  expect(out.watchPaths).toContain('/home/alex/job-search/profile/preferences.md')
+  await $.command.run({ command: 'pipeline', args: '' } as never)
+  expect(opens[0].focus).toBe(true)
+  const ui = await $.ui.mount({ plugin: 'pipeline', surface: 'terminal', ...PANE } as never)
+  expect(JSON.stringify(await ui.drawn())).toContain('Tab moves between buttons')
+  files['jobs/tracker.csv'] += 'Initech,Data Analyst,interested,2026-10-20,Apply,,B,3,Remote,2026-10-06,,,,,initech-da,\n'
+  await ($ as any).classic.FileChanged({ file_path: '/home/alex/job-search/jobs/tracker.csv', event: 'change', cwd: '/home/alex/job-search' })
+  expect(JSON.stringify(await ui.drawn())).toContain('Initech · Data Analyst')
   await ui.unmount()
 })
 

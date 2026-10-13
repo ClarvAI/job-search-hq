@@ -3,7 +3,7 @@ import type { Register } from 'claude-code'
 
 import type { Contact, Notice, Summary } from '../types'
 import type { DateOrder } from './csvdate'
-import { addDays, csvTrouble, dateOrder, daysBetween, isExcelLock, isIso, localDate, orderFor, plain, readCsv, toCsv, toIso } from './csvdate'
+import { activityLine, addDays, colOf, csvTrouble, dateOrder, daysBetween, isExcelLock, isIso, localDate, orderFor, pageOf, plain, readCsv, rowKept, toCsv, toIso } from './csvdate'
 
 // Contacts board: the user's networking board over contacts/contacts.csv (the single source of truth).
 // The user records what actually happened (a message sent, a reply, a conversation, a referral);
@@ -14,6 +14,10 @@ const PANE = 'contacts'
 const CONTACTS = 'contacts/contacts.csv'
 const TRACKER = 'jobs/tracker.csv'
 const ACTIVITY = 'history/activity.md'
+const BOM = String.fromCharCode(0xfeff)
+// The files this board reads: when one changes on disk (Claude, Codex, Excel), the board refreshes.
+const WATCHED = ['contacts/contacts.csv', 'jobs/tracker.csv', 'profile/preferences.md']
+const KEYS_HINT = 'Keys: Tab moves between buttons, Enter presses one, Esc goes back to typing.'
 const HEADER = ['name', 'company', 'title', 'relationship', 'how_we_met', 'last_contact', 'next_followup', 'status', 'touches', 'job', 'linkedin', 'email', 'notes']
 const MAX_TOUCHES = 2
 const COLUMNS = [
@@ -38,8 +42,9 @@ const isHidden = atom({ plugin: 'contacts-board', key: 'isHidden' } as const, fa
 const armed = atom({ plugin: 'contacts-board', key: 'armed' } as const, '')
 const showCold = atom({ plugin: 'contacts-board', key: 'showCold' } as const, false)
 const notice = atom({ plugin: 'contacts-board', key: 'notice' } as const, { text: '', isError: false } as Notice)
-const showAll = atom({ plugin: 'contacts-board', key: 'showAll' } as const, false)
-// Cards shown per column until the user presses "Show all" (due ones come first).
+// Which page each group is on (by status, plus 'cold' and 'other'): long groups are paged, because a
+// panel draws at most 100,000 characters. Due follow-ups come first.
+const pages = atom({ plugin: 'contacts-board', key: 'pages' } as const, {} as Record<string, number>)
 const SHOWN = 10
 
 const parts = (iso: string): [number, number, number] => { const [y = 0, m = 1, d = 1] = iso.split('-').map(Number); return [y, m, d] }
@@ -93,8 +98,8 @@ function keyOf(get: (c: string) => string): string {
 async function jobStatuses($: any): Promise<Record<string, string>> {
   const raw: string = (await $.fs.exists(TRACKER)) ? await $.fs.read(TRACKER).catch(() => '') : ''
   const { rows: [header = [], ...rows] } = readCsv(raw)
-  const fi = header.findIndex(h => h.trim().toLowerCase() === 'folder')
-  const si = header.findIndex(h => h.trim().toLowerCase() === 'status')
+  const fi = colOf(header, 'folder')
+  const si = colOf(header, 'status')
   const out: Record<string, string> = {}
   if (fi < 0 || si < 0) return out
   for (const r of rows) {
@@ -111,8 +116,7 @@ async function load($: any): Promise<Summary> {
   const { rows: [header = [], ...all], problem } = readCsv(raw)
   // A damaged file shows nothing but the message: its rows can't be trusted.
   const rows = problem === '' ? all : []
-  const col = (name: string) => header.findIndex(h => h.trim().toLowerCase() === name)
-  const at = (r: string[], name: string) => (col(name) >= 0 ? (r[col(name)] ?? '').trim() : '')
+  const at = (r: string[], name: string) => { const i = colOf(header, name); return i >= 0 ? (r[i] ?? '').trim() : '' }
   const jobs = await jobStatuses($)
   const order = await readOrder($)
   const contacts: Contact[] = rows.map(r => {
@@ -159,11 +163,7 @@ async function tellClaude($: any, text: string): Promise<void> {
 
 // One line in history/activity.md, so Codex (or a later Claude session) knows what the user changed here.
 async function logActivity($: any, what: string): Promise<void> {
-  const d = new Date(await $.clock.now())
-  const pad = (n: number) => String(n).padStart(2, '0')
-  const stamp = `${localDate(d.getTime())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
-  const lineOut = `- ${stamp} · Contacts panel (Claude) · ${what.replace(/[\r\n]+/g, ' ')}\n`
-  await appendLine($, ACTIVITY, lineOut)
+  await appendLine($, ACTIVITY, activityLine(await $.clock.now(), 'Contacts panel (Claude)', what))
 }
 
 // One line added to the end of history/activity.md. The file is re-read right before the write and
@@ -210,7 +210,7 @@ async function saveContact($: any, key: string, change: Change): Promise<boolean
     if (problem !== '') { await refresh($).catch(() => undefined); await say($, csvTrouble(problem, 'Your contacts file (contacts/contacts.csv)'), true); return false }
     if (rows.length === 0) rows.push([...HEADER])
     const header = rows[0] ?? []
-    const find = (c: string) => header.findIndex(h => h.trim().toLowerCase() === c)
+    const find = (c: string) => colOf(header, c)
     const idx = (c: string) => {
       let i = find(c)
       if (i < 0) { header.push(c); i = header.length - 1 }
@@ -227,7 +227,7 @@ async function saveContact($: any, key: string, change: Change): Promise<boolean
     result = typeof out === 'string' ? { what: out } : out
     if (result.what === '') return false
     for (const r of rows) while (r.length < header.length) r.push('')
-    const next = (original.startsWith('\uFEFF') ? '\uFEFF' : '') + toCsv(rows)
+    const next = (original.startsWith(BOM) ? BOM : '') + toCsv(rows)
     if (await openInExcel($, CONTACTS)) {
       await say($, 'Your contacts file is open in Excel. Save and close it there, then try again (otherwise Excel would later put back its older copy).', true)
       return false
@@ -247,7 +247,7 @@ async function saveContact($: any, key: string, change: Change): Promise<boolean
     // If another app saved at the same instant, never redo the change (it would count a message twice);
     // check that the saved row is still there instead.
     const back: string = await $.fs.read(CONTACTS).catch(() => next)
-    if (back !== next && !readCsv(back).rows.some(r => r.length >= target.length && target.every((v, i) => (r[i] ?? '') === v))) {
+    if (back !== next && !rowKept(back, target)) {
       await update($, armed, () => '')
       await refresh($).catch(() => undefined)
       await say($, 'Another app saved your contacts file at the same moment, so this change may not have stuck. Check the person below and try again if needed.', true)
@@ -268,7 +268,7 @@ const who = (c: Contact) => `${c.name}${c.company ? ` (${c.company})` : ''}`
 async function messageSent($: any, c: Contact, value: string): Promise<void> {
   const date = value.trim()
   const today = localDate(await $.clock.now())
-  if (!isIso(date)) { await say($, 'Type the date as YYYY-MM-DD, for example 2026-10-06.', true); return }
+  if (!isIso(date)) { await say($, 'Type a real date as YYYY-MM-DD, for example 2026-10-06.', true); return }
   if (date > today) { await say($, 'That date is in the future. Record a message once you have sent it.', true); return }
   // The linked job's status is read fresh, so a just-submitted application takes over the follow-up.
   const jobs = await jobStatuses($)
@@ -369,7 +369,7 @@ async function markCold($: any, c: Contact): Promise<void> {
 
 async function setFollowup($: any, c: Contact, value: string): Promise<void> {
   const v = value.trim()
-  if (v !== '' && !isIso(v)) { await say($, 'Type the date as YYYY-MM-DD, for example 2026-10-14.', true); return }
+  if (v !== '' && !isIso(v)) { await say($, 'Type a real date as YYYY-MM-DD, for example 2026-10-14.', true); return }
   const jobs = await jobStatuses($)
   const jobStatus = c.job ? jobs[c.job.toLowerCase()] ?? '' : ''
   if (v !== '' && APPLIED_OR_LATER.includes(jobStatus)) {
@@ -401,9 +401,26 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'contacts', description: 'Open your networking board: record messages, replies, conversations and referrals' })
     await refresh($).catch(() => null)
+    // A slow poll as a backstop; changed files also refresh the board at once (classic.FileChanged below).
     $.clock.every(30000, () => void refresh($).catch(() => undefined))
     return next(e)
   })
+
+  // Ask Claude Code to watch the files this board reads, so an edit made anywhere (Claude, Codex,
+  // Excel) shows at once. The paths must be absolute: they are built from the session's folder.
+  on('classic.SessionStart', async ($, e, next) => {
+    const out = await next(e)
+    const root = String(e.cwd ?? '').replace(/[\\/]+$/, '')
+    if (root === '') return out
+    const sep = /^[A-Za-z]:\\/.test(root) ? '\\' : '/'
+    return { ...out, watchPaths: [...(out.watchPaths ?? []), ...WATCHED.map(p => root + sep + p.split('/').join(sep))] }
+  }).catch(($, e, next) => next(e))
+
+  on('classic.FileChanged', async ($, e, next) => {
+    const path = String(e.file_path ?? '').replace(/\\/g, '/')
+    if (WATCHED.some(p => path.endsWith(`/${p}`))) await refresh($).catch(() => undefined)
+    return next(e)
+  }).catch(($, e, next) => next(e))
 
   on('turn.complete', async ($, e, next) => {
     await refresh($).catch(() => undefined)
@@ -415,8 +432,14 @@ export const register: Register = on => {
     await update($, isHidden, () => false)
     await update($, armed, () => '')
     await say($, '')
-    await $.ui.open({ id: PANE, title: 'Contacts' })
+    const opened = await $.ui.open({ id: PANE, title: 'Contacts', focus: true })
     const total = s.contacts.length
+    if (!opened.isPlaced) {
+      return {
+        text: `Contacts: ${total} ${total === 1 ? 'person' : 'people'}${s.due.length ? `, ${s.due.length} follow-up${s.due.length === 1 ? '' : 's'} due` : ''}. The board can't show in this window, so ask Claude to "show my contacts" and go through them here in the chat.`,
+        context: ['The Contacts panel is not visible in this app or window. If the user asks, use the chat version of the contacts skill (.agents/skills/contacts/SKILL.md).'],
+      }
+    }
     return { text: total === 0 ? 'Contacts board opened. No contacts yet.' : `Contacts board opened: ${total} ${total === 1 ? 'person' : 'people'}${s.due.length ? `, ${s.due.length} follow-up${s.due.length === 1 ? '' : 's'} due` : ''}.` }
   })
 
@@ -429,7 +452,7 @@ export const register: Register = on => {
     const mine = (
       <Box key="contacts-band" flexDirection="row" gap={1}>
         <Text color="warning">{line(s)}</Text>
-        <Button key="contacts-open" label="Open contacts" plain onPress={() => $.ui.open({ id: PANE, title: 'Contacts' })} />
+        <Button key="contacts-open" label="Open contacts" plain onPress={() => $.ui.open({ id: PANE, title: 'Contacts', focus: true })} />
         <Button key="contacts-hide" label="Hide" plain dimColor onPress={() => update($, isHidden, () => true)} />
       </Box>
     )
@@ -447,11 +470,14 @@ export const register: Register = on => {
     const s = await read($, summary)
     const target = await read($, armed)
     const coldShown = await read($, showCold)
-    const allShown = await read($, showAll)
+    const pageAt = await read($, pages)
     const note = await read($, notice)
     if (s === null) return <Text dimColor>Loading…</Text>
 
+    let firstKey = ''
     const card = (c: Contact) => {
+      if (firstKey === '') firstKey = c.key
+      const isFirst = firstKey === c.key
       const action = target.startsWith(`${c.key}#`) ? target.slice(c.key.length + 1) : ''
       const arm = (a: string) => async () => { await say($, ''); await update($, armed, () => `${c.key}#${a}`) }
       const cancel = <Button key={`${c.key}:cancel`} label="Cancel" onPress={() => update($, armed, () => '')} />
@@ -537,7 +563,9 @@ export const register: Register = on => {
 
           {action === '' && (
             <Box flexDirection="row" gap={1} flexWrap="wrap">
-              {!atCap && c.status !== 'cold' && <Button key={`${c.key}:sent`} label="Message sent…" onPress={arm('sent')} />}
+              {!atCap && c.status !== 'cold' && (isFirst
+                ? <Button key={`${c.key}:sent`} label="Message sent…" autoFocus onPress={arm('sent')} />
+                : <Button key={`${c.key}:sent`} label="Message sent…" onPress={arm('sent')} />)}
               {['to-contact', 'contacted', 'cold'].includes(c.status) && <Button key={`${c.key}:replied`} label="They replied…" onPress={arm('replied')} />}
               <Button key={`${c.key}:talked`} label="We talked…" onPress={arm('talked')} />
               {c.status !== 'referred' && <Button key={`${c.key}:referred`} label="Referred me…" onPress={arm('referred')} />}
@@ -552,45 +580,59 @@ export const register: Register = on => {
 
     const cold = s.contacts.filter(c => c.status === 'cold')
     const other = s.contacts.filter(c => !STATUSES.includes(c.status))
+    // One page of a group, with "Showing 11–20 of 340" and Previous / Next when it is long.
+    const group = (id: string, list: Contact[]) => {
+      const pg = pageOf(list, pageAt[id] ?? 0, SHOWN)
+      const move = (to: number) => update($, pages, v => ({ ...v, [id]: to }))
+      return (
+        <Box key={`page:${id}`} flexDirection="column" gap={1}>
+          {pg.items.map(card)}
+          {pg.pages > 1 && (
+            <Box key={`${id}-pager`} flexDirection="row" gap={1} flexWrap="wrap">
+              <Text dimColor>{`Showing ${pg.from}–${pg.to} of ${list.length}`}</Text>
+              {pg.page > 0 && <Button key={`${id}-prev`} label="Previous page" plain onPress={() => move(pg.page - 1)} />}
+              {pg.page < pg.pages - 1 && <Button key={`${id}-next`} label="Next page" plain onPress={() => move(pg.page + 1)} />}
+            </Box>
+          )}
+        </Box>
+      )
+    }
     return (
       <Box flexDirection="column" gap={1}>
-        <Text bold>{s.contacts.length === 0 ? 'No contacts yet' : [`${s.contacts.length} ${s.contacts.length === 1 ? 'person' : 'people'}`, s.due.length ? `${s.due.length} follow-up${s.due.length === 1 ? '' : 's'} due` : 'nothing due'].join(' · ')}</Text>
+        <Box flexDirection="row" gap={1} flexWrap="wrap">
+          <Text bold>{s.contacts.length === 0 ? 'No contacts yet' : [`${s.contacts.length} ${s.contacts.length === 1 ? 'person' : 'people'}`, s.due.length ? `${s.due.length} follow-up${s.due.length === 1 ? '' : 's'} due` : 'nothing due'].join(' · ')}</Text>
+          <Button key="refresh" label="Refresh" onPress={() => refresh($)} />
+          <Button key="close" label="Close" role="dismiss" onPress={() => $.ui.close({ id: PANE })} />
+        </Box>
         <Text dimColor>Changes here save straight to your contacts list (contacts/contacts.csv), and Claude is told about them. Record a message only after you've sent it. "Draft a message" writes a request to Claude; press Enter to send it.</Text>
+        {e.surface === 'terminal' && <Text dimColor>{KEYS_HINT}</Text>}
         {note.text !== '' && <Text color={note.isError ? 'error' : 'success'}>{note.isError ? `Not saved: ${note.text}` : note.text}</Text>}
         {!s.hasFile && <Text dimColor>No contacts file yet. Ask Claude to set one up, or type /network to find people to talk to.</Text>}
         {s.hasFile && s.contacts.length === 0 && <Text dimColor>No one here yet. Type /network to find people at a company you like, or /import-linkedin to bring in your connections.</Text>}
         {s.problem !== '' && <Text color="error" wrap="wrap">{s.problem}</Text>}
         {COLUMNS.map(col => {
-          // Due follow-ups first, then by date; long columns are cut short until "Show all".
+          // Due follow-ups first, then by date; long groups are shown a page at a time.
           const list = s.contacts.filter(c => c.status === col.value)
             .sort((a, b) => Number(isDueContact(b, s.today)) - Number(isDueContact(a, s.today)))
           if (list.length === 0) return null
           return (
             <Box key={`col:${col.value}`} flexDirection="column" gap={1}>
               <Text bold underline>{`${col.label} (${list.length})`}</Text>
-              {(allShown ? list : list.slice(0, SHOWN)).map(card)}
-              {!allShown && list.length > SHOWN && <Text dimColor>{`${list.length - SHOWN} more in this column.`}</Text>}
+              {group(col.value, list)}
             </Box>
           )
         })}
-        {COLUMNS.some(col => s.contacts.filter(c => c.status === col.value).length > SHOWN) && (
-          <Button key="show-all" label={allShown ? 'Show fewer' : `Show all ${s.contacts.length} people`} plain onPress={() => update($, showAll, v => !v)} />
-        )}
         {other.length > 0 && (
           <Box key="col:other" flexDirection="column" gap={1}>
             <Text bold underline>{`Status not recognized (${other.length})`}</Text>
             <Text dimColor>Ask Claude to fix the status of these (to-contact, contacted, replied, talked, referred or cold).</Text>
-            {other.map(card)}
+            {group('other', other)}
           </Box>
         )}
         {cold.length > 0 && (
           <Button key="cold-toggle" label={coldShown ? 'Hide cold contacts' : `Show cold contacts (${cold.length})`} plain onPress={() => update($, showCold, v => !v)} />
         )}
-        {coldShown && cold.map(card)}
-        <Box flexDirection="row" gap={1}>
-          <Button key="refresh" label="Refresh" onPress={() => refresh($)} />
-          <Button key="close" label="Close" role="dismiss" onPress={() => $.ui.close({ id: PANE })} />
-        </Box>
+        {coldShown && group('cold', cold)}
       </Box>
     )
   })

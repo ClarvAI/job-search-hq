@@ -243,3 +243,12 @@ test('a visa clock with 30 days or fewer left comes first', async ($, on) => {
   // Aug 1 through Oct 6, both ends: 67 days used, 23 left.
   expect(toasts[0]?.split('\n')[0]).toBe('About 23 days left on your visa unemployment clock (your own count; the official counter or your DSO has the real number). Type /today for details.')
 })
+
+test('an impossible date never raises an alert (it is "date unclear", not another day)', async ($, on) => {
+  const { toasts } = setup(on, { ...US, ...tracker(
+    'Globex,Project Manager,interviewing,,Interview 2026-02-30 2pm,,A,5,CO,2026-09-15,2026-09-16,,,,,,,0,globex-pm1,',
+    'Initech,Data Analyst,applied,2026-09-31,Follow up,,B,4,Columbus OH,2026-09-15,2026-09-16,,,,,,,0,initech-da,',
+  ) })
+  await $.session.start(START as never)
+  expect(toasts).toEqual([])
+})

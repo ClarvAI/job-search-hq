@@ -29,6 +29,7 @@ export type Notice = { text: string; isError: boolean }
 
 declare module 'claude-code' {
   interface PluginState {
-    pipeline: { summary: Summary | null; isHidden: boolean; editing: string; showClosed: boolean; notice: Notice; showAll: boolean }
+    // page / closedPage: which page of the open and closed lists is showing (long lists are paged).
+    pipeline: { summary: Summary | null; isHidden: boolean; editing: string; showClosed: boolean; notice: Notice; page: number; closedPage: number }
   }
 }

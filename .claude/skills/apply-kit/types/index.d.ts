@@ -45,6 +45,7 @@ export type Notice = { text: string; isError: boolean }
 
 declare module 'claude-code' {
   interface PluginState {
-    'apply-kit': { kit: Kit | null; chosen: string; armed: boolean; picking: boolean; notice: Notice }
+    // isOpen: the pane is showing (the kit is kept current only then); pickerPage: page of the job picker.
+    'apply-kit': { kit: Kit | null; chosen: string; armed: boolean; picking: boolean; notice: Notice; isOpen: boolean; pickerPage: number }
   }
 }

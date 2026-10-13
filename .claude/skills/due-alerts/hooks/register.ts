@@ -57,7 +57,7 @@ function withYear(month: number, day: number, today: string): string {
 // The date written in a next step like "Interview 2026-10-07", "Interview 10/7 2pm" or "Interview Oct 7".
 function dateIn(text: string, today: string, order: DateOrder = ''): string {
   const iso = /(\d{4})-(\d{1,2})-(\d{1,2})/.exec(text)
-  if (iso) return `${iso[1]}-${pad(iso[2] ?? '')}-${pad(iso[3] ?? '')}`
+  if (iso) { const d = `${iso[1]}-${pad(iso[2] ?? '')}-${pad(iso[3] ?? '')}`; return isIso(d) ? d : '' }
   const slash = /\b(\d{1,2})\/(\d{1,2})(?:\/(\d{4}|\d{2}))?\b/.exec(text)
   if (slash) {
     if (slash[3]) { const d = toIso(`${slash[1]}/${slash[2]}/${slash[3]}`, order); return isIso(d) ? d : '' }

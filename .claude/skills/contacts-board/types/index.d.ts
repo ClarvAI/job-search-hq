@@ -29,6 +29,7 @@ export type Notice = { text: string; isError: boolean }
 
 declare module 'claude-code' {
   interface PluginState {
-    'contacts-board': { summary: Summary | null; isHidden: boolean; armed: string; showCold: boolean; notice: Notice; showAll: boolean }
+    // pages: which page each group (a status, 'cold', 'other') is on; long groups are paged.
+    'contacts-board': { summary: Summary | null; isHidden: boolean; armed: string; showCold: boolean; notice: Notice; pages: Record<string, number> }
   }
 }

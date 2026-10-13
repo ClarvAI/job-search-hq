@@ -35,6 +35,22 @@ const fileMode = atom({ plugin: 'outbox', key: 'fileMode' } as const, 'draft-onl
 const unsure = atom({ plugin: 'outbox', key: 'unsure' } as const, [] as string[])
 const signature = atom({ plugin: 'outbox', key: 'signature' } as const, '')
 const hasSignature = atom({ plugin: 'outbox', key: 'hasSignature' } as const, true)
+const sendMark = atom({ plugin: 'outbox', key: 'sendMark' } as const, '')
+const gmail = atom({ plugin: 'outbox', key: 'gmail' } as const, 'unknown')
+const gmailServer = atom({ plugin: 'outbox', key: 'gmailServer' } as const, '')
+const page = atom({ plugin: 'outbox', key: 'page' } as const, 0)
+const waitingPage = atom({ plugin: 'outbox', key: 'waitingPage' } as const, 0)
+// Cards per page: each card shows a whole message, and a panel draws at most 100,000 characters.
+const SHOWN = 8
+const KEYS_HINT = 'Keys: Tab moves between buttons, Enter presses one, Esc goes back to typing.'
+// The files whose change matters at once (the send setting and the signature).
+const WATCHED = ['profile/preferences.md', 'profile/signature.txt']
+
+function pageOf<T>(list: T[], at: number, size: number): { items: T[]; page: number; pages: number; from: number; to: number } {
+  const pages = Math.max(1, Math.ceil(list.length / size))
+  const p = Math.min(Math.max(0, Math.floor(at) || 0), pages - 1)
+  return { items: list.slice(p * size, p * size + size), page: p, pages, from: list.length === 0 ? 0 : p * size + 1, to: Math.min(list.length, p * size + size) }
+}
 
 function clean(raw: string): string {
   return raw.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n').replace(/^\s+(?=---)/, '')
@@ -110,7 +126,29 @@ function addresses(list: string): string[] {
 // The example signature's made-up name and phone, which must never go out in a real email.
 const SAMPLE_SIGNATURE = /\byour name\b|\byour title\b|555-01\d\d|linkedin\.com\/in\/your-name/i
 
-const SEND_OK = 'send-mode-confirmed'
+// Send mode is confirmed per project folder (the plugin's store is shared by every folder on this
+// computer), and only for the preferences lines that turned it on: a new dated "turned on send mode"
+// note, or switching back to draft-only, asks again. The old unscoped key is never trusted.
+const OLD_SEND_OK = 'send-mode-confirmed'
+async function sendKey($: any): Promise<string> {
+  const root: string = await Promise.resolve().then(() => $.session.root()).catch(() => '')
+  return `send-mode:${root}`
+}
+function markOf(prefs: string): string {
+  return prefs.replace(/<!--[\s\S]*?-->/g, '').split(/\r?\n/).map(l => l.trim()).filter(l => /outbox_mode|send mode/i.test(l)).join('\n')
+}
+
+// Which connected Gmail server to call: the configured one if it's connected, else the one Gmail
+// connector the session has. 'unknown' when the tool list can't be read (then the configured name is used).
+async function findGmail($: any, configured: string): Promise<{ server: string; state: string }> {
+  let names: string[]
+  try { names = ((await $.tool.list()) as Array<{ name: string }>).map(t => String(t.name)) } catch { return { server: configured, state: 'unknown' } }
+  const servers = [...new Set(names.map(n => /^mcp__(.+)__create_draft$/.exec(n)?.[1] ?? '').filter(s => /gmail/i.test(s)))]
+  const spelled = configured.replace(/[^A-Za-z0-9_-]/g, '_')
+  if (servers.includes(spelled)) return { server: configured, state: 'connected' }
+  if (servers.length > 0) return { server: servers[0] ?? configured, state: 'connected' }
+  return { server: configured, state: 'missing' }
+}
 
 async function settings($: any): Promise<void> {
   let prefs = ''
@@ -126,13 +164,18 @@ async function settings($: any): Promise<void> {
   const inFile = found === 'send' ? 'send' : 'draft-only'
   if ((await read($, fileMode)) !== inFile) await update($, fileMode, () => inFile)
   let confirmed = false
+  const key = await sendKey($)
+  const lines = markOf(prefs)
+  if ((await read($, sendMark)) !== lines) await update($, sendMark, () => lines)
+  await Promise.resolve().then(() => $.store.delete(OLD_SEND_OK)).catch(() => undefined)
   if (inFile === 'send') {
     // If the store can't be read, send mode stays off (fail closed).
-    const stored = await Promise.resolve().then(() => $.store.get(SEND_OK)).catch(() => undefined)
-    confirmed = !!stored && typeof stored === 'object' && (stored as { value?: string }).value === 'send'
+    const stored = await Promise.resolve().then(() => $.store.get(key)).catch(() => undefined)
+    const was = stored && typeof stored === 'object' ? (stored as { value?: string; mark?: string }) : undefined
+    confirmed = was?.value === 'send' && was.mark === lines
   } else {
     // Back to draft-only: turning send mode on again later needs a new confirmation here.
-    await Promise.resolve().then(() => $.store.delete(SEND_OK)).catch(() => undefined)
+    await Promise.resolve().then(() => $.store.delete(key)).catch(() => undefined)
   }
   const value = inFile === 'send' && confirmed ? 'send' : 'draft-only'
   if ((await read($, mode)) !== value) await update($, mode, () => value)
@@ -195,6 +238,9 @@ async function sendBlocked($: any, d: Draft): Promise<string> {
 
 async function scan($: any): Promise<Draft[]> {
   await settings($).catch(() => undefined)
+  const found0 = await findGmail($, configuredServer).catch(() => ({ server: configuredServer, state: 'unknown' }))
+  if ((await read($, gmail)) !== found0.state) await update($, gmail, () => found0.state)
+  if ((await read($, gmailServer)) !== found0.server) await update($, gmailServer, () => found0.server)
   // A card left saying "Sending…" with nothing in flight (e.g. after an error) gets its buttons back.
   const held = await read($, armed)
   if (held.endsWith('|sending') && !inFlight.has(held.slice(0, -'|sending'.length))) await update($, armed, () => '')
@@ -298,26 +344,62 @@ async function mark($: any, draft: Draft, status: string, logText: string, paneT
   await tellClaude($, `[Outbox] ${logText} (file: ${path}${who ? `; ${who}` : ''}; at ${stamp}). Re-read the file before describing it to the user.${editedMeanwhile}${followUp} A discarded draft can be restored by setting its status back to draft.`)
 }
 
+// Claude may draft but never send, reply, forward, trash, label or archive mail. Same rule as the shared
+// guard (.claude/hooks/guard.sh): judge the operation after any app-name prefix (gmail_search_emails ->
+// search_emails), then allow only reads and draft creation.
+const MAIL_DENY = 'The user sends and manages their mail themselves. Save the message as a draft file in outbox/ and tell the user to type /outbox to review it.'
+function isBlockedMail(name: string): boolean {
+  const last = (name.split('__').pop() ?? name).replace(/^(gmail|google_?mail|outlook_email|outlook_calendar|outlook|google_?calendar|gcal|superhuman|email|mail|calendar)_/i, '')
+  const isMail = /mail|outlook|superhuman/i.test(name)
+  const readOnly = /^(batch_read|batch_get|search|list|get|read|fetch|find|query|count|lookup|view|show|download)/i.test(last) || /^(create|update)(_or_update)?_?draft/i.test(last)
+  return isMail && !readOnly
+}
+
 function title(d: Draft): string {
   if (d.channel === 'email') return d.subject || '(no subject)'
   return `${d.channel === 'linkedin' ? 'LinkedIn' : d.channel} → ${d.to || '(no one named)'}`
 }
 
+// The Gmail connector's name from the plugin's settings (gmail_server), used when it is connected.
+let configuredServer = 'claude.ai Gmail'
+
 export const register: Register = (on, options) => {
-  const server = String((options as Record<string, unknown>).gmail_server || 'claude.ai Gmail')
+  configuredServer = String((options as Record<string, unknown>).gmail_server || 'claude.ai Gmail')
 
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'outbox', description: 'Review draft emails and messages, then create Gmail drafts, copy, or discard them' })
     // No toast here: the due-alerts mod is the one pop-up at session start, and the Pipeline band shows the draft count.
     await scan($).catch(() => [])
+    // A poll for new draft files (they can't be watched before they exist); the send setting and the
+    // signature also refresh at once when they change (classic.FileChanged below).
     $.clock.every(20000, () => void scan($).catch(() => undefined))
     return next(e)
   })
 
+  on('classic.SessionStart', async ($, e, next) => {
+    const out = await next(e)
+    const root = String(e.cwd ?? '').replace(/[\\/]+$/, '')
+    if (root === '') return out
+    const sep = /^[A-Za-z]:\\/.test(root) ? '\\' : '/'
+    return { ...out, watchPaths: [...(out.watchPaths ?? []), ...WATCHED.map(p => root + sep + p.split('/').join(sep))] }
+  }).catch(($, e, next) => next(e))
+
+  on('classic.FileChanged', async ($, e, next) => {
+    const path = String(e.file_path ?? '').replace(/\\/g, '/')
+    if (WATCHED.some(p => path.endsWith(`/${p}`))) await scan($).catch(() => undefined)
+    return next(e)
+  }).catch(($, e, next) => next(e))
+
   on('command.run', { command: 'outbox' }, async $ => {
     const found = await scan($)
     await say($, '')
-    await $.ui.open({ id: PANE, title: 'Outbox' })
+    const opened = await $.ui.open({ id: PANE, title: 'Outbox', focus: true })
+    if (!opened.isPlaced) {
+      return {
+        text: `${found.length === 0 ? 'No drafts waiting.' : `${found.length} ${found.length === 1 ? 'draft' : 'drafts'} to review.`} The Outbox can't show in this window, so ask Claude to "show my outbox" and go through the drafts here in the chat.`,
+        context: ['The Outbox panel is not visible in this app or window. If the user asks, use the chat version of the outbox skill (.agents/skills/outbox/SKILL.md).'],
+      }
+    }
     return {
       text: found.length === 0
         ? 'No drafts waiting. Ask Claude to draft a follow-up or thank-you note.'
@@ -330,12 +412,7 @@ export const register: Register = (on, options) => {
   // (gmail_search_emails -> search_emails), then allow only reads and draft creation.
   on('tool.call', async ($, e, next) => {
     const name = String(e.tool)
-    const last = (name.split('__').pop() ?? name).replace(/^(gmail|google_?mail|outlook_email|outlook_calendar|outlook|google_?calendar|gcal|superhuman|email|mail|calendar)_/i, '')
-    const isMail = /mail|outlook|superhuman/i.test(name)
-    const readOnly = /^(batch_read|batch_get|search|list|get|read|fetch|find|query|count|lookup|view|show|download)/i.test(last) || /^(create|update)(_or_update)?_?draft/i.test(last)
-    if (isMail && !readOnly) {
-      return { deny: 'The user sends and manages their mail themselves. Save the message as a draft file in outbox/ and tell the user to type /outbox to review it.' }
-    }
+    if (isBlockedMail(name)) return { deny: MAIL_DENY }
     const ran = await next(e)
     if (/^(Write|Edit|MultiEdit)$/.test(name) && /(^|[\\/])outbox[\\/]/.test(String((e as any).file_path ?? ''))) {
       const before = (await read($, drafts)).length
@@ -343,7 +420,8 @@ export const register: Register = (on, options) => {
       if (found && found.length > before) $.ui.toast('New draft in your Outbox. Type /outbox to review it.')
     }
     return ran
-  })
+  // If the hook fails before the tool runs, the same rule still decides (judged from e alone).
+  }).catch(($, e, next) => (next.called || !isBlockedMail(String(e.tool)) ? next(e) : { deny: MAIL_DENY }))
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const { Box, Text, Button } = $.ui.resolve(e)
@@ -357,6 +435,12 @@ export const register: Register = (on, options) => {
     const ownSig = await read($, hasSignature)
     const sendInFile = (await read($, fileMode)) === 'send'
     const held3 = await read($, unsure)
+    const sendLines = await read($, sendMark)
+    const gmailState = await read($, gmail)
+    const server = (await read($, gmailServer)) || configuredServer
+    const listPage = pageOf(list, await read($, page), SHOWN)
+    const heldPage = pageOf(held, await read($, waitingPage), SHOWN)
+    const firstFile = listPage.items[0]?.file ?? ''
 
     const card = (d: Draft) => {
       const isEmail = d.channel === 'email'
@@ -444,7 +528,9 @@ export const register: Register = (on, options) => {
                     await update($, armed, () => '')
                     await say($, canSend
                       ? "I couldn't confirm whether it sent. Check your Gmail Sent folder: if it's there, press \"Mark sent…\". If it isn't, press \"Not in my Sent folder…\", then send it again or press Copy and send it from Gmail."
-                      : "I couldn't confirm the Gmail draft was created. Check your Gmail Drafts before trying again, so you don't end up with two.", true)
+                      : gmailState === 'connected'
+                        ? "I couldn't confirm the Gmail draft was created. Check your Gmail Drafts before trying again, so you don't end up with two."
+                        : 'Gmail didn\'t answer, and it doesn\'t look connected. Connect Gmail (desktop app: Settings → Connectors; terminal: claude.ai/customize/connectors, then type /mcp), or press Copy and send it yourself.', true)
                     await scan($).catch(() => undefined)
                     const detail = (result.content ?? []).map((c: any) => c.text ?? '').join(' ').slice(0, 400)
                     await tellClaude($, `[Outbox] Gmail call failed for ${DIR}/${d.file} via "${server}": ${detail}. If the user asks, help them check the Gmail connector.`)
@@ -499,7 +585,7 @@ export const register: Register = (on, options) => {
           )}
           {action === '' && d.status === 'draft' && (
             <Box flexDirection="row" gap={1} flexWrap="wrap">
-              {isEmail && <Button key={`${d.file}:approve`} label={canSend ? 'Send…' : 'Create Gmail draft…'} variant="primary" onPress={async () => {
+              {isEmail && <Button key={`${d.file}:approve`} label={canSend ? 'Send…' : 'Create Gmail draft…'} variant="primary" autoFocus={d.file === firstFile ? true : undefined} onPress={async () => {
                 const bad2 = addresses(d.to + ',' + d.cc).filter(a => !EMAIL.test(a))
                 if (addresses(d.to).length === 0 || bad2.length > 0) {
                   await say($, `The recipient address needs fixing (${bad2.join(', ') || 'no "to" address'}). Press "Ask Claude to edit".`, true)
@@ -525,7 +611,7 @@ export const register: Register = (on, options) => {
                 await say($, '')
                 await update($, armed, () => `${d.file}|approve`)
               }} />}
-              <Button key={`${d.file}:copy`} label="Copy" onPress={async press => {
+              <Button key={`${d.file}:copy`} label="Copy" autoFocus={!isEmail && d.file === firstFile ? true : undefined} onPress={async press => {
                 if (PLACEHOLDER.test(d.body) || PLACEHOLDER.test(d.to)) {
                   await say($, `This draft still has a placeholder (${(PLACEHOLDER.exec(d.body + d.to) ?? [''])[0]}). Press "Ask Claude to edit" to fill it in.`, true)
                   return
@@ -551,8 +637,21 @@ export const register: Register = (on, options) => {
       )
     }
 
+    const pager = (id: string, pg: ReturnType<typeof pageOf>, total: number, move: (to: number) => unknown) => pg.pages > 1 && (
+      <Box key={`${id}-pager`} flexDirection="row" gap={1} flexWrap="wrap">
+        <Text dimColor>{`Showing ${pg.from}–${pg.to} of ${total}`}</Text>
+        {pg.page > 0 && <Button key={`${id}-prev`} label="Previous page" plain onPress={() => move(pg.page - 1)} />}
+        {pg.page < pg.pages - 1 && <Button key={`${id}-next`} label="Next page" plain onPress={() => move(pg.page + 1)} />}
+      </Box>
+    )
+
     return (
       <Box flexDirection="column" gap={1}>
+        <Box flexDirection="row" gap={1}>
+          <Button key="refresh" label="Refresh" onPress={() => scan($)} />
+          <Button key="close" label="Close" role="dismiss" onPress={() => $.ui.close({ id: PANE })} />
+        </Box>
+        {e.surface === 'terminal' && <Text dimColor>{KEYS_HINT}</Text>}
         <Text wrap="wrap">{canSend
           ? 'Mode: send. "Send email" sends from your Gmail after you confirm.'
           : 'Mode: draft only. "Create Gmail draft" puts it in your Gmail drafts; you press Send in Gmail.'}</Text>
@@ -567,7 +666,7 @@ export const register: Register = (on, options) => {
             <Text bold wrap="wrap">Turn on send mode? "Send email" will then send straight from your Gmail after you confirm each message, and a sent email can't be taken back. You can switch back any time by setting outbox_mode: draft-only in your preferences.</Text>
             <Box flexDirection="row" gap={1}>
               <Button key="mode-confirm" label="Yes, turn on send mode" variant="primary" onPress={async () => {
-                const ok = await Promise.resolve().then(() => $.store.set(SEND_OK, { value: 'send', at: Date.now() })).then(() => true, () => false)
+                const ok = await Promise.resolve().then(async () => $.store.set(await sendKey($), { value: 'send', at: Date.now(), mark: sendLines })).then(() => true, () => false)
                 await update($, armed, () => '')
                 await say($, ok ? 'Send mode is on.' : 'Unable to save that choice, so the Outbox stays in draft-only mode.', !ok)
                 await scan($)
@@ -576,22 +675,23 @@ export const register: Register = (on, options) => {
             </Box>
           </Box>
         )}
+        {gmailState === 'missing' && list.some(d => d.channel === 'email') && <Text color="warning" wrap="wrap">{canSend
+          ? 'Gmail doesn\'t look connected, so "Send…" may not work. Connect Gmail (desktop app: Settings → Connectors; terminal: claude.ai/customize/connectors, then type /mcp), or press Copy and send it yourself.'
+          : 'Gmail doesn\'t look connected, so "Create Gmail draft…" may not work. Connect Gmail (desktop app: Settings → Connectors; terminal: claude.ai/customize/connectors, then type /mcp), or press Copy and send it yourself.'}</Text>}
         {!ownSig && <Text color="warning" wrap="wrap">Your signature isn't set up, so emails go without one. Ask Claude to set it up (part of /start).</Text>}
         {note.text !== '' && <Text color={note.isError ? 'error' : 'success'}>{note.isError ? `Not done: ${note.text}` : note.text}</Text>}
         {list.length === 0 && held.length === 0 && <Text dimColor>No drafts waiting. Ask Claude to draft a follow-up, thank-you note, or networking message.</Text>}
-        {list.map(card)}
+        {listPage.items.map(card)}
+        {pager('drafts', listPage, list.length, to => update($, page, () => to))}
         {held.length > 0 && <Text bold>Waiting in Gmail (press "Mark sent…" after you send each one)</Text>}
-        {held.map(card)}
+        {heldPage.items.map(card)}
+        {pager('waiting', heldPage, held.length, to => update($, waitingPage, () => to))}
         {bad.length > 0 && (
           <Box flexDirection="column">
             <Text color="warning">{`Needs fixing (Claude can't read the header): ${bad.join(', ')}`}</Text>
             <Button key="fix-broken" label="Ask Claude to fix them" onPress={() => $.prompt.fill({ text: `Fix the header of these outbox drafts so they follow the format in AGENTS.md: ${bad.join(', ')}` })} />
           </Box>
         )}
-        <Box flexDirection="row" gap={1}>
-          <Button key="refresh" label="Refresh" onPress={() => scan($)} />
-          <Button key="close" label="Close" role="dismiss" onPress={() => $.ui.close({ id: PANE })} />
-        </Box>
       </Box>
     )
   })

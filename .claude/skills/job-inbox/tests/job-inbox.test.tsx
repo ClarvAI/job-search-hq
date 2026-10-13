@@ -15,14 +15,14 @@ const TRACKER = TRACKER_HEAD + '\n' + 'Globex,Project Manager,interested,2026-10
 
 const PANE = { component: 'Pane', requestId: 'job-inbox', props: { title: 'Job Inbox', isFocused: true, bodyColumns: 100 } } as const
 
-function setup(on: any, files: Record<string, string>, opts: { lock?: boolean } = {}) {
+function setup(on: any, files: Record<string, string>, opts: { lock?: boolean; notPlaced?: boolean } = {}) {
   mock.clock(on, { now: new Date(2026, 9, 6, 9, 0).getTime() } as never)
   const rel = (p: string) => p.replace(/^.*\/job-inbox\//, '')
   on('fs.exists', (_$: any, e: any) => ({ value: rel(e.path) in files }) as never)
   on('fs.read', (_$: any, e: any) => ({ value: files[rel(e.path)] ?? '' }) as never)
   on('fs.write', (_$: any, e: any) => { if (opts.lock) throw new Error('EBUSY'); files[rel(e.path)] = e.text; return { value: undefined } as never })
   on('fs.list', () => ({ value: [] }) as never)
-  on('ui.open', () => ({ value: { isPlaced: true } }) as never)
+  on('ui.open', () => ({ value: opts.notPlaced ? { isPlaced: false, reason: 'no attached surface places panes' } : { isPlaced: true } }) as never)
   on('ui.close', () => ({ value: undefined }) as never)
   on('command.register', () => ({ value: undefined }) as never)
   return { files }
@@ -156,7 +156,7 @@ test('a damaged leads file is reported and nothing in it is saved', async ($, on
   await ui.unmount()
 })
 
-test('a long inbox shows the best fits first and the rest behind "Show all"', async ($, on) => {
+test('a long inbox shows the best fits first, one page at a time', async ($, on) => {
   let csv = HEAD + '\n'
   for (let i = 0; i < 20; i++) csv += `L-${i},2026-10-05,Company ${i},Analyst,X,,,,https://c${i}.example/1,,,site,${i === 19 ? 'A' : 'C'},fit,,new,,\n`
   setup(on, { 'jobs/leads.csv': csv, 'jobs/tracker.csv': TRACKER })
@@ -164,10 +164,40 @@ test('a long inbox shows the best fits first and the rest behind "Show all"', as
   const ui = await $.ui.mount({ plugin: 'job-inbox', surface: 'terminal', ...PANE } as never)
   let drawn = JSON.stringify(await ui.drawn())
   expect(drawn).toContain('Company 19 · Analyst')
-  expect(drawn).toContain('Show all 20 leads')
+  expect(drawn).toContain('Showing 1–15 of 20')
   expect((drawn.match(/:save"/g) ?? []).length).toBe(15)
-  await ui.press({ key: 'show-all' })
+  await ui.press({ key: 'leads-next' })
   drawn = JSON.stringify(await ui.drawn())
-  expect((drawn.match(/:save"/g) ?? []).length).toBe(20)
+  expect((drawn.match(/:save"/g) ?? []).length).toBe(5)
+  expect(drawn).not.toContain('Company 19 · Analyst')
   await ui.unmount()
+})
+
+test('a big inbox against a long tracker stays quick, and only real duplicates are hidden', async ($, on) => {
+  let tracker = TRACKER_HEAD + '\n'
+  for (let i = 0; i < 1000; i++) tracker += `"Northwind Traders ${i % 200}, Inc.",Operations Analyst ${i},applied,2026-10-14,Follow up,,B,3,Columbus OH,2026-09-01,2026-09-02,,,,https://www.example.com/jobs/${i}?utm_source=x,,${i % 3 ? `R-${i}` : ''},0,nw-${i},\n`
+  let csv = HEAD + '\n'
+  for (let j = 0; j < 300; j++) csv += `L-${j},2026-10-05,Northwind Traders ${j % 250},Operations Analyst ${j * 3},Columbus OH,,,,https://example.com/jobs/${j * 7},,,site,B,fit,,new,,\n`
+  setup(on, { 'jobs/leads.csv': csv, 'jobs/tracker.csv': tracker })
+  const started = Date.now()
+  const out: any = await $.command.run({ command: 'job-inbox', args: '' } as never)
+  expect(Date.now() - started).toBeLessThan(1500)
+  // Leads whose link matches a tracker row (j * 7 < 1000) are already tracked; the rest still show.
+  expect(String(out.text)).toContain('new leads')
+  const ui = await $.ui.mount({ plugin: 'job-inbox', surface: 'terminal', ...PANE } as never)
+  const drawn = JSON.stringify(await ui.drawn())
+  expect(drawn).toContain('already in your tracker')
+  expect(drawn.length).toBeLessThan(60000)
+  await ui.unmount()
+})
+
+test('where panels can\'t show, /job-inbox says so; the inbox watches its files and opens ready for the keyboard', async ($, on) => {
+  const files = { 'jobs/leads.csv': LEADS, 'jobs/tracker.csv': TRACKER }
+  setup(on, files, { notPlaced: true })
+  on('classic.SessionStart', () => ({}) as never)
+  const out: any = await $.command.run({ command: 'job-inbox', args: '' } as never)
+  expect(String(out.text)).toContain("can't show in this window")
+  expect(JSON.stringify(out.context)).toContain('chat version of the job-inbox skill')
+  const start: any = await ($ as any).classic.SessionStart({ source: 'startup', cwd: '/home/alex/job-search' })
+  expect(start.watchPaths).toEqual(['/home/alex/job-search/jobs/leads.csv', '/home/alex/job-search/jobs/tracker.csv'])
 })

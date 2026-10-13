@@ -88,16 +88,17 @@ Indeed.
 01/02/2003
 `
 
-function setup(on: any, files: Record<string, string>, opts: { lock?: boolean; list?: (path: string) => unknown[]; onRead?: (path: string, files: Record<string, string>) => void } = {}) {
+function setup(on: any, files: Record<string, string>, opts: { lock?: boolean; list?: (path: string) => unknown[]; onRead?: (path: string, files: Record<string, string>) => void; notPlaced?: boolean; reads?: string[] } = {}) {
   mock.clock(on, { now: new Date(2026, 9, 6, 9, 0).getTime() } as never)
   const rel = (p: string) => p.replace(/^.*\/skills\/apply-kit\//, '')
   const copies: string[] = []
   const fills: string[] = []
   on('fs.exists', (_$: any, e: any) => ({ value: rel(e.path) in files }) as never)
-  on('fs.read', (_$: any, e: any) => { opts.onRead?.(rel(e.path), files); return { value: files[rel(e.path)] ?? '' } as never })
+  on('fs.read', (_$: any, e: any) => { opts.reads?.push(rel(e.path)); opts.onRead?.(rel(e.path), files); return { value: files[rel(e.path)] ?? '' } as never })
   on('fs.write', (_$: any, e: any) => { if (opts.lock) throw new Error('EBUSY: resource busy or locked'); files[rel(e.path)] = e.text; return { value: undefined } as never })
   on('fs.list', (_$: any, e: any) => ({ value: opts.list?.(rel(e.path)) ?? [] }) as never)
-  on('ui.open', () => ({ value: { isPlaced: true } }) as never)
+  on('ui.open', () => ({ value: opts.notPlaced ? { isPlaced: false, reason: 'no attached surface places panes' } : { isPlaced: true } }) as never)
+  on('ui.close', () => ({ value: undefined }) as never)
   on('ui.copy', (_$: any, e: any) => { copies.push(e.text); return { value: { isCopied: true } } as never })
   on('prompt.fill', (_$: any, e: any) => { fills.push(e.text); return { isFilled: true } as never })
   // The test kit keeps no transcript, so the [Apply Kit] note can't be stored or observed here; the panel ignores that failure.
@@ -408,5 +409,56 @@ test('Mark applied never rewrites a date whose order is unclear', async ($, on) 
   await ui.press({ key: 'mark-applied' })
   await ui.press({ key: 'confirm-applied' })
   expect(files['jobs/tracker.csv']).toContain('Initech,Analyst,applied,2026-10-15,Follow up,,03/04/2026,2026-10-06,,0,')
+  await ui.unmount()
+})
+
+test('a long list of jobs to apply to is paged in the picker', async ($, on) => {
+  let csv = HEAD + '\n'
+  for (let i = 0; i < 40; i++) csv += `Company ${i},Analyst,interested,2026-10-20,Find a contact,,B,3,X,2026-10-01,,,,,,,,,c${i},\n`
+  setup(on, { ...FULL(), 'jobs/tracker.csv': csv })
+  await $.command.run({ command: 'apply-kit', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'apply-kit', surface: 'terminal', ...PANE } as never)
+  let drawn = JSON.stringify(await ui.drawn())
+  expect(drawn).toContain('Showing 1–15 of 40')
+  expect(drawn).toContain('Tab moves between buttons')
+  await ui.press({ key: 'picker-next' })
+  drawn = JSON.stringify(await ui.drawn())
+  expect(drawn).toContain('Showing 16–30 of 40')
+  await ui.unmount()
+})
+
+test('where panels can\'t show, /apply-kit says so and points to the chat', async ($, on) => {
+  setup(on, FULL(), { notPlaced: true })
+  const out: any = await $.command.run({ command: 'apply-kit', args: '' } as never)
+  expect(String(out.text)).toContain("can't show in this window")
+  expect(JSON.stringify(out.context)).toContain('chat version of the apply-kit skill')
+})
+
+test('the kit stops re-reading files after its pane is closed', async ($, on) => {
+  const reads: string[] = []
+  setup(on, FULL(), { reads })
+  await $.command.run({ command: 'apply-kit', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'apply-kit', surface: 'terminal', ...PANE } as never)
+  const turn = { answer: '', durationMs: 1, isAborted: false, turnId: 't1', reason: 'end_turn', text: '' }
+  reads.length = 0
+  await ($ as any).turn.complete(turn).catch(() => undefined)
+  expect(reads).toContain('profile/master-resume.md')
+  await ui.press({ key: 'close' })
+  reads.length = 0
+  await ($ as any).turn.complete({ ...turn, turnId: 't2' }).catch(() => undefined)
+  expect(reads).not.toContain('profile/master-resume.md')
+  await ui.unmount()
+})
+
+test('Mark applied with the tracker gone says so plainly and writes nothing', async ($, on) => {
+  const { files } = setup(on, FULL())
+  await $.command.run({ command: 'apply-kit', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'apply-kit', surface: 'terminal', ...PANE } as never)
+  delete files['jobs/tracker.csv']
+  await ui.press({ key: 'mark-applied' })
+  await ui.press({ key: 'confirm-applied' })
+  const drawn = JSON.stringify(await ui.drawn())
+  expect(drawn).toContain('Not done: That job is no longer in your tracker')
+  expect(files['jobs/tracker.csv']).toBeUndefined()
   await ui.unmount()
 })

@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
 import type { Field, FileItem, Job, Kit, Notice, Section } from '../types'
-import { addDays, csvTrouble, dateOrder, isExcelLock, localDate, orderFor, plain, readCsv, toCsv, toIso } from './csvdate'
+import { activityLine, addDays, colOf, csvTrouble, dateOrder, isExcelLock, jobKey, localDate, orderFor, pageOf, plain, readCsv, rowKept, toCsv, toIso } from './csvdate'
 
 // Apply Kit: while the user fills in an online application form themselves, this pane shows every
 // answer the form will ask for (from profile/ and the job's folder), each with a Copy button.
@@ -14,6 +14,10 @@ const TRACKER = 'jobs/tracker.csv'
 const ACTIVITY = 'history/activity.md'
 const RESUME = 'profile/master-resume.md'
 const PREFS = 'profile/preferences.md'
+const BOM = String.fromCharCode(0xfeff)
+const KEYS_HINT = 'Keys: Tab moves between buttons, Enter presses one, Esc goes back to typing.'
+// Jobs per page in the job picker (a panel draws at most 100,000 characters).
+const PICKER_SHOWN = 15
 const MISSING = '[not set] — ask Claude'
 const DATE_COLS = ['next_action_date', 'date_found', 'date_applied', 'deadline']
 // A bracketed placeholder like [ASK] or [Your answer], but not a markdown link [text](url).
@@ -32,25 +36,21 @@ const chosen = atom({ plugin: 'apply-kit', key: 'chosen' } as const, '')
 const armed = atom({ plugin: 'apply-kit', key: 'armed' } as const, false)
 const picking = atom({ plugin: 'apply-kit', key: 'picking' } as const, false)
 const notice = atom({ plugin: 'apply-kit', key: 'notice' } as const, { text: '', isError: false } as Notice)
+const isOpen = atom({ plugin: 'apply-kit', key: 'isOpen' } as const, false)
+const pickerPage = atom({ plugin: 'apply-kit', key: 'pickerPage' } as const, 0)
 
 // CSV and dates: csvdate.ts, the same rules as the Pipeline panel. A date is read only when its meaning
 // is certain; anything else is left exactly as written for the user to confirm.
 
-// Same row identity as the Pipeline panel: company + role + folder (or job ID, link, date found).
-function keyOf(company: string, role: string, folder = ''): string {
-  const base = `${company.trim().toLowerCase()}|${role.trim().toLowerCase()}`
-  return folder.trim() ? `${base}|${folder.trim().toLowerCase()}` : base
-}
-function rowKey(get: (c: string) => string): string {
-  return keyOf(get('company'), get('role'), get('folder') || get('job_id') || get('link') || get('date_found'))
-}
+// Row identity: jobKey in csvdate.ts, the same as the Pipeline panel (company + role + folder, or job ID, link, date found).
 
 // ---- Reading the user's files ----
 
 async function readText($: any, path: string): Promise<string> {
   try {
     if (!(await $.fs.exists(path))) return ''
-    return String(await $.fs.read(path)).replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n')
+    const text = String(await $.fs.read(path))
+    return (text.startsWith(BOM) ? text.slice(1) : text).replace(/\r\n?/g, '\n')
   } catch { return '' }
 }
 
@@ -404,13 +404,12 @@ async function loadJobs($: any): Promise<Job[]> {
   const { rows: [header = [], ...rows], problem } = readCsv(raw)
   // A damaged tracker shows no jobs (only the message); its rows can't be trusted.
   if (problem !== '') return []
-  const col = (name: string) => header.findIndex(h => h.trim().toLowerCase() === name)
-  const at = (r: string[], name: string) => (col(name) >= 0 ? (r[col(name)] ?? '').trim() : '')
+  const at = (r: string[], name: string) => { const i = colOf(header, name); return i >= 0 ? (r[i] ?? '').trim() : '' }
   return rows.map(r => {
     const folder = at(r, 'folder')
     const o = orderFor(r, order)
     return {
-      key: rowKey(c => at(r, c)),
+      key: jobKey(c => at(r, c)),
       company: at(r, 'company'),
       role: at(r, 'role'),
       status: at(r, 'status').toLowerCase(),
@@ -485,11 +484,7 @@ async function say($: any, text: string, isError = false): Promise<void> {
 }
 
 async function logActivity($: any, what: string): Promise<void> {
-  const d = new Date(await $.clock.now())
-  const pad = (n: number) => String(n).padStart(2, '0')
-  const stamp = `${localDate(d.getTime())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
-  const lineOut = `- ${stamp} · Apply Kit panel (Claude) · ${what.replace(/[\r\n]+/g, ' ')}\n`
-  await appendLine($, ACTIVITY, lineOut)
+  await appendLine($, ACTIVITY, activityLine(await $.clock.now(), 'Apply Kit panel (Claude)', what))
 }
 
 // One line added to the end of history/activity.md. The file is re-read right before the write and
@@ -533,10 +528,10 @@ async function markApplied($: any, job: Job): Promise<void> {
     // A damaged tracker is never written back: that would spread the damage.
     if (problem !== '') { await update($, armed, () => false); await say($, csvTrouble(problem, 'Your tracker (jobs/tracker.csv)'), true); return }
     const header = rows[0] ?? []
-    const find = (c: string) => header.findIndex(h => h.trim().toLowerCase() === c)
+    const find = (c: string) => colOf(header, c)
     const idx = (c: string) => { let i = find(c); if (i < 0) { header.push(c); i = header.length - 1 } return i }
     // Find the row by its cells as read, before any of its dates is tidied; other rows stay as they are.
-    const target = rows.slice(1).find(r => rowKey(c => (find(c) >= 0 ? (r[find(c)] ?? '') : '').trim()) === job.key)
+    const target = rows.slice(1).find(r => jobKey(c => (find(c) >= 0 ? (r[find(c)] ?? '') : '').trim()) === job.key)
     if (!target) { await say($, 'That job is no longer in your tracker. Press Refresh, or ask Claude to check it.', true); return }
     const o = orderFor(target, order)
     for (const c of DATE_COLS) { const i = find(c); if (i >= 0 && target[i]) target[i] = toIso(target[i], o) }
@@ -557,7 +552,7 @@ async function markApplied($: any, job: Job): Promise<void> {
     set('followups', '0')
     for (const r of rows) while (r.length < header.length) r.push('')
     what = `${job.company} (${job.role}): marked applied on ${today}; follow-up set for ${saved.nextDate}`
-    const next = (original.startsWith('\uFEFF') ? '\uFEFF' : '') + toCsv(rows)
+    const next = (original.startsWith(BOM) ? BOM : '') + toCsv(rows)
     if (await openInExcel($, TRACKER)) {
       await say($, 'Your tracker is open in Excel. Save and close it there, then press "Yes, I submitted it" again (otherwise Excel would later put back its older copy).', true)
       return
@@ -576,7 +571,7 @@ async function markApplied($: any, job: Job): Promise<void> {
     }
     // If another app saved at the same instant, never redo the change; check the saved row is still there.
     const back: string = await $.fs.read(TRACKER).catch(() => next)
-    if (back !== next && !readCsv(back).rows.some(r => r.length >= target.length && target.every((v, i) => (r[i] ?? '') === v))) {
+    if (back !== next && !rowKept(back, target)) {
       await update($, armed, () => false)
       await refresh($).catch(() => undefined)
       await say($, 'Another app saved your tracker at the same moment, so "applied" may not have been recorded. Check the job, and tell Claude you applied if it still shows "interested".', true)
@@ -606,8 +601,8 @@ export const register: Register = on => {
   })
 
   on('turn.complete', async ($, e, next) => {
-    // Claude may have just drafted answers or a resume: keep an open kit current.
-    if ((await read($, kit)) !== null) await refresh($).catch(() => undefined)
+    // Claude may have just drafted answers or a resume: keep the kit current while its pane is open.
+    if ((await read($, kit)) !== null && (await read($, isOpen))) await refresh($).catch(() => undefined)
     return next(e)
   })
 
@@ -619,9 +614,23 @@ export const register: Register = on => {
     await say($, '')
     const k = await refresh($)
     await update($, picking, () => k.job === null)
-    await $.ui.open({ id: PANE, title: 'Apply Kit' })
+    const opened = await $.ui.open({ id: PANE, title: 'Apply Kit', focus: true })
+    await update($, isOpen, () => opened.isPlaced)
+    if (!opened.isPlaced) {
+      return {
+        text: `${k.job ? `Apply Kit: ${k.job.company} · ${k.job.role}.` : 'Apply Kit.'} The kit can't show in this window, so ask Claude for "my apply kit" and the answers will be listed here in the chat.`,
+        context: ['The Apply Kit panel is not visible in this app or window. If the user asks, use the chat version of the apply-kit skill (.agents/skills/apply-kit/SKILL.md).'],
+      }
+    }
     return { text: k.job ? `Apply Kit: ${k.job.company} · ${k.job.role}` : 'Apply Kit: pick the job you\'re applying to.' }
   })
+
+  // The pane closed (its Close button, the person's close mark, or Esc): stop keeping the kit current.
+  on('ui.close', { id: PANE }, async ($, e, next) => {
+    const done = await next(e)
+    await update($, isOpen, () => false)
+    return done
+  }).catch(($, e, next) => next(e))
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const { Box, Text, Button } = $.ui.resolve(e)
@@ -637,9 +646,13 @@ export const register: Register = on => {
       else await say($, 'Unable to copy here. Select the text and copy it yourself.', true)
     }
 
+    // The keyboard's focus starts on the first Copy button (copying changes nothing).
+    const firstCopy = [...k.sections.filter(s => s.title === 'This job'), ...k.sections].flatMap(s => s.fields).find(f => f.copy !== '')?.id ?? ''
     const row = (f: Field) => {
       const isShort = f.value.length <= 60 && !f.value.includes('\n')
-      const copyButton = f.copy !== '' && <Button key={`copy:${f.id}`} label="Copy" onPress={press => copy(f, press.surface)} />
+      const copyButton = f.copy !== '' && (f.id === firstCopy
+        ? <Button key={`copy:${f.id}`} label="Copy" autoFocus onPress={press => copy(f, press.surface)} />
+        : <Button key={`copy:${f.id}`} label="Copy" onPress={press => copy(f, press.surface)} />)
       return (
         <Box key={f.id} flexDirection="column">
           {isShort ? (
@@ -667,11 +680,12 @@ export const register: Register = on => {
       </Box>
     )
 
+    const picked = pageOf(k.jobs, await read($, pickerPage), PICKER_SHOWN)
     const picker = (
       <Box key="picker" flexDirection="column" borderStyle="round" paddingX={1}>
         <Text bold>Which job are you applying to?</Text>
         {k.jobs.length === 0 && <Text dimColor wrap="wrap">No jobs are waiting for you to apply. Paste a job link to Claude, or type /find-jobs.</Text>}
-        {k.jobs.map(j => {
+        {picked.items.map(j => {
           const label = `${j.key === k.job?.key ? 'Current: ' : ''}${j.company} · ${j.role}${j.deadline ? ` · deadline ${j.deadline}` : ''}`
           const pick = async () => {
             await update($, chosen, () => j.key)
@@ -682,6 +696,13 @@ export const register: Register = on => {
           }
           return <Button key={`pick:${j.key}`} label={label} onPress={pick} />
         })}
+        {picked.pages > 1 && (
+          <Box key="picker-pager" flexDirection="row" gap={1} flexWrap="wrap">
+            <Text dimColor>{`Showing ${picked.from}–${picked.to} of ${k.jobs.length}`}</Text>
+            {picked.page > 0 && <Button key="picker-prev" label="Previous page" plain onPress={() => update($, pickerPage, () => picked.page - 1)} />}
+            {picked.page < picked.pages - 1 && <Button key="picker-next" label="Next page" plain onPress={() => update($, pickerPage, () => picked.page + 1)} />}
+          </Box>
+        )}
       </Box>
     )
 
@@ -690,6 +711,10 @@ export const register: Register = on => {
 
     return (
       <Box flexDirection="column" gap={1}>
+        <Box flexDirection="row" gap={1}>
+          <Button key="refresh" label="Refresh" onPress={async () => { await say($, ''); await refresh($) }} />
+          <Button key="close" label="Close" role="dismiss" onPress={async () => { await update($, isOpen, () => false); await $.ui.close({ id: PANE }) }} />
+        </Box>
         {job ? (
           <Box flexDirection="column">
             <Text bold>{`${job.company} · ${job.role}`}</Text>
@@ -699,7 +724,8 @@ export const register: Register = on => {
           <Text dimColor wrap="wrap">Pick a job to see its answers. Your profile answers are below either way.</Text>
         )}
         {k.problem !== '' && <Text color="error" wrap="wrap">{k.problem}</Text>}
-        {note.text !== '' && <Text color={note.isError ? 'error' : 'success'} wrap="wrap">{note.text}</Text>}
+        {e.surface === 'terminal' && <Text dimColor>{KEYS_HINT}</Text>}
+        {note.text !== '' && <Text color={note.isError ? 'error' : 'success'} wrap="wrap">{note.isError ? `Not done: ${note.text}` : note.text}</Text>}
         {(isPicking || !job) ? picker : <Button key="switch" label="Switch job" plain onPress={() => update($, picking, () => true)} />}
         {k.sections.filter(s => s.title === 'This job').map(block)}
         {job && (
@@ -747,10 +773,6 @@ export const register: Register = on => {
         {job && job.status !== 'interested' && (
           <Text dimColor wrap="wrap">{`This job is marked "${job.status}" in your tracker${job.nextAction ? `. Next: ${job.nextAction}${job.nextDate ? ` (${job.nextDate})` : ''}` : ''}.`}</Text>
         )}
-        <Box flexDirection="row" gap={1}>
-          <Button key="refresh" label="Refresh" onPress={async () => { await say($, ''); await refresh($) }} />
-          <Button key="close" label="Close" role="dismiss" onPress={() => $.ui.close({ id: PANE })} />
-        </Box>
       </Box>
     )
   })

@@ -54,6 +54,31 @@ export function isSamePosting(a: JobRef, b: JobRef): boolean {
   return pa === '' || pb === '' || pa === pb || pa.includes(pb) || pb.includes(pa)
 }
 
+// The tracker, normalized once and indexed by link and by company, so checking many leads against
+// a long tracker stays fast (the same answers as isSamePosting, which every candidate still goes through).
+export type TrackerIndex = { byLink: Map<string, JobRef[]>; byCompany: Map<string, JobRef[]> }
+
+export function trackerIndex(refs: JobRef[]): TrackerIndex {
+  const byLink = new Map<string, JobRef[]>()
+  const byCompany = new Map<string, JobRef[]>()
+  const add = (map: Map<string, JobRef[]>, key: string, ref: JobRef) => { if (key !== '') map.set(key, [...(map.get(key) ?? []), ref]) }
+  for (const ref of refs) {
+    for (const l of new Set([ref.link ?? '', ref.applyLink ?? ''].map(normLink))) add(byLink, l, ref)
+    add(byCompany, normCompany(ref.company), ref)
+  }
+  return { byLink, byCompany }
+}
+
+// True when the lead is already a row in the tracker. A match always shares a link or a company
+// (isSamePosting needs one of them), so only those rows are compared.
+export function isTracked(index: TrackerIndex, lead: JobRef): boolean {
+  const seen = new Set<JobRef>()
+  for (const l of [lead.link ?? '', lead.applyLink ?? ''].map(normLink)) for (const r of index.byLink.get(l) ?? []) seen.add(r)
+  for (const r of index.byCompany.get(normCompany(lead.company)) ?? []) seen.add(r)
+  for (const r of seen) if (isSamePosting(lead, r)) return true
+  return false
+}
+
 // Read a CSV into objects keyed by lowercase header name.
 export function records(text: string): Record<string, string>[] {
   const [header = [], ...rows] = parseCsv(text)

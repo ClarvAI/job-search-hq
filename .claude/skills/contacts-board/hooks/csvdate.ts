@@ -83,7 +83,26 @@ export function localDate(ms: number): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
-export const isIso = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v)
+// A real calendar day written YYYY-MM-DD (2026-02-31 is not one: it shows as "date unclear").
+export const isIso = (v: string) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v)
+  return m !== null && isRealDay(Number(m[1]), Number(m[2]), Number(m[3]))
+}
+
+function isRealDay(y: number, mo: number, da: number): boolean {
+  return mo >= 1 && mo <= 12 && da >= 1 && da <= new Date(y, mo, 0).getDate()
+}
+
+// "YYYY-MM-DD HH:MM" in local time (an evening change must not be dated tomorrow).
+export function stamp(ms: number): string {
+  const d = new Date(ms)
+  return `${localDate(ms)} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+// One line for history/activity.md, in the format AGENTS.md gives: "- <date time> · <who> · <what>".
+export function activityLine(ms: number, who: string, what: string): string {
+  return `- ${stamp(ms)} · ${who} · ${what.replace(/[\r\n]+/g, ' ')}\n`
+}
 
 function dayOf(iso: string, days = 0): Date {
   const [y = 1970, m = 1, d = 1] = iso.split('-').map(Number)
@@ -147,8 +166,9 @@ export function orderFor(cells: string[], order: DateOrder): DateOrder {
 }
 
 function build(year: string, mo: number, da: number): string {
-  if (mo < 1 || mo > 12 || da < 1 || da > 31) return ''
-  return `${year.length === 2 ? `20${year}` : year}-${pad(mo)}-${pad(da)}`
+  const y = year.length === 2 ? `20${year}` : year
+  if (!isRealDay(Number(y), mo, da)) return ''
+  return `${y}-${pad(mo)}-${pad(da)}`
 }
 
 // A date cell as YYYY-MM-DD when its meaning is certain; otherwise the text exactly as written
@@ -183,4 +203,34 @@ export function alsoOf(notes: string, order: DateOrder = ''): { text: string; da
   if (!m) return undefined
   const date = toIso(m[2] ?? '', order)
   return { text: `${(m[1] ?? '').trim()} ${m[2]}`.trim(), date: isIso(date) ? date : '' }
+}
+
+// ---- Rows and lists ----
+
+// A tracker row's identity, the same in every panel: company + role + folder. Rows typed in by hand
+// may have no folder, so the job ID, link or date found keeps two postings with the same title apart.
+export function jobKey(get: (c: string) => string): string {
+  const base = `${get('company').trim().toLowerCase()}|${get('role').trim().toLowerCase()}`
+  const extra = (get('folder') || get('job_id') || get('link') || get('date_found')).trim().toLowerCase()
+  return extra ? `${base}|${extra}` : base
+}
+
+// The column index of `name` in a header row (case and spaces ignored), or -1.
+export function colOf(header: string[], name: string): number {
+  return header.findIndex(h => h.trim().toLowerCase() === name)
+}
+
+// After a save, if another app wrote the file at the same instant: is the row as we saved it still
+// there? (The change is never applied a second time; that could count a message or push a date twice.)
+export function rowKept(back: string, target: string[]): boolean {
+  return readCsv(back).rows.some(r => r.length >= target.length && target.every((v, i) => (r[i] ?? '') === v))
+}
+
+// One page of a long list. A panel draws at most 100,000 characters, so long lists are shown a page
+// at a time rather than all at once.
+export function pageOf<T>(list: T[], page: number, size: number): { items: T[]; page: number; pages: number; from: number; to: number } {
+  const pages = Math.max(1, Math.ceil(list.length / size))
+  const p = Math.min(Math.max(0, Math.floor(page) || 0), pages - 1)
+  const start = p * size
+  return { items: list.slice(start, start + size), page: p, pages, from: list.length === 0 ? 0 : start + 1, to: Math.min(list.length, start + size) }
 }
