@@ -207,9 +207,9 @@ def check_data(r, sample, tag, today):
     leaked = [x for x in (".git", "scripts/ci", "docs/maintainers", ".github", ".claude/settings.local.json",
                           ".claude/skills/pipeline/tests") if os.path.exists(P(sample, x))]
     r.ok("%s no git history, maintainer files or local settings copied" % tag, not leaked, leaked)
-    prefs = read(P(sample, "profile/preferences.md"))
+    prefs = read(P(sample, "profile/preferences.md")).replace("\r", "")   # a Windows checkout has CRLF
     r.ok("%s preferences: setup done, sample name, sample banner" % tag,
-         re.search(r"(?m)^SETUP: done \d{4}-\d{2}-\d{2}$", prefs) and "\nname: Alex Rivera (sample)\n" in prefs.replace("\r", "")
+         re.search(r"(?m)^SETUP: done \d{4}-\d{2}-\d{2}$", prefs) and "\nname: Alex Rivera (sample)\n" in prefs
          and "SAMPLE WORKSPACE" in prefs)
 
     # Tracker

@@ -55,6 +55,16 @@ tmp="$(mktemp -d 2>/dev/null || mktemp -d -t jshq)" || die "cannot make a tempor
 trap 'rm -rf "$tmp"' EXIT
 stage="$tmp/$name"; mkdir -p "$stage" || die "cannot make a temporary folder"
 
+# Copies folders and plain files only. Links (shortcuts) point outside the backup, so they are left out and
+# named; copying them first fails on Windows (Git Bash can't recreate a link) and would lose the whole backup.
+# (NUL-separated, so a name with a line break in it can't turn into another path.)
+copy_tree() {
+  (cd "$ROOT" && find "$1" -type l -print0) | while IFS= read -r -d '' l; do echo "skipped link: $l"; done
+  (cd "$ROOT" && find "$1" \( -type d -o -type f \) -print0) | while IFS= read -r -d '' p; do
+    if [ -d "$ROOT/$p" ]; then mkdir -p "$stage/$p" || exit 1
+    else cp -p "$ROOT/$p" "$stage/$p" || exit 1; fi
+  done
+}
 dirs="profile jobs contacts outbox interviews history knowledge/field pages"
 [ -n "$with_imports" ] && dirs="$dirs imports"
 [ -n "$with_templates" ] && dirs="$dirs templates"
@@ -62,12 +72,11 @@ for d in $dirs; do
   # A parent folder that is a link (knowledge/ for knowledge/field) would copy whatever it points to.
   case "$d" in */*) if [ -L "$ROOT/${d%/*}" ]; then echo "skipped link: ${d%/*}"; continue; fi ;; esac
   if [ -e "$ROOT/$d" ] || [ -L "$ROOT/$d" ]; then
-    mkdir -p "$(dirname "$stage/$d")" && cp -R "$ROOT/$d" "$stage/$d" || die "could not copy all of $d (nothing was saved)"
+    mkdir -p "$(dirname "$stage/$d")" && copy_tree "$d" || die "could not copy all of $d (nothing was saved)"
   fi
 done
-# Links (shortcuts) point outside the backup; leave them out rather than copy whatever they point to.
-# (NUL-separated, so a name with a line break in it can't turn into another path.)
-find "$stage" -type l -print0 | while IFS= read -r -d '' l; do echo "skipped link: ${l#"$stage"/}"; rm -f -- "$l"; done
+# Belt and braces: no link may reach the zip.
+find "$stage" -type l -print0 | while IFS= read -r -d '' l; do rm -f -- "$l"; done
 # Leave out throwaway files: publish copies, theme previews, page-count PDFs, OS clutter.
 rm -rf "$stage/pages/.publish" "$stage/pages/.preview"
 find "$stage" \( -name '*.check.pdf' -o -name '.DS_Store' -o -name 'Thumbs.db' -o -name '~$*' \) -exec rm -f {} + 2>/dev/null
