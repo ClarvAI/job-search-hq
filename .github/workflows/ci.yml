@@ -29,13 +29,13 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
       - name: Shell scripts (bash -n, shellcheck -S warning)
@@ -121,10 +121,10 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
       - name: Install the latest Claude Code
@@ -142,7 +142,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: The system bash is 3.2, like on users' Macs
@@ -164,7 +164,7 @@ jobs:
           out="$(/bin/bash .claude/skills/health/scripts/health.sh)"
           printf '%s\n' "$out"
           printf '%s\n' "$out" | grep -q '^OK: safety check (bash)'
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
       - name: End-to-end with /bin/bash 3.2 and BSD tools (fresh clone, /update, /my-data, theme + git pull)
@@ -185,13 +185,13 @@ jobs:
     timeout-minutes: 60
     steps:
       # Keep Windows' usual line-ending conversion on, as on users' machines; .gitattributes keeps .sh files LF.
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
       - name: PowerShell scripts parse (Windows PowerShell 5.1)
@@ -297,13 +297,13 @@ jobs:
             run: python scripts/ci/e2e-pdf.py --impl sh && python scripts/ci/e2e-pdf.py --impl ps
     steps:
       # Keep Windows' usual line-ending conversion on, as on users' machines; .gitattributes keeps .sh files LF.
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
       - name: ${{ matrix.name }}
