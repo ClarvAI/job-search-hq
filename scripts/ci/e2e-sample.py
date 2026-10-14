@@ -61,6 +61,11 @@ def bp(p):
     return p.replace("\\", "/") if IS_WINDOWS else p
 
 
+def from_bash(text):
+    """Git Bash prints /d/a/...; turn each such path into D:/a/... so it compares with bp()."""
+    return re.sub(r"(?m)(^|\s)/([a-zA-Z])/", lambda m: m.group(1) + m.group(2).upper() + ":/", text) if IS_WINDOWS else text
+
+
 def make_sample(ws, impl, *args, cwd=None):
     """Runs the workspace's make-sample with long-form args (--parent X --name Y --remove --dry-run --today D)."""
     if impl == "sh":
@@ -373,7 +378,7 @@ def main():
         rc, out = make_sample(ws, impl, "--today", TODAY.isoformat(), cwd=tmp)
         sample = os.path.join(tmp, SAMPLE_NAME)
         r.ok("%s make-sample made '%s' next to the workspace" % (tag, SAMPLE_NAME),
-             rc == 0 and out.strip().splitlines()[-1] == "sample: made " + (bp(sample) if impl == "sh" else sample)
+             rc == 0 and from_bash(out.strip().splitlines()[-1]) == "sample: made " + (bp(sample) if impl == "sh" else sample)
              and os.path.isdir(sample), out)
         snapshot_ok(r, ws, before, "%s the user's workspace is byte-identical after making the sample" % tag)
         if not os.path.isdir(sample):

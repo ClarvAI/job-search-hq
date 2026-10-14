@@ -63,7 +63,11 @@ def pdfs_under(root):
 def pdf_line(out):
     for line in out.splitlines():
         if line.startswith("pdf: "):
-            return line[5:].strip()
+            p = line[5:].strip()
+            # Git Bash prints /d/a/...; Python on Windows needs D:/a/...
+            if IS_WINDOWS and len(p) > 2 and p[0] == "/" and p[1].isalpha() and p[2] == "/":
+                p = p[1].upper() + ":" + p[2:]
+            return p
     return None
 
 

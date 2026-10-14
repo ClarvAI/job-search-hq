@@ -47,7 +47,11 @@ inside() { case "$(lc "$1")/" in "$(lc "$2")/"*) return 0 ;; esac; return 1; }
 
 # ---- Where the sample goes
 if [ -z "$parent" ]; then parent="$(dirname "$ROOT")"; fi
-case "$parent" in /*) ;; *) parent="$(pwd -P)/$parent" ;; esac
+case "$parent" in
+  /*) ;;
+  [A-Za-z]:[/\\]*) command -v cygpath >/dev/null 2>&1 && parent="$(cygpath -u "$parent")" ;;  # Git Bash: D:/... or D:\...
+  *) parent="$(pwd -P)/$parent" ;;
+esac
 parent="${parent%/}"; [ -n "$parent" ] || parent=/
 [ -L "$parent" ] && die "the folder $parent is a link (shortcut) to another place; choose a real folder"
 [ -d "$parent" ] || die "the folder $parent does not exist"

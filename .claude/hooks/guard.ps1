@@ -753,7 +753,9 @@ function Get-IdnFolded([string]$s) {
         $s = [regex]::Replace($s, '\\x([0-9a-fA-F]{2})', { param($m) [char][Convert]::ToInt32($m.Groups[1].Value, 16) })
         $s = $s.Normalize([Text.NormalizationForm]::FormKC)
         # U+E0000-U+E0FFF (tags, more variation selectors) are surrogate pairs DB40-DB43 + a low surrogate.
-        $ign = '[\p{Cf}' + [char]0x034F + [char]0x180B + '-' + [char]0x180D + [char]0x180F + [char]0xFE00 + '-' + [char]0xFE0F + ']|[' + [char]0xDB40 + '-' + [char]0xDB43 + '][' + [char]0xDC00 + '-' + [char]0xDFFF + ']'
+        # The soft hyphen, zero-width characters, word joiner and byte-order mark are listed as well:
+        # Windows PowerShell 5.1's older Unicode tables don't count all of them as \p{Cf}.
+        $ign = '[\p{Cf}' + [char]0x00AD + [char]0x200B + '-' + [char]0x200F + [char]0x2060 + '-' + [char]0x2064 + [char]0xFEFF + [char]0x034F + [char]0x180B + '-' + [char]0x180D + [char]0x180F + [char]0xFE00 + '-' + [char]0xFE0F + ']|[' + [char]0xDB40 + '-' + [char]0xDB43 + '][' + [char]0xDC00 + '-' + [char]0xDFFF + ']'
         $s = [regex]::Replace($s, $ign, '')
         $dots = '[' + [char]0x3002 + [char]0xFF61 + [char]0xFF0E + ']'
         return ($s -replace $dots, '.')

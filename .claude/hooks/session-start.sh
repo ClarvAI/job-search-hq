@@ -51,7 +51,8 @@ brief() {
     runs="$(LC_ALL=C awk -v cutoff="$cutoff" -v sep=' · ' -v bom="$(printf '\357\273\277')" '
       function trim(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
       { sub(/\r$/, ""); if (NR == 1 && index($0, bom) == 1) $0 = substr($0, length(bom) + 1) }
-      /^- [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] [0-9][0-9]:[0-9][0-9]( |$)/ {
+      /^- [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] [0-9][0-9]:[0-9][0-9]/ {
+        c = substr($0, 19, 1); if (c != "" && c != " ") next  # no "$" inside a group: mawk (Ubuntu) reads that differently
         ts = substr($0, 3, 16); if (cutoff == "" || ts < cutoff) next
         rest = trim(substr($0, 19)); if (index(rest, trim(sep)) == 1) rest = trim(substr(rest, length(trim(sep)) + 1))
         i = index(rest, sep); nm = trim(i ? substr(rest, 1, i - 1) : rest); rs = trim(i ? substr(rest, i + length(sep)) : "")

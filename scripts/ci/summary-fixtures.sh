@@ -237,6 +237,11 @@ mkdir -p "$T/routines/history"
   printf -- '- %s \302\267 weekly review\r\n' "$(hago 30)"; } > "$T/routines/history/routines.md"
 OUT="$(ss routines)"
 has  "routine results: latest per routine" "Routine results from the last 24 hours (automatic runs; mention them in one line when the user first writes): certification reminder ($(hm 132)): certify today; inbox check ($(hm 120)): 1 update; morning scan ($(hm 60)): 4 new leads (Job Inbox); weekly review ($(hm 30))."
+case "$IMPL:$OUT" in sh:*"Routine results"*|ps:*) ;; *) # no line at all: show which awk ran and what it said
+  echo "      | awk: $(awk -W version 2>&1 | head -1)"
+  sed 's#history/routines.md 2>/dev/null)#history/routines.md)#' "$REPO/.claude/hooks/session-start.sh" > "$T/routines/.claude/hooks/session-start.sh"
+  (cd "$T/routines" && printf '{}' | CLAUDE_PROJECT_DIR="$T/routines" bash .claude/hooks/session-start.sh 2>&1 >/dev/null | head -5 | sed 's/^/      | stderr: /') ;;
+esac
 hasnt "routine results: older run of a routine" "2 new leads"
 hasnt "routine results: older than 24 hours" "9 new leads"
 hasnt "routine results: at most 4 routines" "follow-up drafts"
