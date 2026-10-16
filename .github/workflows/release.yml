@@ -42,13 +42,19 @@ jobs:
           cp "$zip" job-search-hq.zip
           sha256sum "$zip" job-search-hq.zip > "$zip.sha256"
           cat "$zip.sha256"
-      - name: Release notes from the changelog entry
+      - name: Release notes (.github/release-notes/<version>.md, else the changelog entry)
         run: |
-          awk -v v="$VERSION_NUMBER" '
-            index($0, "## " v " ") == 1 { on = 1; next }
-            on && /^## / { exit }
-            on { print }
-          ' CHANGELOG.md > notes.md
+          # A written note says which file to download (GitHub adds "Source code" archives to every release);
+          # without one, the changelog entry is used.
+          if [ -s ".github/release-notes/$VERSION_NUMBER.md" ]; then
+            cp ".github/release-notes/$VERSION_NUMBER.md" notes.md
+          else
+            awk -v v="$VERSION_NUMBER" '
+              index($0, "## " v " ") == 1 { on = 1; next }
+              on && /^## / { exit }
+              on { print }
+            ' CHANGELOG.md > notes.md
+          fi
           [ -s notes.md ] || { echo "empty changelog entry for $VERSION_NUMBER"; exit 1; }
       - name: Draft release with the zip attached
         env:

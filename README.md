@@ -79,7 +79,7 @@ Optional, and you can add them any time:
 
 ## Quick start
 
-**1. Download the folder.** On this repository's GitHub page, click the green **Code** button, then **Download ZIP**. (If there's a release, you can download its zip from **Releases** instead. Comfortable with git? `git clone` works too.)
+**1. Download the app.** Open the [latest release](https://github.com/ClarvAI/job-search-hq/releases/latest) and, under **Assets**, download **`job-search-hq.zip`**. Skip "Source code (zip)": GitHub adds it to every release for developers. (Comfortable with git? `git clone` works too.)
 
 **2. Unzip it and put it somewhere you'll keep it,** like Documents.
 
