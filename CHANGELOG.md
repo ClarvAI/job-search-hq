@@ -2,7 +2,7 @@
 
 What changed in each version of Job Search HQ, newest first. `/update` shows you the entries newer than the version you have. Versions follow `MAJOR.MINOR.PATCH`: a patch fixes things, a minor version adds things, a major version changes how something you rely on works.
 
-## 1.0.0 (not yet released)
+## 1.0.0 (2026-10-16)
 
 First public release.
 
