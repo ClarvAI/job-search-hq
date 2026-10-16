@@ -222,7 +222,8 @@ ss() { # ss <name>: the full startup text of a workspace (session-start.sh or se
   if [ "$IMPL" = ps ]; then run "$1"
   else cp "$REPO/.claude/hooks/session-start.sh" "$REPO/.claude/hooks/summary.sh" "$T/$1/.claude/hooks/"; (cd "$T/$1" && printf '{}' | CLAUDE_PROJECT_DIR="$T/$1" bash .claude/hooks/session-start.sh 2>/dev/null); fi
 }
-hago() { "$PY" -c "import datetime,sys; print((datetime.datetime.now()-datetime.timedelta(minutes=int(sys.argv[1]))).strftime('%Y-%m-%d %H:%M'))" "$1"; }
+H0="$("$PY" -c 'import time; print(int(time.time()))')"  # one "now", so the file and the expected text never straddle a minute
+hago() { "$PY" -c "import datetime,sys; print(datetime.datetime.fromtimestamp(int(sys.argv[2]) - 60 * int(sys.argv[1])).strftime('%Y-%m-%d %H:%M'))" "$1" "$H0"; }
 hm() { hago "$1" | cut -c12-16; }
 { printf '%s\n' "$HDR"; printf 'Acme,Eng,applied,2099-01-01,Follow up,,A,4,X,,,,,,,,,0,acme,\n'; } | ws routines ""
 mkdir -p "$T/routines/history"

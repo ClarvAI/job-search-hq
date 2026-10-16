@@ -94,7 +94,7 @@
     ".claude/hooks/guard.sh": "10b0a55ca43d748d4233ca1a57aac078b7bdbbbf3007de72d991f5d4d3a00cd0",
     ".claude/hooks/mode-notice.sh": "e315f97ceca42166fa122a203a746b121943f0fb4605c026ee62ce023237f1e0",
     ".claude/hooks/session-start.ps1": "fcce98bee9d430a5e14052ba3828b76a99a3ea9487c889c3dd565017db8e0d79",
-    ".claude/hooks/session-start.sh": "ede817279aabf776b6480a2124d3c309f0962dc435b91884e88563f4f7c423f6",
+    ".claude/hooks/session-start.sh": "0b45d1fb5fe2f5939802d0563dbbbece88c99001bd0a3a37cd989cf32cba1fed",
     ".claude/hooks/statusline.sh": "cb4ddea433740cbb033547c89f243802e79b3de220a9352bca309c1f6aa7e9f8",
     ".claude/hooks/summary.sh": "91c26f7366f7a4c1e0e52250e10dd52514fa3e172b6780a73b39c7b1d2017edd",
     ".claude/settings.json": "e680058745dda26f0295c09be3cb0bd3cb8ba01c2f1609e6508bdebb77c952f8",
