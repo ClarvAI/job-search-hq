@@ -2,6 +2,15 @@
 
 What changed in each version of Job Search HQ, newest first. `/update` shows you the entries newer than the version you have. Versions follow `MAJOR.MINOR.PATCH`: a patch fixes things, a minor version adds things, a major version changes how something you rely on works.
 
+## Unreleased
+
+- **PDF checks catch more:** besides name, contact details, headings and dates, the finished resume's text is checked for unreadable characters (an icon or a font with no text behind it, which application systems read as garbage), and the layout for a last page with only a few lines or a heading left alone at the bottom of a page.
+- **Keyword coverage you can act on:** each tailored resume's notes show, for every key requirement, whether you meet it and whether it's on the page in the posting's words, in your own words, left off for space, or a real gap. Gaps are never filled in for you.
+- **Blocked isn't closed:** a job site that refuses to load (an error page or a block) no longer counts as proof the job is gone. A posting is marked closed only when it says so, redirects away, or drops out of the employer's job feed; otherwise you're asked to check it.
+- **Your fit scores learn from replies:** once about 10 applications have a result, the weekly review compares fit scores with who actually replied and says whether to aim wider or tighter; `/evaluate-job` uses that on borderline jobs.
+- **Skill gaps:** the weekly review lists the three skills your jobs most often ask for and you don't show yet, each with one way to close or bridge it, and builds a sourced learning plan if you ask ("what should I learn?").
+- **Your public work:** `/resume-review` can read your GitHub, portfolio, publications or talks and suggest real projects your resume leaves out. Each one is added only after you confirm it's yours and correct.
+
 ## 1.0.0 (2026-10-16)
 
 First public release.

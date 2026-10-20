@@ -1,6 +1,6 @@
 ---
 name: resume-review
-description: "Tough, specific review of the user's master resume or a tailored resume, then fixes with their OK. Use when the user asks for resume feedback, wants their resume improved, or before a big application push."
+description: "Tough, specific review of the user's master resume or a tailored resume, then fixes with their OK. Use when the user asks for resume feedback, wants their resume improved, wants their GitHub, portfolio or publications reflected in it, or before a big application push."
 ---
 
 # resume-review (Codex)
