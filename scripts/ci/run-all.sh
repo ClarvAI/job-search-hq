@@ -33,6 +33,7 @@ step "my-data smoke (bash)" bash "$HERE/mydata-smoke.sh" --impl sh
 step "startup summary (bash)" bash "$HERE/summary-fixtures.sh" --impl sh
 step "health check fixtures (bash)" bash "$HERE/health-fixtures.sh" --impl sh
 step "share-lessons privacy check (bash)" bash "$HERE/check-anon-fixtures.sh" --impl sh
+step "routines pre-check (bash)" bash "$HERE/precheck-fixtures.sh" --impl sh
 step "Manual-mode notice hook" bash "$HERE/mode-notice-fixtures.sh"
 if [ -n "$PY" ]; then
   step "e2e: fresh clone and first run (bash)" "$PY" "$HERE/e2e-fresh.py" --impl sh
@@ -58,6 +59,7 @@ if [ -n "$PS" ]; then
   step "startup summary (PowerShell)" bash "$HERE/summary-fixtures.sh" --impl ps
   step "health check fixtures (PowerShell)" bash "$HERE/health-fixtures.sh" --impl ps
   step "share-lessons privacy check (PowerShell)" bash "$HERE/check-anon-fixtures.sh" --impl ps
+  step "routines pre-check (PowerShell)" bash "$HERE/precheck-fixtures.sh" --impl ps
   if [ -n "$PY" ]; then
     step "e2e: fresh clone and first run (PowerShell)" "$PY" "$HERE/e2e-fresh.py" --impl ps
     step "e2e: /update (PowerShell)" "$PY" "$HERE/e2e-update.py" --impl ps

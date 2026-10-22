@@ -952,7 +952,7 @@ export const register: Register = (on, options) => {
         {bad.length > 0 && (
           <Box flexDirection="column">
             <Text color="warning">{`Needs fixing (Claude can't read the header): ${bad.join(', ')}`}</Text>
-            <Button key="fix-broken" label="Ask Claude to fix them" onPress={() => $.prompt.fill({ text: `Fix the header of these outbox drafts so they follow the format in AGENTS.md: ${bad.join(', ')}` })} />
+            <Button key="fix-broken" label="Ask Claude to fix them" onPress={() => $.prompt.fill({ text: `Fix the header of these outbox drafts so they follow the format in knowledge/outbox-format.md: ${bad.join(', ')}` })} />
           </Box>
         )}
       </Box>

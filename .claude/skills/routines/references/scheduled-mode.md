@@ -4,6 +4,7 @@ A skill is in **scheduled mode** when the run's instructions say "scheduled mode
 
 ## Before anything
 
+- **Run the pre-check first** (newer instruction lines say so; older ones don't): `bash .claude/skills/routines/scripts/precheck.sh "<routine name>"` (Windows without bash: `powershell -NoProfile -ExecutionPolicy Bypass -File .claude\skills\routines\scripts\precheck.ps1 -Routine "<routine name>"`). `SKIP: <reason>` means it already logged the run: stop, with a one-line summary, and read nothing else. `GO` means continue. It checks everything in the next point; do those checks yourself only if the script can't run.
 - Read `profile/preferences.md`. Change nothing, log `skipped: setup not done` (or `search paused`, `search closed`, `sample workspace`) and stop if any of these holds:
   - it says `SETUP: not done`;
   - the search is **paused**: the newest pause line under "Notes from conversations" (`YYYY-MM-DD: search paused until YYYY-MM-DD.`, written by `my-data`) names a date after today, and no later `search resumed` line follows it;

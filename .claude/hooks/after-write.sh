@@ -36,7 +36,7 @@ while IFS= read -r p; do
       grep -qE "^\|[[:space:]]*Portfolio[[:space:]]*\|.*https" "$PUB" 2>/dev/null && add "The user's portfolio is published and their master resume changed. Offer to update it; republish only after the user approves." ;;
     */outbox/_*|*/outbox/sent/*|*/outbox/discarded/*) ;;
     */outbox/*.md)
-      [ -n "$MOVED" ] || add "This is an Outbox draft. Check it follows the header format in AGENTS.md, run voice-editor if not done, and tell the user it's ready in $OUTBOX. Never send it yourself." ;;
+      [ -n "$MOVED" ] || add "This is an Outbox draft. Check it follows the header format in knowledge/outbox-format.md, run voice-editor if not done, and tell the user it's ready in $OUTBOX. Never send it yourself." ;;
   esac
 done <<EOF
 $paths

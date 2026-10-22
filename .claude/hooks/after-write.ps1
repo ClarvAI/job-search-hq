@@ -52,7 +52,7 @@ foreach ($path in $paths) {
     } elseif ($p -cmatch '/outbox/_.*$|/outbox/sent/.*$|/outbox/discarded/.*$') {
         continue
     } elseif ($p -cmatch '/outbox/.*\.md$' -and -not $moved) {
-        Add-Message 'This is an Outbox draft. Check it follows the header format in AGENTS.md, run voice-editor if not done, and tell the user it''s ready in the Outbox (say "show my outbox"). Never send it yourself.'
+        Add-Message 'This is an Outbox draft. Check it follows the header format in knowledge/outbox-format.md, run voice-editor if not done, and tell the user it''s ready in the Outbox (say "show my outbox"). Never send it yourself.'
     }
 }
 if ($messages.Count -gt 0) {

@@ -9,7 +9,7 @@ The chat version of the Claude Outbox panel: same files, same rules. The user al
 
 ## 1. Show the list
 
-Read every `outbox/*.md` file except ones starting with `_` (examples). Read the header between the `---` lines (format in AGENTS.md, "Outbox"). Ignore `outbox/sent/` and `outbox/discarded/`.
+Read every `outbox/*.md` file except ones starting with `_` (examples). Read the header between the `---` lines (format in `knowledge/outbox-format.md`). Ignore `outbox/sent/` and `outbox/discarded/`.
 
 Show three short numbered groups, oldest first:
 
