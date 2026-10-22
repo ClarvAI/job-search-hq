@@ -2,6 +2,12 @@
 
 What changed in each version of Job Search HQ, newest first. `/update` shows you the entries newer than the version you have. Versions follow `MAJOR.MINOR.PATCH`: a patch fixes things, a minor version adds things, a major version changes how something you rely on works.
 
+## 1.1.0 (not yet released)
+
+- **Posting watch (a new routine):** once a week it checks whether the saved jobs you haven't applied to yet are still open, and `/today` lists the ones that look closed, with an offer to mark them skipped. It only reads; you decide. You can also just ask "are my saved jobs still open?".
+- **Routines that stop running get noticed:** when a routine hasn't run for longer than its schedule allows (the app was closed, the computer slept, the folder moved, or a run is waiting for a permission answer), the next time you open the app it tells you, and `/health` lists the usual causes. Pausing or deleting one on purpose is remembered, so it isn't flagged.
+- **Easier to find:** setup and `/today` each mention automatic checks once.
+
 ## 1.0.0 (2026-10-16)
 
 First public release.

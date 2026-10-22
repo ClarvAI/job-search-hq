@@ -33,6 +33,8 @@ cp "$REPO/.claude/settings.json" "$W/.claude/"
 cp "$REPO/.codex/hooks.json" "$W/.codex/"
 cp "$REPO/.claude/hooks/"guard.* "$W/.claude/hooks/"
 cp "$REPO/.claude/skills/health/scripts/"health.* "$W/.claude/skills/health/scripts/"
+mkdir -p "$W/.claude/skills/routines/scripts"
+cp "$REPO/.claude/skills/routines/scripts/"routine-status.* "$W/.claude/skills/routines/scripts/"
 cp "$REPO/.claude/hooks/session-start.sh" "$W/.claude/hooks/"
 cp "$REPO/templates/"*.html "$W/templates/"
 # Make the copied manifest agree with the copied templates, so this test checks health's logic
@@ -91,6 +93,21 @@ has "codex: Claude's disableAllHooks is a note about Claude only" '^NOTE: hook s
 OUT="$(run claude)"
 has "claude: disableAllHooks is a fix" '^FIX: hook setup: hooks are switched off in .*settings.local.json'
 rm -f "$W/.claude/settings.local.json"
+
+# Routines: none set up is fine; one with nothing logged for longer than its schedule is a fix; paused is not.
+OUT="$(run)"
+has "no routine log: none set up" '^OK: routines: none set up'
+dago() { "$PY" -c "import datetime,sys; print((datetime.date.today() - datetime.timedelta(days=int(sys.argv[1]))).isoformat())" "$1"; }
+mkdir -p "$W/history"
+{ printf '# Routine results\n\n'
+  printf -- '- %s 08:00 \302\267 morning scan \302\267 3 new leads\n' "$(dago 7)"
+  printf -- '- %s 07:30 \302\267 inbox check \302\267 1 update\n' "$(dago 1)"; } > "$W/history/routines.md"
+OUT="$(run)"
+has "stalled routine is a fix" "^FIX: routines: .*morning scan \(last ran $(dago 7), weekdays\)"
+printf -- '- %s 09:00 \302\267 morning scan \302\267 paused\n' "$(dago 0)" >> "$W/history/routines.md"
+OUT="$(run)"
+has "paused routine is not flagged" '^OK: routines: 1 routine running on schedule'
+rm -rf "$W/history"
 
 echo
 echo "health fixtures ($IMPL): passed $pass, failed $fail"

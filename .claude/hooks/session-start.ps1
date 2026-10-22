@@ -460,7 +460,7 @@ foreach ($line in $preferences) {
 }
 $lines.Add("Autonomy: $autonomy. Outbox mode: $outboxMode.")
 # Scheduled routines (the routines skill) log "- YYYY-MM-DD HH:MM (middle dot) <routine> (middle dot) <result>" to history/routines.md:
-# the latest line of each routine from the last 24 hours, at most 4 routines, oldest first (like session-start.sh).
+# the latest run of each routine from the last 24 hours, at most 4 routines, oldest first (like session-start.sh).
 $runs = New-Object 'System.Collections.Generic.List[object]'
 $cutoff = [DateTime]::UtcNow.AddSeconds(-86400).ToLocalTime().ToString('yyyy-MM-dd HH:mm', $culture)
 $sep = ' ' + [char]0x00B7 + ' '
@@ -473,10 +473,14 @@ foreach ($ln in @(Read-Lines 'history/routines.md')) {
     if ($rest.StartsWith($sep.Trim())) { $rest = $rest.Substring($sep.Trim().Length).Trim() }
     $i = $rest.IndexOf($sep)
     if ($i -ge 0) { $nm = $rest.Substring(0, $i).Trim(); $rs = $rest.Substring($i + $sep.Length).Trim() } else { $nm = $rest.Trim(); $rs = '' }
-    if ($nm -eq '') { continue }
-    $runs.Add([pscustomobject]@{ Name = $nm; Result = $rs; Time = $ts.Substring(11, 5); Key = $nm.ToLowerInvariant() })
+    # Not runs: the assistant's notes ("routines (middle dot) offered") and the user's changes (set up, paused, ...).
+    # Lowercase A-Z only, like awk's tolower under LC_ALL=C.
+    $key = [regex]::Replace($nm, '[A-Z]', { param($m) $m.Value.ToLowerInvariant() })
+    $rsKey = [regex]::Replace($rs, '[A-Z]', { param($m) $m.Value.ToLowerInvariant() })
+    if ($nm -eq '' -or $key -ceq 'routines' -or $rsKey -cmatch '^(set up|changed|paused|resumed|deleted)') { continue }
+    $runs.Add([pscustomobject]@{ Name = $nm; Result = $rs; Time = $ts.Substring(11, 5); Key = $key })
 }
-$seenRun = @{}; $keepRun = @{}
+$seenRun = New-Object System.Collections.Hashtable ([StringComparer]::Ordinal); $keepRun = @{}  # exact match, as in awk
 for ($i = $runs.Count - 1; $i -ge 0 -and $keepRun.Count -lt 4; $i--) {
     if (-not $seenRun.ContainsKey($runs[$i].Key)) { $seenRun[$runs[$i].Key] = $true; $keepRun[$i] = $true }
 }
@@ -484,6 +488,17 @@ $runParts = @(for ($i = 0; $i -lt $runs.Count; $i++) {
     if ($keepRun.ContainsKey($i)) { "$($runs[$i].Name) ($($runs[$i].Time))" + $(if ($runs[$i].Result -ne '') { ": $($runs[$i].Result)" } else { '' }) }
 })
 if ($runParts.Count -gt 0) { $lines.Add('Routine results from the last 24 hours (automatic runs; mention them in one line when the user first writes): ' + ($runParts -join '; ') + '.') }
+# Routines with nothing logged for longer than their schedule allows (routine-status.ps1 has the rules).
+$statusScript = Join-Path $root '.claude/skills/routines/scripts/routine-status.ps1'
+$stalled = @()
+if (Test-Path -LiteralPath $statusScript -PathType Leaf) {
+    try {
+        $stalled = @(@(& $statusScript 2>$null) | ForEach-Object { $f = "$_".Split("`t"); if ($f.Count -ge 5 -and $f[0] -eq 'stalled') {
+            if ($f[2] -eq 'run') { "$($f[1]) (last ran $($f[3]))" } else { "$($f[1]) (set up $($f[3]), no run logged yet)" } } })
+    } catch {}
+}
+$healthCmd = if ($App -eq 'codex') { '$health' } else { '/health' }
+if ($stalled.Count -gt 0) { $lines.Add('Routines that seem to have stopped running (nothing logged in this folder for longer than their schedule): ' + ($stalled -join '; ') + ". Mention it in one line when the user first writes and offer $healthCmd to find out why. If they paused or deleted it on purpose, log that as the routines skill says, so it isn't flagged again.") }
 $recent = @(Read-Lines 'history/activity.md' | Where-Object { $_ -cmatch '^- [0-9]{4}-' } | Select-Object -Last 8)
 if ($recent.Count -gt 0) {
     $lines.Add('Recent activity (from either app; newest last):')

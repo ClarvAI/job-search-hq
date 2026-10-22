@@ -351,6 +351,28 @@ if ($locks.Count -gt 0) {
     Say-Ok 'Excel' "no Excel lock file found (Excel doesn't always leave one, so if the tracker or contacts sheet is open in Excel, save and close it before the assistant updates it)"
 }
 
+# ---- 11b. Routines still running (history/routines.md; routine-status.ps1 has the rules) ----
+if (-not (Test-Path -LiteralPath (Join-Path $root 'history/routines.md') -PathType Leaf)) {
+    Say-Ok 'routines' 'none set up (optional: say "set up automatic checks")'
+} else {
+    $rstat = @()
+    try {
+        $rstat = @(@(& (Join-Path $root '.claude/skills/routines/scripts/routine-status.ps1') 2>$null) | ForEach-Object {
+            $f = "$_".Split("`t")
+            if ($f.Count -ge 5) { [pscustomobject]@{ State = $f[0]; Name = $f[1]; Last = $f[2]; Date = $f[3]; Cadence = $f[4] } } })
+    } catch {}
+    $stalled = @($rstat | Where-Object { $_.State -eq 'stalled' } | ForEach-Object {
+        if ($_.Last -eq 'run') { "$($_.Name) (last ran $($_.Date), $($_.Cadence))" } else { "$($_.Name) (set up $($_.Date), $($_.Cadence), no run logged yet)" } })
+    $running = @($rstat | Where-Object { $_.State -eq 'ok' }).Count
+    if ($stalled.Count -gt 0) {
+        Say-Fix 5 'routines' "nothing logged in this folder for longer than the schedule allows: $($stalled -join '; '). Open the routine in the Claude desktop app (Routines) or the ChatGPT desktop app (Scheduled) and press Run now. Usual causes: the app wasn't open or the computer was asleep; the routine points at another folder or an isolated worktree (it must use this folder, worktree off); a run is waiting for a permission answer; or this folder was moved or renamed. If you paused or deleted it on purpose, tell the assistant so it stops flagging it."
+    } elseif ($running -gt 0) {
+        Say-Ok 'routines' "$(Get-Plural $running 'routine') running on schedule"
+    } else {
+        Say-Ok 'routines' 'none running now (any logged before were paused, deleted or unused for over 45 days)'
+    }
+}
+
 # ---- 12. Setup and starter files ----
 $prefs = Join-Path $root 'profile/preferences.md'
 $setupDone = $false

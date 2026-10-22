@@ -1,6 +1,6 @@
 ---
 name: routines
-description: "Use when the user wants automatic checks: new jobs every morning, watching their inbox, daily follow-up drafts, a weekly review, or asks to 'automate', 'schedule' or 'run this every day'. Sets up opt-in routines on their own computer that only read, draft and track."
+description: "Use when the user wants automatic checks: new jobs every morning, watching their inbox, daily follow-up drafts, a weekly review, checking saved postings are still open, or asks to 'automate', 'schedule' or 'run this every day'. Sets up opt-in routines on their own computer that only read, draft and track, and spots ones that stopped running."
 ---
 
 # routines (Codex)

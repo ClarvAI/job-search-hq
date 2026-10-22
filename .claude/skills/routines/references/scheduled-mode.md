@@ -19,7 +19,7 @@ A skill is in **scheduled mode** when the run's instructions say "scheduled mode
 
 ## What a run may change
 
-- Only what its skill's "Scheduled mode" section lists, plus the two log files below. Re-read a file right before editing it and change only your own rows (the user, a panel or the other app may be busy too).
+- Only what its skill's "Scheduled mode" section lists (for the posting watch, `posting-watch.md`), plus the two log files below. Never edit or remove lines already in `history/routines.md`. Re-read a file right before editing it and change only your own rows (the user, a panel or the other app may be busy too).
 - Never edit anything in `profile/` (a permission prompt would stall the run anyway), never mark anything sent, ghosted, rejected or withdrawn on a guess, and never move a job or contact backwards.
 - Never send, reply, submit, apply, accept, post or publish, and never create Gmail drafts, calendar events or anything else through a connector: drafts go in `outbox/` as files only. Connectors are read-only in scheduled mode.
 - A CSV with a `~$` lock file next to it is open in Excel: don't edit it; list what you would have changed. A file that looks damaged (semicolon header, a quote that never closes) is never edited either.
@@ -31,5 +31,5 @@ A skill is in **scheduled mode** when the run's instructions say "scheduled mode
    `- 2026-10-14 08:05 · Claude (routine) · Morning scan: 4 new job leads`
 2. Always append one line to `history/routines.md` (create it if missing, starting with the line `# Routine results` and a blank line), even when nothing was found or the run was skipped:
    `- 2026-10-14 08:05 · morning scan · 4 new leads (Job Inbox)`
-   Date and time from the computer (`date '+%Y-%m-%d %H:%M'`; Windows PowerShell: `Get-Date -Format 'yyyy-MM-dd HH:mm'`), then ` · `, the routine's name as in the `routines` skill (`morning scan`, `inbox check`, `follow-up drafts`, `weekly review`, `certification reminder`), ` · `, and the result in under 80 characters, naming where to look (Job Inbox, Outbox, tracker). No private details: no email contents, pay or names of people. The next session's startup note reads these lines.
+   Date and time from the computer (`date '+%Y-%m-%d %H:%M'`; Windows PowerShell: `Get-Date -Format 'yyyy-MM-dd HH:mm'`), then ` · `, the routine's name as in the `routines` skill (`morning scan`, `inbox check`, `follow-up drafts`, `weekly review`, `posting watch`, `certification reminder`), ` · `, and the result in under 80 characters, naming where to look (Job Inbox, Outbox, tracker). No private details: no email contents, pay or names of people. The next session's startup note reads these lines.
 3. End with a summary of at most 5 short lines, in the user's language: what was found or drafted, where it is, and what needs them (the skipped questions). This is what they see in the run's notification and in the Scheduled list.

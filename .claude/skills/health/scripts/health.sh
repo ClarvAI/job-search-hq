@@ -275,6 +275,24 @@ else
   say_ok "Excel" "no Excel lock file found (Excel doesn't always leave one, so if the tracker or contacts sheet is open in Excel, save and close it before the assistant updates it)"
 fi
 
+# ---- 11b. Routines still running (history/routines.md; routine-status.sh has the rules) ----
+if [ ! -f history/routines.md ]; then
+  say_ok "routines" "none set up (optional: say \"set up automatic checks\")"
+else
+  rstat="$(bash .claude/skills/routines/scripts/routine-status.sh 2>/dev/null)"
+  stalled="$(printf '%s\n' "$rstat" | awk -F '\t' '$1 == "stalled" {
+    out = out (out == "" ? "" : "; ") $2 ($3 == "run" ? " (last ran " $4 ", " $5 ")" : " (set up " $4 ", " $5 ", no run logged yet)") }
+    END { print out }')"
+  running="$(printf '%s\n' "$rstat" | awk -F '\t' '$1 == "ok"' | wc -l | tr -d ' ')"
+  if [ -n "$stalled" ]; then
+    say_fix 5 "routines" "nothing logged in this folder for longer than the schedule allows: $stalled. Open the routine in the Claude desktop app (Routines) or the ChatGPT desktop app (Scheduled) and press Run now. Usual causes: the app wasn't open or the computer was asleep; the routine points at another folder or an isolated worktree (it must use this folder, worktree off); a run is waiting for a permission answer; or this folder was moved or renamed. If you paused or deleted it on purpose, tell the assistant so it stops flagging it."
+  elif [ "$running" -gt 0 ]; then
+    say_ok "routines" "$(plural "$running" routine) running on schedule"
+  else
+    say_ok "routines" "none running now (any logged before were paused, deleted or unused for over 45 days)"
+  fi
+fi
+
 # ---- 12. Setup and starter files ----
 setup_done=""
 if [ ! -f profile/preferences.md ] || grep -q '^SETUP: not done' profile/preferences.md 2>/dev/null; then

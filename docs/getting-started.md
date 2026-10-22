@@ -145,6 +145,7 @@ Off until you ask. Say **set up automatic checks** (or `/routines`, `$routines` 
 | Inbox check | Daily, if Gmail or a Microsoft 365 mailbox is connected | Clear updates in your tracker (a rejection, an interview with a date, an application confirmation); anything unclear is listed for you |
 | Follow-up drafts | Weekdays | Follow-ups that are due, as drafts in your Outbox |
 | Weekly review | Fridays | Your week in numbers and what to change, in `interviews/` |
+| Posting watch | Mondays | Which saved jobs' postings look closed, so you don't prepare for a job that's gone; `/today` lists them |
 | Certification reminder | Your benefits certification day, if you claim | A reminder, with how many activities are recorded |
 
 **What they can and can't do.** Routines run on your own computer and only read, draft and track. They never send, apply, publish or change your profile or preferences, and they ask no questions: anything that needs you waits, listed, for the next time you open the app, which tells you what they found. Each run uses your plan like a short chat, so once a day is plenty.
@@ -156,6 +157,8 @@ Off until you ask. Say **set up automatic checks** (or `/routines`, `$routines` 
 **Claude in the terminal** has no lasting schedule: a repeating task (`/loop`) runs only while that terminal stays open, for up to 7 days. Fine for "check for replies every hour this afternoon"; for daily checks, use the desktop app on the same folder. Cloud routines aren't used: they can't see the files in this folder.
 
 If you use both apps, set up each routine in one of them only, so it doesn't run twice.
+
+**If a routine stops running** (the app was closed, the computer slept, the folder moved, or a run is waiting for a permission answer), the next time you open the app it tells you, and `/health` lists the usual causes. If you paused or deleted it on purpose, just say so and it stops mentioning it.
 
 ---
 

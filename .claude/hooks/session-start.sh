@@ -44,7 +44,7 @@ brief() {
   bash .claude/hooks/summary.sh long 2>/dev/null
   echo "Autonomy: $(sed -n 's/^autonomy:[[:space:]]*\([a-z-]*\).*/\1/p' profile/preferences.md 2>/dev/null | head -1). Outbox mode: $(sed -n 's/^outbox_mode:[[:space:]]*\([a-z-]*\).*/\1/p' profile/preferences.md 2>/dev/null | head -1)."
   # Scheduled routines (the routines skill) log "- YYYY-MM-DD HH:MM · <routine> · <result>" to history/routines.md:
-  # the latest line of each routine from the last 24 hours, at most 4 routines, oldest first.
+  # the latest run of each routine from the last 24 hours, at most 4 routines, oldest first.
   # (No awk array named RT, RS, FS, ...: GNU awk's built-ins RT and the like are fatal as array names.)
   if [ -f history/routines.md ]; then
     ago=$(( $(date +%s) - 86400 ))
@@ -56,7 +56,8 @@ brief() {
         ts = substr($0, 3, 16); if (cutoff == "" || ts < cutoff) next
         rest = trim(substr($0, 19)); if (index(rest, trim(sep)) == 1) rest = trim(substr(rest, length(trim(sep)) + 1))
         i = index(rest, sep); nm = trim(i ? substr(rest, 1, i - 1) : rest); rs = trim(i ? substr(rest, i + length(sep)) : "")
-        if (nm == "") next
+        # Not runs: the assistant'\''s notes ("routines · offered") and the user'\''s changes (set up, paused, ...).
+        if (nm == "" || tolower(nm) == "routines" || tolower(rs) ~ /^(set up|changed|paused|resumed|deleted)/) next
         n++; NM[n] = nm; RES[n] = rs; TM[n] = substr(ts, 12, 5); K[n] = tolower(nm)
       }
       END {
@@ -65,6 +66,12 @@ brief() {
         if (out != "") print out
       }' history/routines.md 2>/dev/null)"
     [ -n "$runs" ] && echo "Routine results from the last 24 hours (automatic runs; mention them in one line when the user first writes): $runs."
+    # Routines with nothing logged for longer than their schedule allows (routine-status.sh has the rules).
+    stalled="$(bash .claude/skills/routines/scripts/routine-status.sh 2>/dev/null | awk -F '\t' '$1 == "stalled" {
+      out = out (out == "" ? "" : "; ") $2 ($3 == "run" ? " (last ran " $4 ")" : " (set up " $4 ", no run logged yet)") }
+      END { if (out != "") print out }')"
+    if [ "$APP" = codex ]; then HEALTH='$health'; else HEALTH='/health'; fi
+    [ -n "$stalled" ] && echo "Routines that seem to have stopped running (nothing logged in this folder for longer than their schedule): $stalled. Mention it in one line when the user first writes and offer $HEALTH to find out why. If they paused or deleted it on purpose, log that as the routines skill says, so it isn't flagged again."
   fi
   recent="$(grep -E '^- [0-9]{4}-' history/activity.md 2>/dev/null | tail -8)"
   if [ -n "$recent" ]; then
