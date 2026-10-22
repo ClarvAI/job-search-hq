@@ -80,7 +80,7 @@ test('the pane shows the steps, the weekly counts and the fit check, and writes 
   expect(drawn).toContain('20 applied · 10 heard back · 6 interviews · 1 offer')
   expect(drawn).toContain('From applied to heard back: 10 of 20 (50%)')
   expect(drawn).toContain('Your lowest step so far: from applied to heard back')
-  expect(drawn).toContain('Week of Oct 19: 8 ')
+  expect(drawn).toContain('Week of Oct 19: 8')
   expect(drawn).toContain('Too early to tell whether fit scores predict replies')
   expect(drawn).toContain('without a contact: 10 of 20 (50%) heard back')
   expect(drawn).not.toContain('Indeed: 12 applied')

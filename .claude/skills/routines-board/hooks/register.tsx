@@ -91,6 +91,12 @@ async function mark($: any, r: Routine, what: 'paused' | 'deleted' | 'resumed'):
   }
 }
 
+// Moves the keyboard focus onto a button the next drawing shows, after the pressed one went away (a marked
+// routine moves down the list). Refused when the panel doesn't hold the keyboard (a mouse press): nothing happens.
+function focusOn($: any, key: string): void {
+  void Promise.resolve().then(() => $.ui.focus({ requestId: PANE, key })).catch(() => undefined)
+}
+
 async function ask($: any, text: string): Promise<void> {
   await $.prompt.fill({ text }).catch(() => undefined)
 }
@@ -177,15 +183,15 @@ export const register: Register = on => {
       return (
         <Box key={r.key} flexDirection="column" borderStyle="round" paddingX={1}>
           <Text bold>{`${r.name} · ${CADENCE[r.cadence] ?? r.cadence}`}</Text>
-          <Text color={r.state === 'stalled' ? 'warning' : undefined} dimColor={r.state === 'stopped' || r.state === 'inactive'}>{stateText(r)}</Text>
+          <Text color={r.state === 'stalled' ? 'warning' : undefined}>{stateText(r)}</Text>
           {r.result !== '' && <Text wrap="wrap">{`Last result: ${r.result}`}</Text>}
           {r.state === 'ok' && <Text dimColor>{`Flagged if nothing runs by ${addDays(r.ref, r.limit + 1)}`}</Text>}
-          {r.state === 'stalled' && <Text dimColor wrap="wrap">Usual causes: the app wasn’t open or the computer was asleep; the routine uses another folder or an isolated worktree; a run is waiting for a permission answer; or this folder was moved.</Text>}
+          {r.state === 'stalled' && <Text wrap="wrap">Usual causes: the app wasn’t open or the computer was asleep; the routine uses another folder or an isolated worktree; a run is waiting for a permission answer; or this folder was moved.</Text>}
           <Box flexDirection="row" gap={1} flexWrap="wrap">
             {r.state === 'stalled' && <Button key={`${r.key}:help`} label={named('Help me fix it')} {...focusIf(isFirst)} onPress={() => ask($, `My ${r.name} routine seems to have stopped running. Help me find out why.`)}>Help me fix it</Button>}
-            {(r.state === 'ok' || r.state === 'stalled' || r.state === 'inactive') && <Button key={`${r.key}:paused`} label={named('I paused it')} {...focusIf(isFirst && r.state !== 'stalled')} onPress={() => mark($, r, 'paused')}>I paused it</Button>}
-            {(r.state === 'ok' || r.state === 'stalled' || r.state === 'inactive') && <Button key={`${r.key}:deleted`} label={named('I deleted it')} onPress={() => mark($, r, 'deleted')}>I deleted it</Button>}
-            {r.state === 'stopped' && <Button key={`${r.key}:resumed`} label={named('I turned it back on')} {...focusIf(isFirst)} onPress={() => mark($, r, 'resumed')}>I turned it back on</Button>}
+            {(r.state === 'ok' || r.state === 'stalled' || r.state === 'inactive') && <Button key={`${r.key}:paused`} label={named('I paused it')} {...focusIf(isFirst && r.state !== 'stalled')} onPress={async () => { await mark($, r, 'paused'); focusOn($, 'refresh') }}>I paused it</Button>}
+            {(r.state === 'ok' || r.state === 'stalled' || r.state === 'inactive') && <Button key={`${r.key}:deleted`} label={named('I deleted it')} onPress={async () => { await mark($, r, 'deleted'); focusOn($, 'refresh') }}>I deleted it</Button>}
+            {r.state === 'stopped' && <Button key={`${r.key}:resumed`} label={named('I turned it back on')} {...focusIf(isFirst)} onPress={async () => { await mark($, r, 'resumed'); focusOn($, 'refresh') }}>I turned it back on</Button>}
           </Box>
         </Box>
       )
@@ -199,7 +205,7 @@ export const register: Register = on => {
           <Button key="close" label="Close" role="dismiss" onPress={() => $.ui.close({ id: PANE })} />
         </Box>
         {e.surface === 'terminal' && <Text>{KEYS_HINT}</Text>}
-        <Text dimColor wrap="wrap">Each automatic check writes a line in your routine log (history/routines.md) when it runs. This board only reads that log. To pause, change or delete a routine, use the Claude desktop app (Routines) or the ChatGPT desktop app (Scheduled), then press the matching button here so it isn’t flagged.</Text>
+        <Text wrap="wrap">Each automatic check writes a line in your routine log (history/routines.md) when it runs. This board only reads that log. To pause, change or delete a routine, use the Claude desktop app (Routines) or the ChatGPT desktop app (Scheduled), then press the matching button here so it isn’t flagged.</Text>
         {note.text !== '' && <Text color={note.isError ? 'error' : 'success'}>{note.isError ? `Not done: ${note.text}` : note.text}</Text>}
         {list.length === 0 && (
           <Box flexDirection="column" gap={1}>

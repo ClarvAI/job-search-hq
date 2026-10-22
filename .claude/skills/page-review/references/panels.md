@@ -2,7 +2,7 @@
 
 Loaded by `../SKILL.md` when reviewing a Claude Code panel. Severity and the always-HIGH list are in `../SKILL.md`; copy rules in `copy.md`.
 
-Panels are the Claude Code mods in `.claude/skills/<mod>/hooks/register.tsx` (`register.ts` for due alerts): `outbox` (/outbox), `pipeline` (/pipeline and its one-line band), `contacts-board` (/contacts), `job-inbox` (/job-inbox), `apply-kit` (/apply-kit), `interview-room` (/interview-room), and `due-alerts` (the pop-up when a session opens), plus any new board or alert. They render in the terminal and in the Desktop app, on light and dark themes the user chose.
+Panels are the Claude Code mods in `.claude/skills/<mod>/hooks/register.tsx` (`register.ts` for due alerts): `outbox` (/outbox), `pipeline` (/pipeline and its one-line band), `contacts-board` (/contacts), `job-inbox` (/job-inbox), `apply-kit` (/apply-kit), `interview-room` (/interview-room), `insights` (/insights), `routines-board` (/routines-board and its band note), `celebration` (/celebrate, and the one-time pane when a job is accepted), and `due-alerts` (the pop-up when a session opens), plus any new board or alert. They render in the terminal and in the Desktop app, on light and dark themes the user chose.
 
 - **Copy:** the rules in `copy.md`. In a panel, point to Claude ("Ask Claude to draft a follow-up"), not "Type /x in Claude". Button labels short enough not to wrap at 80 columns.
 - **Keyboard and focus:** every action works from the keyboard; the focused button is visibly different; there's a Close/dismiss button. After an action removes the focused button (a card leaves, a confirm row disappears), focus lands somewhere sensible, not nowhere. Confirm rows list the safe choice ("Cancel") and don't make the destructive one the default.

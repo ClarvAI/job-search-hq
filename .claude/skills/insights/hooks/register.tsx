@@ -61,9 +61,6 @@ function groupLine(g: Group): string {
   return `${g.label}: ${g.applied} applied, ${share(g.replied, g.applied)} heard back, ${g.interviews} ${g.interviews === 1 ? 'interview' : 'interviews'}`
 }
 
-// A plain bar for the weekly counts, after the number (the number is what a screen reader reads).
-const bar = (n: number, most: number) => (most === 0 ? '' : '█'.repeat(Math.max(n > 0 ? 1 : 0, Math.round((12 * n) / most))))
-
 const monthDay = (iso: string) => {
   const m = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][Number(iso.slice(5, 7)) - 1] ?? ''
   return `${m} ${Number(iso.slice(8, 10))}`
@@ -129,7 +126,6 @@ export const register: Register = on => {
     )
     if (v === null) return <Box flexDirection="column" gap={1}>{top}</Box>
     const s = v.stats
-    const most = s ? Math.max(0, ...s.weeks.map(w => w.applied)) : 0
     return (
       <Box flexDirection="column" gap={1}>
         {top}
@@ -156,7 +152,7 @@ export const register: Register = on => {
             </Box>
             <Box key="weeks" flexDirection="column">
               <Text bold>Applications per week (last 8 weeks)</Text>
-              {s.weeks.map(w => <Text key={`week-${w.start}`}>{`Week of ${monthDay(w.start)}: ${w.applied} ${bar(w.applied, most)}`}</Text>)}
+              {s.weeks.map(w => <Text key={`week-${w.start}`}>{`Week of ${monthDay(w.start)}: ${w.applied}`}</Text>)}
             </Box>
             <Box key="outcomes" flexDirection="column">
               <Text bold>Outcomes so far</Text>

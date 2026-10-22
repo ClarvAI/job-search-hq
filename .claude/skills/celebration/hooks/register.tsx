@@ -181,7 +181,7 @@ export const register: Register = on => {
           <Text wrap="wrap">Claude asks a few quick questions about what worked, then drafts short notes with no names, companies, pay or contact details. You read them, and only if you want, post them on the project’s GitHub page yourself (it shows your GitHub username). They help improve this workspace for everyone.</Text>
           {thanked
             ? <Text>Thanks! It’s in the chat box now: press Enter to start, or delete it if you changed your mind.</Text>
-            : <Button key="share" label="Share what worked" onPress={async () => { await fill('/share-lessons'); await update($, isThanked, () => true) }} />}
+            : <Button key="share" label="Share what worked" onPress={async () => { await fill('/share-lessons'); await update($, isThanked, () => true); void Promise.resolve().then(() => $.ui.focus({ requestId: PANE, key: 'close' })).catch(() => undefined) }} />}
         </Box>
         <Text>Those buttons write a message to Claude; press Enter to send it.</Text>
         <Box flexDirection="row" gap={1}>{close}</Box>
