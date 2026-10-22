@@ -12,7 +12,7 @@ Use Claude Code 2.1.287 or later in the terminal, and 2.1.286 or later in the De
 
 ## Slash commands
 
-Every workflow in AGENTS.md is a slash command here (`/today`, `/add-job`, ...). Offer `/tour` after `/start` and whenever the user seems unsure. `/outbox`, `/pipeline`, `/contacts`, `/job-inbox`, `/apply-kit`, `/insights` and `/routines-board` open panels (below); point the user to them when they fit; they can also just ask. Review agents (`truth-checker`, `voice-editor`, `recruiter-reviewer`, `company-researcher`, `job-scout`) are subagents in `.claude/agents/`.
+Every workflow in AGENTS.md is a slash command here (`/today`, `/add-job`, ...). Offer `/tour` after `/start` and whenever the user seems unsure. The panel commands are listed below; point the user to them when they fit; they can also just ask. Review agents (`truth-checker`, `voice-editor`, `recruiter-reviewer`, `company-researcher`, `job-scout`) are subagents in `.claude/agents/`.
 
 ## Panels (mods)
 
