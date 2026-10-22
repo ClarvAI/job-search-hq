@@ -454,7 +454,10 @@ def canary_check(c, t, ws, ctx):
             c.note("~/.claude/CLAUDE.md does not exist on this machine; user memory checked via the "
                    "agent's own report and --setting-sources")
     else:
-        mcp = [x["name"] for x in t.calls if x["name"].startswith("mcp__")]
+        # Codex 0.163+ answers "which servers do you have" with its own read-only resource listing
+        # (mcp__codex__list_mcp_resources*); that is introspection, not a connector. Anything else fails.
+        mcp = [x["name"] for x in t.calls if x["name"].startswith("mcp__")
+               and not re.match(r"^mcp__codex__list_mcp_resource(s|_templates)$", x["name"])]
         c.ok("no MCP/app tool call in the session", not mcp, mcp)
     rep = json_block(t.final()) or json_block(t.all_text())
     c.ok("agent produced the JSON self-report", rep is not None, t.final()[-600:])
