@@ -78,7 +78,8 @@ Just type what you want in plain English ("find me operations analyst jobs near 
 | `/offer` | Compare and negotiate offers |
 | `/linkedin`, `/import-linkedin` | Improve your profile; find contacts from your LinkedIn data export |
 | `/sync-inbox` | Reads your job emails (Gmail, a work or school Microsoft 365 account in Claude, or emails you paste or save) and updates your tracker |
-| `/weekly-review` | How it's going and what to change |
+| `/resume-review` | A tough review of your master resume; it can also read your GitHub, portfolio or publications for work your resume leaves out (nothing is added without your yes) |
+| `/weekly-review` | How it's going, what to change, and the skills your jobs keep asking for |
 | `/routines` | Automatic checks on a schedule (new jobs each morning, your inbox, follow-up drafts, a weekly review); see [Automatic checks](#automatic-checks-routines) |
 | `/career-fair` | Game plan for a career fair, then follow-ups |
 | `/laid-off` | Lost your job? A dated first-week list (unemployment, health coverage, severance) and drafts to ask colleagues for references |

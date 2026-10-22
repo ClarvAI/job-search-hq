@@ -1,6 +1,6 @@
 ---
 name: weekly-review
-description: "Weekly check-in on the user's job search: activity vs goals, funnel conversion, what's working, what to change next week. Use on Fridays/Sundays or when the user asks how their search is going."
+description: "Weekly check-in on the user's job search: activity vs goals, funnel conversion, what's working, skill gaps, what to change next week. Use on Fridays/Sundays, when the user asks how their search is going, or what skills to learn for the jobs they want."
 ---
 
 # weekly-review (Codex)
