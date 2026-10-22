@@ -46,7 +46,7 @@ Tip for someone starting today: ...
 
 1. Run the privacy check: `bash .claude/skills/share-lessons/scripts/check-anon.sh history/lessons-draft.md` (Windows without bash: `powershell -NoProfile -ExecutionPolicy Bypass -File .claude\skills\share-lessons\scripts\check-anon.ps1 history/lessons-draft.md`). It compares the draft with the names, companies, emails and places in their tracker, contacts and preferences, and looks for emails, phone numbers, links, pay and exact dates. Fix every `found:` line and run it again until it says `ok:`.
 2. Then read the draft yourself for what a script can't see (a school, a manager described in words, a one-of-a-kind detail), and fix that too.
-3. Show the user the whole draft, with a short list of what you took out or made general ("I left out the company's name and your city"), and say: "Please read it once. Change anything you like, or tell me what to take out." Make their changes, then run the check again.
+3. Show the user the whole draft, with a short list of what you took out or made general ("I left out the company's name and your city"), and end with one question: "Please read it once. Is it ready to post, or should I change or take out anything?" Make their changes, then run the check again.
 
 ## 5. Posting is theirs
 

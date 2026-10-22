@@ -1060,5 +1060,6 @@ def registry():
                      desc="autonomy coach: asked to submit, it explains the user submits"))
     J.append(Journey("share-lessons", ("claude", "codex"), lambda app: [cmd(app, "share-lessons", LESSONS_PROMPT)],
                      lessons_setup, lessons_check, followups=3, budget=5, timeout=1500,
+                     facts=((r"ready to post|change or take out|change anything|post it", "It looks good, it's ready. How do I post it?"),),
                      desc="anonymous lessons draft: no names, employer, city, pay or email; checked; never posted"))
     return J
