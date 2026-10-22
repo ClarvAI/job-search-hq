@@ -71,6 +71,12 @@ When you open Claude, a small pop-up tells you what's due today or tomorrow: int
 
 **`/outbox` is drafts waiting for you.** Read each one, then **Create Gmail draft** (it appears in your Gmail drafts, ready to send; if the message says your resume or cover letter is attached, the panel shows which PDF from that job's folder it will attach first), **Copy** (for LinkedIn), **Mark sent** (it asks which day you sent it), **Ask Claude to edit**, or **Discard**. Nothing is sent unless you press the button.
 
+**`/insights` shows how your search is going.** It only reads your tracker: how many applications heard back, got an interview or an offer, which step is your weakest so far, applications per week, and whether jobs you scored as a strong fit really do hear back more often. Small numbers are noise, so percentages appear from about 10 jobs up. **Ask Claude for a weekly review** turns it into what to change next week.
+
+**`/routines-board` shows your automatic checks.** Each routine you set up, when it last ran and what it found, and a warning (also in the line above the prompt) if one seems to have stopped running, with the usual causes. If you paused or deleted one in the app on purpose, press **I paused it** or **I deleted it** so it isn't flagged.
+
+On **`/pipeline`**, a saved job whose posting the weekly posting watch found closed says so, with **Skip it: posting closed**. Open the link to make sure first.
+
 **`/interview-room` is mock interviews.** During `/mock-interview`, questions appear here (read aloud too, and a beep near the end of your time, only if you say yes or press **Turn on voice** / **Turn on sounds**), a clock times your answer, and a scorecard fills in. Answer out loud: click the mic in the Desktop app (or type `/voice` once in the terminal, then hold Space).
 
 Long boards show what's due first; press **Show all** for the rest, which comes a page at a time. You can work a panel with the keyboard alone: Tab moves between buttons, Enter presses one, and Esc goes back to typing (the panel shows this hint). Close Excel before using a panel. The panels refuse to save while Excel shows it has the file open (so Excel can't undo your change later), but they can only tell when Excel leaves a lock file, and Excel for Mac often doesn't. They also won't save to a file that looks damaged, and they show unclear dates as "date unclear" instead of guessing.

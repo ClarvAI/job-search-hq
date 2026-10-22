@@ -55,6 +55,7 @@ The board, the panels and read-aloud interviews are in Claude; Codex does the sa
 - **Submit applications.** It prepares everything and you submit. Mass applying is left out on purpose. (An optional assisted mode lets it fill in a form in the app's built-in browser; it still stops before Submit unless you type "submit it".)
 - **Make things up.** Every fact in a resume, letter or answer comes from your master resume or from what you told it. If a job wants a skill you don't have, it says so.
 - **Touch LinkedIn for you.** No clicking, connecting, messaging or scraping there: LinkedIn bans accounts for that. It drafts; you paste.
+- **Post anything for you.** Not on GitHub either: when you share what worked in your search, it drafts anonymous notes and you post them yourself, if you want.
 - **Keep your ID numbers, date of birth, bank details or passwords.**
 - **Phone home.** No server, no account, no telemetry. The AI company running the app does see what the assistant reads: see [Your privacy](#your-privacy).
 

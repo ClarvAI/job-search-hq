@@ -38,9 +38,9 @@ Each workflow is a skill (`.claude/skills/<name>/SKILL.md`; Codex finds them thr
 - Applying: `tailor-resume`, `cover-letter`, `apply`, `apply-kit`, `resume-review`, `linkedin`
 - People and mail: `network`, `follow-up`, `thank-you`, `contacts`, `outbox`, `sync-inbox`, `import-linkedin`, `career-fair`
 - Interviews and offers: `interview-prep`, `mock-interview`, `offer`
-- Other: `weekly-review`, `laid-off`, `work-search-log`, `routines` (automatic checks), `pages` (looks: `page-design`, checked by `page-review`)
+- Other: `weekly-review`, `insights`, `share-lessons`, `laid-off`, `work-search-log`, `routines` (automatic checks), `pages` (looks: `page-design`, checked by `page-review`)
 
-`outbox`, `pipeline`, `contacts`, `job-inbox` and `apply-kit` are also panels in Claude Code.
+`outbox`, `pipeline`, `contacts`, `job-inbox`, `apply-kit` and `insights` are also panels in Claude Code, and so is the routines status (`/routines-board`).
 
 A run in **scheduled mode** (a routine the user set up, with nobody there) asks nothing and only reads, drafts and tracks: `.claude/skills/routines/references/scheduled-mode.md`.
 
@@ -163,7 +163,7 @@ The skills were written with Claude Code's names in them. Translate as you go:
 |---|---|
 | `/name` (e.g. `/today`, `/outbox`) | The skill of that name. Tell the user "type `$today`, or just ask". |
 | A review agent: `truth-checker`, `voice-editor`, `recruiter-reviewer`, `company-researcher`, `job-scout` | For a priority A or B job's resume, cover letter or application answers, start the read-only `.codex/agents/truth-checker` agent on the file (a fresh context checks more honestly than the writer); say a separate checker compared it with their master resume. Every other review, or that one if agents can't start: a separate, honest pass yourself following `.claude/agents/<name>.md` (spawn its agent only if the user asks); say so ("I fact-checked it myself against your master resume") and never present it as an outside review. List what each pass found and fixed; never rubber-stamp: if a pass finds nothing, say what you checked. |
-| The Outbox, Pipeline, Contacts, Job Inbox or Apply Kit **panel** | The `outbox`, `pipeline`, `contacts`, `job-inbox` or `apply-kit` skill: same files, shown in chat. |
+| The Outbox, Pipeline, Contacts, Job Inbox, Apply Kit or Insights **panel**, or the Routines board | The `outbox`, `pipeline`, `contacts`, `job-inbox`, `apply-kit` or `insights` skill, or "Show the routines" in `routines`: same files, shown in chat. |
 | The due-alerts pop-up or the status band | The startup note shows what's due; for the full list, run `today`. |
 | The Interview Room (`interview_start`, `interview_say`, ...) | The chat version in the `mock-interview` skill's Codex notes. |
 | WebFetch / WebSearch | Your web search, or the built-in browser to read a page. |

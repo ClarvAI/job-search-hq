@@ -30,7 +30,7 @@ This is the main target: everything was built and tested here first.
 - every workflow (`/start`, `/today`, …) and the review agents ([skills](https://code.claude.com/docs/en/skills));
 - the safety check, the start-of-session greeting and the summary line ([hooks](https://code.claude.com/docs/en/hooks));
 - the folder's permission rules (ask before changing your master resume or preferences; email and calendar send actions switched off) ([permissions](https://code.claude.com/docs/en/permissions));
-- the panels (Outbox, Pipeline, Contacts, Job Inbox, Apply Kit, Interview Room, due alerts), which load by themselves from the folder once it's trusted ([mods](https://code.claude.com/docs/en/plugins/mods/overview), [plugin loading](https://code.claude.com/docs/en/plugins/loading));
+- the panels (Outbox, Pipeline, Contacts, Job Inbox, Apply Kit, Interview Room, Insights, Routines, Celebration, due alerts), which load by themselves from the folder once it's trusted ([mods](https://code.claude.com/docs/en/plugins/mods/overview), [plugin loading](https://code.claude.com/docs/en/plugins/loading));
 - voice: `/voice` in the terminal, the microphone button in the desktop app ([voice dictation](https://code.claude.com/docs/en/voice-dictation));
 - in the desktop app, a built-in browser pane. It starts with a clean browser profile, without your saved sign-ins; you sign in inside the pane if a page needs it ([desktop docs](https://code.claude.com/docs/en/desktop));
 - publishing pages as private claude.ai links, in sessions that have that tool.

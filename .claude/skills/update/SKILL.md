@@ -43,7 +43,8 @@ Work through the script's output lines:
 - **`note:`** lines: act on them. For "Node isn't available to refresh your themed copy", follow "Themed templates without Node" below.
 - **`hooks-changed: claude`**: Claude Code's hook settings changed. Tell a Claude Code user to close and reopen this folder so the new safety checks load. (Skip this for a Codex-only user.)
 - **`hooks-changed: codex`**: Codex's hook list changed. Codex turns changed hooks off until they're trusted again, which also turns the safety checks off, so tell a Codex user to type `/hooks`, review and trust them, then start a new chat. (Skip this for a Claude-only user.)
-- After either `hooks-changed:` line, suggest `/health` once the app is reopened, to confirm everything is on. If neither line appears, nothing needs reopening.
+- **`panels-changed: claude`**: a panel (Outbox, Pipeline, Insights and so on) is new or changed. Claude Code loads panels when a session starts, so tell a Claude Code user to close and reopen this folder to see it (one reopen covers this and `hooks-changed: claude`). Skip this for a Codex-only user.
+- After a `hooks-changed:` or `panels-changed:` line, suggest `/health` once the app is reopened, to confirm everything is on. If none of these lines appears, nothing needs reopening.
 - Add one line to `history/activity.md`: `- <date time> · Claude · Updated the app from A to B`.
 
 ### Themed templates without Node
@@ -53,9 +54,9 @@ The user's copy in `profile/templates/<name>` keeps their look but not the new t
 ## 4. Undo an update
 
 If the user wants to go back (something broke, or they don't like a change): explain it restores the app files from before the last update (their own files were never changed, and any changes made to their files during migrations stay), then run `update.sh --rollback`. It prints `rollback: done (B -> A)` or `error: ...`. Then:
-- `hooks-changed: claude` / `hooks-changed: codex`: the same steps as after an update (Claude: close and reopen the folder; Codex: `/hooks`, review and trust, new chat), then `/health`.
+- `hooks-changed: claude` / `panels-changed: claude` / `hooks-changed: codex`: the same steps as after an update (Claude: close and reopen the folder; Codex: `/hooks`, review and trust, new chat), then `/health`.
 - `note: that update refreshed your profile/templates/<name> ...`: their themed copy is now newer than the app's template. Offer to put the earlier copy back (copy `<name>.previous.html` over `<name>`); either one works for making resumes.
-- Without either line, nothing needs reopening.
+- Without any of those lines, nothing needs reopening.
 Older backups can be named with `--rollback <folder name in .backup>`; roll back one update at a time, newest first.
 
 Backups in `.backup/` are copies of the app's own files only: no resumes, jobs, contacts or messages. (An app file the user had edited, such as a skill they changed, is in there as they left it.) Once the user is happy with a new version, you may offer to delete old backup folders; delete only with their yes.

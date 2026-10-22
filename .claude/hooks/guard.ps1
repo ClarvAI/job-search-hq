@@ -160,6 +160,9 @@ $unknownMsg = "Blocked to be safe: couldn't confirm that the GitHub repository i
 $unreadMsg = "Blocked to be safe: the safety check couldn't read this shell command, so it could not check it. Tell the user the safety check in .claude/hooks/guard.ps1 needs a look."
 $hiddenMsg = "Blocked to be safe: this command decodes or builds what it runs (for example base64 fed to a shell or eval), so the safety check can't see whether it pushes this folder somewhere public. Write the command out plainly instead."
 $pubRepoMsg = "Blocked: never create a public repository or gist, or make one public, with this folder's files. It holds the user's resume, other people's contact details, references and offer terms. Use --private (or a secret gist the user creates themselves)."
+$postMsg = 'Blocked: the assistant never posts on GitHub for the user (no issues, comments, pull requests or discussions, which are public and tied to their account). Give them the text and the link, and they post it themselves if they want to.'
+# A new issue, discussion or pull request page on GitHub: an automated browser there could post for the user.
+$ghPost = 'github\.com/[^/"\s]+/[^/"\s]+/(issues/new|discussions/new|compare|pull/new)'
 $stagedMsg = "Blocked to be safe: this command changes git's remotes, aliases or settings and pushes in the same step, so the safety check can't see where the push would go. Run the change on its own first, then the push as a separate command."
 $graphqlMsg = "Blocked to be safe: this GitHub GraphQL request reads its query from a file, standard input or a variable, so the safety check can't see whether it changes a repository (for example makes one public). Write the query out in the command instead."
 $sendMsg = "Blocked: the assistant never sends email or messages itself, from a script or an app (Mail, Outlook, SMTP). Save the message in outbox/ and let the user send it themselves."
@@ -511,6 +514,8 @@ function Test-ShellCommand($Data, [string]$cmd) {
                 if ($sub0 -ceq 'gist' -and $rest -clike '* -p *') { Deny $pubRepoMsg }
             }
             if ($pair -ceq 'repo edit' -and ($rest -clike '* --visibility public *' -or $rest -clike '* --visibility=public *')) { Deny $pubRepoMsg }
+            # Posting on GitHub (public, under the user's name) is the user's to do, like sending email.
+            if ($pair -cin @('issue create', 'issue comment', 'issue edit', 'issue reopen', 'pr create', 'pr comment', 'pr edit', 'pr review', 'discussion create', 'discussion comment')) { Deny $postMsg }
             if ($pair -cin @('release create', 'release upload', 'release edit')) {
                 # Release files are public on a public repository: check the one named with -R/--repo, else this folder's.
                 $r = $ghrepo
@@ -870,6 +875,7 @@ try {
         if ($scan -match $sites -or $flat -match '"(Mail|Microsoft Outlook|Outlook|LinkedIn)"') {
             Deny "Blocked: the assistant doesn't use Gmail, Outlook, Mail or LinkedIn through the browser or the computer. Draft the message in outbox/ for the user to send themselves. (If this was typing the user's own LinkedIn profile address into an application form, leave that one field for the user to fill in.)"
         }
+        if ($scan -match $ghPost) { Deny $postMsg }
         if ($flat -cmatch $navRe -and $flat -cmatch $hideRe) {
             Deny "Blocked to be safe: this code builds a web address in a disguised way before opening it, so the safety check can't see where it goes. Write the address out plainly."
         }
@@ -881,6 +887,7 @@ try {
         if ($nav -match $sites) {
             Deny "Blocked: the assistant doesn't use the browser on Gmail, Outlook or LinkedIn. Draft the message in outbox/ for the user to send themselves."
         }
+        if ($nav -match $ghPost) { Deny $postMsg }
         if ($nav -match $short) {
             Deny "Blocked to be safe: that's a short link, which can hide where it really goes (it could be Gmail, Outlook or LinkedIn, which the browser never visits). Look it up with WebFetch first to see the real address, or ask the user to open it."
         }

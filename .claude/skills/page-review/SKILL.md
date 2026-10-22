@@ -1,6 +1,6 @@
 ---
 name: page-review
-description: "One-pass quality review of the user's visual pages and print templates (pages/*.html, jobs/*/interview-brief.html, templates/*.html) and of the Claude panels (Outbox, Pipeline, Contacts, Job Inbox, Apply Kit, Interview Room, due alerts), covering accessibility, layout, readability, color contrast, motion, print, and interface copy. Use after any change to how one of them looks or behaves, or when the user asks whether a page looks right."
+description: "One-pass quality review of the user's visual pages and print templates (pages/*.html, jobs/*/interview-brief.html, templates/*.html) and of the Claude panels (Outbox, Pipeline, Contacts, Job Inbox, Apply Kit, Interview Room, Insights, Routines, Celebration, due alerts), covering accessibility, layout, readability, color contrast, motion, print, and interface copy. Use after any change to how one of them looks or behaves, or when the user asks whether a page looks right."
 user-invocable: false
 ---
 
@@ -33,7 +33,7 @@ These are always HIGH:
 
 Read only the file for the surface you are reviewing, plus the copy rules:
 - Pages (dashboard, flashcards, portfolio, interview briefs) and print templates (resume, cover letter, designed resume, academic CV, US federal resume, Europass-style CV): `references/pages-and-print.md` (15 checks: structure, keyboard, names, hit areas, forms, color, type, layout, motion, print, theme and audience, every layout, offline assets, data block safety).
-- Panels (Outbox, Pipeline, Contacts, Job Inbox, Apply Kit, Interview Room, due alerts): `references/panels.md` (copy, keyboard, hit areas, states, terminal colors, limits, plugin validate/test).
+- Panels (Outbox, Pipeline, Contacts, Job Inbox, Apply Kit, Interview Room, Insights, Routines, Celebration, due alerts): `references/panels.md` (copy, keyboard, hit areas, states, terminal colors, limits, plugin validate/test).
 - Always: `references/copy.md` (buttons, confirmations, errors, tone, empty states, one word per thing, plurals).
 
 ## Fixing

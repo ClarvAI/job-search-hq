@@ -60,6 +60,12 @@ The startup note and `/health` flag a routine with nothing in the log for longer
 - Whichever way it happens, log it as "The routine log" says (`paused`, `resumed`, `deleted`, or `changed (...)` for a new schedule).
 - When the user pauses their search, suggest pausing every routine except the certification reminder; when they accept a job, suggest deleting them, keeping the certification reminder until the new job starts if `benefits_cert_day:` is set (`my-data` and `offer` ask this). A paused or closed search makes runs skip on their own anyway, but each skipped run still starts a session. Also suggest it when they move or rename this folder (a routine keeps pointing at the old place).
 
+## Show the routines
+
+When the user asks how their routines are doing ("show my routines", "are my automatic checks working?"), list each one from the routine log by the same rules as the startup note (`scripts/routine-status.sh`, or `.ps1` on Windows without bash, prints them; its states mean running, seems to have stopped, paused or deleted, and unused for over 45 days): its name, schedule, when it last ran and its last result, stopped ones first. Then offer what fits: help with one that stopped ("When a routine stops running"), or setting some up if there are none.
+
+**The Claude panel (Claude Code only; Codex: skip).** In Claude Code this is the `/routines-board` panel, and a note above the prompt appears while a routine seems to have stopped. Its "I paused it", "I deleted it" and "I turned it back on" buttons write that line in the routine log, add a line to `history/activity.md` and leave a `[Routines]` note: the change is already logged, so don't log it again; only remind the user that the routine itself is changed in the desktop app. "Help me fix it" writes a request in the prompt for the user to send.
+
 ## How scheduled runs behave
 
 Every routine follows `references/scheduled-mode.md` plus the "Scheduled mode" section of its own skill. Results are logged to `history/routines.md`; the startup note shows the last day's results.

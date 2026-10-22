@@ -635,7 +635,7 @@ function matchArg(jobs: Job[], arg: string): Job | undefined {
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
-    await $.command.register({ name: 'apply-kit', description: 'Every answer an application form asks for, ready to copy, for the job you\'re applying to' })
+    await $.command.register({ name: 'apply-kit', description: 'Every answer an application form asks for, ready to copy, for the job you\'re applying to', immediate: true })
     return next(e)
   })
 
@@ -671,13 +671,22 @@ export const register: Register = on => {
     return done
   }).catch(($, e, next) => next(e))
 
-  on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
+  on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e, next) => {
+    if (e.requestId !== PANE) return next(e)
     const { Box, Text, Button } = $.ui.resolve(e)
     const k = await read($, kit)
     const note = await read($, notice)
     const isArmed = await read($, armed)
     const isPicking = await read($, picking)
-    if (k === null) return <Text dimColor>Loading…</Text>
+    if (k === null) return (
+      <Box flexDirection="column" gap={1}>
+        <Text>Loading… If this doesn’t change, press Refresh.</Text>
+        <Box flexDirection="row" gap={1}>
+          <Button key="refresh" label="Refresh" autoFocus onPress={() => void refresh($).catch(() => undefined)} />
+          <Button key="close" label="Close" role="dismiss" onPress={() => $.ui.close({ id: PANE })} />
+        </Box>
+      </Box>
+    )
 
     const copy = async (f: { label: string; copy: string }, surface: any) => {
       const done = await $.ui.copy({ text: f.copy, surface })
@@ -724,7 +733,7 @@ export const register: Register = on => {
     const picker = (
       <Box key="picker" flexDirection="column" borderStyle="round" paddingX={1}>
         <Text bold>Which job are you applying to?</Text>
-        {k.jobs.length === 0 && <Text wrap="wrap">No jobs are waiting for you to apply. Paste a job link to Claude, or type /find-jobs.</Text>}
+        {k.jobs.length === 0 && <Text wrap="wrap">No jobs are waiting for you to apply. Paste a job link to Claude, or ask Claude to find jobs.</Text>}
         {picked.items.map(j => {
           const label = `${j.key === k.job?.key ? 'Current: ' : ''}${j.company} · ${j.role}${j.deadline ? ` · deadline ${j.deadline}` : ''}`
           const pick = async () => {

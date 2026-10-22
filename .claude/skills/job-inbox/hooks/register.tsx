@@ -77,7 +77,9 @@ async function load($: any): Promise<Inbox> {
   const hasFile = await $.fs.exists(LEADS)
   const tracked = trackerIndex(trackerRefs(await readText($, TRACKER).catch(() => '')))
   const order = dateOrder(await readText($, 'profile/preferences.md').catch(() => ''))
-  const leadsRaw: string = hasFile ? String(await $.fs.read(LEADS)) : ''
+  // A file that exists but can't be read is a problem to show, never an endless "Loading…".
+  let unreadable = ''
+  const leadsRaw: string = hasFile ? await $.fs.read(LEADS).then(String, () => { unreadable = 'Your leads file (jobs/leads.csv) couldn’t be read. If it’s in a synced folder (OneDrive, iCloud, Dropbox), make sure the file is downloaded and not open in another app, then press Refresh.'; return '' }) : ''
   const leadsText = noBom(leadsRaw)
   const problem = readCsv(leadsText).problem
   const leads = (problem !== '' ? [] : records(leadsText)).filter(r => (r.company ?? '') !== '').map(r => toLead(r, tracked, order))
@@ -85,7 +87,13 @@ async function load($: any): Promise<Inbox> {
   for (const l of leads) counts[l.status] = (counts[l.status] ?? 0) + 1
   const rank = (l: Lead) => ({ A: 0, B: 1, C: 2 } as Record<string, number>)[l.fitGuess] ?? 3
   const byFit = (a: Lead, b: Lead) => rank(a) - rank(b) || b.foundDate.localeCompare(a.foundDate) || a.company.localeCompare(b.company)
-  const open = leads.filter(l => l.status === 'new' && !l.isTracked)
+  // A lead is changed by its id, so a lead whose id is blank or used twice (two apps adding leads the same day,
+  // or a row typed in by hand) is held back until Claude fixes the ids: a press must never change the wrong row.
+  const idCount = new Map<string, number>()
+  for (const l of leads) idCount.set(l.id, (idCount.get(l.id) ?? 0) + 1)
+  const isBadId = (l: Lead) => l.id.trim() === '' || (idCount.get(l.id) ?? 0) > 1
+  const badIds = leads.filter(l => l.status === 'new' && !l.isTracked && isBadId(l)).length
+  const open = leads.filter(l => l.status === 'new' && !l.isTracked && !isBadId(l))
   const isOld = (l: Lead) => isIso(l.foundDate) && daysBetween(l.foundDate, today) > OLDER_THAN_DAYS
   counts.tracked = leads.filter(l => l.status === 'new' && l.isTracked).length
   return {
@@ -95,7 +103,8 @@ async function load($: any): Promise<Inbox> {
     saved: leads.filter(l => l.status === 'saved' && !l.isTracked),
     counts,
     hasFile,
-    problem: csvTrouble(problem, 'Your leads file (jobs/leads.csv)'),
+    badIds,
+    problem: unreadable || csvTrouble(problem, 'Your leads file (jobs/leads.csv)'),
     sig: fingerprint(leadsRaw),
   }
 }
@@ -205,7 +214,7 @@ function headline(s: Inbox): string {
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
-    await $.command.register({ name: 'job-inbox', description: 'Go through new job leads from /find-jobs: save, skip, or not for me' })
+    await $.command.register({ name: 'job-inbox', description: 'Go through new job leads from /find-jobs: save, skip, or not for me', immediate: true })
     await flushLog($).catch(() => undefined)
     // No toast here: the due-alerts mod is the one pop-up at session start; the line above the prompt shows the count.
     await refresh($).catch(() => null)
@@ -262,7 +271,8 @@ export const register: Register = on => {
   }).catch(($, e, next) => next(e))
 
   on('command.run', { command: 'job-inbox' }, async $ => {
-    const s = await refresh($)
+    const s = await refresh($).catch(() => null)
+    if (s === null) { await $.ui.open({ id: PANE, title: 'Job Inbox', focus: true }).catch(() => undefined); return { text: 'Job Inbox: your leads file couldn’t be read; the inbox says why.' } }
     await update($, asking, () => '')
     await say($, '')
     const opened = await $.ui.open({ id: PANE, title: 'Job Inbox', focus: true })
@@ -295,14 +305,23 @@ export const register: Register = on => {
     return mine
   })
 
-  on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
+  on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e, next) => {
+    if (e.requestId !== PANE) return next(e)
     const els = $.ui.resolve(e) as any
     const { Box, Text, Button, Link } = els
     const canType = 'Input' in els
     const s = await read($, inbox)
     const open = await read($, asking)
     const note = await read($, notice)
-    if (s === null) return <Text dimColor>Loading…</Text>
+    if (s === null) return (
+      <Box flexDirection="column" gap={1}>
+        <Text>Loading… If this doesn’t change, press Refresh.</Text>
+        <Box flexDirection="row" gap={1}>
+          <Button key="refresh" label="Refresh" autoFocus onPress={() => void refresh($).catch(() => undefined)} />
+          <Button key="close" label="Close" role="dismiss" onPress={() => $.ui.close({ id: PANE })} />
+        </Box>
+      </Box>
+    )
     // Best fits first, then older leads; one page at a time.
     const all = [...s.fresh.map(l => ({ l, isOld: false })), ...s.older.map(l => ({ l, isOld: true }))]
     const pg = pageOf(all, await read($, page), SHOWN)
@@ -369,13 +388,19 @@ export const register: Register = on => {
         <Text dimColor>Save sends a lead to Claude to add to your tracker. Skip or Not for me hides it, and it won't be suggested again.</Text>
         {note.text !== '' && (
           <Box flexDirection="row" gap={1}>
-            <Text color={note.isError ? 'error' : 'success'}>{note.isError ? `Not saved: ${note.text}` : note.text}</Text>
+            <Text color={note.isError ? 'error' : 'success'}>{note.isError ? `Not done: ${note.text}` : note.text}</Text>
             {note.undoId !== '' && <Button key="undo" label="Undo" plain onPress={async () => { const id = note.undoId; await undo($, id, note.undoStatus); focusOn($, `${id}:save`) }} />}
           </Box>
         )}
-        {s.fresh.length === 0 && s.older.length === 0 && (
+        {s.badIds > 0 && (
+          <Box key="bad-ids" flexDirection="column">
+            <Text color="warning" wrap="wrap">{`Needs fixing: ${s.badIds} new ${s.badIds === 1 ? 'lead has' : 'leads have'} a missing or repeated id in jobs/leads.csv, so ${s.badIds === 1 ? 'it is' : 'they are'} hidden here until the ids are fixed.`}</Text>
+            <Button key="fix-ids" label="Ask Claude to fix the lead ids" plain onPress={() => $.prompt.fill({ text: 'Some leads in jobs/leads.csv have a missing or repeated id. Please give each one its own id.' })} />
+          </Box>
+        )}
+        {s.problem === '' && s.fresh.length === 0 && s.older.length === 0 && (
           <Box flexDirection="column">
-            <Text>{s.hasFile ? 'No new leads right now. Type /find-jobs and Claude will look for openings that fit you.' : 'No leads yet. Type /find-jobs and Claude will look for openings that fit you.'}</Text>
+            <Text>{s.hasFile ? 'No new leads right now. Ask Claude to find jobs, and it will look for openings that fit you.' : 'No leads yet. Ask Claude to find jobs, and it will look for openings that fit you.'}</Text>
             <Button key="find" label="Find jobs" plain onPress={() => $.prompt.fill({ text: '/find-jobs' })} />
           </Box>
         )}

@@ -103,6 +103,9 @@ PUBREPO_MSG="Blocked: never create a public repository or gist, or make one publ
 STAGED_MSG="Blocked to be safe: this command changes git's remotes, aliases or settings and pushes in the same step, so the safety check can't see where the push would go. Run the change on its own first, then the push as a separate command."
 GRAPHQL_MSG="Blocked to be safe: this GitHub GraphQL request reads its query from a file, standard input or a variable, so the safety check can't see whether it changes a repository (for example makes one public). Write the query out in the command instead."
 SEND_MSG="Blocked: the assistant never sends email or messages itself, from a script or an app (Mail, Outlook, SMTP). Save the message in outbox/ and let the user send it themselves."
+POST_MSG="Blocked: the assistant never posts on GitHub for the user (no issues, comments, pull requests or discussions, which are public and tied to their account). Give them the text and the link, and they post it themselves if they want to."
+# A new issue, discussion or pull request page on GitHub: an automated browser there could post for the user.
+GHPOST='github\.com/[^/"[:space:]]+/[^/"[:space:]]+/(issues/new|discussions/new|compare|pull/new)'
 SITE_MSG="Blocked: the assistant doesn't open Gmail, Outlook or LinkedIn for the user, in a browser or any other way. Draft the message in outbox/ for the user to send themselves, or tell them which page to open."
 AUTOMATION_MSG="This runs an automation in a connected app (such as IFTTT or Zapier), which can send, post or change things for the user. The safety check can't tell what it will do, so the user should only allow it if they know and want what it does. (Assistant: never use an automation to send email or messages; draft them in outbox/.)"
 CONTACTS_MSG="This sends information to an outside service: people's contact details to a contacts app or another service, or feedback to the app's maker. That can carry other people's personal details out of this folder, so the user should only allow it if they know and want what is sent. (Assistant: keep contact details in contacts/contacts.csv.)"
@@ -559,6 +562,9 @@ check_shell() {
           [ "${w[$sp]}" = gist ] && case "$rest" in *" -p "*) deny "$PUBREPO_MSG" ;; esac ;;
         "repo edit")
           case "$rest" in *" --visibility public "*|*" --visibility=public "*) deny "$PUBREPO_MSG" ;; esac ;;
+        # Posting on GitHub (public, under the user's name) is the user's to do, like sending email.
+        "issue create"|"issue comment"|"issue edit"|"issue reopen"|"pr create"|"pr comment"|"pr edit"|"pr review"|"discussion create"|"discussion comment")
+          deny "$POST_MSG" ;;
         "release create"|"release upload"|"release edit")
           # Release files are public on a public repository: check the one named with -R/--repo, else this folder's.
           t="$ghrepo"
@@ -927,6 +933,7 @@ if printf '%s' "$tool" | grep -qiE "$CODE"; then
   if printf '%s' "$scan" | grep -qiE "$SITES" || printf '%s' "$flat" | grep -qiE '"(Mail|Microsoft Outlook|Outlook|LinkedIn)"'; then
     deny "Blocked: the assistant doesn't use Gmail, Outlook, Mail or LinkedIn through the browser or the computer. Draft the message in outbox/ for the user to send themselves. (If this was typing the user's own LinkedIn profile address into an application form, leave that one field for the user to fill in.)"
   fi
+  if printf '%s' "$scan" | grep -qiE "$GHPOST"; then deny "$POST_MSG"; fi
   if printf '%s' "$flat" | grep -qE "$NAV" && printf '%s' "$flat" | grep -qE "$HIDE"; then
     deny "Blocked to be safe: this code builds a web address in a disguised way before opening it, so the safety check can't see where it goes. Write the address out plainly."
   fi
@@ -937,6 +944,7 @@ elif printf '%s' "$tool" | grep -qiE "$BROWSERS"; then
   if printf '%s' "$navf" | grep -qiE "$SITES"; then
     deny "Blocked: the assistant doesn't use the browser on Gmail, Outlook or LinkedIn. Draft the message in outbox/ for the user to send themselves."
   fi
+  if printf '%s' "$navf" | grep -qiE "$GHPOST"; then deny "$POST_MSG"; fi
   # Without a normalizer, a host with non-ASCII letters or \u/\x escapes (a look-alike of those sites)
   # can't be folded, so block it.
   if [ -z "$HAVE_NORM" ]; then

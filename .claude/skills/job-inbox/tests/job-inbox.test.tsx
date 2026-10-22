@@ -121,7 +121,7 @@ for (const [name, files] of [['no leads file', {}], ['header only', { 'jobs/lead
     expect(String(ran?.text ?? '')).toContain('No new leads')
     for (const surface of ['terminal', 'desktop'] as const) {
       const ui = await $.ui.mount({ plugin: 'job-inbox', surface, ...PANE } as never)
-      expect(await ui.find({ type: 'Text', text: /Type \/find-jobs/ })).toBeDefined()
+      expect(await ui.find({ type: 'Text', text: /Ask Claude to find jobs/ })).toBeDefined()
       await ui.unmount()
     }
   })
@@ -241,5 +241,22 @@ test('a choice is refused when leads.csv changed since the inbox read it (find-j
   await ui.press({ key: 'L-20261005-02:skip' })
   expect(row(files, 'L-20261005-02')).toContain(',skipped,,2026-10-06')
   expect(row(files, 'L-20261006-01')).toContain('Contoso')
+  await ui.unmount()
+})
+
+test('a lead with a missing or repeated id is held back, so a press can never change the wrong row', async ($, on) => {
+  const csv = HEAD + '\n'
+    + 'L-2026-10-06-01,2026-10-06,Acme Corp,Analyst,Austin TX,,,,https://example.com/1,,,,A,why,,new,,\n'
+    + 'L-2026-10-06-01,2026-10-06,Globex,Analyst,Denver CO,,,,https://example.com/2,,,,A,why,,new,,\n'
+    + ',2026-10-06,Initech,Analyst,Columbus OH,,,,https://example.com/3,,,,B,why,,new,,\n'
+    + 'L-2026-10-06-02,2026-10-06,Northwind,Analyst,Remote,,,,https://example.com/4,,,,B,why,,new,,\n'
+  setup(on, { 'jobs/leads.csv': csv })
+  await $.command.run({ command: 'job-inbox', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'job-inbox', surface: 'terminal', ...PANE } as never)
+  const drawn = JSON.stringify(await ui.drawn())
+  expect(drawn).toContain('Needs fixing: 3 new leads have a missing or repeated id')
+  expect(drawn).toContain('Northwind')
+  expect(drawn).not.toContain('Acme Corp')
+  expect(drawn).not.toContain('Initech')
   await ui.unmount()
 })

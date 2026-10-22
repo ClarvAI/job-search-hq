@@ -1,0 +1,38 @@
+# Lessons-learned posts are public: when one looks like it holds contact details, a link or pay, ask the poster
+# (once) to edit it, and flag it for a maintainer. It never edits, hides or closes anything itself.
+# The issue text is only scanned (passed through an environment variable, never run or put into a script).
+name: Feedback privacy check
+
+on:
+  issues:
+    types: [opened, edited]
+
+permissions:
+  issues: write
+
+jobs:
+  scan:
+    if: contains(github.event.issue.labels.*.name, 'lessons-learned')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Look for contact details, links and pay
+        env:
+          BODY: ${{ github.event.issue.body }}
+          TITLE: ${{ github.event.issue.title }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.issue.number }}
+        run: |
+          text="$(printf '%s\n%s\n' "$TITLE" "$BODY")"
+          found=""
+          printf '%s' "$text" | grep -qE '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' && found="$found an email address,"
+          printf '%s' "$text" | grep -qE '\+?\(?[0-9]{1,4}\)?[ .-][0-9 ().-]{6,}[0-9]' && found="$found a phone number,"
+          printf '%s' "$text" | grep -qE '(https?://|www\.)' && found="$found a link,"
+          printf '%s' "$text" | grep -qE '[$€£¥][[:space:]]?[0-9]|[0-9]+([.,][0-9]+)?[[:space:]]?[kK]\b' && found="$found a pay figure,"
+          [ -n "$found" ] || { echo "nothing found"; exit 0; }
+          found="${found%,}"
+          labels="$(gh issue view "$NUMBER" -R "$REPO" --json labels --jq '.labels[].name')"
+          if printf '%s\n' "$labels" | grep -qx 'needs-privacy-edit'; then echo "already flagged"; exit 0; fi
+          gh issue edit "$NUMBER" -R "$REPO" --add-label needs-privacy-edit
+          gh issue comment "$NUMBER" -R "$REPO" --body "Thanks for sharing! This page is public, and it looks like it may include${found}. Could you edit your post to take that out? (Use the ··· menu on your post, then Edit.) A maintainer will also take a look."

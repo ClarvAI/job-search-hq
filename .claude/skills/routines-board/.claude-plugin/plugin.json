@@ -1,0 +1,8 @@
+{
+  "name": "routines-board",
+  "displayName": "Routines",
+  "version": "0.1.0",
+  "author": { "name": "Job Search HQ contributors" },
+  "description": "Your automatic checks: a /routines-board pane showing each routine's last run and whether it stopped running, and a note above the prompt when one has.",
+  "types": "./types/index.d.ts"
+}

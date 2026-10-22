@@ -355,6 +355,15 @@ check "gh api graphql createRepository visibility:PUBLIC (deny)" deny "$(shelljs
 check "gh release upload -R <public> (deny)" deny "$(shelljson "$TN" 'gh release upload v1 notes.md -R octocat/Hello-World')"
 check "gh release upload -R <private> (allow)" allow "$(shelljson "$TN" 'gh release upload v1 notes.md -R octocat/this-repo-does-not-exist-zz9')"
 check "gh release create, this folder's remote public (deny)" deny "$(shelljson "$TN/pub" 'gh release create v1 notes.md')"
+# Posting on GitHub is the user's to do (issues, comments, pull requests, discussions: public, under their name).
+check "gh issue create (deny post)" deny "$(shelljson "$TN" 'gh issue create -R octocat/Hello-World --title Lessons --body-file history/lessons-draft.md')"
+check "gh --repo X issue comment (deny post)" deny "$(shelljson "$TN" 'gh --repo octocat/Hello-World issue comment 1 --body hi')"
+check "gh pr create (deny post)" deny "$(shelljson "$TN" 'gh pr create --title x --body y')"
+check "gh discussion create (deny post)" deny "$(shelljson "$TN" 'gh discussion create --title x')"
+check "ok: gh issue list (allow)" allow "$(shelljson "$TN" 'gh issue list -R octocat/Hello-World --label lessons-learned')"
+check "browser to a new GitHub issue page (deny post)" deny '{"tool_name":"mcp__Claude_Browser__navigate","tool_input":{"url":"https://github.com/ClarvAI/job-search-hq/issues/new?template=lessons-learned.yml"}}'
+check "browser to a new GitHub discussion (deny post)" deny '{"tool_name":"mcp__Claude_Browser__navigate","tool_input":{"url":"https://github.com/octocat/Hello-World/discussions/new"}}'
+check "ok: browser reading a GitHub issue (allow)" allow '{"tool_name":"mcp__Claude_Browser__navigate","tool_input":{"url":"https://github.com/octocat/Hello-World/issues/1"}}'
 check "ok: pdftotext -enc UTF-8 (allow)" allow "$(shelljson "$TN/pub" 'pdftotext -enc UTF-8 jobs/acme-pm/Alex-Rivera-Resume-Acme.pdf -')"
 check "ok: pipe into sort and head (allow)" allow "$(shelljson "$TN/pub" 'cat jobs/tracker.csv | sort | head -5')"
 check "ok: python3 -c reading stdin (allow)" allow "$(shelljson "$TN/pub" "cat notes.txt | python3 -c 'import sys; print(len(sys.stdin.read()))'")"

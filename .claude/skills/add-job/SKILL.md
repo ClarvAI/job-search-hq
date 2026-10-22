@@ -10,6 +10,8 @@ Usage: `/add-job <one or more job links, or pasted posting text>` (or just ask i
 
 Input: `$ARGUMENTS`: one or more links (one per line is fine) or pasted posting text. Handle each posting in turn; tell the user up front how many you found ("Adding 3 jobs…").
 
+**Six or more links at once:** offer a quick triage first, so time goes to the best fits: "That's 14 jobs. Want a quick first pass (a fit guess, any deal-breaker, one line each) before I fully add the best ones?" On yes, read each posting once (the same reading and scam rules as step 1, no browser beyond that), and add each as a lead in `jobs/leads.csv` exactly as `find-jobs` step 4 writes them (`fit_guess`, `why`, `concerns` naming any knockout from `evaluate-job`'s reference, section 1; de-duplicated against the tracker and leads). No job folders, scores or packages yet. Then show them ranked, one line each, and say "sort them in the Job Inbox, or tell me which to add"; the ones they save go through this skill in full. On no, add them all in full as below.
+
 ## 1. Get the full posting (with fallbacks)
 
 For each link, try in order and stop at the first that returns the real posting (title, company, and the job description):

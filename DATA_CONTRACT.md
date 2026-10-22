@@ -15,7 +15,7 @@ Never part of the app's download or its git repository (`.gitignore` lists them)
 | `contacts/` (except `contacts/README.md`) | Your contacts list |
 | `outbox/` (except the `.gitkeep` placeholders in `outbox/sent/` and `outbox/discarded/`) | Drafts, sent and discarded messages |
 | `interviews/` (except `interviews/.gitkeep`) | Interview notes, scorecards, weekly reviews |
-| `history/` | The activity log, what routines found (`routines.md`), and whether saved postings are still open (`posting-watch.md`) |
+| `history/` | The activity log, what routines found (`routines.md`), whether saved postings are still open (`posting-watch.md`), and a lessons-learned draft you may post yourself (`lessons-draft.md`) |
 | `imports/` (except `imports/README.md`) | Files you drop in |
 | `pages/` (except `pages/README.md`) | Your dashboard, flashcards, portfolio, interview-brief template, publish copies (`pages/.publish/`, including the Claude Dashboard files in `pages/.publish/claude-dashboard/`), theme previews (`pages/.preview/`) |
 | `knowledge/field/` | Your field pack: primer, background, resume keywords, target employers, role questions |

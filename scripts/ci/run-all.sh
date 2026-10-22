@@ -32,6 +32,7 @@ step "guard fixtures (bash)" bash "$HERE/guard-fixtures.sh" --impl sh
 step "my-data smoke (bash)" bash "$HERE/mydata-smoke.sh" --impl sh
 step "startup summary (bash)" bash "$HERE/summary-fixtures.sh" --impl sh
 step "health check fixtures (bash)" bash "$HERE/health-fixtures.sh" --impl sh
+step "share-lessons privacy check (bash)" bash "$HERE/check-anon-fixtures.sh" --impl sh
 step "Manual-mode notice hook" bash "$HERE/mode-notice-fixtures.sh"
 if [ -n "$PY" ]; then
   step "e2e: fresh clone and first run (bash)" "$PY" "$HERE/e2e-fresh.py" --impl sh
@@ -56,6 +57,7 @@ if [ -n "$PS" ]; then
   step "my-data smoke (PowerShell)" bash "$HERE/mydata-smoke.sh" --impl ps
   step "startup summary (PowerShell)" bash "$HERE/summary-fixtures.sh" --impl ps
   step "health check fixtures (PowerShell)" bash "$HERE/health-fixtures.sh" --impl ps
+  step "share-lessons privacy check (PowerShell)" bash "$HERE/check-anon-fixtures.sh" --impl ps
   if [ -n "$PY" ]; then
     step "e2e: fresh clone and first run (PowerShell)" "$PY" "$HERE/e2e-fresh.py" --impl ps
     step "e2e: /update (PowerShell)" "$PY" "$HERE/e2e-update.py" --impl ps
@@ -66,6 +68,7 @@ if [ -n "$PS" ]; then
 else
   echo; echo "######## PowerShell checks skipped (no pwsh or powershell; set PS_EXE)"
 fi
+step "stalled-routine rules agree (scripts and Routines board)" bash "$HERE/routine-status-parity.sh"
 step "mods" bash "$HERE/check-mods.sh"
 echo
 if [ -n "$failed" ]; then echo "FAILED:$failed"; exit 1; fi

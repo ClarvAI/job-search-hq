@@ -1,0 +1,68 @@
+name: Lessons learned (what worked in your search)
+description: Share what helped, what didn't, and one tip, so this workspace gets better for the next job seeker. Anonymous in what it says.
+title: "[Lessons] "
+labels: ["lessons-learned", "feedback"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Thank you for helping the next job seeker.** This page is public and stays online, and it shows your GitHub username, so keep it anonymous in what it says: no names (yours included), employers, schools, recruiters, towns, pay, exact dates, links, emails or phone numbers, and nothing a past employer would consider confidential. The assistant can draft this for you: say "share what worked" and it writes a checked draft you can paste in. Many people wait until after their start date.
+  - type: dropdown
+    id: outcome
+    attributes:
+      label: Where your search ended up
+      options:
+        - Got a job
+        - Still searching
+        - Paused my search
+    validations:
+      required: true
+  - type: input
+    id: field
+    attributes:
+      label: Your kind of work and country (general)
+      description: For example "nursing, Canada" or "software, Germany". Optional.
+  - type: dropdown
+    id: applications
+    attributes:
+      label: About how many applications
+      options: ["1-10", "11-25", "26-50", "51-100", "over 100", "Rather not say"]
+  - type: dropdown
+    id: weeks
+    attributes:
+      label: About how long, from the first application
+      options: ["under 4 weeks", "4-8 weeks", "9-16 weeks", "17-26 weeks", "over 26 weeks", "Rather not say"]
+  - type: dropdown
+    id: app
+    attributes:
+      label: Which app you used it with
+      options: ["Claude Code", "Codex", "Both", "Not sure"]
+  - type: textarea
+    id: difference
+    attributes:
+      label: What made the biggest difference
+    validations:
+      required: true
+  - type: textarea
+    id: differently
+    attributes:
+      label: What you'd do differently, or what didn't work
+  - type: textarea
+    id: helped
+    attributes:
+      label: Which parts of the workspace helped most
+  - type: textarea
+    id: missing
+    attributes:
+      label: Anything confusing, missing or broken
+  - type: textarea
+    id: tip
+    attributes:
+      label: One tip for someone starting today
+  - type: checkboxes
+    id: anonymous
+    attributes:
+      label: Before you post
+      options:
+        - label: I checked that nothing here names or identifies me or anyone else (people, employers, schools, places, pay, dates, links, contact details).
+          required: true

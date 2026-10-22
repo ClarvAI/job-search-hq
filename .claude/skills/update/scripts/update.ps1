@@ -76,6 +76,9 @@ function Get-ManFiles([string]$path) {   # ordered list of @{p; h}
 function Write-HooksLines($paths) {
   if (@($paths) -contains '.claude/settings.json') { Write-Output 'hooks-changed: claude' }
   if (@($paths) -contains '.codex/hooks.json') { Write-Output 'hooks-changed: codex' }
+  # Claude Code loads the panels (each .claude/skills/<name>/ with a .claude-plugin/plugin.json) when a session
+  # starts, so a new or changed panel shows only after the folder is reopened.
+  if (@(@($paths) | Where-Object { $_ -cmatch '^\.claude/skills/[^/]+/(\.claude-plugin/|hooks/|types/)' }).Count -gt 0) { Write-Output 'panels-changed: claude' }
 }
 # "themed": the app templates a user may have their own themed copy of (profile/templates/<file name>).
 function Get-ManThemed([string]$path) {
