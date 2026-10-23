@@ -30,4 +30,4 @@ A short block in plain words, numbers first, no charts or emoji: the headline ("
 
 ## The Claude panel (Claude Code only; Codex: skip)
 
-In Claude Code this is the `/insights` panel. It only reads; its "Ask Claude for a weekly review" button writes `/weekly-review` in the prompt for the user to send.
+In Claude Code this is the `/job-insights` panel. It only reads; its "Ask Claude for a weekly review" button writes `/weekly-review` in the prompt for the user to send.

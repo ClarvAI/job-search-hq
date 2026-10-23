@@ -3,6 +3,6 @@
   "displayName": "Insights",
   "version": "0.1.0",
   "author": { "name": "Job Search HQ contributors" },
-  "description": "How your search is going: an /insights pane with where applications stall, where replies come from, whether fit scores predict replies, and why you passed on leads.",
+  "description": "How your search is going: a /job-insights pane with where applications stall, where replies come from, whether fit scores predict replies, and why you passed on leads.",
   "types": "./types/index.d.ts"
 }

@@ -5,7 +5,7 @@ import type { Group, Stats, View } from '../types'
 import { csvTrouble, dateOrder, localDate } from './csvdate'
 import { MIN_RATE, insights, share } from './stats'
 
-// Insights: how the search is going, read-only. From jobs/tracker.csv (and jobs/leads.csv) it shows where
+// Insights (/job-insights; Claude Code ships its own /insights): how the search is going, read-only. From jobs/tracker.csv (and jobs/leads.csv) it shows where
 // applications stall, which sources bring replies, whether higher fit scores get more replies (so the
 // scores can be trusted), and why the user passed on leads. It writes nothing. The weekly review (Claude)
 // turns the same numbers into next week's changes; the "Ask Claude for a weekly review" button starts it.
@@ -81,7 +81,7 @@ function fitCheck(s: Stats): string {
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
-    await $.command.register({ name: 'insights', description: 'How your search is going: where it stalls, what brings replies, and whether fit scores hold up', immediate: true })
+    await $.command.register({ name: 'job-insights', description: 'How your search is going: where it stalls, what brings replies, and whether fit scores hold up', immediate: true })
     $.clock.every(120000, () => void refresh($).catch(() => undefined))
     return next(e)
   })
@@ -100,7 +100,7 @@ export const register: Register = on => {
     return next(e)
   }).catch(($, e, next) => next(e))
 
-  on('command.run', { command: 'insights' }, async $ => {
+  on('command.run', { command: 'job-insights' }, async $ => {
     const v = await refresh($).catch(() => null)
     const opened = await $.ui.open({ id: PANE, title: 'Insights', focus: true })
     if (!opened.isPlaced) {

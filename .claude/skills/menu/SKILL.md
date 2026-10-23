@@ -46,7 +46,7 @@ Show the user this menu (adapt lightly; keep it scannable). Start with the tip, 
 - `/linkedin`: improve your profile
 - `/resume-review`: tough review of your master resume; it can also read your GitHub, portfolio or publications for work your resume leaves out
 - `/weekly-review`: how it's going, what to change, and the skills your jobs keep asking for
-- `/insights`: where applications stall, what brings replies, and whether your fit scores hold up (panel)
+- `/job-insights`: where applications stall, what brings replies, and whether your fit scores hold up (panel)
 - `/career-fair`: plan for a fair or event, then follow-ups
 - Got the job? A congratulations opens by itself (`/celebrate` brings it back), and `/share-lessons` drafts anonymous notes on what worked, for you to post for future job seekers if you want
 

@@ -238,12 +238,14 @@ else echo "parse: check these: $problems${good:+ (fine: $good)}"; fi
 [ -n "$note" ] && echo "parse-note: $note"
 
 # Layout: a last page with only a few lines, or a section heading left alone at the bottom of a page.
-# pdftotext puts a form feed at the start of each new page's first line (and one after the last page).
+# pdftotext puts a form feed between pages (at the start of a new page's first line on a Mac or Linux; Windows
+# builds also end lines with CR LF), so every form feed in a line, wherever it falls, starts a new page.
 [ -f "$tmpdir/headings.txt" ] || : >"$tmpdir/headings.txt"
 layout="$(awk 'function t(s){gsub(/^[[:space:]]+|[[:space:]]+$/,"",s); return tolower(s)}
   FILENAME == ARGV[1] { x=$0; gsub(/^[[:space:]]+|[[:space:]]+$/,"",x); if (x!="") h[tolower(x)]=x; next }
-  { while (index($0, "\f") == 1) { p++; n[p]=c; last[p]=l; c=0; l=""; $0=substr($0, 2) }
-    if (t($0)!="") { c++; l=t($0) } }
+  { sub(/\r$/, ""); m=split($0, part, "\f")
+    for (k=1; k<=m; k++) { if (k>1) { p++; n[p]=c; last[p]=l; c=0; l="" }
+      if (t(part[k])!="") { c++; l=t(part[k]) } } }
   END { if (c>0) { p++; n[p]=c; last[p]=l }
     out=""
     for (i=1; i<p; i++) if (last[i] in h) out=out (out=="" ? "" : "; ") "heading \"" h[last[i]] "\" is the last line of page " i

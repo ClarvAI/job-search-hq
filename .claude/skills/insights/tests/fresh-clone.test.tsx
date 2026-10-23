@@ -20,7 +20,7 @@ const clean = (s: string) => !/undefined|NaN|\[object Object\]|ENOENT/.test(s)
 for (const surface of ['terminal', 'desktop'] as const) {
   test(`fresh download, nothing set up yet: the Insights pane opens and draws on ${surface}`, async ($, on) => {
     const { writes } = freshClone(on)
-    await $.command.run({ command: 'insights', args: '' } as never)
+    await $.command.run({ command: 'job-insights', args: '' } as never)
     const ui = await $.ui.mount({ plugin: 'insights', surface, component: 'Pane', requestId: 'insights',
       props: { title: 'Insights', isFocused: true, bodyColumns: 90 } } as never)
     const drawn = JSON.stringify(await ui.drawn())

@@ -87,7 +87,7 @@ function setup(on: any, files: Record<string, string>, opts: { fills?: string[];
 test('the pane shows the steps, the weekly counts and the fit check, and writes nothing', async ($, on) => {
   const fills: string[] = []
   const { writes } = setup(on, { 'jobs/tracker.csv': TRACKER, 'jobs/leads.csv': LEADS, 'profile/preferences.md': '- date_order: MDY\n' }, { fills })
-  await $.command.run({ command: 'insights', args: '' } as never)
+  await $.command.run({ command: 'job-insights', args: '' } as never)
   const ui = await $.ui.mount({ plugin: 'insights', surface: 'terminal', ...PANE } as never)
   const drawn = JSON.stringify(await ui.drawn())
   expect(drawn).toContain('20 applied · 10 heard back · 6 interviews · 1 offer')
@@ -109,7 +109,7 @@ test('the pane shows the steps, the weekly counts and the fit check, and writes 
 
 test('a tracker that can’t be read says so instead of loading forever', async ($, on) => {
   setup(on, { 'jobs/tracker.csv': TRACKER }, { readFails: true })
-  await $.command.run({ command: 'insights', args: '' } as never)
+  await $.command.run({ command: 'job-insights', args: '' } as never)
   const ui = await $.ui.mount({ plugin: 'insights', surface: 'desktop', ...PANE } as never)
   const drawn = JSON.stringify(await ui.drawn())
   expect(drawn).toContain('Needs fixing: Your tracker (jobs/tracker.csv) couldn’t be read')
@@ -120,7 +120,7 @@ test('a tracker that can’t be read says so instead of loading forever', async 
 test('a damaged tracker is named, with a one-press fix, and no empty-state text', async ($, on) => {
   const fills: string[] = []
   setup(on, { 'jobs/tracker.csv': 'company;role;status\nAcme;Analyst;applied\n' }, { fills })
-  await $.command.run({ command: 'insights', args: '' } as never)
+  await $.command.run({ command: 'job-insights', args: '' } as never)
   const ui = await $.ui.mount({ plugin: 'insights', surface: 'terminal', ...PANE } as never)
   const drawn = JSON.stringify(await ui.drawn())
   expect(drawn).toContain('Needs fixing:')
