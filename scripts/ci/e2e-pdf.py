@@ -17,7 +17,7 @@ Also (review J1-05): a pdftotext that writes nothing never lets a blank PDF thro
 import sys; sys.dont_write_bytecode = True  # noqa: E702
 import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from e2e_common import (IS_WINDOWS, Run, keep_temps, make_workspace, parse_args, ps, read, run, sh,  # noqa: E402
+from e2e_common import (IS_WINDOWS, Run, find_bash, keep_temps, make_workspace, parse_args, ps, read, run, sh,  # noqa: E402
                         temp_dir, write)
 
 import http.server  # noqa: E402
@@ -270,8 +270,8 @@ def scenario_text_checks(R, impl, ws):
         if not ok:
             pdf = [l.split(":", 1)[1].strip() for l in out.splitlines() if l.startswith("pdf:")]
             if pdf:
-                # Through bash, so a Git Bash path (/d/a/...) reaches Windows' pdftotext the way make-pdf.sh's does.
-                txt = subprocess.run(["bash", "-c", 'pdftotext -enc UTF-8 "$1" -', "_", pdf[0]], capture_output=True).stdout
+                # Through the tests' bash (Git Bash on Windows, never WSL's), so a /d/a/... path reaches pdftotext as in make-pdf.sh.
+                txt = subprocess.run([find_bash(), "-c", 'pdftotext -enc UTF-8 "$1" -', "_", pdf[0]], capture_output=True).stdout
                 detail += "\npdftotext output (repr): %r" % txt[:3000]
         R.ok("%s %s: %s" % (tag, label, "no parse problem or layout-warning" if i == 0 else "reported"), ok, detail)
 
