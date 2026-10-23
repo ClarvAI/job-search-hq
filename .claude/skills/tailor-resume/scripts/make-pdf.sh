@@ -16,8 +16,9 @@
 # themed copy, templates/resume-designed-template.html).
 #
 # Output lines (first line is the status):
-#   pdf: <path>            then  paper: Letter|A4|...  pages: N  parse: ...  (and maybe parse-note: ..., or title-warning: ...
-#                          when the page's <title> is empty or still the template's "Your Name")
+#   pdf: <path>            then  paper: Letter|A4|...  pages: N  parse: ...  (and maybe parse-note: ..., title-warning: ...
+#                          when the page's <title> is empty or still the template's "Your Name", or layout-warning: ...
+#                          when the last page holds only a few lines or a heading ends a page)
 #   no-browser             no Chrome/Edge/Chromium found: fall back to the manual Print -> Save as PDF steps
 #   no-rendercv            RenderCV isn't installed: use the .html route instead
 #   print-failed           no PDF, or one that came out blank (no text) or without the name, email and phone; a
@@ -225,7 +226,37 @@ else
   fi
 fi
 
+# Characters with no readable text behind them: U+FFFD, the private-use area (where icon fonts put their symbols)
+# and "(cid:" markers. An applicant tracking system reads them as garbage.
+if LC_ALL=C grep -q -e "$(printf '\357\277\275')" -e "$(printf '\356')" -e "$(printf '\357[\200-\243]')" "$text" \
+   || grep -q -F '(cid:' "$text"; then
+  add_problem "unreadable characters in the text (usually an icon, or a font with no text behind it: use plain words such as \"Email:\")"
+fi
+
 if [ -z "$problems" ]; then echo "parse: ok ($good)"
 else echo "parse: check these: $problems${good:+ (fine: $good)}"; fi
 [ -n "$note" ] && echo "parse-note: $note"
+
+# Layout: a last page with only a few lines, or a section heading left alone at the bottom of a page.
+# pdftotext puts a form feed between pages (at the start of a new page's first line on a Mac or Linux; Windows
+# builds also end lines with CR LF), so every form feed in a line, wherever it falls, starts a new page.
+[ -f "$tmpdir/headings.txt" ] || : >"$tmpdir/headings.txt"
+# Lines are counted in pdftotext's -layout text, which keeps every printed line: plain text joins a paragraph's
+# lines into one on some builds (the Windows one), which would hide a nearly empty last page. Plain text if -layout fails.
+laytext="$text"
+if pdftotext -layout -enc UTF-8 "$final" "$tmpdir/layout.txt" 2>/dev/null && [ -s "$tmpdir/layout.txt" ]; then laytext="$tmpdir/layout.txt"; fi
+# Unicode spaces count as spaces (U+00A0, U+2000-200A, U+202F, U+205F, U+3000, each written whole for the
+# macOS awk), as make-pdf.ps1's .Trim() does, so a line holding only those is empty on every platform.
+layout="$(awk 'BEGIN { us = "\302\240|\342\200\200|\342\200\201|\342\200\202|\342\200\203|\342\200\204|\342\200\205|\342\200\206|\342\200\207|\342\200\210|\342\200\211|\342\200\212|\342\200\257|\342\201\237|\343\200\200" }
+  function t(s){gsub(us," ",s); gsub(/^[[:space:]]+|[[:space:]]+$/,"",s); return tolower(s)}
+  FILENAME == ARGV[1] { x=$0; gsub(/^[[:space:]]+|[[:space:]]+$/,"",x); if (x!="") h[tolower(x)]=x; next }
+  { sub(/\r$/, ""); m=split($0, part, "\f")
+    for (k=1; k<=m; k++) { if (k>1) { p++; n[p]=c; last[p]=l; c=0; l="" }
+      if (t(part[k])!="") { c++; l=t(part[k]) } } }
+  END { if (c>0) { p++; n[p]=c; last[p]=l }
+    out=""
+    for (i=1; i<p; i++) if (last[i] in h) out=out (out=="" ? "" : "; ") "heading \"" h[last[i]] "\" is the last line of page " i
+    if (p>=2 && n[p]*5 < n[1]) out=out (out=="" ? "" : "; ") "the last page holds only " n[p] " lines of text (page 1 has " n[1] ")"
+    print out }' "$tmpdir/headings.txt" "$laytext")"
+[ -n "$layout" ] && echo "layout-warning: $layout"
 exit 0

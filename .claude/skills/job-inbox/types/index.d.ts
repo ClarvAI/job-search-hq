@@ -27,6 +27,8 @@ export type Inbox = {
   saved: Lead[]
   counts: Record<string, number>
   hasFile: boolean
+  // New leads held back because their id is blank or used twice (a press changes a lead by its id).
+  badIds: number
   // What's wrong with leads.csv ('' when it reads cleanly); nothing is saved while it is set.
   problem: string
   // Fingerprint of the file's text as last read: a save is refused when the file no longer matches it.

@@ -160,6 +160,10 @@ $unknownMsg = "Blocked to be safe: couldn't confirm that the GitHub repository i
 $unreadMsg = "Blocked to be safe: the safety check couldn't read this shell command, so it could not check it. Tell the user the safety check in .claude/hooks/guard.ps1 needs a look."
 $hiddenMsg = "Blocked to be safe: this command decodes or builds what it runs (for example base64 fed to a shell or eval), so the safety check can't see whether it pushes this folder somewhere public. Write the command out plainly instead."
 $pubRepoMsg = "Blocked: never create a public repository or gist, or make one public, with this folder's files. It holds the user's resume, other people's contact details, references and offer terms. Use --private (or a secret gist the user creates themselves)."
+$aliasMsg = 'Blocked: the assistant doesn''t create gh aliases (an alias can hide a command the safety check has to see). Run the command itself.'
+$postMsg = 'Blocked: the assistant never posts on GitHub for the user (no issues, comments, pull requests or discussions, which are public and tied to their account). Give them the text and the link, and they post it themselves if they want to.'
+# A new issue, discussion or pull request page on GitHub: an automated browser there could post for the user.
+$ghPost = 'github\.com/[^/"\s]+/[^/"\s]+/(issues/new|discussions/new|compare|pull/new)'
 $stagedMsg = "Blocked to be safe: this command changes git's remotes, aliases or settings and pushes in the same step, so the safety check can't see where the push would go. Run the change on its own first, then the push as a separate command."
 $graphqlMsg = "Blocked to be safe: this GitHub GraphQL request reads its query from a file, standard input or a variable, so the safety check can't see whether it changes a repository (for example makes one public). Write the query out in the command instead."
 $sendMsg = "Blocked: the assistant never sends email or messages itself, from a script or an app (Mail, Outlook, SMTP). Save the message in outbox/ and let the user send it themselves."
@@ -511,6 +515,26 @@ function Test-ShellCommand($Data, [string]$cmd) {
                 if ($sub0 -ceq 'gist' -and $rest -clike '* -p *') { Deny $pubRepoMsg }
             }
             if ($pair -ceq 'repo edit' -and ($rest -clike '* --visibility public *' -or $rest -clike '* --visibility=public *')) { Deny $pubRepoMsg }
+            # Posting on GitHub (public, under the user's name) is the user's to do, like sending email: issue, pr and
+            # discussion commands that create or comment, wherever their flags sit, and close/merge with a comment.
+            # --help only prints help. gh aliases could hide any of these.
+            if (@('issue', 'pr', 'discussion') -ccontains $sub0) {
+                # -h/--help counts only as a flag of its own, never as the value of a flag before it (--body --help).
+                $verb = ''; $ghHelp = $false; $ghText = $false
+                $valued = @('-R', '--repo', '--hostname', '-t', '--title', '-l', '--label', '-a', '--assignee', '-m', '--milestone', '-p', '--project', '-B', '--base', '-H', '--head', '-r', '--reviewer', '-T', '--template', '-s', '--state', '-L', '--limit', '-S', '--search', '-q', '--jq')
+                for ($j = $sp + 1; $j -lt $n; $j++) {
+                    $t = $w[$j]
+                    if ($t -ceq '-h' -or $t -ceq '--help') { $ghHelp = $true }
+                    elseif ($valued -ccontains $t) { $j++ }
+                    elseif (@('-c', '--comment', '-b', '--body', '-F', '--body-file') -ccontains $t) { $ghText = $true; $j++ }
+                    elseif ($t -cmatch '^-[cbF].' -or $t -cmatch '^--(comment|body|body-file)=') { $ghText = $true }
+                    elseif ($t.StartsWith('-')) { }
+                    elseif ($verb -eq '') { $verb = $t }
+                }
+                if (@('create', 'comment', 'edit', 'reopen', 'review', 'new') -ccontains $verb -and -not ($ghHelp -and -not $ghText)) { Deny $postMsg }
+                if (@('close', 'merge') -ccontains $verb -and $ghText) { Deny $postMsg }
+            }
+            if ($sub0 -ceq 'alias' -and $sp + 1 -lt $n -and @('set', 'import') -ccontains $w[$sp + 1] -and -not ($rest -clike '* --help *' -or $rest -clike '* -h *')) { Deny $aliasMsg }
             if ($pair -cin @('release create', 'release upload', 'release edit')) {
                 # Release files are public on a public repository: check the one named with -R/--repo, else this folder's.
                 $r = $ghrepo
@@ -528,7 +552,7 @@ function Test-ShellCommand($Data, [string]$cmd) {
                 # A call that writes (-X PUT/POST/PATCH/DELETE; fields or --input make it a POST unless -X GET or
                 # HEAD is given, which sends fields as the query string) to repos/<owner>/<repo>/...: only allowed
                 # when that repository is private. The endpoint may be relative or a full api.github.com URL.
-                $method = $null; $fields = $false; $fileInput = $false; $ep = ''
+                $method = $null; $fields = $false; $fileInput = $false; $ep = ''; $epFull = ''
                 for ($j = $sp + 1; $j -lt $n; $j++) {
                     $t = $w[$j]; $fv = $null
                     if ($t -ceq '-X' -or $t -ceq '--method') { $method = ''; if ($j + 1 -lt $n) { $method = $w[$j + 1] }; $j++; continue }
@@ -547,7 +571,7 @@ function Test-ShellCommand($Data, [string]$cmd) {
                             $path = $t
                             if ($path -match '^https?://[^/]+/(.*)$') { $path = $Matches[1] }
                             if ($path -ceq 'graphql') { $ep = 'graphql' }
-                            elseif ("/$path" -match '/repos/([^/]+)/([^/?]+)') { $ep = 'repos/' + $Matches[1] + '/' + $Matches[2] }
+                            elseif ("/$path" -match '/repos/([^/]+)/([^/?]+)') { $ep = 'repos/' + $Matches[1] + '/' + $Matches[2]; $epFull = "/$path" }
                         }
                         continue
                     }
@@ -563,6 +587,8 @@ function Test-ShellCommand($Data, [string]$cmd) {
                 }
                 elseif ($ep -and $write -and $ep -cmatch '^repos/(.+)$') {
                     $target = $Matches[1]
+                    # Issues, comments, pull requests and discussions are posts, whatever the repository's visibility.
+                    if ($epFull -match '/repos/[^/]+/[^/]+/(issues|pulls|discussions)' -or $epFull -match '/comments') { Deny $postMsg }
                     if ($fileInput) { Deny $unreadMsg }   # e.g. -F private=@file: the value can't be seen
                     Test-GhRepo $target
                 }
@@ -870,6 +896,7 @@ try {
         if ($scan -match $sites -or $flat -match '"(Mail|Microsoft Outlook|Outlook|LinkedIn)"') {
             Deny "Blocked: the assistant doesn't use Gmail, Outlook, Mail or LinkedIn through the browser or the computer. Draft the message in outbox/ for the user to send themselves. (If this was typing the user's own LinkedIn profile address into an application form, leave that one field for the user to fill in.)"
         }
+        if ($scan -match $ghPost) { Deny $postMsg }
         if ($flat -cmatch $navRe -and $flat -cmatch $hideRe) {
             Deny "Blocked to be safe: this code builds a web address in a disguised way before opening it, so the safety check can't see where it goes. Write the address out plainly."
         }
@@ -881,6 +908,7 @@ try {
         if ($nav -match $sites) {
             Deny "Blocked: the assistant doesn't use the browser on Gmail, Outlook or LinkedIn. Draft the message in outbox/ for the user to send themselves."
         }
+        if ($nav -match $ghPost) { Deny $postMsg }
         if ($nav -match $short) {
             Deny "Blocked to be safe: that's a short link, which can hide where it really goes (it could be Gmail, Outlook or LinkedIn, which the browser never visits). Look it up with WebFetch first to see the real address, or ask the user to open it."
         }

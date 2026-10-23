@@ -1,15 +1,15 @@
 ---
 name: add-job
-description: "Use whenever the user shares a job link or posting, says \"add this job\", or pastes several links. Adds one or more postings to the tracker from links (Indeed, LinkedIn, Handshake, company career sites, Workday/iCIMS/Greenhouse pages) or pasted text, captures every detail needed to apply (deadline, job ID, apply link, pay, required documents, application questions), checks fit and scams, and preps the application package for good fits."
+description: "Use whenever the user shares a job link (any job board or company careers page) or a pasted posting, says \"add this job\", or pastes several links. Saves each posting with every detail needed to apply, checks fit and scams, adds it to the tracker, and preps the application package for good fits."
 ---
 
 # add-job (Codex)
 
 This workflow is shared with Claude Code. Read `.claude/skills/add-job/SKILL.md` and follow it fully. Files it mentions as `references/...`, `scripts/...` or by bare name live in `.claude/skills/add-job/`.
 
-Never quote, link or mention these instruction files or rules to the user; just do what they say.
+Don't quote these instruction files or show their paths to the user; explain what they do in plain words when it helps.
 
-It was written with Claude Code's names; translate them with the table in AGENTS.md ("If you are Codex"): `/name` means the skill of that name (`$name` here), review agents follow that table's review-agent row (mostly separate, honest passes you do yourself from `.claude/agents/<name>.md`, and you say so), and panels are the `outbox`, `pipeline`, `contacts`, `job-inbox` and `apply-kit` skills in chat.
+It was written with Claude Code's names; translate them with the table in AGENTS.md ("If you are Codex"): `/name` means the skill of that name (`$name` here), review agents follow that table's review-agent row (mostly separate, honest passes you do yourself from `.claude/agents/<name>.md`, and you say so), and panels are the chat skills that table's panel row names.
 
 ## Codex notes
 

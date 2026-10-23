@@ -565,3 +565,47 @@ test('a signed contract keeps its end reminder on the board as due (review J2-12
   expect(drawn).not.toContain('Globex · Planner')
   await ui.unmount()
 })
+
+test('a saved job whose posting the posting watch found closed shows it, and one press skips it', async ($, on) => {
+  const csv = HEAD + '\n' + 'Initech,Marketing Coordinator,interested,2026-10-12,Review package and submit,,A,4,Columbus OH,2026-10-05,,initech-mc,\n'
+    + 'Globex,Data Analyst,interested,2026-10-12,Decide: apply or skip,,B,4,Denver CO,2026-10-05,,,\n'
+  const { files } = setup(on, csv)
+  files['history/posting-watch.md'] = '# Posting checks\n\n'
+    + "- 2026-10-01 08:30 · initech-mc · couldn't check · blocked\n"
+    + '- 2026-10-05 08:30 · initech-mc · closed · page says it is no longer accepting applications\n'
+    + '- 2026-10-05 08:31 · globex-data-analyst · open\n'
+  await $.command.run({ command: 'pipeline', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'pipeline', surface: 'terminal', ...PANE } as never)
+  const drawn = JSON.stringify(await ui.drawn())
+  expect(drawn).toContain('1 posting looks closed')
+  expect(drawn).toContain('Posting looks closed (checked 2026-10-05: page says it is no longer accepting applications)')
+  expect(drawn).not.toContain('globex|data analyst|:skip-closed')
+  await ui.press({ key: 'initech|marketing coordinator|initech-mc:skip-closed' })
+  expect(files['jobs/tracker.csv']).toContain('Initech,Marketing Coordinator,skipped,,,,A,4,Columbus OH,2026-10-05,,initech-mc,Skipped: posting closed (checked 2026-10-05)')
+  expect(files['history/activity.md']).toContain('the posting looks closed (checked 2026-10-05)')
+  await ui.unmount()
+})
+
+test('a tracker that can’t be read says so, instead of a stuck "Loading…" or a broken /pipeline', async ($, on) => {
+  setup(on, CSV, { onRead: p => { if (p === 'jobs/tracker.csv') throw new Error('EAGAIN: resource temporarily unavailable') } })
+  const ran: any = await $.command.run({ command: 'pipeline', args: '' } as never)
+  expect(String(ran?.text ?? '')).toContain('Pipeline:')
+  const ui = await $.ui.mount({ plugin: 'pipeline', surface: 'terminal', ...PANE } as never)
+  const drawn = JSON.stringify(await ui.drawn())
+  expect(drawn).toContain('couldn’t be read')
+  expect(drawn).not.toContain('Loading')
+  await ui.unmount()
+})
+
+test('a refused save never shows the congratulations pop-up', async ($, on) => {
+  const toasts: string[] = []
+  setup(on, CSV, { lock: true })
+  on('ui.toast', (_$: any, e: any) => { toasts.push(String(e.text)); return { value: undefined } as never })
+  await $.command.run({ command: 'pipeline', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'pipeline', surface: 'terminal', ...PANE } as never)
+  await ui.press({ key: 'globex|project manager|globex-pm1:edit' })
+  await (ui as any).select({ key: 'globex|project manager|globex-pm1:stage', value: 'accepted' } as never)
+  expect(JSON.stringify(await ui.drawn())).toContain('Not done:')
+  expect(toasts.join(' ')).not.toContain('Congratulations')
+  await ui.unmount()
+})

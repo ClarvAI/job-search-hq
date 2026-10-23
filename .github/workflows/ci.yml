@@ -73,6 +73,22 @@ jobs:
         run: |
           bash scripts/ci/health-fixtures.sh --impl sh
           bash scripts/ci/health-fixtures.sh --impl ps
+      - name: Stalled-routine rules agree (routine-status.sh, .ps1 under PowerShell 7, Routines board)
+        env:
+          PS_EXE: pwsh
+        run: bash scripts/ci/routine-status-parity.sh
+      - name: Share-lessons privacy check (bash, and check-anon.ps1 under PowerShell 7)
+        env:
+          PS_EXE: pwsh
+        run: |
+          bash scripts/ci/check-anon-fixtures.sh --impl sh
+          bash scripts/ci/check-anon-fixtures.sh --impl ps
+      - name: Routines pre-check (bash, and precheck.ps1 under PowerShell 7)
+        env:
+          PS_EXE: pwsh
+        run: |
+          bash scripts/ci/precheck-fixtures.sh --impl sh
+          bash scripts/ci/precheck-fixtures.sh --impl ps
       - name: Manual-mode notice hook (mode-notice.sh)
         run: bash scripts/ci/mode-notice-fixtures.sh
       - name: Health check runs on a fresh checkout
@@ -157,6 +173,10 @@ jobs:
         run: /bin/bash scripts/ci/summary-fixtures.sh --impl sh
       - name: Health check fixtures with /bin/bash 3.2
         run: /bin/bash scripts/ci/health-fixtures.sh --impl sh
+      - name: Share-lessons privacy check with /bin/bash 3.2
+        run: /bin/bash scripts/ci/check-anon-fixtures.sh --impl sh
+      - name: Routines pre-check with /bin/bash 3.2
+        run: /bin/bash scripts/ci/precheck-fixtures.sh --impl sh
       - name: Manual-mode notice hook with /bin/bash 3.2
         run: /bin/bash scripts/ci/mode-notice-fixtures.sh
       - name: Health check with /bin/bash 3.2
@@ -246,6 +266,25 @@ jobs:
         run: |
           bash scripts/ci/health-fixtures.sh --impl sh
           bash scripts/ci/health-fixtures.sh --impl ps
+      - name: Stalled-routine rules agree (Git Bash, .ps1 under Windows PowerShell 5.1, Routines board)
+        shell: bash
+        env:
+          PS_EXE: powershell
+        run: bash scripts/ci/routine-status-parity.sh
+      - name: Share-lessons privacy check (Git Bash, and check-anon.ps1 under Windows PowerShell 5.1)
+        shell: bash
+        env:
+          PS_EXE: powershell
+        run: |
+          bash scripts/ci/check-anon-fixtures.sh --impl sh
+          bash scripts/ci/check-anon-fixtures.sh --impl ps
+      - name: Routines pre-check (Git Bash, and precheck.ps1 under Windows PowerShell 5.1)
+        shell: bash
+        env:
+          PS_EXE: powershell
+        run: |
+          bash scripts/ci/precheck-fixtures.sh --impl sh
+          bash scripts/ci/precheck-fixtures.sh --impl ps
       - name: Manual-mode notice hook (Git Bash)
         shell: bash
         run: bash scripts/ci/mode-notice-fixtures.sh

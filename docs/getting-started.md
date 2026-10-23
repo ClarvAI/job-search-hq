@@ -78,7 +78,8 @@ Just type what you want in plain English ("find me operations analyst jobs near 
 | `/offer` | Compare and negotiate offers |
 | `/linkedin`, `/import-linkedin` | Improve your profile; find contacts from your LinkedIn data export |
 | `/sync-inbox` | Reads your job emails (Gmail, a work or school Microsoft 365 account in Claude, or emails you paste or save) and updates your tracker |
-| `/weekly-review` | How it's going and what to change |
+| `/resume-review` | A tough review of your master resume; it can also read your GitHub, portfolio or publications for work your resume leaves out (nothing is added without your yes) |
+| `/weekly-review` | How it's going, what to change, and the skills your jobs keep asking for |
 | `/routines` | Automatic checks on a schedule (new jobs each morning, your inbox, follow-up drafts, a weekly review); see [Automatic checks](#automatic-checks-routines) |
 | `/career-fair` | Game plan for a career fair, then follow-ups |
 | `/laid-off` | Lost your job? A dated first-week list (unemployment, health coverage, severance) and drafts to ask colleagues for references |
@@ -129,6 +130,8 @@ In Claude: **Settings → Connectors**. In Codex: install the Gmail (or Google C
 - **Email that isn't Gmail**: in Claude, a work or school Microsoft 365 account can connect through the Microsoft 365 connector (read-only; leave its write tools off). Personal Outlook.com addresses can't connect that way; for those and any other inbox, paste job emails into the chat or save them in `imports/` and ask the assistant to read them. Don't use your current employer's account.
 - **Browser**: the Claude desktop app and the ChatGPT desktop app (Codex) each have a built-in browser (nothing to set up; the terminal versions don't). The assistant uses it to read job pages that block normal fetching, like Handshake after you sign in there, and to show you your pages. Claude's browser pane starts without your saved sign-ins; to stay signed in between sessions, turn on **Keep cookies** in the pane's **⋮** menu. Claude in Chrome works too if you prefer. It's set up not to use a browser on your email or LinkedIn (a safety check blocks going to those sites).
 
+- **Your phone**: check in from your phone while your computer does the work (it must stay on and awake, with the app open). In the Claude desktop app, turn on **Settings → Claude Code → Connect new sessions to Remote Control** (in the terminal: `/config`, then **Enable Remote Control for all sessions**; or `/remote-control` for one session), then open **Code** in the Claude phone app. In the ChatGPT desktop app (Codex), pair your phone in **Settings → Connections**, then use the **Remote** tab in the ChatGPT phone app (still a preview). It's your own app setting; this folder can't turn it on for you. Keep a screen lock on your phone: it shows your whole search. Say "use it from my phone" for the steps one at a time.
+
 Each connection shares data with that service; [privacy.md](privacy.md) lists what goes where.
 
 Want the assistant to fill out application forms for you, or Claude's Outbox to send emails when you press Send? Both are off by default. Ask about "assisted mode" or "send mode," and it will explain the tradeoffs before you switch. Even when one is on, you confirm it again: Claude's Outbox asks you once in the panel before its first real send, and the assistant asks you in the chat before the first form it fills in each session. (Codex always makes drafts only.)
@@ -145,6 +148,7 @@ Off until you ask. Say **set up automatic checks** (or `/routines`, `$routines` 
 | Inbox check | Daily, if Gmail or a Microsoft 365 mailbox is connected | Clear updates in your tracker (a rejection, an interview with a date, an application confirmation); anything unclear is listed for you |
 | Follow-up drafts | Weekdays | Follow-ups that are due, as drafts in your Outbox |
 | Weekly review | Fridays | Your week in numbers and what to change, in `interviews/` |
+| Posting watch | Mondays | Which saved jobs' postings look closed, so you don't prepare for a job that's gone; `/today` lists them |
 | Certification reminder | Your benefits certification day, if you claim | A reminder, with how many activities are recorded |
 
 **What they can and can't do.** Routines run on your own computer and only read, draft and track. They never send, apply, publish or change your profile or preferences, and they ask no questions: anything that needs you waits, listed, for the next time you open the app, which tells you what they found. Each run uses your plan like a short chat, so once a day is plenty.
@@ -156,6 +160,8 @@ Off until you ask. Say **set up automatic checks** (or `/routines`, `$routines` 
 **Claude in the terminal** has no lasting schedule: a repeating task (`/loop`) runs only while that terminal stays open, for up to 7 days. Fine for "check for replies every hour this afternoon"; for daily checks, use the desktop app on the same folder. Cloud routines aren't used: they can't see the files in this folder.
 
 If you use both apps, set up each routine in one of them only, so it doesn't run twice.
+
+**If a routine stops running** (the app was closed, the computer slept, the folder moved, or a run is waiting for a permission answer), the next time you open the app it tells you, and `/health` lists the usual causes. If you paused or deleted it on purpose, just say so and it stops mentioning it.
 
 ---
 

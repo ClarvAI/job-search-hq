@@ -17,7 +17,7 @@
 # lives in their own copies in profile/templates/); when an update changes one the user has a copy of, that copy is
 # rebuilt from the new template plus their theme (apply-theme.mjs --regenerate), and the old copy is kept as
 # profile/templates/<name>.previous.html. Pages (pages/, interview briefs) are never touched.
-# Output: "added:/updated:/removed:/kept-local:/new starter file:/template:/migration:/hooks-changed: claude|codex/
+# Output: "added:/updated:/removed:/kept-local:/new starter file:/template:/migration:/hooks-changed: claude|codex/panels-changed: claude/
 # note:" lines, a changelog block, and a last line "update: done A -> B (backup: .backup/X)", "update: check ...",
 # "update: already up to date", "rollback: done ...", or "error: ..." (exit 1).
 # Maintainer-only paths (ship: tests, CI, maintainer notes) are never installed, replaced, removed or
@@ -88,6 +88,9 @@ man_themed() { tr -d '\r' < "$1" | awk -F'"' '/"themed": \[/ { t = 1; next } t &
 hooks_lines() {
   grep -qxF '.claude/settings.json' "$1" 2>/dev/null && echo "hooks-changed: claude"
   grep -qxF '.codex/hooks.json' "$1" 2>/dev/null && echo "hooks-changed: codex"
+  # Claude Code loads the panels (each .claude/skills/<name>/ with a .claude-plugin/plugin.json) when a session
+  # starts, so a new or changed panel shows only after the folder is reopened.
+  grep -qE '^\.claude/skills/[^/]+/(\.claude-plugin/|hooks/|types/)' "$1" 2>/dev/null && echo "panels-changed: claude"
   return 0
 }
 man_version() { tr -d '\r' < "$1" | sed -n 's/^  "version": "\([0-9][0-9.]*\)",\{0,1\}$/\1/p' | head -1; }

@@ -112,7 +112,9 @@ async function jobStatuses($: any): Promise<Record<string, string>> {
 async function load($: any): Promise<Summary> {
   const today = localDate(await $.clock.now())
   const hasFile: boolean = await $.fs.exists(CONTACTS)
-  const raw = hasFile ? await $.fs.read(CONTACTS) : ''
+  // A file that exists but can't be read is a problem to show, never an endless "Loading…".
+  let unreadable = ''
+  const raw: string = hasFile ? await $.fs.read(CONTACTS).then(String, () => { unreadable = 'Your contacts file (contacts/contacts.csv) couldn’t be read. If it’s in a synced folder (OneDrive, iCloud, Dropbox), make sure the file is downloaded and not open in another app, then press Refresh.'; return '' }) : ''
   const { rows: [header = [], ...all], problem } = readCsv(raw)
   // A damaged file shows nothing but the message: its rows can't be trusted.
   const rows = problem === '' ? all : []
@@ -144,7 +146,7 @@ async function load($: any): Promise<Summary> {
   const byDate = (a: Contact, b: Contact) => (a.nextFollowup || '9999').localeCompare(b.nextFollowup || '9999') || a.name.localeCompare(b.name)
   contacts.sort(byDate)
   const due = contacts.filter(c => isDueContact(c, today))
-  return { today, contacts, due, counts, hasFile, problem: csvTrouble(problem, 'Your contacts file (contacts/contacts.csv)'), sig: fingerprint(raw) }
+  return { today, contacts, due, counts, hasFile, problem: unreadable || csvTrouble(problem, 'Your contacts file (contacts/contacts.csv)'), sig: fingerprint(raw) }
 }
 
 async function refresh($: any): Promise<Summary> {
@@ -369,7 +371,7 @@ function line(s: Summary): string {
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
-    await $.command.register({ name: 'contacts', description: 'Open your networking board: record messages, replies, conversations and referrals' })
+    await $.command.register({ name: 'contacts', description: 'Open your networking board: record messages, replies, conversations and referrals', immediate: true })
     await refresh($).catch(() => null)
     // A slow poll as a backstop; changed files also refresh the board at once (classic.FileChanged below).
     $.clock.every(30000, () => void refresh($).catch(() => undefined))
@@ -398,7 +400,8 @@ export const register: Register = on => {
   })
 
   on('command.run', { command: 'contacts' }, async $ => {
-    const s = await refresh($)
+    const s = await refresh($).catch(() => null)
+    if (s === null) { await $.ui.open({ id: PANE, title: 'Contacts', focus: true }).catch(() => undefined); return { text: 'Contacts: your contacts file couldn’t be read; the board says why.' } }
     await update($, isHidden, () => false)
     await update($, armed, () => '')
     await say($, '')
@@ -433,7 +436,8 @@ export const register: Register = on => {
     return mine
   })
 
-  on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
+  on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e, next) => {
+    if (e.requestId !== PANE) return next(e)
     const els = $.ui.resolve(e) as any
     const { Box, Text, Button } = els
     const hasInput = 'Input' in els
@@ -442,7 +446,15 @@ export const register: Register = on => {
     const coldShown = await read($, showCold)
     const pageAt = await read($, pages)
     const note = await read($, notice)
-    if (s === null) return <Text dimColor>Loading…</Text>
+    if (s === null) return (
+      <Box flexDirection="column" gap={1}>
+        <Text>Loading… If this doesn’t change, press Refresh.</Text>
+        <Box flexDirection="row" gap={1}>
+          <Button key="refresh" label="Refresh" autoFocus onPress={() => void refresh($).catch(() => undefined)} />
+          <Button key="close" label="Close" role="dismiss" onPress={() => $.ui.close({ id: PANE })} />
+        </Box>
+      </Box>
+    )
 
     let firstKey = ''
     const card = (c: Contact) => {
@@ -585,9 +597,9 @@ export const register: Register = on => {
         </Box>
         {e.surface === 'terminal' && <Text>{KEYS_HINT}</Text>}
         <Text dimColor>Changes here save straight to your contacts list (contacts/contacts.csv), and Claude is told about them. Record a message only after you've sent it. "Draft a message" writes a request to Claude; press Enter to send it.</Text>
-        {note.text !== '' && <Text color={note.isError ? 'error' : 'success'}>{note.isError ? `Not saved: ${note.text}` : note.text}</Text>}
+        {note.text !== '' && <Text color={note.isError ? 'error' : 'success'}>{note.isError ? `Not done: ${note.text}` : note.text}</Text>}
         {!s.hasFile && <Text>No contacts file yet. Ask Claude to set one up, or type /network to find people to talk to.</Text>}
-        {s.hasFile && s.contacts.length === 0 && <Text>No one here yet. Type /network to find people at a company you like, or /import-linkedin to bring in your connections.</Text>}
+        {s.hasFile && s.problem === '' && s.contacts.length === 0 && <Text>No one here yet. Ask Claude to find people at a company you like, or to bring in your LinkedIn connections.</Text>}
         {s.problem !== '' && <Text color="error" wrap="wrap">{s.problem}</Text>}
         {COLUMNS.map(col => {
           // Due follow-ups first, then by date; long groups are shown a page at a time.

@@ -2,6 +2,29 @@
 
 What changed in each version of Job Search HQ, newest first. `/update` shows you the entries newer than the version you have. Versions follow `MAJOR.MINOR.PATCH`: a patch fixes things, a minor version adds things, a major version changes how something you rely on works.
 
+## 1.1.0 (2026-10-22)
+
+**After updating from 1.0.0, close and reopen this folder in Claude** so the new panels (Insights, Routines, Celebration) and the changed ones load.
+
+- **Posting watch (a new routine):** once a week it checks whether the saved jobs you haven't applied to yet are still open, and `/today` lists the ones that look closed, with an offer to mark them skipped. It only reads; you decide. You can also just ask "are my saved jobs still open?".
+- **Routines that stop running get noticed:** when a routine hasn't run for longer than its schedule allows (the app was closed, the computer slept, the folder moved, or a run is waiting for a permission answer), the next time you open the app it tells you, and `/health` lists the usual causes. Pausing or deleting one on purpose is remembered, so it isn't flagged.
+- **Easier to find:** setup and `/today` each mention automatic checks once.
+- **New panel, `/job-insights`:** how your search is going, read-only. It shows where applications stall, applications per week, where replies come from, whether jobs you scored as a strong fit really hear back more often, and why you passed on leads. It works in the chat too ("how is my search going?").
+- **New panel, `/routines-board`:** each automatic check, when it last ran and what it found, and a note above the prompt if one stopped running. Press **I paused it** or **I deleted it** after doing that in the app, so it isn't flagged.
+- **Pipeline:** a saved job whose posting looks closed says so, with a one-press **Skip it: posting closed**.
+- **You got the job:** the first time a job becomes accepted, a congratulations opens by itself (Claude), with your search in numbers and a button to wrap up. `/share-lessons` (Claude and Codex) then asks five quick questions and drafts anonymous notes about what worked, checked for names, companies, contact details, pay and dates, for you to post on the project's GitHub page if you want. The assistant never posts anything itself, and the safety check now blocks it from posting on GitHub.
+- **A contingent offer** (background check, references, a degree still to come) no longer closes your search at once: other final-round processes stay open until it clears.
+- **Smarter search:** `/job-insights` compares jobs with a contact against those without, and applying within 3 days against later. Pasting six or more job links offers a quick first pass into the Job Inbox before the full workup.
+- **Lighter on small plans:** a scheduled check with nothing to do (setup not finished, your search paused or closed, this week's review already done) now stops after a quick script instead of reading everything; the suggested schedules are cheaper (job scans three times a week, follow-up drafts twice); and if you're on a $20 plan, say so and the assistant saves effort on lower-priority jobs while keeping every fact check.
+- **From your phone:** setup can show you how to check in from the Claude or ChatGPT phone app while your computer does the work.
+- **Sturdier panels:** a file that can't be read (a cloud file that isn't downloaded, a sync lock) now shows a clear message with Refresh and Close instead of loading forever; the Job Inbox holds back leads with a missing or repeated id instead of risking a change to the wrong one; the congratulations pop-up shows only when the change really saved; empty boards no longer show next to a "damaged file" message; the Interview Room has a Close button before an interview starts; and error messages start with "Not done:" in every panel.
+- **PDF checks catch more:** besides name, contact details, headings and dates, the finished resume's text is checked for unreadable characters (an icon or a font with no text behind it, which application systems read as garbage), and the layout for a last page with only a few lines or a heading left alone at the bottom of a page.
+- **Keyword coverage you can act on:** each tailored resume's notes show, for every key requirement, whether you meet it and whether it's on the page in the posting's words, in your own words, left off for space, or a real gap. Gaps are never filled in for you.
+- **Blocked isn't closed:** a job site that refuses to load (an error page or a block) no longer counts as proof the job is gone. A posting is marked closed only when it says so, redirects away, or drops out of the employer's job feed; otherwise you're asked to check it.
+- **Your fit scores learn from replies:** once about 10 applications have a result, the weekly review compares fit scores with who actually replied and says whether to aim wider or tighter; `/evaluate-job` uses that on borderline jobs.
+- **Skill gaps:** the weekly review lists the three skills your jobs most often ask for and you don't show yet, each with one way to close or bridge it, and builds a sourced learning plan if you ask ("what should I learn?").
+- **Your public work:** `/resume-review` can read your GitHub, portfolio, publications or talks and suggest real projects your resume leaves out. Each one is added only after you confirm it's yours and correct.
+
 ## 1.0.0 (2026-10-16)
 
 First public release.

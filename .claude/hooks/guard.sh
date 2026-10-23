@@ -103,6 +103,10 @@ PUBREPO_MSG="Blocked: never create a public repository or gist, or make one publ
 STAGED_MSG="Blocked to be safe: this command changes git's remotes, aliases or settings and pushes in the same step, so the safety check can't see where the push would go. Run the change on its own first, then the push as a separate command."
 GRAPHQL_MSG="Blocked to be safe: this GitHub GraphQL request reads its query from a file, standard input or a variable, so the safety check can't see whether it changes a repository (for example makes one public). Write the query out in the command instead."
 SEND_MSG="Blocked: the assistant never sends email or messages itself, from a script or an app (Mail, Outlook, SMTP). Save the message in outbox/ and let the user send it themselves."
+ALIAS_MSG="Blocked: the assistant doesn't create gh aliases (an alias can hide a command the safety check has to see). Run the command itself."
+POST_MSG="Blocked: the assistant never posts on GitHub for the user (no issues, comments, pull requests or discussions, which are public and tied to their account). Give them the text and the link, and they post it themselves if they want to."
+# A new issue, discussion or pull request page on GitHub: an automated browser there could post for the user.
+GHPOST='github\.com/[^/"[:space:]]+/[^/"[:space:]]+/(issues/new|discussions/new|compare|pull/new)'
 SITE_MSG="Blocked: the assistant doesn't open Gmail, Outlook or LinkedIn for the user, in a browser or any other way. Draft the message in outbox/ for the user to send themselves, or tell them which page to open."
 AUTOMATION_MSG="This runs an automation in a connected app (such as IFTTT or Zapier), which can send, post or change things for the user. The safety check can't tell what it will do, so the user should only allow it if they know and want what it does. (Assistant: never use an automation to send email or messages; draft them in outbox/.)"
 CONTACTS_MSG="This sends information to an outside service: people's contact details to a contacts app or another service, or feedback to the app's maker. That can carry other people's personal details out of this folder, so the user should only allow it if they know and want what is sent. (Assistant: keep contact details in contacts/contacts.csv.)"
@@ -567,6 +571,32 @@ check_shell() {
           done
           if [ -n "$t" ]; then check_gh_repo "$t"; else local -a cpaths=() gargs=(); push_check; fi ;;
       esac
+      # Posting on GitHub (public, under the user's name) is the user's to do, like sending email: issue, pr and
+      # discussion commands that create or comment, wherever their flags sit ("gh issue --repo X create"), and
+      # close/merge with a comment. --help only prints help. gh aliases could hide any of these.
+      case "${w[$sp]:-}" in
+        issue|pr|discussion)
+          # -h/--help counts only as a flag of its own, never as the value of a flag before it (--body --help).
+          local verb="" ghhelp="" ghtext=""
+          for ((j = sp + 1; j < n; j++)); do
+            case "${w[$j]}" in
+              -h|--help) ghhelp=1 ;;
+              -R|--repo|--hostname|-t|--title|-l|--label|-a|--assignee|-m|--milestone|-p|--project|-B|--base|-H|--head|-r|--reviewer|-T|--template|-s|--state|-L|--limit|-S|--search|-q|--jq) j=$((j + 1)) ;;
+              -c|--comment|-b|--body|-F|--body-file) ghtext=1; j=$((j + 1)) ;;
+              -c?*|-b?*|-F?*|--comment=*|--body=*|--body-file=*) ghtext=1 ;;
+              -*) ;;
+              *) [ -z "$verb" ] && verb="${w[$j]}" ;;
+            esac
+          done
+          case "$verb" in
+            create|comment|edit|reopen|review|new) [ -n "$ghhelp" ] && [ -z "$ghtext" ] || deny "$POST_MSG" ;;
+            close|merge) [ -n "$ghtext" ] && deny "$POST_MSG" ;;
+          esac ;;
+        alias)
+          case "${w[$((sp+1))]:-}" in set|import)
+            case "$rest" in *" --help "*|*" -h "*) ;; *) deny "$ALIAS_MSG" ;; esac ;;
+          esac ;;
+      esac
       if [ "${w[$sp]:-}" = api ]; then
         lw="$(printf '%s' "${rest// /}" | tr 'A-Z' 'a-z')"
         case "$lw" in
@@ -614,6 +644,8 @@ check_shell() {
             case "$lw" in *mutation*) deny "$STAGED_MSG" ;; esac
             [ -n "$fileinput" ] && deny "$GRAPHQL_MSG" ;;
           repos/*/*) if [ -n "$write" ]; then
+              # Issues, comments, pull requests and discussions are posts, whatever the repository's visibility.
+              case "$ep" in repos/*/*/issues*|repos/*/*/pulls*|repos/*/*/discussions*|*/comments*) deny "$POST_MSG" ;; esac
               [ -n "$fileinput" ] && deny "$UNREAD_MSG"   # e.g. -F private=@file: the value can't be seen
               t="${ep#repos/}"; owner="${t%%/*}"; t="${t#*/}"; repo="${t%%/*}"; repo="${repo%%\?*}"
               check_gh_repo "$owner/$repo"
@@ -927,6 +959,7 @@ if printf '%s' "$tool" | grep -qiE "$CODE"; then
   if printf '%s' "$scan" | grep -qiE "$SITES" || printf '%s' "$flat" | grep -qiE '"(Mail|Microsoft Outlook|Outlook|LinkedIn)"'; then
     deny "Blocked: the assistant doesn't use Gmail, Outlook, Mail or LinkedIn through the browser or the computer. Draft the message in outbox/ for the user to send themselves. (If this was typing the user's own LinkedIn profile address into an application form, leave that one field for the user to fill in.)"
   fi
+  if printf '%s' "$scan" | grep -qiE "$GHPOST"; then deny "$POST_MSG"; fi
   if printf '%s' "$flat" | grep -qE "$NAV" && printf '%s' "$flat" | grep -qE "$HIDE"; then
     deny "Blocked to be safe: this code builds a web address in a disguised way before opening it, so the safety check can't see where it goes. Write the address out plainly."
   fi
@@ -937,6 +970,7 @@ elif printf '%s' "$tool" | grep -qiE "$BROWSERS"; then
   if printf '%s' "$navf" | grep -qiE "$SITES"; then
     deny "Blocked: the assistant doesn't use the browser on Gmail, Outlook or LinkedIn. Draft the message in outbox/ for the user to send themselves."
   fi
+  if printf '%s' "$navf" | grep -qiE "$GHPOST"; then deny "$POST_MSG"; fi
   # Without a normalizer, a host with non-ASCII letters or \u/\x escapes (a look-alike of those sites)
   # can't be folded, so block it.
   if [ -z "$HAVE_NORM" ]; then

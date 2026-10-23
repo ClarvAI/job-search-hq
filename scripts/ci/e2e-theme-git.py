@@ -326,7 +326,8 @@ class Scenario:
             f.write("\n<!-- e2e skill change 1.0.1 -->\n")
         ok2 = insert_before_last(os.path.join(up, "templates", "blank", "pages", "dashboard.html"), "</html>", "<!-- e2e blank page change 1.0.1 -->\n")
         write(os.path.join(up, "templates", "blank", "profile", "e2e-new-starter.md"), "# A new starter file in 1.0.1\n")
-        write(os.path.join(up, "VERSION"), lf(read(os.path.join(up, "VERSION"))).replace("version: 1.0.0", "version: 1.0.1"))
+        # The test's own release number, whatever version the repository is at.
+        write(os.path.join(up, "VERSION"), re.sub(r"(?m)^version: .*$", "version: 1.0.1", lf(read(os.path.join(up, "VERSION"))), count=1))
         head1 = self.upstream_commit("Job Search HQ 1.0.1")
         if not (ok1 and ok2):
             r.ok(self.label("upstream change 1 prepared"), False, "markers </body> / </html> not found")

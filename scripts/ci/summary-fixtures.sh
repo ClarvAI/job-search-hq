@@ -31,15 +31,16 @@ pass=0; fail=0
 
 ws() { # ws <name> <date_order>: a fresh workspace; the tracker comes from stdin
   local d="$T/$1"
-  mkdir -p "$d/jobs" "$d/profile" "$d/outbox" "$d/.claude/hooks"
+  mkdir -p "$d/jobs" "$d/profile" "$d/outbox" "$d/.claude/hooks" "$d/.claude/skills/routines/scripts"
   printf 'SETUP: done 2026-01-01\n<!-- date_order: MDY -->\n- date_order: %s\nsearch_status: active\n' "$2" > "$d/profile/preferences.md"
   cat > "$d/jobs/tracker.csv"
   cp "$REPO/.claude/hooks/session-start.ps1" "$d/.claude/hooks/"
+  cp "$REPO/.claude/skills/routines/scripts/"routine-status.* "$d/.claude/skills/routines/scripts/"
 }
 run() { # run <name>: the summary text (sh) or the matching lines of the startup text (ps)
   if [ "$IMPL" = ps ]; then
     printf '{}' | "$PS" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$T/$1/.claude/hooks/session-start.ps1" 2>&1 \
-      | "$PY" -c 'import json,sys; print(json.load(sys.stdin)["hookSpecificOutput"]["additionalContext"])' \
+      | PYTHONIOENCODING=utf-8 "$PY" -c 'import json,sys; print(json.load(sys.stdin)["hookSpecificOutput"]["additionalContext"])' \
       | grep -v '^Today is [A-Z][a-z]*day, \|^Autonomy:\|^Missing starter\|^Some starter'
   else
     CLAUDE_PROJECT_DIR="$T/$1" bash "$REPO/.claude/hooks/summary.sh" long
@@ -252,6 +253,64 @@ hasnt "no routine line without the file" "Routine results"
 printf -- '- %s \302\267 morning scan \302\267 9 new leads\n' "$(hago 2000)" > "$T/routines/history/routines.md"
 OUT="$(ss routines)"
 hasnt "no routine line when all are old" "Routine results"
+
+# Routines that stopped running (routine-status.sh/.ps1): nothing logged for longer than the schedule allows
+# (daily 2, weekdays 4, weekly 9 days; over 45 is taken as removed); a paused or deleted one is never
+# flagged; the cadence comes from the latest "set up (...)" or "changed (...)" line, else from the name.
+dago() { "$PY" -c "import datetime,sys; print((datetime.date.today() - datetime.timedelta(days=int(sys.argv[1]))).isoformat())" "$1"; }
+{ printf '\357\273\277# Routine results\r\n\r\n'
+  printf -- '- %s 08:00 \302\267 morning scan \302\267 set up (weekdays 8:00)\r\n' "$(dago 9)"
+  printf -- '- %s 08:00 \302\267 morning scan \302\267 3 new leads\r\n' "$(dago 6)"
+  printf -- '- %s 07:30 \302\267 inbox check \302\267 changed (weekly, Monday 7:30)\n' "$(dago 8)"
+  printf -- '- %s 07:30 \302\267 inbox check \302\267 1 update\n' "$(dago 5)"
+  printf -- '- %s 08:30 \302\267 posting watch \302\267 set up (weekly, Monday 8:30)\n' "$(dago 12)"
+  printf -- '- %s 16:00 \302\267 weekly review \302\267 set up (weekly, Friday 16:00)\n' "$(dago 30)"
+  printf -- '- %s 16:00 \302\267 weekly review \302\267 paused\n' "$(dago 20)"
+  printf -- '- %s 09:00 \302\267 follow-up drafts \302\267 1 draft in the Outbox\n' "$(dago 60)"
+  printf -- '- %s 09:00 \302\267 routines \302\267 not wanted\n' "$(dago 40)"
+  printf -- '- 2026-00-15 09:00 \302\267 certification reminder \302\267 bad date\n'; } > "$T/routines/history/routines.md"
+OUT="$(ss routines)"
+has  "stalled routines: listed" "Routines that seem to have stopped running (nothing logged in this folder for longer than their schedule): morning scan (last ran $(dago 6)); posting watch (set up $(dago 12), no run logged yet)."
+hasnt "stalled routines: changed cadence is used" "inbox check (last"
+hasnt "stalled routines: paused one not flagged" "weekly review ("
+hasnt "stalled routines: over 45 days is removed" "follow-up drafts ("
+hasnt "stalled routines: reserved name skipped" "routines ("
+hasnt "stalled routines: bad date skipped" "certification reminder ("
+printf -- '- %s 08:00 \302\267 morning scan \302\267 2 new leads\n- %s 08:30 \302\267 posting watch \302\267 deleted\n' "$(dago 1)" "$(dago 1)" >> "$T/routines/history/routines.md"
+OUT="$(ss routines)"
+hasnt "stalled routines: none after new runs" "seem to have stopped"
+# Changes are not runs, a schedule change or a late run doesn't undo a pause, resumed keeps the real last run
+# date, the exact limits, fortnightly, names match case-blind in A-Z only, and impossible dates are skipped.
+{ printf -- '- %s 08:00 \302\267 morning scan \302\267 4 new leads (Job Inbox)\n' "$(dago 0)"
+  printf -- '- %s 09:00 \302\267 morning scan \302\267 changed (weekdays 9:00)\n' "$(dago 0)"
+  printf -- '- %s 09:05 \302\267 routines \302\267 offered\n' "$(dago 0)"
+  printf -- '- %s 16:00 \302\267 weekly review \302\267 paused\n' "$(dago 20)"
+  printf -- '- %s 16:00 \302\267 weekly review \302\267 changed (weekly, Friday 17:00)\n' "$(dago 12)"
+  printf -- '- %s 16:00 \302\267 weekly review \302\267 1 late run\n' "$(dago 11)"
+  printf -- '- %s 09:00 \302\267 follow-up drafts \302\267 2 drafts\n' "$(dago 30)"
+  printf -- '- %s 09:00 \302\267 follow-up drafts \302\267 resumed\n' "$(dago 2)"
+  printf -- '- %s 07:30 \302\267 inbox check \302\267 1 update\n' "$(dago 2)"
+  printf -- '- %s 08:30 \302\267 posting watch \302\267 set up (fortnightly, Monday 8:30)\n' "$(dago 20)"
+  printf -- '- %s 08:30 \302\267 posting watch \302\267 all 4 still open\n' "$(dago 12)"
+  printf -- '- %s 09:00 \302\267 Lebenslauf-Check \302\267 set up (weekdays 9:00)\n' "$(dago 9)"
+  printf -- '- %s 09:00 \302\267 lebenslauf-check \302\267 ok\n' "$(dago 5)"
+  printf -- '- %s 09:00 \302\267 \303\234bersicht \302\267 set up (weekly)\n' "$(dago 20)"
+  printf -- '- %s 09:00 \302\267 \303\274bersicht \302\267 ok\n' "$(dago 1)"
+  printf -- '- 2026-02-30 09:00 \302\267 certification reminder \302\267 set up (weekly)\n'; } > "$T/routines/history/routines.md"
+OUT="$(ss routines)"
+has  "routine results: changes are not runs" "morning scan (08:00): 4 new leads (Job Inbox)"
+hasnt "routine results: assistant notes skipped" "routines (09:05)"
+hasnt "stalled routines: change keeps a pause" "weekly review ("
+hasnt "stalled routines: resumed gives grace" "follow-up drafts ("
+hasnt "stalled routines: daily at its limit is fine" "inbox check ("
+hasnt "stalled routines: fortnightly limit" "posting watch ("
+has  "stalled routines: A-Z case-blind, weekdays over the limit" "lebenslauf-check (last ran $(dago 5))"
+has  "stalled routines: other letters match exactly" "$(printf '\303\234')bersicht (set up $(dago 20), no run logged yet)"
+hasnt "stalled routines: impossible date skipped" "certification reminder ("
+{ printf -- '- %s 09:00 \302\267 follow-up drafts \302\267 2 drafts\n' "$(dago 30)"
+  printf -- '- %s 09:00 \302\267 follow-up drafts \302\267 resumed\n' "$(dago 6)"; } > "$T/routines/history/routines.md"
+OUT="$(ss routines)"
+has  "stalled routines: resumed shows the real last run" "follow-up drafts (last ran $(dago 30))"
 if [ "$IMPL" = ps ]; then
   # The same file through both hooks gives the same line.
   { printf -- '- %s \302\267 morning scan \302\267 4 new leads (Job Inbox)\n' "$(hago 60)"; printf -- '- %s \302\267 inbox check\n' "$(hago 20)"; } > "$T/routines/history/routines.md"
@@ -260,6 +319,16 @@ if [ "$IMPL" = ps ]; then
   b="$(run routines | grep '^Routine results')"
   if [ -n "$a" ] && [ "$a" = "$b" ]; then pass=$((pass + 1)); echo "PASS  routines: session-start.ps1 matches session-start.sh"
   else fail=$((fail + 1)); printf 'FAIL  routines: session-start.ps1 differs from session-start.sh\n      | sh: %s\n      | ps: %s\n' "$a" "$b"; fi
+  # And the same stalled-routines line, through both versions of routine-status.
+  { printf -- '- %s 08:00 \302\267 morning scan \302\267 3 new leads\n' "$(dago 6)"
+    printf -- '- %s 08:30 \302\267 posting watch \302\267 set up (weekly, Monday 8:30)\n' "$(dago 12)"
+    printf -- '- %s 07:30 \302\267 inbox check \302\267 1 update\n' "$(dago 1)"; } > "$T/routines/history/routines.md"
+  cp "$REPO/.claude/hooks/session-start.sh" "$REPO/.claude/hooks/summary.sh" "$T/routines/.claude/hooks/"
+  a="$(cd "$T/routines" && printf '{}' | CLAUDE_PROJECT_DIR="$T/routines" bash .claude/hooks/session-start.sh codex 2>/dev/null \
+    | PYTHONIOENCODING=utf-8 "$PY" -c 'import json,sys; print(json.load(sys.stdin)["hookSpecificOutput"]["additionalContext"])' | grep '^Routines that seem')"
+  b="$(run routines | grep '^Routines that seem')"
+  if [ -n "$a" ] && [ "$a" = "$b" ]; then pass=$((pass + 1)); echo "PASS  stalled routines: session-start.ps1 matches session-start.sh"
+  else fail=$((fail + 1)); printf 'FAIL  stalled routines: session-start.ps1 differs from session-start.sh\n      | sh: %s\n      | ps: %s\n' "$a" "$b"; fi
 fi
 
 if [ "$IMPL" = sh ]; then

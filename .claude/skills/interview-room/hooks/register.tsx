@@ -326,17 +326,29 @@ async function speakAloud($: any, text: string): Promise<boolean> {
   return false
 }
 
+// Voice and sounds: this folder's remembered choice, else off (an old folder-less value is ignored); and
+// whether the clock is on. Loaded when a session starts and again after /clear, /resume or a branch, which
+// start the session's state over (the choices themselves live in the plugin's store).
+async function loadChoices($: any): Promise<void> {
+  const voiceSaved = await Promise.resolve().then(async () => $.store.get(await folderKey($, 'voice'))).catch(() => undefined)
+  voiceNow = voiceSaved === true
+  await update($, isVoice, () => voiceNow)
+  const soundSaved = await Promise.resolve().then(async () => $.store.get(await folderKey($, 'sounds'))).catch(() => undefined)
+  await update($, isSound, () => soundSaved === true)
+  const timed = await Promise.resolve().then(() => $.store.get('isTimed')).catch(() => undefined)
+  if (typeof timed === 'boolean') await update($, isTimed, () => timed)
+}
+
 export const register: Register = on => {
+  on('classic.SessionStart', async ($, e, next) => {
+    const out = await next(e)
+    if (['clear', 'resume', 'compact'].includes(String((e as any).source ?? ''))) await loadChoices($).catch(() => undefined)
+    return out
+  }).catch(($, e, next) => next(e))
+
   on('session.start', async ($, e, next) => {
-    await $.command.register({ name: 'interview-room', description: 'Open the mock interview room (start one with /mock-interview)' })
-    // Voice and sounds: this folder's remembered choice, else off (an old folder-less value is ignored).
-    const voiceSaved = await Promise.resolve().then(async () => $.store.get(await folderKey($, 'voice'))).catch(() => undefined)
-    voiceNow = voiceSaved === true
-    await update($, isVoice, () => voiceNow)
-    const soundSaved = await Promise.resolve().then(async () => $.store.get(await folderKey($, 'sounds'))).catch(() => undefined)
-    await update($, isSound, () => soundSaved === true)
-    const timed = await Promise.resolve().then(() => $.store.get('isTimed')).catch(() => undefined)
-    if (typeof timed === 'boolean') await update($, isTimed, () => timed)
+    await $.command.register({ name: 'interview-room', description: 'Open the mock interview room (start one with /mock-interview)', immediate: true })
+    await loadChoices($)
     // After a reload mid-answer the clock's ticker is gone but the clock is still running: start it again.
     const running = await read($, clock)
     if (running !== null && running.stoppedAt === 0 && (await read($, isTimed))) {
@@ -499,7 +511,8 @@ export const register: Register = on => {
     return { text: 'Interview Room opened. Start a practice round with /mock-interview.' }
   })
 
-  on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
+  on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e, next) => {
+    if (e.requestId !== PANE) return next(e)
     const { Box, Text, Button } = $.ui.resolve(e)
     const r = await read($, room)
     const l = await read($, line)
@@ -549,6 +562,7 @@ export const register: Register = on => {
             {clockToggle}
             {toggle}
             {soundToggle}
+            <Button key="close" label="Close" role="dismiss" onPress={() => $.ui.close({ id: PANE })} />
           </Box>
           {timed && c !== null && <Text bold color={free < 0 ? 'error' : free < 30000 ? 'warning' : 'success'}>{`Time: ${mmss(spent)} of ${mmss(c.limit * 1000)}${free < 0 ? '. Time is up: wrap it up' : free < 30000 && c.limit > 30 ? '. Under 30 seconds left' : ''}`}</Text>}
         </Box>

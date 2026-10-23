@@ -6,7 +6,7 @@
 #     addresses and 555 numbers), and its preferences.md starts out as "SETUP: not done";
 #  3. the blank CSVs start with a UTF-8 BOM and hold only their comma-separated header line;
 #  4. no JSON data block in templates/blank/pages/*.html holds a raw "</" (escape "<" as \u003c).
-#  5. the five copies of the panels' csvdate.ts are identical, and so are their csvdate.test.ts copies;
+#  5. the eight copies of the panels' csvdate.ts are identical, and so are their csvdate.test.ts copies;
 #  6. every review agent in .claude/agents/ has a .codex/agents/ twin with the identical description;
 #  7. AGENTS.md stays within its size budget (30000 bytes).
 #  8. Codex skill-picker metadata is well formed; the blank preferences keep their language: line.
@@ -156,8 +156,8 @@ if copies:
         fail("%s differs from %s (change all copies of csvdate.ts together)" % (c, copies[0]))
     if not diff:
         print("ok    csvdate.ts: %d identical copies" % len(copies))
-    if len(copies) < 5:
-        fail("expected csvdate.ts in 5 mods, found %d" % len(copies))
+    if len(copies) < 8:
+        fail("expected csvdate.ts in 8 mods, found %d" % len(copies))
 
 # 6. ...and their tests: every mod that carries csvdate.ts carries the same tests/csvdate.test.ts.
 tests = []

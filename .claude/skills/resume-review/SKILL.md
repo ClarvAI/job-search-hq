@@ -1,6 +1,6 @@
 ---
 name: resume-review
-description: "Tough, specific review of the user's master resume or a tailored resume, then fixes with their OK. Use when the user asks for resume feedback, wants their resume improved, or before a big application push."
+description: "Tough, specific review of the user's master resume or a tailored resume, then fixes with their OK. Use when the user asks for resume feedback, wants their resume improved, wants their GitHub, portfolio or publications reflected in it, or before a big application push."
 ---
 
 # /resume-review
@@ -19,3 +19,4 @@ Usage: `/resume-review [job folder to review a tailored version]` (or just ask i
    - **Length and format for their country and stage** (`home_base` and `career_stage` in preferences): see the reference file; one page is a US early-career norm, not a world rule.
    - **ATS:** check what really breaks (columns, tables, text boxes, headers/footers, images, odd headings) and unexplained gaps. Don't chase "ATS scores"; "software rejects most resumes" is a myth.
 3. Show the top 10 fixes ranked by impact, each with before → after. Ask which to apply. Apply approved ones to the file you reviewed: for a tailored resume, edit that job's `resume.md`, re-check the changes (`truth-checker`, then `voice-editor`), rebuild its `resume.html`, and remake the PDF if one exists (`/tailor-resume` step 8); for the master resume, re-read `profile/master-resume.md` right before editing, change only the approved lines (the user will see a permission prompt; that's intentional), and add one line to `history/activity.md`. Never cut content from the master resume because it doesn't fit one job; offer master-resume changes separately.
+4. **Public work (optional).** If the user asks you to look at their GitHub, portfolio, publications or other public work, or the master resume's contact lines link to such a page and a section looks thin (few projects; no publications for an academic), offer once to read it and suggest real work the resume leaves out: `references/public-work.md`. Nothing from it goes in without the user's yes.

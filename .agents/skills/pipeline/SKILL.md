@@ -17,6 +17,8 @@ Show a compact board, open stages first, in this order: Offer, Interviewing, Scr
 
 Mark anything due today or overdue, and any application or offer `deadline` within 3 days, with the words "due" or "overdue" (no emoji) and put those first. A passed offer deadline is "offer deadline passed" (first); a passed application deadline on an `interested` job is "deadline passed" (suggest checking the posting or marking it skipped), not "overdue" forever. A row whose `notes` start with `Also: <what> YYYY-MM-DD` (e.g. `Also: Interview 2026-10-20`, `Also: Take-home due 2026-10-18`) has a second commitment: show it on its own line and count it by its own date. With `search_status: closed`, still show unsent withdrawal notes (`Send withdrawal note`). Under the board, one line of counts (e.g. "9 open · 2 due today · 1 deadline this week") and the weekly goal from `profile/preferences.md` if it helps. Closed jobs (accepted, rejected, withdrawn, skipped, ghosted): just a count, and list them only if they ask.
 
+An `interested` job whose latest line in `history/posting-watch.md` (the posting watch) says `closed`: add "posting looks closed (checked <date>)" and offer to mark it `skipped`, with `Skipped: posting closed (checked <date>)` added to its notes (ask first).
+
 On Mac or Linux (or Windows with Git Bash), `bash .claude/hooks/summary.sh long` prints the same counts; use it as a cross-check if it runs.
 
 ## Update it
@@ -46,4 +48,4 @@ After saving: re-read the row to confirm it saved, add one line to `history/acti
 
 ## The Claude panel (Claude Code only; Codex: skip)
 
-In Claude Code the board is the `/pipeline` panel. The user changes stage, next step and due date there; it writes `jobs/tracker.csv`, adds a line to `history/activity.md`, and leaves a `[Pipeline]` note. The change is already saved: don't re-apply it; take it into account, and republish the dashboard if the note asks. A one-line band above the prompt shows the pipeline summary, plus Contacts follow-ups due and new Job Inbox leads when there are any.
+In Claude Code the board is the `/pipeline` panel. The user changes stage, next step and due date there; it writes `jobs/tracker.csv`, adds a line to `history/activity.md`, and leaves a `[Pipeline]` note. The change is already saved: don't re-apply it; take it into account, and republish the dashboard if the note asks. A saved job whose posting the posting watch found closed has a **Skip it: posting closed** button (same change as above). A one-line band above the prompt shows the pipeline summary, plus Contacts follow-ups due and new Job Inbox leads when there are any.

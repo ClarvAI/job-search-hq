@@ -73,6 +73,8 @@ Your dashboard, flashcards, portfolio and interview briefs are files on your com
 - **Updates.** `/update` uses the release zip you downloaded. If the app has a download address set, it fetches the zip from there; nothing else about you is sent.
 - **The public-repository check.** When the assistant runs `git push`, the safety check asks GitHub whether the destination repository is public. Only the repository's name is sent.
 - **Issues and bug reports.** Anything you post in the app's public repository is public. The templates ask you to leave out personal details.
+- **Lessons you share.** If you ask, the assistant drafts anonymous notes about what worked in your search (`share-lessons`), checks them for names, companies, contact details, links, pay and exact dates, and saves them in your folder. It never posts them: you post them yourself on the project's GitHub page, where they're public, stay online and show your GitHub username. Not posting is fine; nothing leaves the folder.
+- **Using it from your phone.** If you turn on Remote Control (Claude) or pair your phone with the ChatGPT desktop app (Codex), what the session shows goes to your phone through that company's servers, like the rest of the session. Keep a screen lock on your phone.
 
 ## For maintainers
 

@@ -33,7 +33,7 @@ Plain English, short, no file paths unless they help, no code:
 
 1. One line: "Everything important is working" or "N things need fixing".
 2. The FIX items as a short list, each with the plain fix. Then any NOTE items worth mentioning (skip notes the user can do nothing about). Don't list OK and SKIP lines unless the user asks; mention a SKIP only when it hides something they care about.
-3. **The one most important fix**, in one sentence, and offer to help with it. Rank: the folder isn't the workspace root > a safety check failed, hooks are off, or Codex is too old for the safety checks > Git Bash missing (Claude Code on Windows; a Codex-only user doesn't need it, so it's only a note for them) or files blocked (Windows) > setup not done or starter files missing > Excel has the tracker open > app too old for panels > notes.
+3. **The one most important fix**, in one sentence, and offer to help with it. Rank: the folder isn't the workspace root > a safety check failed, hooks are off, or Codex is too old for the safety checks > Git Bash missing (Claude Code on Windows; a Codex-only user doesn't need it, so it's only a note for them) or files blocked (Windows) > setup not done or starter files missing > Excel has the tracker open > app too old for panels > a routine stopped running > notes.
 4. If the folder uses git and the git push check is off (a NOTE), offer once to turn it on: it's optional. Say why in one line: the built-in safety check only sees commands the assistant types, while this check also catches pushes made from scripts; it also keeps AI attribution lines out of commit messages.
 
 ## 4. Offering fixes (only after a yes)
@@ -42,6 +42,7 @@ Plain English, short, no file paths unless they help, no code:
 - **Git push check off:** with a yes, run `git config core.hooksPath .githooks` in the workspace, then run the health script again to confirm.
 - **Blocked files (Windows):** with a yes, run `Get-ChildItem -Recurse | Unblock-File` in PowerShell in the workspace folder, then check again.
 - **Excel lock:** ask the user to save and close the sheet in Excel; don't delete the `~$` file yourself (Excel removes it when it closes). No lock file doesn't prove the sheet is closed (Excel on a Mac often leaves none), so before changing the tracker still ask if it's open in Excel.
+- **A routine stopped running:** follow the routines skill, "When a routine stops running", one step at a time. If the user paused or deleted it on purpose, log that there so it isn't flagged again (that log line is the only change; it needs no separate yes).
 - **Hooks off, wrong folder, app too old, Git Bash missing, connectors:** these are steps the user takes in the app or on their computer. Give the steps from the script line, one at a time. Hooks switched off by "managed settings" can only be changed by whoever manages the computer (an employer or school IT); say so, and say not to connect Gmail in Claude Code until then.
 - **Safety check failed, hook setup missing, files missing, script line endings:** don't try to repair product files by hand. Follow the script line: `/update` works only when the workspace has its VERSION file (and the user has a release zip or a download link); otherwise suggest downloading a fresh copy and moving their data over with `/my-data`. Until it's fixed, say not to connect Gmail.
 

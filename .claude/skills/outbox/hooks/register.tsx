@@ -575,7 +575,7 @@ export const register: Register = (on, options) => {
   configuredServer = String((options as Record<string, unknown>).gmail_server || 'claude.ai Gmail')
 
   on('session.start', async ($, e, next) => {
-    await $.command.register({ name: 'outbox', description: 'Review draft emails and messages, then create Gmail drafts, copy, or discard them' })
+    await $.command.register({ name: 'outbox', description: 'Review draft emails and messages, then create Gmail drafts, copy, or discard them', immediate: true })
     // No toast here: the due-alerts mod is the one pop-up at session start, and the Pipeline band shows the draft count.
     await scan($).catch(() => [])
     // A poll for new draft files (they can't be watched before they exist); the send setting and the
@@ -599,7 +599,8 @@ export const register: Register = (on, options) => {
   }).catch(($, e, next) => next(e))
 
   on('command.run', { command: 'outbox' }, async $ => {
-    const found = await scan($)
+    // A folder that can't be listed must not break the command: the pane still opens and says what it can.
+    const found = await scan($).catch(() => [] as Draft[])
     await say($, '')
     const opened = await $.ui.open({ id: PANE, title: 'Outbox', focus: true })
     if (!opened.isPlaced) {
@@ -631,7 +632,8 @@ export const register: Register = (on, options) => {
   // If the hook fails before the tool runs, the same rule still decides (judged from e alone).
   }).catch(($, e, next) => (next.called || !isBlockedMail(String(e.tool)) ? next(e) : { deny: MAIL_DENY }))
 
-  on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
+  on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e, next) => {
+    if (e.requestId !== PANE) return next(e)
     const els = $.ui.resolve(e) as any
     const { Box, Text, Button } = els
     const canType = 'Input' in els
@@ -950,7 +952,7 @@ export const register: Register = (on, options) => {
         {bad.length > 0 && (
           <Box flexDirection="column">
             <Text color="warning">{`Needs fixing (Claude can't read the header): ${bad.join(', ')}`}</Text>
-            <Button key="fix-broken" label="Ask Claude to fix them" onPress={() => $.prompt.fill({ text: `Fix the header of these outbox drafts so they follow the format in AGENTS.md: ${bad.join(', ')}` })} />
+            <Button key="fix-broken" label="Ask Claude to fix them" onPress={() => $.prompt.fill({ text: `Fix the header of these outbox drafts so they follow the format in knowledge/outbox-format.md: ${bad.join(', ')}` })} />
           </Box>
         )}
       </Box>

@@ -33,7 +33,23 @@ const STAGES = [
 ]
 const stageLabel = (v: string) => STAGES.find(s => s.value === v)?.label ?? v
 // The files this board reads: when one changes on disk (Claude, Codex, Excel), the board refreshes.
-const WATCHED = ['jobs/tracker.csv', 'profile/preferences.md']
+const WATCHED = ['jobs/tracker.csv', 'profile/preferences.md', 'history/posting-watch.md']
+const POSTING_WATCH = 'history/posting-watch.md'
+
+// The posting watch (routines skill, references/posting-watch.md) logs one line per check:
+// "- YYYY-MM-DD HH:MM · <folder> · open|closed|couldn't check · <reason>". The latest line per job wins.
+type PostingCheck = { state: string; date: string; reason: string }
+const slug = (v: string) => v.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+function postingChecks(text: string): Map<string, PostingCheck> {
+  const out = new Map<string, PostingCheck>()
+  for (const raw of noBom(text).split('\n')) {
+    const m = /^- (\d{4}-\d{2}-\d{2}) \d{2}:\d{2} · ([^·]+?) · (open|closed|couldn't check)(?: · (.*))?$/i.exec(raw.replace(/\r$/, ''))
+    if (m) out.set(slug(m[2] ?? ''), { date: m[1] ?? '', state: (m[3] ?? '').toLowerCase(), reason: (m[4] ?? '').trim() })
+  }
+  return out
+}
+// The name the posting watch logs a job by: its folder, else "<company>-<role>" in lowercase with hyphens.
+const watchName = (j: { folder: string; company: string; role: string }) => slug(j.folder || `${j.company}-${j.role}`)
 // The same words, in the same place (right under the panel's first line), in every panel.
 const KEYS_HINT = 'Keys: Ctrl+X then Tab moves into this panel. Tab moves between buttons, Enter presses one, Esc goes back to typing.'
 
@@ -74,10 +90,15 @@ const draftCache = new Map<string, { stamp: string; isDraft: boolean }>()
 
 async function load($: any): Promise<Summary> {
   const today = localDate(await $.clock.now())
-  const raw = (await $.fs.exists(TRACKER)) ? await $.fs.read(TRACKER) : ''
+  // A tracker that exists but can't be read (a cloud file not downloaded, a sync lock) is a problem to show,
+  // never an endless "Loading…" or a broken command.
+  let raw = ''
+  let unreadable = ''
+  try { raw = (await $.fs.exists(TRACKER)) ? String(await $.fs.read(TRACKER)) : '' } catch { unreadable = 'Your tracker (jobs/tracker.csv) couldn’t be read. If it’s in a synced folder (OneDrive, iCloud, Dropbox), make sure the file is downloaded and not open in another app, then press Refresh.' }
   const prefs: string = (await $.fs.exists('profile/preferences.md')) ? await $.fs.read('profile/preferences.md').catch(() => '') : ''
   const order = dateOrder(prefs)
   const { rows: [header = [], ...rows], problem } = readCsv(raw)
+  const watched = postingChecks((await $.fs.exists(POSTING_WATCH).catch(() => false)) ? String(await $.fs.read(POSTING_WATCH).catch(() => '')) : '')
   const col = columnsOf(header)
   const at = (r: string[], name: string) => { const i = col(name); return i >= 0 ? (r[i] ?? '').trim() : '' }
   const jobs: Job[] = problem !== '' ? [] : rows.map(r => {
@@ -95,8 +116,12 @@ async function load($: any): Promise<Summary> {
       deadline: toIso(at(r, 'deadline'), o),
       also: also?.text ?? '',
       alsoDate: also?.date ?? '',
+      postingState: '', postingDate: '', postingReason: '',
     }
-  }).filter(j => j.company !== '')
+  }).filter(j => j.company !== '').map(j => {
+    const c = watched.get(watchName(j))
+    return c ? { ...j, postingState: c.state, postingDate: c.date, postingReason: c.reason } : j
+  })
   const counts: Record<string, number> = {}
   for (const j of jobs) counts[j.status] = (counts[j.status] ?? 0) + 1
   // Due: a next step (or a second commitment in the notes) dated today or earlier; an offer answer-by
@@ -134,7 +159,8 @@ async function load($: any): Promise<Summary> {
     for (const name of [...draftCache.keys()]) if (!seen.has(name)) draftCache.delete(name)
   }
   const isClosed = /^search_status:\s*closed/m.test(prefs)
-  return { today, active, closed, due, counts, drafts, isClosed, problem: csvTrouble(problem, 'Your tracker (jobs/tracker.csv)'), sig: fingerprint(raw) }
+  const closedPostings = active.filter(j => j.status === 'interested' && j.postingState === 'closed').length
+  return { today, active, closed, due, counts, drafts, closedPostings, isClosed, problem: unreadable || csvTrouble(problem, 'Your tracker (jobs/tracker.csv)'), sig: fingerprint(raw) }
 }
 
 async function refresh($: any): Promise<Summary> {
@@ -179,7 +205,7 @@ type Change = (get: (c: string) => string, set: (c: string, v: string) => void, 
 
 // Re-read the tracker, change one job's row, write it back, and tell Claude what changed. Refused when
 // the file changed since the board read it (no file lock exists): the board then shows the new version.
-async function saveJob($: any, key: string, change: Change): Promise<void> {
+async function saveJob($: any, key: string, change: Change): Promise<boolean> {
   const today = localDate(await $.clock.now())
   const order = await readOrder($)
   const seen = (await read($, summary))?.sig ?? ''
@@ -205,7 +231,7 @@ async function saveJob($: any, key: string, change: Change): Promise<void> {
   if (!saved.ok) {
     await refresh($).catch(() => undefined)
     await say($, saved.why === 'no-row' ? 'That job is no longer in jobs/tracker.csv. Press Refresh, or ask Claude to check the tracker.' : saved.text, true)
-    return
+    return false
   }
   const result = saved.result
   await logActivity($, result.what)
@@ -215,6 +241,7 @@ async function saveJob($: any, key: string, change: Change): Promise<void> {
   await $.session.append({
     message: { type: 'user', content: [{ type: 'text', text: `[Pipeline] The user updated jobs/tracker.csv from the board: ${result.what}.${ask} Take this into account; if the dashboard is published (profile/published-pages.md), republish it the next time the user talks to you.` }] },
   }).catch(() => undefined)
+  return true
 }
 
 // Business days to the first follow-up after applying (playbook "Follow-up cadence"; the Apply Kit and the apply skill
@@ -227,11 +254,11 @@ function followUpDays(posting: string): number {
   return hourly ? 4 : 7
 }
 
-async function setStage($: any, job: Job, status: string): Promise<void> {
-  if (status === job.status) return
+async function setStage($: any, job: Job, status: string): Promise<boolean> {
+  if (status === job.status) return false
   const posting: string = status === 'applied' && job.folder ? String(await $.fs.read(`jobs/${job.folder}/posting.md`).catch(() => '')) : ''
   const days = followUpDays(posting)
-  await saveJob($, job.key, (get, set, today) => {
+  const ok = await saveJob($, job.key, (get, set, today) => {
     set('status', status)
     let extra = ''
     const asks: string[] = []
@@ -268,7 +295,8 @@ async function setStage($: any, job: Job, status: string): Promise<void> {
     if (status === 'accepted') asks.push('The user accepted this offer: congratulate them, then offer the "closing the search" wrap-up from the offer skill (withdrawals, thank-yous, career log).')
     return { what: `${job.company} (${job.role}) moved to ${stageLabel(status)}${extra}`, forClaude: asks.join(' ') }
   })
-  if (status === 'accepted') $.ui.toast(`Congratulations on the job at ${job.company}! Ask Claude to wrap up your search and refresh your dashboard for a little celebration.`, { timeoutMs: 15000 })
+  // The congratulations for an accepted job is the Celebration panel's (it opens by itself, once per job).
+  return ok
 }
 
 async function setDate($: any, job: Job, value: string): Promise<void> {
@@ -326,6 +354,16 @@ async function snooze($: any, job: Job, days: number): Promise<void> {
   if (unclear !== '') await say($, `The next step's date for ${job.company} is unclear (${unclear}), so it wasn't moved. Press Update… and type the date as YYYY-MM-DD, or tell Claude what it means.`, true)
 }
 
+// The posting watch found this saved job's posting closed: skip it, keeping why in the notes.
+async function skipClosed($: any, job: Job): Promise<void> {
+  await saveJob($, job.key, (get, set) => {
+    set('status', 'skipped'); set('next_action', ''); set('next_action_date', '')
+    const why = `Skipped: posting closed (checked ${job.postingDate})`
+    set('notes', get('notes') ? `${get('notes')}; ${why}` : why)
+    return `${job.company} (${job.role}) moved to ${stageLabel('skipped')}: the posting looks closed (checked ${job.postingDate})`
+  })
+}
+
 function line(s: Summary): string {
   if (s.isClosed) return 'Search closed. Congratulations on the new job!'
   if (s.problem !== '') return 'Your tracker needs fixing before it can be read'
@@ -338,13 +376,14 @@ function line(s: Summary): string {
     n('offer') > 0 ? `${n('offer')} ${n('offer') === 1 ? 'offer' : 'offers'}` : '',
     `${n('interested')} to apply`,
     s.due.length > 0 ? `${s.due.length} due or overdue` : '',
+    s.closedPostings > 0 ? `${s.closedPostings} ${s.closedPostings === 1 ? 'posting looks' : 'postings look'} closed` : '',
     s.drafts > 0 ? `${s.drafts} in Outbox` : '',
   ].filter(Boolean).join(' · ')
 }
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
-    await $.command.register({ name: 'pipeline', description: 'Open your job board: change a job’s stage, next step, or date' })
+    await $.command.register({ name: 'pipeline', description: 'Open your job board: change a job’s stage, next step, or date', immediate: true })
     // The due-alerts mod shows what's due at startup; the band carries the count.
     await refresh($).catch(() => null)
     // A slow poll as a backstop; changed files also refresh the board at once (classic.FileChanged below).
@@ -374,17 +413,17 @@ export const register: Register = on => {
   })
 
   on('command.run', { command: 'pipeline' }, async $ => {
-    const s = await refresh($)
+    const s = await refresh($).catch(() => null)
     await update($, isHidden, () => false)
     await say($, '')
     const opened = await $.ui.open({ id: PANE, title: 'Pipeline', focus: true })
     if (!opened.isPlaced) {
       return {
-        text: `Pipeline: ${line(s)}. The board can't show in this window, so ask Claude to "show my pipeline" and go through it here in the chat.`,
+        text: `Pipeline: ${s ? line(s) : 'your tracker couldn’t be read'}. The board can't show in this window, so ask Claude to "show my pipeline" and go through it here in the chat.`,
         context: ['The Pipeline panel is not visible in this app or window. If the user asks, use the chat version of the pipeline skill (.agents/skills/pipeline/SKILL.md).'],
       }
     }
-    return { text: `Pipeline: ${line(s)}` }
+    return { text: `Pipeline: ${s ? line(s) : 'your tracker couldn’t be read; the board says why'}` }
   })
 
   // One line above the prompt. Other boards (Contacts, Job Inbox) add their part to the same line:
@@ -408,7 +447,8 @@ export const register: Register = on => {
     return mine
   })
 
-  on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
+  on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e, next) => {
+    if (e.requestId !== PANE) return next(e)
     const els = $.ui.resolve(e) as any
     const { Box, Text, Button } = els
     const canEdit = 'Select' in els && 'Input' in els
@@ -416,7 +456,15 @@ export const register: Register = on => {
     const open = await read($, editing)
     const closedShown = await read($, showClosed)
     const note = await read($, notice)
-    if (s === null) return <Text dimColor>Loading…</Text>
+    if (s === null) return (
+      <Box flexDirection="column" gap={1}>
+        <Text>Loading… If this doesn’t change, press Refresh.</Text>
+        <Box flexDirection="row" gap={1}>
+          <Button key="refresh" label="Refresh" autoFocus onPress={() => void refresh($).catch(() => undefined)} />
+          <Button key="close" label="Close" role="dismiss" onPress={() => $.ui.close({ id: PANE })} />
+        </Box>
+      </Box>
+    )
     const activePage = pageOf(s.active, await read($, page), SHOWN)
     const closedList = pageOf(s.closed, await read($, closedPage), SHOWN)
     const firstKey = activePage.items[0]?.key ?? ''
@@ -427,7 +475,7 @@ export const register: Register = on => {
       // "Update… (Globex, Data Analyst)", drawn as "Update…". The visible words start the name (WCAG 2.5.3).
       const named = (visible: string) => `${visible} (${j.company}${j.role ? `, ${j.role}` : ''})`
       // A stage change can move the card to the closed list (hidden): the focus goes to Refresh then.
-      const toStage = async (v: string) => { await setStage($, j, v); focusOn($, OPEN.includes(v) ? `${j.key}:edit` : 'refresh') }
+      const toStage = async (v: string) => { if (await setStage($, j, v)) focusOn($, OPEN.includes(v) ? `${j.key}:edit` : 'refresh') }
       const isDue = (isOpenJob || isContractReminder(j)) && isIso(j.nextDate) && j.nextDate <= s.today
       const isEditing = open === j.key
       return (
@@ -455,6 +503,9 @@ export const register: Register = on => {
             <Text color="warning" wrap="wrap">No answer-by date recorded for this offer. Ask the employer when they need your answer, then tell Claude.</Text>
           )}
           {isOpenJob && j.deadline !== '' && !isIso(j.deadline) && <Text>{`Deadline: date unclear: ${j.deadline}`}</Text>}
+          {j.status === 'interested' && j.postingState === 'closed' && (
+            <Text color="warning" wrap="wrap">{`Posting looks closed (checked ${j.postingDate}${j.postingReason ? `: ${j.postingReason}` : ''}). Open the link to make sure before you skip it.`}</Text>
+          )}
           {isEditing && canEdit && (
             <Box flexDirection="column" gap={1} marginTop={1}>
               <els.Select key={`${j.key}:stage`} label="Stage" value={j.status || 'interested'} options={STAGES} onSelect={toStage} />
@@ -474,6 +525,7 @@ export const register: Register = on => {
               : <Button key={`${j.key}:edit`} label={named(isEditing ? 'Done editing' : 'Update…')} onPress={() => update($, editing, () => (isEditing ? '' : j.key))}>{isEditing ? 'Done editing' : 'Update…'}</Button>}
             {isOpenJob && j.nextAction !== '' && <Button key={`${j.key}:done`} label={named('Mark next step done')} onPress={async () => { await markDone($, j); focusOn($, `${j.key}:edit`) }}>Mark next step done</Button>}
             {isOpenJob && isIso(j.nextDate) && <Button key={`${j.key}:week`} label={named('Push back a week')} onPress={() => snooze($, j, 7)}>Push back a week</Button>}
+            {j.status === 'interested' && j.postingState === 'closed' && <Button key={`${j.key}:skip-closed`} label={named('Skip it: posting closed')} onPress={async () => { await skipClosed($, j); focusOn($, 'refresh') }}>Skip it: posting closed</Button>}
             {j.status === 'interested' && <Button key={`${j.key}:apply`} label={named('Start application')} plain onPress={() => $.prompt.fill({ text: `/apply ${j.folder || `${j.company} ${j.role}`}` })}>Start application</Button>}
             {j.status === 'interviewing' && <Button key={`${j.key}:prep`} label={named('Prep for interview')} plain onPress={() => $.prompt.fill({ text: `/interview-prep ${j.folder || `${j.company} ${j.role}`}` })}>Prep for interview</Button>}
           </Box>
@@ -499,9 +551,9 @@ export const register: Register = on => {
         </Box>
         {e.surface === 'terminal' && <Text>{KEYS_HINT}</Text>}
         <Text dimColor>Changes here save straight to your tracker (jobs/tracker.csv), and Claude is told about them. "Start application" and "Prep for interview" write a message to Claude; press Enter to send it.</Text>
-        {note.text !== '' && <Text color={note.isError ? 'error' : 'success'}>{note.isError ? `Not saved: ${note.text}` : note.text}</Text>}
+        {note.text !== '' && <Text color={note.isError ? 'error' : 'success'}>{note.isError ? `Not done: ${note.text}` : note.text}</Text>}
         {s.problem !== '' && <Text color="error" wrap="wrap">{s.problem}</Text>}
-        {s.problem === '' && s.active.length === 0 && <Text>No open applications yet. Type /find-jobs, or paste a job link to Claude.</Text>}
+        {s.problem === '' && s.active.length === 0 && <Text>No open applications yet. Ask Claude to find jobs that fit you, or paste a job link to Claude.</Text>}
         {activePage.items.map(card)}
         {pager('active', activePage, s.active.length, to => update($, page, () => to))}
         {s.closed.length > 0 && (

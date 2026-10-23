@@ -17,7 +17,7 @@ Thank you for telling us. Short answers are fine, and you can leave out any ques
 <!-- e.g. "The screen reader didn't say which card the Copy button belongs to", "I can't reach the Save button with the keyboard", "The interview clock made me rush", "The text is too faint in my terminal theme" -->
 
 **Where it happened**
-- [ ] A panel in Claude (Outbox, Pipeline, Contacts, Job Inbox, Apply Kit, Interview Room, the pop-up when Claude opens)
+- [ ] A panel in Claude (Outbox, Pipeline, Contacts, Job Inbox, Apply Kit, Interview Room, Insights, Routines, Celebration, the pop-up when Claude opens)
 - [ ] The conversation with the assistant
 - [ ] A page in the browser (dashboard, flashcards, portfolio, interview brief)
 - [ ] A resume or cover-letter PDF

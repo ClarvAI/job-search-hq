@@ -1,6 +1,6 @@
 ---
 name: add-job
-description: "Use whenever the user shares a job link or posting, says \"add this job\", or pastes several links. Adds one or more postings to the tracker from links (Indeed, LinkedIn, Handshake, company career sites, Workday/iCIMS/Greenhouse pages) or pasted text, captures every detail needed to apply (deadline, job ID, apply link, pay, required documents, application questions), checks fit and scams, and preps the application package for good fits."
+description: "Use whenever the user shares a job link (any job board or company careers page) or a pasted posting, says \"add this job\", or pastes several links. Saves each posting with every detail needed to apply, checks fit and scams, adds it to the tracker, and preps the application package for good fits."
 argument-hint: "[job links or pasted posting]"
 ---
 
@@ -10,14 +10,18 @@ Usage: `/add-job <one or more job links, or pasted posting text>` (or just ask i
 
 Input: `$ARGUMENTS`: one or more links (one per line is fine) or pasted posting text. Handle each posting in turn; tell the user up front how many you found ("Adding 3 jobs…").
 
+**Six or more links at once:** offer a quick triage first, so time goes to the best fits: "That's 14 jobs. Want a quick first pass (a fit guess, any deal-breaker, one line each) before I fully add the best ones?" On yes, read each posting once (the same reading and scam rules as step 1, no browser beyond that), and add each as a lead in `jobs/leads.csv` exactly as `find-jobs` step 4 writes them (`fit_guess`, `why`, `concerns` naming any knockout from `evaluate-job`'s reference, section 1; de-duplicated against the tracker and leads). No job folders, scores or packages yet. Then show them ranked, one line each, and say "sort them in the Job Inbox, or tell me which to add"; the ones they save go through this skill in full. On no, add them all in full as below.
+
 ## 1. Get the full posting (with fallbacks)
 
 For each link, try in order and stop at the first that returns the real posting (title, company, and the job description):
 1. **Web fetch** the link. **Login-walled job boards** (e.g. Handshake, which needs the user's school login, or other sites that require an account): if the user is in the Desktop app, ask them once to sign in to that site in the built-in browser, then read the posting there (step 4); otherwise ask them to paste the posting text. If the user is a student or new grad (`career_stage` in preferences), Handshake is a strong source for campus-recruiting roles, so encourage it.
 2. **Indeed / LinkedIn / Glassdoor / ZipRecruiter links:** these usually block fetching (Indeed returns 403) or need a login. Search the web for the same title + company on the **employer's own careers site** and fetch that instead. Applying on the company's site is better anyway. Keep the original link as `link` and the employer's page as `apply_link`.
 3. **Company application systems that load with JavaScript** (Workday `myworkdayjobs.com`, iCIMS, Taleo, SuccessFactors, Oracle): if the fetch is nearly empty, try the posting's print/JSON view if one exists, or a search for the job ID.
-4. **A browser, reading only.** In the Claude Desktop app, use the **built-in browser** (no setup; it keeps the user's sign-ins, so once they have signed in to a job board there, you can read its postings). Otherwise use **Claude in Chrome** if they have connected it. Open the link in a new tab and **read the page only**: never click Apply, sign in for them, fill anything, or accept more than needed to read. Never use any browser on LinkedIn, Gmail, or Outlook (a guard blocks opening those sites, but not tabs already open, so this rule is yours to keep).
+4. **A browser, reading only.** In the Claude Desktop app, use the **built-in browser** (no setup; it keeps sign-ins only if the user turns on **Keep cookies** in the pane's menu, so a job board may ask them to sign in again in a new session). Otherwise use **Claude in Chrome** if they have connected it. Open the link in a new tab and **read the page only**: never click Apply, sign in for them, fill anything, or accept more than needed to read. Never use any browser on LinkedIn, Gmail, or Outlook (a guard blocks opening those sites, but not tabs already open, so this rule is yours to keep).
 5. **Ask the user to paste it:** "That site blocks me from reading it. Open the posting, select all the text (Ctrl+A / Cmd+A), copy it, and paste it here."
+
+An error page (403, 404, a timeout, a blank page) means the site wouldn't let you read it, not that the job is gone. Say a job is closed only on proof: the page says so ("no longer accepting applications"), the link redirects to the careers home or a search page, or the employer's job-board feed no longer lists its job ID. Otherwise say you couldn't open it and ask the user to check.
 
 Never invent posting details. If a field isn't in the posting, leave it blank (don't infer `employment` from the shift, for example). Web fetch tools often summarize instead of copying: ask for the text verbatim, prefer the built-in browser's page text when available, and if parts are missing add `capture: abridged` to the header.
 
@@ -106,5 +110,7 @@ After you submit, tell your assistant "I applied to <Company> on <date>" so it r
 ```
 
 ## 7. Report back
+
+For each fit 4-5 job, name who the user knows there, from `contacts/contacts.csv` and `knowledge/field/background.md` (a former employer counts), and offer one next step in the same block: "You know Priya there: want a short note asking about the team, to go out with your application?", or with nobody, "Want me to find someone there to ask (`/network`)? A referral beats a cold application." One offer per job, never a send.
 
 One short block per job, in words, with no file path: `Fit 4 of 5, Acme Corp, Operations Analyst, deadline Nov 15: package ready for your review. Say "show me" to open it.`, or why you skipped prepping it. If several jobs, end with which to do first (soonest deadline × best fit).

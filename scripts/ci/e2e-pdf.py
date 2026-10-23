@@ -17,11 +17,12 @@ Also (review J1-05): a pdftotext that writes nothing never lets a blank PDF thro
 import sys; sys.dont_write_bytecode = True  # noqa: E702
 import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from e2e_common import (IS_WINDOWS, Run, keep_temps, make_workspace, parse_args, ps, read, run, sh,  # noqa: E402
+from e2e_common import (IS_WINDOWS, Run, find_bash, keep_temps, make_workspace, parse_args, ps, read, run, sh,  # noqa: E402
                         temp_dir, write)
 
 import http.server  # noqa: E402
-import shutil  # noqa: E402
+import shutil
+import subprocess  # noqa: E402
 import threading  # noqa: E402
 
 SECRET = "OUTSIDE-SECRET-NEVER-IN-A-PDF"
@@ -234,6 +235,47 @@ def scenario_blank_text(R, impl, base, ws):
          rc == 1 and out.startswith("print-failed") and not os.path.exists(final), "rc=%s\n%s" % (rc, out))
 
 
+def scenario_text_checks(R, impl, ws):
+    """The text and layout checks after the PDF is made: unreadable characters (U+FFFD, an icon font's private-use
+    symbols) are a parse problem; a last page with a few lines, or a heading alone at the bottom of a page, is a
+    layout-warning; a clean one-page resume gets neither."""
+    tag = "[%s]" % impl
+    R.section("%s text and layout checks on the finished PDF" % impl)
+    rc, out = make(impl, ws, "jobs/acme-analyst/resume.html", True)
+    if "no-browser" in out:
+        print("NOTE  %s text and layout checks not run: no browser" % tag)
+        return
+    if not shutil.which("pdftotext"):
+        print("NOTE  %s text and layout checks not run: no pdftotext" % tag)
+        return
+    # Forced page breaks keep the cases independent of fonts and margins.
+    filler = "".join("<p>Built weekly reporting for the operations team, line %d.</p>\n" % i for i in range(1, 13))
+    cases = [
+        ("a clean one-page resume", "", "", lambda o: "parse: ok" in o and "layout-warning" not in o),
+        # U+FFFD is a glyph with no text behind it; icon fonts' private-use symbols are caught by the same check.
+        ("a replacement character before the email", "", "<p>&#xFFFD; alex.rivera@example.com</p>",
+         lambda o: "parse: check these:" in o and "unreadable characters" in o),
+        ("a second page with two lines on it", "<style>p { margin: 0 } h2:nth-of-type(2) { break-before: page }</style>",
+         filler, lambda o: "pages: 2" in o and "the last page holds only 2 lines" in o),
+        ("a heading alone at the bottom of page 1", "",
+         '<h2 style="break-after: page">Projects</h2>' + filler,
+         lambda o: 'heading "Projects" is the last line of page 1' in o),
+    ]
+    for i, (label, head, body, want) in enumerate(cases):
+        folder = "jobs/text-check-%d" % i
+        write(J(ws, folder + "/resume.html"), DOC % {"head": head, "body": body})
+        rc, out = make(impl, ws, folder + "/resume.html")
+        ok = rc == 0 and want(out)
+        detail = "rc=%s\n%s" % (rc, out)
+        if not ok:
+            pdf = [l.split(":", 1)[1].strip() for l in out.splitlines() if l.startswith("pdf:")]
+            if pdf:
+                # Through the tests' bash (Git Bash on Windows, never WSL's), so a /d/a/... path reaches pdftotext as in make-pdf.sh.
+                txt = subprocess.run([find_bash(), "-c", 'pdftotext -enc UTF-8 "$1" -', "_", pdf[0]], capture_output=True).stdout
+                detail += "\npdftotext output (repr): %r" % txt[:3000]
+        R.ok("%s %s: %s" % (tag, label, "no parse problem or layout-warning" if i == 0 else "reported"), ok, detail)
+
+
 def main():
     args = parse_args("End-to-end test of make-pdf / page-count limits and the locked-down print")
     keep_temps(args.keep)
@@ -247,6 +289,7 @@ def main():
         scenario_refusals(R, impl, base, ws, links_ok)
         scenario_print(R, impl, base, ws, have_text, have_fonts)
         scenario_blank_text(R, impl, base, ws)
+        scenario_text_checks(R, impl, ws)
     R.finish()
 
 

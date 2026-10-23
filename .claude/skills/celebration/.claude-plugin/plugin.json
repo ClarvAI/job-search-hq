@@ -1,0 +1,8 @@
+{
+  "name": "celebration",
+  "displayName": "Celebration",
+  "version": "0.1.0",
+  "author": { "name": "Job Search HQ contributors" },
+  "description": "A one-time surprise when you accept a job: a congratulations pane with your search in numbers, a way to wrap up, and an optional chance to share what worked with future job seekers.",
+  "types": "./types/index.d.ts"
+}

@@ -8,7 +8,7 @@
 #   powershell -NoProfile -ExecutionPolicy Bypass -File .claude\skills\tailor-resume\scripts\make-pdf.ps1 jobs\<folder>\resume.html -CheckOnly
 #
 # Output: same lines as make-pdf.sh: "pdf: ...", "engine: ...", "paper: ...", "pages: N", "parse: ...", maybe
-# "parse-note: ...", or a status: no-browser, no-rendercv, print-failed (a blank PDF, or one without the name, email
+# "parse-note: ..." and "layout-warning: ...", or a status: no-browser, no-rendercv, print-failed (a blank PDF, or one without the name, email
 # and phone, is saved as <final name>-CHECK.pdf and a "check:" line says where), render-failed, not-found: <path>, usage: ...
 # or "refused: ..." (exit 2): like make-pdf.sh and page-count.sh, it prints only a plain file (not a link, no ".." part,
 # not an address such as file://...) inside jobs\ (with -CheckOnly also profile\templates\, pages\ or templates\), since
@@ -358,6 +358,12 @@ try {
     }
   }
 
+  # Characters with no readable text behind them: U+FFFD, the private-use area (where icon fonts put their symbols)
+  # and "(cid:" markers. An applicant tracking system reads them as garbage.
+  if ($text.Contains([string][char]0xFFFD) -or $text.Contains('(cid:') -or [regex]::IsMatch($text, '[\uE000-\uF8FF]')) {
+    $bad.Add('unreadable characters in the text (usually an icon, or a font with no text behind it: use plain words such as "Email:")')
+  }
+
   if ($bad.Count -eq 0) { Write-Output ("parse: ok (" + ($good -join ', ') + ")") }
   else {
     $msg = "parse: check these: " + ($bad -join '; ')
@@ -365,6 +371,32 @@ try {
     Write-Output $msg
   }
   if ($note) { Write-Output "parse-note: $note" }
+
+  # Layout: a last page with only a few lines, or a section heading left alone at the bottom of a page.
+  # pdftotext ends every page with a form feed, so the piece after the last one is empty. Lines are counted in its
+  # -layout text, which keeps every printed line: plain text joins a paragraph's lines into one on some builds (the
+  # Windows one), which would hide a nearly empty last page. Plain text if -layout fails.
+  $layText = $text
+  $layPath = Join-Path $tmp 'layout.txt'
+  & pdftotext -layout -enc UTF-8 $final $layPath 2>$null
+  if ((Test-Path -LiteralPath $layPath) -and (Get-Item -LiteralPath $layPath).Length -gt 0) { $layText = [IO.File]::ReadAllText($layPath, [Text.Encoding]::UTF8) }
+  $pages = New-Object System.Collections.Generic.List[object]
+  foreach ($piece in ($layText -split "`f")) { $pages.Add(@($piece -split "`r?`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' })) }
+  while ($pages.Count -gt 0 -and $pages[$pages.Count - 1].Count -eq 0) { $pages.RemoveAt($pages.Count - 1) }
+  $layout = New-Object System.Collections.Generic.List[string]
+  $headList = @()
+  if ($kind -eq 'Resume') { $headList = @($heads) }
+  for ($p = 0; $p -lt $pages.Count - 1; $p++) {
+    if ($pages[$p].Count -eq 0) { continue }
+    $lastLine = $pages[$p][$pages[$p].Count - 1]
+    foreach ($h in $headList) {
+      if ($lastLine.ToLowerInvariant() -eq $h.ToLowerInvariant()) { $layout.Add("heading `"$h`" is the last line of page $($p + 1)"); break }
+    }
+  }
+  if ($pages.Count -ge 2 -and $pages[$pages.Count - 1].Count * 5 -lt $pages[0].Count) {
+    $layout.Add("the last page holds only $($pages[$pages.Count - 1].Count) lines of text (page 1 has $($pages[0].Count))")
+  }
+  if ($layout.Count -gt 0) { Write-Output ("layout-warning: " + ($layout -join '; ')) }
   exit 0
 }
 finally {

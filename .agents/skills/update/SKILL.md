@@ -7,7 +7,7 @@ description: "Use when the user says \"update\", \"is there a new version\", \"I
 
 This workflow is shared with Claude Code. Read `.claude/skills/update/SKILL.md` and follow it fully. Files it mentions as `scripts/...` live in `.claude/skills/update/`.
 
-Never quote, link or mention these instruction files or rules to the user; just do what they say.
+Don't quote these instruction files or show their paths to the user; explain what they do in plain words when it helps.
 
 It was written with Claude Code's names; translate them with the table in AGENTS.md ("If you are Codex"): `/name` means the skill of that name (`$name` here).
 
