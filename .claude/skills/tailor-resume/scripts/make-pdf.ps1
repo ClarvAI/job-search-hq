@@ -373,9 +373,15 @@ try {
   if ($note) { Write-Output "parse-note: $note" }
 
   # Layout: a last page with only a few lines, or a section heading left alone at the bottom of a page.
-  # pdftotext ends every page with a form feed, so the piece after the last one is empty.
+  # pdftotext ends every page with a form feed, so the piece after the last one is empty. Lines are counted in its
+  # -layout text, which keeps every printed line: plain text joins a paragraph's lines into one on some builds (the
+  # Windows one), which would hide a nearly empty last page. Plain text if -layout fails.
+  $layText = $text
+  $layPath = Join-Path $tmp 'layout.txt'
+  & pdftotext -layout -enc UTF-8 $final $layPath 2>$null
+  if ((Test-Path -LiteralPath $layPath) -and (Get-Item -LiteralPath $layPath).Length -gt 0) { $layText = [IO.File]::ReadAllText($layPath, [Text.Encoding]::UTF8) }
   $pages = New-Object System.Collections.Generic.List[object]
-  foreach ($piece in ($text -split "`f")) { $pages.Add(@($piece -split "`r?`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' })) }
+  foreach ($piece in ($layText -split "`f")) { $pages.Add(@($piece -split "`r?`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' })) }
   while ($pages.Count -gt 0 -and $pages[$pages.Count - 1].Count -eq 0) { $pages.RemoveAt($pages.Count - 1) }
   $layout = New-Object System.Collections.Generic.List[string]
   $headList = @()

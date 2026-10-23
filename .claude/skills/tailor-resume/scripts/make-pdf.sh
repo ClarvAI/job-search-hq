@@ -241,6 +241,10 @@ else echo "parse: check these: $problems${good:+ (fine: $good)}"; fi
 # pdftotext puts a form feed between pages (at the start of a new page's first line on a Mac or Linux; Windows
 # builds also end lines with CR LF), so every form feed in a line, wherever it falls, starts a new page.
 [ -f "$tmpdir/headings.txt" ] || : >"$tmpdir/headings.txt"
+# Lines are counted in pdftotext's -layout text, which keeps every printed line: plain text joins a paragraph's
+# lines into one on some builds (the Windows one), which would hide a nearly empty last page. Plain text if -layout fails.
+laytext="$text"
+if pdftotext -layout -enc UTF-8 "$final" "$tmpdir/layout.txt" 2>/dev/null && [ -s "$tmpdir/layout.txt" ]; then laytext="$tmpdir/layout.txt"; fi
 # Unicode spaces count as spaces (U+00A0, U+2000-200A, U+202F, U+205F, U+3000, each written whole for the
 # macOS awk), as make-pdf.ps1's .Trim() does, so a line holding only those is empty on every platform.
 layout="$(awk 'BEGIN { us = "\302\240|\342\200\200|\342\200\201|\342\200\202|\342\200\203|\342\200\204|\342\200\205|\342\200\206|\342\200\207|\342\200\210|\342\200\211|\342\200\212|\342\200\257|\342\201\237|\343\200\200" }
@@ -253,6 +257,6 @@ layout="$(awk 'BEGIN { us = "\302\240|\342\200\200|\342\200\201|\342\200\202|\34
     out=""
     for (i=1; i<p; i++) if (last[i] in h) out=out (out=="" ? "" : "; ") "heading \"" h[last[i]] "\" is the last line of page " i
     if (p>=2 && n[p]*5 < n[1]) out=out (out=="" ? "" : "; ") "the last page holds only " n[p] " lines of text (page 1 has " n[1] ")"
-    print out }' "$tmpdir/headings.txt" "$text")"
+    print out }' "$tmpdir/headings.txt" "$laytext")"
 [ -n "$layout" ] && echo "layout-warning: $layout"
 exit 0
