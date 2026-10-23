@@ -270,7 +270,8 @@ def scenario_text_checks(R, impl, ws):
         if not ok:
             pdf = [l.split(":", 1)[1].strip() for l in out.splitlines() if l.startswith("pdf:")]
             if pdf:
-                txt = subprocess.run(["pdftotext", "-enc", "UTF-8", pdf[0], "-"], capture_output=True).stdout
+                # Through bash, so a Git Bash path (/d/a/...) reaches Windows' pdftotext the way make-pdf.sh's does.
+                txt = subprocess.run(["bash", "-c", 'pdftotext -enc UTF-8 "$1" -', "_", pdf[0]], capture_output=True).stdout
                 detail += "\npdftotext output (repr): %r" % txt[:3000]
         R.ok("%s %s: %s" % (tag, label, "no parse problem or layout-warning" if i == 0 else "reported"), ok, detail)
 
