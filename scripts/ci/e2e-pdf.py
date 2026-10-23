@@ -21,7 +21,8 @@ from e2e_common import (IS_WINDOWS, Run, keep_temps, make_workspace, parse_args,
                         temp_dir, write)
 
 import http.server  # noqa: E402
-import shutil  # noqa: E402
+import shutil
+import subprocess  # noqa: E402
 import threading  # noqa: E402
 
 SECRET = "OUTSIDE-SECRET-NEVER-IN-A-PDF"
@@ -264,8 +265,14 @@ def scenario_text_checks(R, impl, ws):
         folder = "jobs/text-check-%d" % i
         write(J(ws, folder + "/resume.html"), DOC % {"head": head, "body": body})
         rc, out = make(impl, ws, folder + "/resume.html")
-        R.ok("%s %s: %s" % (tag, label, "no parse problem or layout-warning" if i == 0 else "reported"),
-             rc == 0 and want(out), "rc=%s\n%s" % (rc, out))
+        ok = rc == 0 and want(out)
+        detail = "rc=%s\n%s" % (rc, out)
+        if not ok:
+            pdf = [l.split(":", 1)[1].strip() for l in out.splitlines() if l.startswith("pdf:")]
+            if pdf:
+                txt = subprocess.run(["pdftotext", "-enc", "UTF-8", pdf[0], "-"], capture_output=True).stdout
+                detail += "\npdftotext output (repr): %r" % txt[:3000]
+        R.ok("%s %s: %s" % (tag, label, "no parse problem or layout-warning" if i == 0 else "reported"), ok, detail)
 
 
 def main():

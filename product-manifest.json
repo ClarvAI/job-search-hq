@@ -266,7 +266,7 @@
     ".claude/skills/tailor-resume/references/rendercv.md": "0277faaa5e84bca0195e3231ac932acd8cd1253b6287f171fd5f5827a28344dd",
     ".claude/skills/tailor-resume/references/tailoring-and-formats.md": "a7737752be9364a315ca63c9be769475e5ff0052b059dd4236a8b3886c77fdc6",
     ".claude/skills/tailor-resume/scripts/make-pdf.ps1": "255e10fbb5529053601009f1786c6b7d5695cfdb6e2f48975c80d745650ec7ab",
-    ".claude/skills/tailor-resume/scripts/make-pdf.sh": "bd6016c9fbc39a618e772f826f772f86b16be8e7edfdf2fbab5e5fc56d9ecb2f",
+    ".claude/skills/tailor-resume/scripts/make-pdf.sh": "293f7800c176259ab2ed43eea2f3e647c929376e8ed04f62da6d1b6e062f95c3",
     ".claude/skills/tailor-resume/scripts/page-count.sh": "177f0f4ab8b4f6601e1077be47ca576872f29fcd018f5d15505c3f86527bb056",
     ".claude/skills/tailor-resume/scripts/pdf-common.sh": "5e9b7c38859e46d116d49c13f37f32d9794e34721497007d9c27e908558444fb",
     ".claude/skills/thank-you/SKILL.md": "9246e20809b1b0c1d6b76163fa87dd17dd8ace850c5c2ef75545f36a8919c645",

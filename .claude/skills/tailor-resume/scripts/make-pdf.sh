@@ -241,7 +241,10 @@ else echo "parse: check these: $problems${good:+ (fine: $good)}"; fi
 # pdftotext puts a form feed between pages (at the start of a new page's first line on a Mac or Linux; Windows
 # builds also end lines with CR LF), so every form feed in a line, wherever it falls, starts a new page.
 [ -f "$tmpdir/headings.txt" ] || : >"$tmpdir/headings.txt"
-layout="$(awk 'function t(s){gsub(/^[[:space:]]+|[[:space:]]+$/,"",s); return tolower(s)}
+# Unicode spaces count as spaces (U+00A0, U+2000-200A, U+202F, U+205F, U+3000, each written whole for the
+# macOS awk), as make-pdf.ps1's .Trim() does, so a line holding only those is empty on every platform.
+layout="$(awk 'BEGIN { us = "\302\240|\342\200\200|\342\200\201|\342\200\202|\342\200\203|\342\200\204|\342\200\205|\342\200\206|\342\200\207|\342\200\210|\342\200\211|\342\200\212|\342\200\257|\342\201\237|\343\200\200" }
+  function t(s){gsub(us," ",s); gsub(/^[[:space:]]+|[[:space:]]+$/,"",s); return tolower(s)}
   FILENAME == ARGV[1] { x=$0; gsub(/^[[:space:]]+|[[:space:]]+$/,"",x); if (x!="") h[tolower(x)]=x; next }
   { sub(/\r$/, ""); m=split($0, part, "\f")
     for (k=1; k<=m; k++) { if (k>1) { p++; n[p]=c; last[p]=l; c=0; l="" }
