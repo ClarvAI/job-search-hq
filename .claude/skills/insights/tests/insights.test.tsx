@@ -50,6 +50,16 @@ test('the numbers: applied, replies, interviews and offers, counting closed jobs
   expect(share(1, 4)).toBe('1 of 4')
 })
 
+test('only clear evidence counts a closed job as interviewed or offered', () => {
+  const s = insights(HEAD + '\n'
+    + rows(1, 'rejected', '4', 'B', 'Indeed', '2026-10-01', 'Rejected before interview')
+    + rows(1, 'withdrawn', '4', 'B', 'Indeed', '2026-10-01', 'Withdrew after accepting another offer')
+    + rows(1, 'rejected', '4', 'B', 'Indeed', '2026-10-01', 'Interviewed with the team lead')
+    + rows(1, 'withdrawn', '4', 'B', 'Indeed', '2026-10-01', 'Declined the offer: pay too low'), '', TODAY, '')
+  expect(s.interviews).toBe(1)
+  expect(s.offers).toBe(1)
+})
+
 test('an unclear slash date is not counted in any week', () => {
   const s = insights(HEAD + '\n' + rows(1, 'applied', '4', 'B', 'Indeed', '03/04/2026'), '', TODAY, '')
   expect(s.applied).toBe(1)

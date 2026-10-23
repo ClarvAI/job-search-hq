@@ -54,6 +54,10 @@ ws active "SETUP: done 2026-01-01
 search_status: active"
 expect "an active search goes" active "morning scan" "GO"
 [ ! -f "$T/active/history/routines.md" ] && { pass=$((pass + 1)); echo "PASS  a run that goes logs nothing"; } || { fail=$((fail + 1)); echo "FAIL  a run that goes logs nothing"; }
+mkdir -p "$T/active/jobs"; : > "$T/active/jobs/~\$tracker.csv"
+expect "a spreadsheet open in Excel skips a routine that edits it" active "follow-up drafts" "SKIP: a spreadsheet is open in Excel"
+expect "the weekly review still runs (it only reads them)" active "weekly review" "GO"
+rm -f "$T/active/jobs/~\$tracker.csv"
 : > "$T/active/.sample-workspace"
 expect "the sample workspace skips" active "inbox check" "SKIP: sample workspace"
 

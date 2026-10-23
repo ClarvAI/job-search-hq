@@ -241,7 +241,7 @@ else echo "parse: check these: $problems${good:+ (fine: $good)}"; fi
 # pdftotext puts a form feed at the start of each new page's first line (and one after the last page).
 [ -f "$tmpdir/headings.txt" ] || : >"$tmpdir/headings.txt"
 layout="$(awk 'function t(s){gsub(/^[[:space:]]+|[[:space:]]+$/,"",s); return tolower(s)}
-  NR==FNR { x=$0; gsub(/^[[:space:]]+|[[:space:]]+$/,"",x); if (x!="") h[tolower(x)]=x; next }
+  FILENAME == ARGV[1] { x=$0; gsub(/^[[:space:]]+|[[:space:]]+$/,"",x); if (x!="") h[tolower(x)]=x; next }
   { while (index($0, "\f") == 1) { p++; n[p]=c; last[p]=l; c=0; l=""; $0=substr($0, 2) }
     if (t($0)!="") { c++; l=t($0) } }
   END { if (c>0) { p++; n[p]=c; last[p]=l }

@@ -41,6 +41,14 @@ const REPLIED = ['screening', 'interviewing', 'offer', 'accepted', 'rejected']
 const REACHED_INTERVIEW = ['interviewing', 'offer', 'accepted']
 const REACHED_OFFER = ['offer', 'accepted']
 
+// Only clear evidence in a closed job's notes counts: a dated interview ("Interview 2026-10-10", "Also: Interview
+// ...") or "interviewed"; an offer it declined ("declined the offer", "turned down their offer", "offer received").
+// "Rejected before interview" or "withdrew after accepting another offer" say the opposite, so a negation
+// before the word means no.
+const hadInterview = (said: string) => !/\b(no|before|without|never|not|instead of)\s+(an?\s+|the\s+|any\s+)?interview/i.test(said)
+  && (/\binterview(s|ed)?\b[^.;]*?\d{4}-\d{2}-\d{2}/i.test(said) || /\binterviewed\b/i.test(said))
+const hadOffer = (said: string) => /\b(declined|turned down|said no to)\s+(the\s+|their\s+|an?\s+|this\s+)?offer\b|\boffer\s+(received|made|extended)\b|\b(got|received)\s+(an?\s+)?offer\b/i.test(said)
+
 type Job = { status: string; applied: boolean; replied: boolean; interview: boolean; offer: boolean; dateApplied: string; dateFound: string; contact: boolean; source: string; fit: string; priority: string }
 
 function readJobs(text: string, order: DateOrder): { jobs: Job[]; problem: string } {
@@ -54,9 +62,9 @@ function readJobs(text: string, order: DateOrder): { jobs: Job[]; problem: strin
     const dateApplied = toIso(at(r, 'date_applied'), orderFor(r, order))
     const dateFound = toIso(at(r, 'date_found'), orderFor(r, order))
     const applied = AFTER_APPLY.includes(status) || isIso(dateApplied)
-    // A closed job counts for an interview or an offer only when its notes say it got that far.
-    const interview = REACHED_INTERVIEW.includes(status) || (['rejected', 'withdrawn', 'ghosted'].includes(status) && /interview/i.test(said))
-    const offer = REACHED_OFFER.includes(status) || (status === 'withdrawn' && /\boffer\b/i.test(said))
+    // A closed job counts for an interview or an offer only when its notes clearly say it got that far.
+    const interview = REACHED_INTERVIEW.includes(status) || (['rejected', 'withdrawn', 'ghosted'].includes(status) && hadInterview(said))
+    const offer = REACHED_OFFER.includes(status) || (status === 'withdrawn' && hadOffer(said))
     return {
       status, applied, dateApplied, dateFound, interview, offer,
       // A contact named on the row, or a referral in its notes (the weekly review counts a referral only when one is recorded).

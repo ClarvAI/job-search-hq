@@ -21,7 +21,7 @@ If the offer hasn't arrived in writing yet (a call just came), the first step is
 
 ## Closing the search (after the user accepts in writing)
 
-If the offer is still contingent (see step 7), do steps 0 to 2 now but hold the withdrawals step 7 says to hold, and keep `search_status: active` until the contingencies clear.
+If the offer is still contingent (see step 7), do steps 0 to 2 now, but in step 1 leave the held rows (final-stage and offer-stage processes) exactly as they are: no withdrawal draft, the same status and next step. Set the accepted job's `next_action` to `Confirm contingencies cleared` with the date the employer gave (7 days from today if none), and keep `search_status: active`. When the user says they cleared, run step 1 for the held rows, then steps 3 to 8.
 
 Congratulate them first. After step 1, refresh the dashboard (the `pages` skill) and then tell them to open it (it celebrates once the job shows as `accepted`).
 0. Save a backup first (the `my-data` skill, "Back up"), unless one was just made.

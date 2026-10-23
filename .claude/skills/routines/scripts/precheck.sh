@@ -6,7 +6,9 @@
 # "YYYY-MM-DD: search paused until YYYY-MM-DD." line naming a later date, with no "search resumed" line after
 # it); the certification reminder keeps running on a paused or closed search while benefits_cert_day: is set,
 # and skips when it isn't set or (for a plain weekday) when today isn't that day; the weekly review skips when
-# interviews/weekly-<date>.md from the last 6 days exists. precheck.ps1 does the same on Windows.
+# interviews/weekly-<date>.md from the last 6 days exists; and a routine that changes the spreadsheets skips while
+# one is open in Excel (a ~$ lock file in jobs/ or contacts/), so it can't overwrite the user's edits.
+# precheck.ps1 does the same on Windows.
 # Usage: bash .claude/skills/routines/scripts/precheck.sh "<routine name>"     (e.g. "morning scan")
 set -u
 NAME="${1:-}"
@@ -49,6 +51,9 @@ if [ -n "$isCert" ]; then
 fi
 [ -n "$closed" ] && skip "search closed"
 [ -n "$paused" ] && skip "search paused"
+if [ "$key" != "weekly review" ]; then
+  for f in jobs/'~$'* contacts/'~$'*; do [ -e "$f" ] && skip "a spreadsheet is open in Excel"; done
+fi
 if [ "$key" = "weekly review" ]; then
   for f in interviews/weekly-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9].md; do
     [ -f "$f" ] || continue

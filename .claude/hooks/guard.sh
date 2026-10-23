@@ -103,6 +103,7 @@ PUBREPO_MSG="Blocked: never create a public repository or gist, or make one publ
 STAGED_MSG="Blocked to be safe: this command changes git's remotes, aliases or settings and pushes in the same step, so the safety check can't see where the push would go. Run the change on its own first, then the push as a separate command."
 GRAPHQL_MSG="Blocked to be safe: this GitHub GraphQL request reads its query from a file, standard input or a variable, so the safety check can't see whether it changes a repository (for example makes one public). Write the query out in the command instead."
 SEND_MSG="Blocked: the assistant never sends email or messages itself, from a script or an app (Mail, Outlook, SMTP). Save the message in outbox/ and let the user send it themselves."
+ALIAS_MSG="Blocked: the assistant doesn't create gh aliases (an alias can hide a command the safety check has to see). Run the command itself."
 POST_MSG="Blocked: the assistant never posts on GitHub for the user (no issues, comments, pull requests or discussions, which are public and tied to their account). Give them the text and the link, and they post it themselves if they want to."
 # A new issue, discussion or pull request page on GitHub: an automated browser there could post for the user.
 GHPOST='github\.com/[^/"[:space:]]+/[^/"[:space:]]+/(issues/new|discussions/new|compare|pull/new)'
@@ -562,9 +563,6 @@ check_shell() {
           [ "${w[$sp]}" = gist ] && case "$rest" in *" -p "*) deny "$PUBREPO_MSG" ;; esac ;;
         "repo edit")
           case "$rest" in *" --visibility public "*|*" --visibility=public "*) deny "$PUBREPO_MSG" ;; esac ;;
-        # Posting on GitHub (public, under the user's name) is the user's to do, like sending email.
-        "issue create"|"issue comment"|"issue edit"|"issue reopen"|"pr create"|"pr comment"|"pr edit"|"pr review"|"discussion create"|"discussion comment")
-          deny "$POST_MSG" ;;
         "release create"|"release upload"|"release edit")
           # Release files are public on a public repository: check the one named with -R/--repo, else this folder's.
           t="$ghrepo"
@@ -572,6 +570,28 @@ check_shell() {
             case "${w[$j]}" in -R|--repo) t="${w[$((j+1))]:-}" ;; --repo=*) t="${w[$j]#--repo=}" ;; -R?*) t="${w[$j]#-R}" ;; esac
           done
           if [ -n "$t" ]; then check_gh_repo "$t"; else local -a cpaths=() gargs=(); push_check; fi ;;
+      esac
+      # Posting on GitHub (public, under the user's name) is the user's to do, like sending email: issue, pr and
+      # discussion commands that create or comment, wherever their flags sit ("gh issue --repo X create"), and
+      # close/merge with a comment. --help only prints help. gh aliases could hide any of these.
+      case "${w[$sp]:-}" in
+        issue|pr|discussion)
+          local verb="" ghhelp=""
+          for ((j = sp + 1; j < n; j++)); do
+            case "${w[$j]}" in
+              -h|--help) ghhelp=1 ;;
+              -R|--repo|--hostname) j=$((j + 1)) ;;
+              -*) ;;
+              *) [ -z "$verb" ] && verb="${w[$j]}" ;;
+            esac
+          done
+          if [ -z "$ghhelp" ]; then
+            case "$verb" in
+              create|comment|edit|reopen|review|new) deny "$POST_MSG" ;;
+              close|merge) case "$rest" in *" --comment "*|*" --comment="*|*" -c "*|*" --body "*|*" --body="*|*" -b "*|*" --body-file "*|*" --body-file="*) deny "$POST_MSG" ;; esac ;;
+            esac
+          fi ;;
+        alias) case "${w[$((sp+1))]:-}" in set|import) deny "$ALIAS_MSG" ;; esac ;;
       esac
       if [ "${w[$sp]:-}" = api ]; then
         lw="$(printf '%s' "${rest// /}" | tr 'A-Z' 'a-z')"
@@ -620,6 +640,8 @@ check_shell() {
             case "$lw" in *mutation*) deny "$STAGED_MSG" ;; esac
             [ -n "$fileinput" ] && deny "$GRAPHQL_MSG" ;;
           repos/*/*) if [ -n "$write" ]; then
+              # Issues, comments, pull requests and discussions are posts, whatever the repository's visibility.
+              case "$ep" in repos/*/*/issues*|repos/*/*/pulls*|repos/*/*/discussions*|*/comments*) deny "$POST_MSG" ;; esac
               [ -n "$fileinput" ] && deny "$UNREAD_MSG"   # e.g. -F private=@file: the value can't be seen
               t="${ep#repos/}"; owner="${t%%/*}"; t="${t#*/}"; repo="${t%%/*}"; repo="${repo%%\?*}"
               check_gh_repo "$owner/$repo"

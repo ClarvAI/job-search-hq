@@ -270,6 +270,10 @@ def zinfo(name, mode=0o100644):
 
 def build_base(t, r):
     base = make_workspace(t, "base")
+    # The test's own version numbers (1.0.0 installed, 1.0.1 offered), whatever version the repository is at;
+    # newer changelog entries above "## 1.0.0" stay and are not part of what 1.0.1 adds.
+    v = J(base, "VERSION")
+    wb(v, re.sub(rb"(?m)^version: .*$", b"version: " + OLDV.encode(), rb(v), count=1))
     write(J(base, REL_REMOVED[0]), "# Retired in 1.0.1\n\nE2E-RETIRED\n")
     write(J(base, EDITED_REMOVED), "# Retired in 1.0.1 (the user edits it)\n\nE2E-RETIRED-EDITED\n")
     rc, out = sh(bash_arg(J(base, "scripts/build-manifest.sh")), cwd=base)

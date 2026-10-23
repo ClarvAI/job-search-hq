@@ -43,8 +43,9 @@ csvcol() {
 {
   csvcol jobs/tracker.csv company location
   csvcol contacts/contacts.csv company email
-  # A company like "Globex, Inc.": its name on its own too.
-  { csvcol jobs/tracker.csv company; csvcol contacts/contacts.csv company; } | sed 's/,.*$//'
+  # A company like "Globex, Inc." or "The Acme Company": its name without the legal words too.
+  { csvcol jobs/tracker.csv company; csvcol contacts/contacts.csv company; } | sed 's/,.*$//' \
+    | sed -E 's/^[Tt]he[[:space:]]+//; s/[[:space:]]+(&|[Aa]nd)[[:space:]]+[Ss]ons?$//; s/[[:space:]]+([Ii]nc|[Ll][Ll][Cc]|[Ll]td|[Cc]orp|[Cc]orporation|[Cc]o|[Cc]ompany|[Gg]roup|[Pp][Ll][Cc]|[Gg][Mm][Bb][Hh])\.?$//'
   # People: the whole name and each part of it.
   { csvcol jobs/tracker.csv contact; csvcol contacts/contacts.csv name
     [ -f profile/preferences.md ] && sed -n 's/^name:[[:space:]]*//p' profile/preferences.md | tr -d '\r' | head -1
@@ -52,7 +53,7 @@ csvcol() {
   # A place like "Austin TX": the city on its own too.
   csvcol jobs/tracker.csv location | tr ',' '\n' | sed 's/^[[:space:]]*//; s/[[:space:]][A-Z][A-Z]$//'
 } | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' | awk 'length($0) >= 3' | grep -v '^[0-9]*$' \
-  | grep -viwE 'remote|hybrid|onsite|on-site|inc|llc|ltd|corp|the|and|team|lead|n/a|none|unknown' | LC_ALL=C sort -u > "$T.terms"
+  | grep -vixE 'remote|hybrid|onsite|on-site|inc|llc|ltd|corp|the|and|team|lead|n/a|none|unknown' | LC_ALL=C sort -u > "$T.terms"
 
 tr -d '\r' < "$DRAFT" > "$T.text"
 : > "$T"
@@ -65,7 +66,7 @@ pat() { # pat <label> <extended regex>
 pat "email" '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}'
 pat "link" '(https?://|www\.)[^[:space:])]+'
 pat "phone" '\+?\(?[0-9]{1,4}\)?[ .-][0-9 ().-]{6,}[0-9]|\b[0-9]{10,}\b'
-pat "pay" '[$€£¥][[:space:]]?[0-9][0-9,.]*[kKmM]?|[0-9]+([.,][0-9]+)?[[:space:]]?[kK]\b|\b[0-9]{2,3},[0-9]{3}\b'
+pat "pay" '(\$|€|£|¥)[[:space:]]?[0-9][0-9,.]*[kKmM]?|[0-9]+([.,][0-9]+)?[[:space:]]?[kK]\b|\b[0-9]{2,3},[0-9]{3}\b'
 pat "exact date" '\b[0-9]{4}-[0-9]{2}-[0-9]{2}\b|\b[0-9]{1,2}[/.][0-9]{1,2}[/.][0-9]{2,4}\b'
 
 n="$(grep -c . "$T")"

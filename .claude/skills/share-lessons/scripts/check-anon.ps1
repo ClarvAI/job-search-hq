@@ -57,13 +57,19 @@ function Get-Column([string]$rel, [string[]]$want) {
 $raw = New-Object 'System.Collections.Generic.List[string]'
 foreach ($v in (Get-Column 'jobs/tracker.csv' @('company', 'location'))) { $raw.Add($v) }
 foreach ($v in (Get-Column 'contacts/contacts.csv' @('company', 'email'))) { $raw.Add($v) }
-foreach ($v in @((Get-Column 'jobs/tracker.csv' @('company')) + (Get-Column 'contacts/contacts.csv' @('company')))) { $raw.Add(($v -replace ',.*$', '')) }
+# A company like "Globex, Inc." or "The Acme Company": its name without the legal words too.
+foreach ($v in @((Get-Column 'jobs/tracker.csv' @('company')) + (Get-Column 'contacts/contacts.csv' @('company')))) {
+    $c = $v -replace ',.*$', ''
+    $raw.Add($c)
+    $c = $c -creplace '^[Tt]he\s+', '' -creplace '\s+(&|[Aa]nd)\s+[Ss]ons?$', '' -creplace '\s+([Ii]nc|[Ll][Ll][Cc]|[Ll]td|[Cc]orp|[Cc]orporation|[Cc]o|[Cc]ompany|[Gg]roup|[Pp][Ll][Cc]|[Gg][Mm][Bb][Hh])\.?$', ''
+    $raw.Add($c)
+}
 $people = @((Get-Column 'jobs/tracker.csv' @('contact')) + (Get-Column 'contacts/contacts.csv' @('name')))
 $prefs = Read-Text 'profile/preferences.md'
 if ($null -ne $prefs) { $m = [regex]::Match($prefs, '(?m)^name:[ \t]*([^\r\n]*)'); if ($m.Success) { $people += $m.Groups[1].Value } }
 foreach ($p in $people) { $raw.Add($p); foreach ($part in ($p -split '[,;/ ]')) { $raw.Add($part) } }
 foreach ($v in (Get-Column 'jobs/tracker.csv' @('location'))) { foreach ($part in ($v -split ',')) { $raw.Add(($part -replace '^\s+', '' -creplace '\s[A-Z][A-Z]$', '')) } }
-$stop = '(?i)(?<![A-Za-z0-9_])(remote|hybrid|onsite|on-site|inc|llc|ltd|corp|the|and|team|lead|n/a|none|unknown)(?![A-Za-z0-9_])'
+$stop = '(?i)^(remote|hybrid|onsite|on-site|inc|llc|ltd|corp|the|and|team|lead|n/a|none|unknown)$'
 $terms = @($raw | ForEach-Object { $_.Trim() } | Where-Object { $_.Length -ge 3 -and $_ -notmatch '^[0-9]*$' -and $_ -notmatch $stop } | Sort-Object -Unique -CaseSensitive)
 
 $text = ([IO.File]::ReadAllText($Draft, $enc)).Replace("`r", '')
@@ -83,7 +89,7 @@ $patterns = @(
     @('email', '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}'),
     @('link', '(https?://|www\.)[^\s)]+'),
     @('phone', '\+?\(?[0-9]{1,4}\)?[ .-][0-9 ().-]{6,}[0-9]|\b[0-9]{10,}\b'),
-    @('pay', '[$€£¥]\s?[0-9][0-9,.]*[kKmM]?|[0-9]+([.,][0-9]+)?\s?[kK]\b|\b[0-9]{2,3},[0-9]{3}\b'),
+    @('pay', '(\$|\u20AC|\u00A3|\u00A5)\s?[0-9][0-9,.]*[kKmM]?|[0-9]+([.,][0-9]+)?\s?[kK]\b|\b[0-9]{2,3},[0-9]{3}\b'),
     @('exact date', '\b[0-9]{4}-[0-9]{2}-[0-9]{2}\b|\b[0-9]{1,2}[/.][0-9]{1,2}[/.][0-9]{2,4}\b')
 )
 foreach ($p in $patterns) { Add-Found $p[0] @([regex]::Matches($text, $p[1]) | ForEach-Object { $_.Value }) }

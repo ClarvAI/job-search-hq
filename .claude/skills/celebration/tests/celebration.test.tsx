@@ -62,6 +62,22 @@ test('in a window too narrow for the pane, a pop-up points to /celebrate and the
   await ui.unmount()
 })
 
+test('a new acceptance listed above an older accepted job is the one celebrated', async ($, on) => {
+  const older = HEAD + '\n' + 'Initech,Analyst,offer,2026-10-22,Respond to offer,,B,4,Remote,2026-08-20,2026-08-26,,,,,,,0,initech-a,\n'
+    + 'Globex,Data Analyst,accepted,,,,A,5,Denver CO,2026-08-20,2026-08-25,,,,,,,0,globex-da,\n'
+  const files: Record<string, string> = { 'jobs/tracker.csv': older }
+  const fills: string[] = []
+  setup(on, files, {}, { fills })
+  await $.session.start({ cwd: '/project', surface: 'terminal', isInteractive: true } as never)
+  files['jobs/tracker.csv'] = older.replace('Initech,Analyst,offer,2026-10-22,Respond to offer', 'Initech,Analyst,accepted,,')
+  await ($ as any).turn.complete(TURN).catch(() => undefined)
+  const ui = await $.ui.mount({ plugin: 'celebration', surface: 'terminal', ...PANE } as never)
+  expect(JSON.stringify(await ui.drawn())).toContain('Analyst at Initech')
+  await ui.press({ key: 'wrap-up' })
+  expect(fills[0]).toContain('at Initech')
+  await ui.unmount()
+})
+
 test('an offer accepted before the folder was first seen never pops up', async ($, on) => {
   const opens: any[] = []
   setup(on, { 'jobs/tracker.csv': AFTER }, {}, { opens })

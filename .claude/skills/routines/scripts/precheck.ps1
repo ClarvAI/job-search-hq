@@ -58,6 +58,12 @@ if ($isCert) {
 }
 if ($closed) { Skip 'search closed' }
 if ($paused) { Skip 'search paused' }
+if ($key -cne 'weekly review') {
+    foreach ($d in @('jobs', 'contacts')) {
+        $dir = Join-Path $root $d
+        if ((Test-Path -LiteralPath $dir -PathType Container) -and @(Get-ChildItem -LiteralPath $dir -Force -File -ErrorAction SilentlyContinue | Where-Object { $_.Name.StartsWith('~$') }).Count -gt 0) { Skip 'a spreadsheet is open in Excel' }
+    }
+}
 if ($key -ceq 'weekly review') {
     $dir = Join-Path $root 'interviews'
     if (Test-Path -LiteralPath $dir -PathType Container) {

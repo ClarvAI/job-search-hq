@@ -5,14 +5,15 @@ name: Feedback privacy check
 
 on:
   issues:
-    types: [opened, edited]
+    types: [opened, edited, labeled]
 
 permissions:
   issues: write
 
 jobs:
   scan:
-    if: contains(github.event.issue.labels.*.name, 'lessons-learned')
+    # The form's label, or its title (the label is missing until the repository's labels are set up).
+    if: contains(github.event.issue.labels.*.name, 'lessons-learned') || startsWith(github.event.issue.title, '[Lessons]')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -29,10 +30,12 @@ jobs:
           printf '%s' "$text" | grep -qE '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' && found="$found an email address,"
           printf '%s' "$text" | grep -qE '\+?\(?[0-9]{1,4}\)?[ .-][0-9 ().-]{6,}[0-9]' && found="$found a phone number,"
           printf '%s' "$text" | grep -qE '(https?://|www\.)' && found="$found a link,"
-          printf '%s' "$text" | grep -qE '[$€£¥][[:space:]]?[0-9]|[0-9]+([.,][0-9]+)?[[:space:]]?[kK]\b' && found="$found a pay figure,"
+          printf '%s' "$text" | grep -qE '(\$|€|£|¥)[[:space:]]?[0-9]|[0-9]+([.,][0-9]+)?[[:space:]]?[kK]\b' && found="$found a pay figure,"
           [ -n "$found" ] || { echo "nothing found"; exit 0; }
           found="${found%,}"
           labels="$(gh issue view "$NUMBER" -R "$REPO" --json labels --jq '.labels[].name')"
           if printf '%s\n' "$labels" | grep -qx 'needs-privacy-edit'; then echo "already flagged"; exit 0; fi
-          gh issue edit "$NUMBER" -R "$REPO" --add-label needs-privacy-edit
           gh issue comment "$NUMBER" -R "$REPO" --body "Thanks for sharing! This page is public, and it looks like it may include${found}. Could you edit your post to take that out? (Use the ··· menu on your post, then Edit.) A maintainer will also take a look."
+          # The flag for maintainers; created if the repository doesn't have it yet. A failure here doesn't undo the comment.
+          gh label create needs-privacy-edit -R "$REPO" --color d93f0b --description "May hold personal details" 2>/dev/null || true
+          gh issue edit "$NUMBER" -R "$REPO" --add-label needs-privacy-edit || echo "could not add the label"

@@ -2,7 +2,7 @@
 
 What changed in each version of Job Search HQ, newest first. `/update` shows you the entries newer than the version you have. Versions follow `MAJOR.MINOR.PATCH`: a patch fixes things, a minor version adds things, a major version changes how something you rely on works.
 
-## 1.1.0 (not yet released)
+## 1.1.0 (2026-10-22)
 
 **After updating from 1.0.0, close and reopen this folder in Claude** so the new panels (Insights, Routines, Celebration) and the changed ones load.
 

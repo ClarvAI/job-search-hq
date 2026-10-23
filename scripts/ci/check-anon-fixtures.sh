@@ -21,7 +21,7 @@ T="$(mktemp -d "$TMPBASE/anonfx.XXXXXX")" || exit 2
 trap 'rm -rf "$T"' EXIT
 mkdir -p "$T/jobs" "$T/contacts" "$T/profile" "$T/history" "$T/.claude/skills/share-lessons/scripts"
 cp "$REPO/.claude/skills/share-lessons/scripts/"check-anon.* "$T/.claude/skills/share-lessons/scripts/"
-printf '\357\273\277company,role,status,location,contact\r\n"Globex, Inc.",Analyst,accepted,"Denver, CO",Pat Lee\r\nInitech,Analyst,rejected,Austin TX,\r\nAcme,Clerk,applied,Remote,\r\n' > "$T/jobs/tracker.csv"
+printf '\357\273\277company,role,status,location,contact\r\n"Globex, Inc.",Analyst,accepted,"Denver, CO",Pat Lee\r\nInitech,Analyst,rejected,Austin TX,\r\nAcme,Clerk,applied,Remote,\r\nUmbrella Corp,Clerk,applied,Remote,\r\nThe Hooli Company,Clerk,rejected,Remote,\r\n' > "$T/jobs/tracker.csv"
 printf 'name,company,email\nJordan Smith,Northwind,jordan@example.com\n' > "$T/contacts/contacts.csv"
 printf 'SETUP: done 2026-01-01\nname: Alex Rivera\n' > "$T/profile/preferences.md"
 pass=0; fail=0
@@ -70,6 +70,15 @@ expect "a person's whole name wins over a part, and case doesn't matter" \
 "found: from your files: alex
 found: from your files: pat lee
 check: 2 found
+exit 1"
+
+expect "legal words don't hide a company, and euro and pound pay are caught" \
+"Umbrella was strict and Hooli was kind. I took €85000 there, or £60k elsewhere." \
+"found: from your files: hooli
+found: from your files: umbrella
+found: pay: £60k
+found: pay: €85000
+check: 4 found
 exit 1"
 
 echo

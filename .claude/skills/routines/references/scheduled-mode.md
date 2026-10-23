@@ -9,7 +9,8 @@ A skill is in **scheduled mode** when the run's instructions say "scheduled mode
   - it says `SETUP: not done`;
   - the search is **paused**: the newest pause line under "Notes from conversations" (`YYYY-MM-DD: search paused until YYYY-MM-DD.`, written by `my-data`) names a date after today, and no later `search resumed` line follows it;
   - the search is **closed**: `search_status: closed ...`;
-  - a `.sample-workspace` file is in the top folder (the practice copy).
+  - a `.sample-workspace` file is in the top folder (the practice copy);
+  - for any routine but the weekly review and the certification reminder: a spreadsheet in `jobs/` or `contacts/` is open in Excel (a `~$` lock file next to it), logged as `skipped: a spreadsheet is open in Excel`.
 - **Exception: the certification reminder** keeps running while `benefits_cert_day:` is set, even when the search is paused or closed: benefit weeks still have to be certified until the new job starts and the user stops claiming (`offer` step 2a clears that line on the start date). On a closed search, its summary adds: "Report your new job and start date to the agency if you haven't yet."
 - The time can be odd: a run the computer slept through happens once when it wakes, even late at night. Do the same job anyway; never act as if it's a different day.
 

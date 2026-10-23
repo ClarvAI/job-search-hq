@@ -15,8 +15,8 @@ The chat version of the Claude Insights panel: the same numbers, read from the s
 
 - **Applied:** status `applied`, `screening`, `interviewing`, `offer`, `accepted`, `rejected`, `withdrawn` or `ghosted`, or a real `date_applied`.
 - **Heard back:** applied, and `screening`, `interviewing`, `offer`, `accepted` or `rejected`, or it reached an interview.
-- **Interview:** `interviewing`, `offer` or `accepted`, or `rejected`, `withdrawn` or `ghosted` with "interview" in its `notes` or `next_action`.
-- **Offer:** `offer` or `accepted`, or `withdrawn` with "offer" in its notes.
+- **Interview:** `interviewing`, `offer` or `accepted`, or `rejected`, `withdrawn` or `ghosted` whose `notes` or `next_action` clearly say it got that far (a dated "Interview 2026-10-10", or "interviewed"); "rejected before interview" or "no interview" doesn't count.
+- **Offer:** `offer` or `accepted`, or `withdrawn` whose notes say it declined an offer ("declined the offer", "offer received"); "withdrew after accepting another offer" doesn't count.
 - **Steps:** applied to heard back, heard back to interview, interview to offer, as "got of had". Give a percentage only when "had" is 10 or more, and name the lowest such step as "your lowest step so far"; with none at 10, say it's too early to name a weak spot.
 - **Per week:** applications by `date_applied` in each of the last 8 weeks (Monday to Sunday).
 - **Outcomes:** waiting (`applied`), rejected (and how many after an interview), no response (`ghosted`), withdrawn.

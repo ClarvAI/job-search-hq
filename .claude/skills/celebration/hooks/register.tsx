@@ -21,6 +21,14 @@ const KEYS_HINT = 'Keys: Ctrl+X then Tab moves into this panel. Tab moves betwee
 const moment = atom({ plugin: 'celebration', key: 'moment' } as const, null as Moment | null)
 const isThanked = atom({ plugin: 'celebration', key: 'isThanked' } as const, false)
 
+// Only clear evidence in a closed job's notes counts: a dated interview ("Interview 2026-10-10", "Also: Interview
+// ...") or "interviewed"; an offer it declined ("declined the offer", "turned down their offer", "offer received").
+// "Rejected before interview" or "withdrew after accepting another offer" say the opposite, so a negation
+// before the word means no.
+const hadInterview = (said: string) => !/\b(no|before|without|never|not|instead of)\s+(an?\s+|the\s+|any\s+)?interview/i.test(said)
+  && (/\binterview(s|ed)?\b[^.;]*?\d{4}-\d{2}-\d{2}/i.test(said) || /\binterviewed\b/i.test(said))
+const hadOffer = (said: string) => /\b(declined|turned down|said no to)\s+(the\s+|their\s+|an?\s+|this\s+)?offer\b|\boffer\s+(received|made|extended)\b|\b(got|received)\s+(an?\s+)?offer\b/i.test(said)
+
 type Seen = { keys: string[] }
 type Accepted = { key: string; company: string; role: string }
 
@@ -31,8 +39,8 @@ async function readIf($: any, path: string): Promise<string> {
   return (await $.fs.exists(path).catch(() => false)) ? String(await $.fs.read(path).catch(() => '')) : ''
 }
 
-// The accepted jobs, and the moment to show for the newest of them (the last accepted row in the file).
-async function scan($: any): Promise<{ accepted: Accepted[]; moment: Moment | null }> {
+// The accepted jobs, and the moment to show: for the job named by `pick` (a key), else the last accepted row.
+async function scan($: any, pick = ''): Promise<{ accepted: Accepted[]; moment: Moment | null }> {
   const today = localDate(await $.clock.now())
   const prefs = await readIf($, PREFS)
   const order = dateOrder(prefs)
@@ -43,7 +51,7 @@ async function scan($: any): Promise<{ accepted: Accepted[]; moment: Moment | nu
   const jobs = rows.filter(r => at(r, 'company') !== '')
   const accepted = jobs.filter(r => at(r, 'status').toLowerCase() === 'accepted')
     .map(r => ({ key: jobKey(c => at(r, c)), company: at(r, 'company'), role: at(r, 'role') }))
-  const last = accepted[accepted.length - 1]
+  const last = (pick !== '' ? accepted.find(a => a.key === pick) : undefined) ?? accepted[accepted.length - 1]
   if (!last) return { accepted, moment: null }
   const status = (r: string[]) => at(r, 'status').toLowerCase()
   const said = (r: string[]) => `${at(r, 'notes')} ${at(r, 'next_action')}`
@@ -55,8 +63,8 @@ async function scan($: any): Promise<{ accepted: Accepted[]; moment: Moment | nu
     moment: {
       company: last.company, role: last.role, name,
       applied: applied.length,
-      interviews: jobs.filter(r => INTERVIEWED.includes(status(r)) || (['rejected', 'withdrawn', 'ghosted'].includes(status(r)) && /interview/i.test(said(r)))).length,
-      offers: jobs.filter(r => ['offer', 'accepted'].includes(status(r)) || (status(r) === 'withdrawn' && /\boffer\b/i.test(said(r)))).length,
+      interviews: jobs.filter(r => INTERVIEWED.includes(status(r)) || (['rejected', 'withdrawn', 'ghosted'].includes(status(r)) && hadInterview(said(r)))).length,
+      offers: jobs.filter(r => ['offer', 'accepted'].includes(status(r)) || (status(r) === 'withdrawn' && hadOffer(said(r)))).length,
       days: firstApplied !== '' && firstApplied <= today ? daysBetween(firstApplied, today) : 0,
     },
   }
@@ -65,7 +73,7 @@ async function scan($: any): Promise<{ accepted: Accepted[]; moment: Moment | nu
 // Open the pane once for each job newly accepted since the folder was last looked at.
 async function check($: any): Promise<void> {
   if (await $.fs.exists(SAMPLE).catch(() => false)) return
-  const { accepted, moment: m } = await scan($)
+  const { accepted } = await scan($)
   const root: string = await Promise.resolve().then(() => $.session.root()).catch(() => '')
   const key = `celebrated:${root}`
   let stored: Seen | undefined
@@ -77,7 +85,10 @@ async function check($: any): Promise<void> {
     return
   }
   const fresh = keys.filter(k => !stored?.keys.includes(k))
-  if (fresh.length === 0 || m === null) return
+  if (fresh.length === 0) return
+  // The newly accepted job (the last one, if several), never an older accepted row.
+  const { moment: m } = await scan($, fresh[fresh.length - 1] ?? '')
+  if (m === null) return
   // Counted as celebrated only once the pane is really drawn (see the Pane hook): a pane a panel opens by
   // itself shows only in a wide enough window, and the moment must not be spent unseen.
   pending = { key, keys: [...stored.keys, ...fresh] }
