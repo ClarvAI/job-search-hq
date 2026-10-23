@@ -4,6 +4,9 @@
 # session-start.ps1 and health.ps1 use this.
 # Usage: powershell -NoProfile -ExecutionPolicy Bypass -File .claude\skills\routines\scripts\routine-status.ps1
 # Works in Windows PowerShell 5.1 and PowerShell 7 (Windows, macOS, Linux).
+# UTF-8 output, so a routine name with accents reads the same as from the bash version (Windows PowerShell 5.1
+# otherwise writes in the console's code page).
+try { [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false) } catch {}
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../../..'))
 $log = Join-Path $root 'history/routines.md'
 if (-not (Test-Path -LiteralPath $log -PathType Leaf)) { exit 0 }

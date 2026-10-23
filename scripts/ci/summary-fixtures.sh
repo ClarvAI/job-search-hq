@@ -40,7 +40,7 @@ ws() { # ws <name> <date_order>: a fresh workspace; the tracker comes from stdin
 run() { # run <name>: the summary text (sh) or the matching lines of the startup text (ps)
   if [ "$IMPL" = ps ]; then
     printf '{}' | "$PS" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$T/$1/.claude/hooks/session-start.ps1" 2>&1 \
-      | "$PY" -c 'import json,sys; print(json.load(sys.stdin)["hookSpecificOutput"]["additionalContext"])' \
+      | PYTHONIOENCODING=utf-8 "$PY" -c 'import json,sys; print(json.load(sys.stdin)["hookSpecificOutput"]["additionalContext"])' \
       | grep -v '^Today is [A-Z][a-z]*day, \|^Autonomy:\|^Missing starter\|^Some starter'
   else
     CLAUDE_PROJECT_DIR="$T/$1" bash "$REPO/.claude/hooks/summary.sh" long
@@ -325,7 +325,7 @@ if [ "$IMPL" = ps ]; then
     printf -- '- %s 07:30 \302\267 inbox check \302\267 1 update\n' "$(dago 1)"; } > "$T/routines/history/routines.md"
   cp "$REPO/.claude/hooks/session-start.sh" "$REPO/.claude/hooks/summary.sh" "$T/routines/.claude/hooks/"
   a="$(cd "$T/routines" && printf '{}' | CLAUDE_PROJECT_DIR="$T/routines" bash .claude/hooks/session-start.sh codex 2>/dev/null \
-    | "$PY" -c 'import json,sys; print(json.load(sys.stdin)["hookSpecificOutput"]["additionalContext"])' | grep '^Routines that seem')"
+    | PYTHONIOENCODING=utf-8 "$PY" -c 'import json,sys; print(json.load(sys.stdin)["hookSpecificOutput"]["additionalContext"])' | grep '^Routines that seem')"
   b="$(run routines | grep '^Routines that seem')"
   if [ -n "$a" ] && [ "$a" = "$b" ]; then pass=$((pass + 1)); echo "PASS  stalled routines: session-start.ps1 matches session-start.sh"
   else fail=$((fail + 1)); printf 'FAIL  stalled routines: session-start.ps1 differs from session-start.sh\n      | sh: %s\n      | ps: %s\n' "$a" "$b"; fi
