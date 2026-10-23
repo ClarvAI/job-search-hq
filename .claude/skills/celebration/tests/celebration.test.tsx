@@ -76,6 +76,10 @@ test('a new acceptance listed above an older accepted job is the one celebrated'
   await ui.press({ key: 'wrap-up' })
   expect(fills[0]).toContain('at Initech')
   await ui.unmount()
+  await $.command.run({ command: 'celebrate', args: '' } as never)
+  const again = await $.ui.mount({ plugin: 'celebration', surface: 'terminal', ...PANE } as never)
+  expect(JSON.stringify(await again.drawn())).toContain('Analyst at Initech')
+  await again.unmount()
 })
 
 test('an offer accepted before the folder was first seen never pops up', async ($, on) => {

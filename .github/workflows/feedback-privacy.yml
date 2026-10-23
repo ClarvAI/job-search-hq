@@ -35,7 +35,9 @@ jobs:
           found="${found%,}"
           labels="$(gh issue view "$NUMBER" -R "$REPO" --json labels --jq '.labels[].name')"
           if printf '%s\n' "$labels" | grep -qx 'needs-privacy-edit'; then echo "already flagged"; exit 0; fi
-          gh issue comment "$NUMBER" -R "$REPO" --body "Thanks for sharing! This page is public, and it looks like it may include${found}. Could you edit your post to take that out? (Use the ··· menu on your post, then Edit.) A maintainer will also take a look."
+          # Already asked (the label may have failed): don't ask again.
+          if gh api "repos/$REPO/issues/$NUMBER/comments" --jq '.[].body' | grep -q 'privacy-check:asked'; then echo "already asked"; exit 0; fi
+          gh issue comment "$NUMBER" -R "$REPO" --body "Thanks for sharing! This page is public, and it looks like it may include${found}. Could you edit your post to take that out? (Use the ··· menu on your post, then Edit.) A maintainer will also take a look. <!-- privacy-check:asked -->"
           # The flag for maintainers; created if the repository doesn't have it yet. A failure here doesn't undo the comment.
           gh label create needs-privacy-edit -R "$REPO" --color d93f0b --description "May hold personal details" 2>/dev/null || true
           gh issue edit "$NUMBER" -R "$REPO" --add-label needs-privacy-edit || echo "could not add the label"

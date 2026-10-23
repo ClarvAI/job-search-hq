@@ -55,8 +55,11 @@ test('only clear evidence counts a closed job as interviewed or offered', () => 
     + rows(1, 'rejected', '4', 'B', 'Indeed', '2026-10-01', 'Rejected before interview')
     + rows(1, 'withdrawn', '4', 'B', 'Indeed', '2026-10-01', 'Withdrew after accepting another offer')
     + rows(1, 'rejected', '4', 'B', 'Indeed', '2026-10-01', 'Interviewed with the team lead')
-    + rows(1, 'withdrawn', '4', 'B', 'Indeed', '2026-10-01', 'Declined the offer: pay too low'), '', TODAY, '')
-  expect(s.interviews).toBe(1)
+    + rows(1, 'withdrawn', '4', 'B', 'Indeed', '2026-10-01', 'Declined the offer: pay too low')
+    + rows(1, 'rejected', '4', 'B', 'Indeed', '2026-10-01', 'Interview cancelled on 2026-10-10')
+    + rows(1, 'ghosted', '4', 'B', 'Indeed', '2026-10-01', 'No offer received')
+    + rows(1, 'rejected', '4', 'B', 'Indeed', '2026-10-01', 'Interview completed; no interview feedback'), '', TODAY, '')
+  expect(s.interviews).toBe(2)
   expect(s.offers).toBe(1)
 })
 

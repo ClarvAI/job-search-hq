@@ -44,8 +44,10 @@ csvcol() {
   csvcol jobs/tracker.csv company location
   csvcol contacts/contacts.csv company email
   # A company like "Globex, Inc." or "The Acme Company": its name without the legal words too.
-  { csvcol jobs/tracker.csv company; csvcol contacts/contacts.csv company; } | sed 's/,.*$//' \
-    | sed -E 's/^[Tt]he[[:space:]]+//; s/[[:space:]]+(&|[Aa]nd)[[:space:]]+[Ss]ons?$//; s/[[:space:]]+([Ii]nc|[Ll][Ll][Cc]|[Ll]td|[Cc]orp|[Cc]orporation|[Cc]o|[Cc]ompany|[Gg]roup|[Pp][Ll][Cc]|[Gg][Mm][Bb][Hh])\.?$//'
+  { csvcol jobs/tracker.csv company; csvcol contacts/contacts.csv company; } | sed 's/,.*$//' | while IFS= read -r c; do
+    printf '%s\n' "$c"
+    printf '%s\n' "$c" | sed -E 's/^[Tt]he[[:space:]]+//; s/[[:space:]]+(&|[Aa]nd)[[:space:]]+[Ss]ons?$//; s/[[:space:]]+([Ii]nc|[Ll][Ll][Cc]|[Ll]td|[Cc]orp|[Cc]orporation|[Cc]o|[Cc]ompany|[Gg]roup|[Pp][Ll][Cc]|[Gg][Mm][Bb][Hh])\.?$//'
+  done
   # People: the whole name and each part of it.
   { csvcol jobs/tracker.csv contact; csvcol contacts/contacts.csv name
     [ -f profile/preferences.md ] && sed -n 's/^name:[[:space:]]*//p' profile/preferences.md | tr -d '\r' | head -1

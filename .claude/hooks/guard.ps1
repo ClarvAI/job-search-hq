@@ -519,22 +519,22 @@ function Test-ShellCommand($Data, [string]$cmd) {
             # discussion commands that create or comment, wherever their flags sit, and close/merge with a comment.
             # --help only prints help. gh aliases could hide any of these.
             if (@('issue', 'pr', 'discussion') -ccontains $sub0) {
-                $verb = ''; $ghHelp = $false
+                # -h/--help counts only as a flag of its own, never as the value of a flag before it (--body --help).
+                $verb = ''; $ghHelp = $false; $ghText = $false
+                $valued = @('-R', '--repo', '--hostname', '-t', '--title', '-l', '--label', '-a', '--assignee', '-m', '--milestone', '-p', '--project', '-B', '--base', '-H', '--head', '-r', '--reviewer', '-T', '--template', '-s', '--state', '-L', '--limit', '-S', '--search', '-q', '--jq')
                 for ($j = $sp + 1; $j -lt $n; $j++) {
                     $t = $w[$j]
                     if ($t -ceq '-h' -or $t -ceq '--help') { $ghHelp = $true }
-                    elseif ($t -ceq '-R' -or $t -ceq '--repo' -or $t -ceq '--hostname') { $j++ }
+                    elseif ($valued -ccontains $t) { $j++ }
+                    elseif (@('-c', '--comment', '-b', '--body', '-F', '--body-file') -ccontains $t) { $ghText = $true; $j++ }
+                    elseif ($t -cmatch '^-[cbF].' -or $t -cmatch '^--(comment|body|body-file)=') { $ghText = $true }
                     elseif ($t.StartsWith('-')) { }
                     elseif ($verb -eq '') { $verb = $t }
                 }
-                if (-not $ghHelp) {
-                    if (@('create', 'comment', 'edit', 'reopen', 'review', 'new') -ccontains $verb) { Deny $postMsg }
-                    if (@('close', 'merge') -ccontains $verb) {
-                        foreach ($p in @('* --comment *', '* --comment=*', '* -c *', '* --body *', '* --body=*', '* -b *', '* --body-file *', '* --body-file=*')) { if ($rest -clike $p) { Deny $postMsg } }
-                    }
-                }
+                if (@('create', 'comment', 'edit', 'reopen', 'review', 'new') -ccontains $verb -and -not ($ghHelp -and -not $ghText)) { Deny $postMsg }
+                if (@('close', 'merge') -ccontains $verb -and $ghText) { Deny $postMsg }
             }
-            if ($sub0 -ceq 'alias' -and $sp + 1 -lt $n -and @('set', 'import') -ccontains $w[$sp + 1]) { Deny $aliasMsg }
+            if ($sub0 -ceq 'alias' -and $sp + 1 -lt $n -and @('set', 'import') -ccontains $w[$sp + 1] -and -not ($rest -clike '* --help *' -or $rest -clike '* -h *')) { Deny $aliasMsg }
             if ($pair -cin @('release create', 'release upload', 'release edit')) {
                 # Release files are public on a public repository: check the one named with -R/--repo, else this folder's.
                 $r = $ghrepo

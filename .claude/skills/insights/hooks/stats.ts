@@ -41,13 +41,16 @@ const REPLIED = ['screening', 'interviewing', 'offer', 'accepted', 'rejected']
 const REACHED_INTERVIEW = ['interviewing', 'offer', 'accepted']
 const REACHED_OFFER = ['offer', 'accepted']
 
-// Only clear evidence in a closed job's notes counts: a dated interview ("Interview 2026-10-10", "Also: Interview
-// ...") or "interviewed"; an offer it declined ("declined the offer", "turned down their offer", "offer received").
-// "Rejected before interview" or "withdrew after accepting another offer" say the opposite, so a negation
-// before the word means no.
-const hadInterview = (said: string) => !/\b(no|before|without|never|not|instead of)\s+(an?\s+|the\s+|any\s+)?interview/i.test(said)
-  && (/\binterview(s|ed)?\b[^.;]*?\d{4}-\d{2}-\d{2}/i.test(said) || /\binterviewed\b/i.test(said))
-const hadOffer = (said: string) => /\b(declined|turned down|said no to)\s+(the\s+|their\s+|an?\s+|this\s+)?offer\b|\boffer\s+(received|made|extended)\b|\b(got|received)\s+(an?\s+)?offer\b/i.test(said)
+// Only clear evidence in a closed job's notes counts, read one clause at a time (split at . ; and line breaks):
+// an interview that happened ("Interview 2026-10-10", "interviewed", "interview went well") or an offer this
+// employer made ("declined the offer", "offer received"). A clause with a negation or a cancellation ("rejected
+// before interview", "interview cancelled", "no offer received", "accepting another offer") says the opposite.
+const clauses = (said: string) => said.split(/[.;\n]+/)
+const NOT = /\b(no|not|never|without|before|instead|cancel+ed|cancel+ation|another|other)\b/i
+const hadInterview = (said: string) => clauses(said).some(c => !NOT.test(c)
+  && (/\binterviewed\b/i.test(c) || /\binterview(s)?\b[^.;]*?(\d{4}-\d{2}-\d{2}|completed|done|went|happened|held|finished)/i.test(c) || /\b(had|after|did)\s+(an?\s+|the\s+|my\s+)?(final\s+|second\s+|first\s+)?interview/i.test(c)))
+const hadOffer = (said: string) => clauses(said).some(c => !NOT.test(c)
+  && /\b(declined|turned down|said no to)\s+(the\s+|their\s+|an?\s+|this\s+)?offer\b|\boffer\s+(received|made|extended)\b|\b(got|received)\s+(an?\s+)?offer\b/i.test(c))
 
 type Job = { status: string; applied: boolean; replied: boolean; interview: boolean; offer: boolean; dateApplied: string; dateFound: string; contact: boolean; source: string; fit: string; priority: string }
 

@@ -21,13 +21,16 @@ const KEYS_HINT = 'Keys: Ctrl+X then Tab moves into this panel. Tab moves betwee
 const moment = atom({ plugin: 'celebration', key: 'moment' } as const, null as Moment | null)
 const isThanked = atom({ plugin: 'celebration', key: 'isThanked' } as const, false)
 
-// Only clear evidence in a closed job's notes counts: a dated interview ("Interview 2026-10-10", "Also: Interview
-// ...") or "interviewed"; an offer it declined ("declined the offer", "turned down their offer", "offer received").
-// "Rejected before interview" or "withdrew after accepting another offer" say the opposite, so a negation
-// before the word means no.
-const hadInterview = (said: string) => !/\b(no|before|without|never|not|instead of)\s+(an?\s+|the\s+|any\s+)?interview/i.test(said)
-  && (/\binterview(s|ed)?\b[^.;]*?\d{4}-\d{2}-\d{2}/i.test(said) || /\binterviewed\b/i.test(said))
-const hadOffer = (said: string) => /\b(declined|turned down|said no to)\s+(the\s+|their\s+|an?\s+|this\s+)?offer\b|\boffer\s+(received|made|extended)\b|\b(got|received)\s+(an?\s+)?offer\b/i.test(said)
+// Only clear evidence in a closed job's notes counts, read one clause at a time (split at . ; and line breaks):
+// an interview that happened ("Interview 2026-10-10", "interviewed", "interview went well") or an offer this
+// employer made ("declined the offer", "offer received"). A clause with a negation or a cancellation ("rejected
+// before interview", "interview cancelled", "no offer received", "accepting another offer") says the opposite.
+const clauses = (said: string) => said.split(/[.;\n]+/)
+const NOT = /\b(no|not|never|without|before|instead|cancel+ed|cancel+ation|another|other)\b/i
+const hadInterview = (said: string) => clauses(said).some(c => !NOT.test(c)
+  && (/\binterviewed\b/i.test(c) || /\binterview(s)?\b[^.;]*?(\d{4}-\d{2}-\d{2}|completed|done|went|happened|held|finished)/i.test(c) || /\b(had|after|did)\s+(an?\s+|the\s+|my\s+)?(final\s+|second\s+|first\s+)?interview/i.test(c)))
+const hadOffer = (said: string) => clauses(said).some(c => !NOT.test(c)
+  && /\b(declined|turned down|said no to)\s+(the\s+|their\s+|an?\s+|this\s+)?offer\b|\boffer\s+(received|made|extended)\b|\b(got|received)\s+(an?\s+)?offer\b/i.test(c))
 
 type Seen = { keys: string[] }
 type Accepted = { key: string; company: string; role: string }
@@ -148,7 +151,12 @@ export const register: Register = on => {
   })
 
   on('command.run', { command: 'celebrate' }, async $ => {
-    const { moment: m } = await scan($).catch(() => ({ moment: null }))
+    // The job waiting to be shown, else the one celebrated last that is still accepted, else the last accepted row.
+    const root: string = await Promise.resolve().then(() => $.session.root()).catch(() => '')
+    const stored = (await Promise.resolve().then(() => $.store.get(`celebrated:${root}`)).catch(() => undefined)) as Seen | undefined
+    const { accepted } = await scan($).catch(() => ({ accepted: [] as Accepted[] }))
+    const known = [...(pending?.keys ?? []), ...(stored?.keys ?? [])].reverse().find(k => accepted.some(a => a.key === k)) ?? ''
+    const { moment: m } = await scan($, known).catch(() => ({ moment: null }))
     await update($, moment, () => m)
     const opened = await $.ui.open({ id: PANE, title: 'Congratulations', focus: true, holdToasts: true, closeOnEscape: true })
     if (!opened.isPlaced) {

@@ -576,22 +576,26 @@ check_shell() {
       # close/merge with a comment. --help only prints help. gh aliases could hide any of these.
       case "${w[$sp]:-}" in
         issue|pr|discussion)
-          local verb="" ghhelp=""
+          # -h/--help counts only as a flag of its own, never as the value of a flag before it (--body --help).
+          local verb="" ghhelp="" ghtext=""
           for ((j = sp + 1; j < n; j++)); do
             case "${w[$j]}" in
               -h|--help) ghhelp=1 ;;
-              -R|--repo|--hostname) j=$((j + 1)) ;;
+              -R|--repo|--hostname|-t|--title|-l|--label|-a|--assignee|-m|--milestone|-p|--project|-B|--base|-H|--head|-r|--reviewer|-T|--template|-s|--state|-L|--limit|-S|--search|-q|--jq) j=$((j + 1)) ;;
+              -c|--comment|-b|--body|-F|--body-file) ghtext=1; j=$((j + 1)) ;;
+              -c?*|-b?*|-F?*|--comment=*|--body=*|--body-file=*) ghtext=1 ;;
               -*) ;;
               *) [ -z "$verb" ] && verb="${w[$j]}" ;;
             esac
           done
-          if [ -z "$ghhelp" ]; then
-            case "$verb" in
-              create|comment|edit|reopen|review|new) deny "$POST_MSG" ;;
-              close|merge) case "$rest" in *" --comment "*|*" --comment="*|*" -c "*|*" --body "*|*" --body="*|*" -b "*|*" --body-file "*|*" --body-file="*) deny "$POST_MSG" ;; esac ;;
-            esac
-          fi ;;
-        alias) case "${w[$((sp+1))]:-}" in set|import) deny "$ALIAS_MSG" ;; esac ;;
+          case "$verb" in
+            create|comment|edit|reopen|review|new) [ -n "$ghhelp" ] && [ -z "$ghtext" ] || deny "$POST_MSG" ;;
+            close|merge) [ -n "$ghtext" ] && deny "$POST_MSG" ;;
+          esac ;;
+        alias)
+          case "${w[$((sp+1))]:-}" in set|import)
+            case "$rest" in *" --help "*|*" -h "*) ;; *) deny "$ALIAS_MSG" ;; esac ;;
+          esac ;;
       esac
       if [ "${w[$sp]:-}" = api ]; then
         lw="$(printf '%s' "${rest// /}" | tr 'A-Z' 'a-z')"
