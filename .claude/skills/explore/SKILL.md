@@ -18,7 +18,7 @@ Read too: `profile/preferences.md`, `profile/master-resume.md`, `profile/story-b
 
 ## 1. Constraints first
 
-Ask: "How soon do you need income from a new job?" and "Is there anything that can't change right now, like where you live, caregiving, a visa, health or money?" Save the answers under "What can't change right now". Treat these as fixed facts to design around, not problems to fix. If income is needed within a few months, say once that exploring works best alongside applying for a solid bridge job, and offer to do both. Everything after this stays inside these limits.
+Ask: "How soon do you need income from a new job?" and "Is there anything that can't change right now, like where you live, caregiving, a visa or money? You don't need to say what it is, only what it rules out." Save the answers under "What can't change right now" as limits, not reasons ("no relocation", "part-time only for now"). Never write down health details or a diagnosis unless the user explicitly asks you to (ground rule 4); if they mention one, save only the limit it sets. Treat these as fixed facts to design around, not problems to fix. If income is needed within a few months, say once that exploring works best alongside applying for a solid bridge job, and offer to do both. Everything after this stays inside these limits.
 
 ## 2. What gives you energy
 
@@ -55,7 +55,7 @@ For each leading direction, one experiment with a date, smallest first. Good exp
 - **If they're employed:** a piece of their current job reshaped toward the direction (a project, a task, working with a different team), with no need to quit to test it.
 - **Applying:** an internship, contract or role they would genuinely take if offered (`add-job`), noted as part of this direction in the tracker's notes. Never an application only to test the market (ground rule 6).
 
-Save it under "Experiments" as `- YYYY-MM-DD · To try: ...` so `/today` shows it when it's due. A tracker row only if it's an application.
+Save it under "Experiments" as `- YYYY-MM-DD · To try: ...` so `/today` shows it when it's due. A tracker row only if it's an application. When the user says they did it, change `To try:` to `Tried:` (keep the date) even if they skip the reflection; if they drop it, change it to `Dropped:`. Only `To try:` lines count as due.
 
 ## 7. Reflect after each try (`/explore reflect`)
 
@@ -80,6 +80,6 @@ Suggest a career coach, their school's career office (students and many alumni),
 
 - Guardrails in `knowledge/life-design.md` always apply: money first, three lives at most, a dated next step every session, their words and their choice, not therapy, no tests or labels.
 - Don't push exploration on someone with a clear target and a deadline: offer it once, then help them apply.
-- If they bring up something personal (family pressure, money, health), note only what affects the search, never the details. If reflection brings up distress, stop the exercise and follow the not-therapy guardrail.
+- If they bring up something personal (family pressure, money, health), note only the limit it sets on the search, never the details (health details only if they explicitly ask you to save them). If reflection brings up distress, stop the exercise and follow the not-therapy guardrail.
 - Never present a step as a particular school's or book's official exercise; credit the ideas if asked.
 - Log one line in `history/activity.md` when you save notes or an experiment: `- <date time> · <app> · Explore: <what was saved>`.

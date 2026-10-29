@@ -29,8 +29,8 @@
 
 ## Experiments
 
-<!-- One dated entry per thing tried (a conversation, a project, an event, a course, a gig). Planned ones start "To try:" and /today shows them when the date comes. Afterwards:
-- YYYY-MM-DD · What I tried:
+<!-- One dated entry per thing tried (a conversation, a project, an event, a course, a gig). Planned ones start "To try:" and /today shows them when the date comes; once done it becomes "Tried:" (or "Dropped:"). Afterwards:
+- YYYY-MM-DD · Tried: what I did
   - What energized me:
   - What challenged me:
   - What I discovered:
@@ -43,4 +43,4 @@
 
 ## Meetings with my coach or mentor
 
-<!-- Dated. Before: what I want from the meeting (coach-prep). After: what they suggested and my next steps. -->
+<!-- Dated. Before: what I want from the meeting (coach-prep). After: what they suggested, and each next step as "YYYY-MM-DD · Next step: ..." (then "Done:" or "Dropped:"). -->

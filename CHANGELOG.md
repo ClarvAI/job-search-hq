@@ -14,6 +14,8 @@ What changed in each version of Job Search HQ, newest first. `/update` shows you
 - **Top-pick flags:** for your top job, a reminder to use an application system's "top choice" flag where it has one (for example Greenhouse's Dream Job).
 - **Fixed:** an Outbox draft for somewhere other than email or LinkedIn showed "other to ..." and said to paste it into LinkedIn.
 
+## 1.1.0 (2026-10-22)
+
 
 **After updating from 1.0.0, close and reopen this folder in Claude** so the new panels (Insights, Routines, Celebration) and the changed ones load.
 
