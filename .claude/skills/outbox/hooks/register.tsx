@@ -451,7 +451,7 @@ function ambiguousText(servers: string): string {
 function title(d: Draft): string {
   if (d.channel === 'email') return d.subject || '(no subject)'
   // Words, not an arrow: a screen reader reads "→" as "right arrow".
-  return `${d.channel === 'linkedin' ? 'LinkedIn message' : d.channel} to ${d.to || '(no one named)'}`
+  return `${d.channel === 'linkedin' ? 'LinkedIn message' : 'Message'} to ${d.to || '(no one named)'}`
 }
 
 // ---- Attachments ----
@@ -879,7 +879,7 @@ export const register: Register = (on, options) => {
                 }
                 const text = isEmail ? `Subject: ${d.subject}\n\n${compose(d.body, sig).body}` : d.body
                 const copied = await $.ui.copy({ text, surface: press.surface })
-                if (copied.isCopied) await say($, isEmail ? 'Copied. Paste and send it yourself, then press "Mark sent…".' : 'Copied. Paste it into LinkedIn and send it yourself, then press "Mark sent…".')
+                if (copied.isCopied) await say($, isEmail ? 'Copied. Paste and send it yourself, then press "Mark sent…".' : d.channel === 'linkedin' ? 'Copied. Paste it into LinkedIn and send it yourself, then press "Mark sent…".' : 'Copied. Paste it where you send it (for example a school or alumni platform) and send it yourself, then press "Mark sent…".')
                 else await say($, 'Unable to copy here. Select the text above and copy it.', true)
               }}>Copy</Button>
               <Button key={`${d.file}:marksent`} label={named('Mark sent…')} onPress={async () => { await update($, armed, () => `${d.file}|marksent`); focusOn($, `${d.file}:confirm-sent`) }}>Mark sent…</Button>

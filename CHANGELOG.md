@@ -2,7 +2,18 @@
 
 What changed in each version of Job Search HQ, newest first. `/update` shows you the entries newer than the version you have. Versions follow `MAJOR.MINOR.PATCH`: a patch fixes things, a minor version adds things, a major version changes how something you rely on works.
 
-## 1.1.0 (2026-10-22)
+## Unreleased
+
+- **Not sure what you want yet? `/explore`** (Claude and Codex): a Life Design method blended from Stanford's Designing Your Life, Johns Hopkins' Life Design approach, Herminia Ibarra's research on career change and related work. It starts with what can't change (money, time, place), then what gives you energy, three possible lives, conversations and small experiments, and quick reflection after each try. Notes stay in your own `profile/life-design.md` (added automatically), and `/today` shows experiments when they're due.
+- **`/coach-prep`:** a one-page brief to bring to a career coach, mentor or your school's career office (where you stand, what you've tried, your three questions), and a place to save what they suggested.
+- **Cover letters, your way:** the first time, choose whether the assistant drafts from your experience for you to edit or coaches you while you write it yourself. Every draft ends with a reminder to make it your own.
+- **Contacts:** two new relationship types, `mentor` and `career educator`.
+- **Interview debriefs** can end with the same four reflection questions when you're exploring a direction.
+- **Resume PDFs:** the posting's terms your notes say are on the page are now checked in the finished PDF's text, not just the draft.
+- **Scam checks** now flag recruiters or interviewers on video calls who can't be matched to the real employer (impersonation and deepfakes are rising).
+- **Top-pick flags:** for your top job, a reminder to use an application system's "top choice" flag where it has one (for example Greenhouse's Dream Job).
+- **Fixed:** an Outbox draft for somewhere other than email or LinkedIn showed "other to ..." and said to paste it into LinkedIn.
+
 
 **After updating from 1.0.0, close and reopen this folder in Claude** so the new panels (Insights, Routines, Celebration) and the changed ones load.
 

@@ -124,7 +124,7 @@ Your dashboard can go up two ways. As **your themed page**, looking just like it
 
 | Folder | What's in it |
 |---|---|
-| `profile/` | Master resume, preferences, interview stories, writing style, references, published-page links |
+| `profile/` | Master resume, preferences, interview stories, writing style, references, published-page links, your Life Design notes (`life-design.md`) |
 | `jobs/` | `tracker.csv`, `leads.csv` (openings found for you and what you decided), plus one folder per job (posting, fit notes, resume, cover letter, prep) |
 | `contacts/` | People you've met or want to meet |
 | `outbox/` | Message drafts (sent ones move to `outbox/sent/`, discarded ones to `outbox/discarded/`) |
@@ -159,8 +159,15 @@ Your master resume and preferences are protected the same way: the assistant sho
 - **Applying abroad or in another language:** the assistant writes only in languages you've said you can check (set in your preferences); otherwise you get an English version alongside and a reminder to have a native speaker check it. It never adds a photo, birth date or marital status unless you choose to.
 - **Take-home assignments:** tell the assistant when one arrives. It helps you pin down scope, time and AI rules, drafts any question to the recruiter, tracks the due date, and coaches you; the work itself is yours.
 - **Interview accommodations:** whether and when to mention a disability is your call. The assistant can draft a short request (no diagnosis needed) and set up mock interviews the same way.
+- **Your words, not the assistant's:** for cover letters you choose once whether it drafts from your experience for you to edit, or coaches you while you write it yourself. Either way, read it aloud and change anything that doesn't sound like you.
 
 - **They come as PDFs.** After they're fact-checked, the assistant saves `Your-Name-Resume-Company.pdf` (and the cover letter) in the job's folder. Open it and look it over before you send it. If your computer has no Chrome or Edge, it walks you through Print → Save as PDF instead.
+
+---
+
+## Not sure what you want yet?
+
+**/explore** starts with what can't change right now (money, time, place), then helps you name what gives you energy, sketch three possible lives, and test the best ones with conversations and small, real experiments (a conversation, an event, a short project), with four quick questions after each one. Your notes stay in `profile/life-design.md`, and `/today` reminds you of the next experiment. Seeing a career coach, mentor or your school's career office? **/coach-prep** gives you a one-page brief to bring and saves what they suggested afterward.
 
 ---
 

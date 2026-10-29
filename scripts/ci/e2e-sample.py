@@ -48,7 +48,7 @@ LEAD_STATUS = {"new", "saved", "added", "skipped", "not-for-me"}
 LEAD_REASON = {"too-senior", "too-junior", "wrong-location", "not-my-field", "company", "pay"}
 CONTACT_STATUS = {"to-contact", "contacted", "replied", "talked", "referred", "cold"}
 RELATIONSHIP = {"family-intro", "former-manager", "former-colleague", "alum", "linkedin-connection", "recruiter",
-                "hiring-manager", "interviewer", "met-at-event", "cold"}
+                "hiring-manager", "interviewer", "met-at-event", "cold", "mentor", "career-educator"}
 OUTBOX_KEYS = ("channel", "kind", "to", "cc", "subject", "job", "contact", "reply_to", "created", "status")
 PLACEHOLDER = re.compile(r"\[(Name|Company|First name|Your name)\]|\{\{|\{First name\}|<Company>|___", re.I)
 
