@@ -12,29 +12,29 @@ The full setup guide, in plain English. The short version is in the [README](../
 
 Using only one app? Follow just its section below.
 
-**Download and unzip it.** Open the [latest release](https://github.com/ClarvAI/job-search-hq/releases/latest) and, under **Assets**, download **`job-search-hq.zip`** (skip "Source code", which GitHub adds for developers; `git clone` works too). Mac: double-click the zip. Windows: right-click it → **Properties** → tick **Unblock** → **OK**, then right-click → **Extract All** (just double-clicking only opens a preview, and Windows can block the folder's scripts if you skip Unblock). Move the folder somewhere you'll keep it, like Documents. Always open the folder that has `README.md`, `AGENTS.md` and `CLAUDE.md` directly inside it: opened one level up or down, the assistant doesn't get its rules and the safety checks don't run. Windows often unzips into a folder inside a folder of the same name; if so, use the inner one.
+**Download and unzip it.** Download **[job-search-hq.zip](https://github.com/ClarvAI/job-search-hq/releases/latest/download/job-search-hq.zip)**; that link always gets the newest version. (Or open the [latest release](https://github.com/ClarvAI/job-search-hq/releases/latest) and pick `job-search-hq.zip` under **Assets**; skip "Source code", which GitHub adds for developers. `git clone` works too.) Mac: double-click the zip. Windows: right-click it → **Properties** → tick **Unblock** → **OK**, then right-click → **Extract All** (just double-clicking only opens a preview, and Windows can block the folder's scripts if you skip Unblock). Move the folder somewhere you'll keep it, like Documents. Always open the folder that has `README.md`, `AGENTS.md` and `CLAUDE.md` directly inside it: opened one level up or down, the assistant doesn't get its rules and the safety checks don't run. Windows often unzips into a folder inside a folder of the same name; if so, use the inner one.
 
 **Nice to have (optional):** **Google Chrome or Microsoft Edge**, so the assistant can turn resumes and cover letters into PDFs and check they fit on one page (without one, you use Print → Save as PDF yourself, and it walks you through it); and **Node.js** ([nodejs.org](https://nodejs.org), the LTS version), needed only to change the look of your pages (and, in Claude, to publish your dashboard as a Claude Dashboard). `/health` tells you which of these you have.
 
 ### With Claude (adds panels and read-aloud interviews in recent versions)
 
-**You need:** a Claude plan that includes Claude Code (see [Plans and usage](../README.md#plans-and-usage)) and the **Claude desktop app** (claude.ai/download), updated to the latest version (the panels need version 2.1.286 or later; the terminal version needs 2.1.287). **Windows only:** first install **Git for Windows** (git-scm.com/download/win; click Next through every screen), then restart. Claude needs it to run this folder's safety checks.
+**You need:** a paid Claude plan (Pro or above; the Free plan doesn't include Claude Code; see [Plans and usage](../README.md#plans-and-usage)) and the **Claude desktop app** ([download](https://claude.com/download); macOS 13 or later, or Windows 10 or later), updated to the latest version (the panels need version 2.1.286 or later; the terminal version needs 2.1.287). **Windows only:** first install **[Git for Windows](https://git-scm.com/install/windows)** (click Next through every screen), then restart. Claude itself can run without it, but this folder's safety checks run on Git Bash, so don't skip it.
 
-1. Open the Claude desktop app → **Code** tab → choose **Local** (not Cloud) → **Open folder** → pick this folder.
-2. If Claude asks whether you trust this folder, click **Trust**. That turns on the safety rules and the daily greeting.
+1. Open the Claude desktop app, sign in, and open the **Code** tab. In the row under the message box, pick the top entry under **Local** (not Cloud), then use the folder button next to it → **Open folder…** → pick this folder. (In an older version of the app these controls sit above the message box.)
+2. If Claude asks whether you trust this folder, click **Trust**. That turns on the safety rules and the daily greeting. If the mode selector shows **Manual**, switch it to **Auto** so Claude doesn't ask before every step (it remembers this for the folder).
 3. Type **`/start`** and press Enter.
 
 > **Check:** when you type `/`, you should see `/start` in the list. If you don't, you opened the wrong folder.
 
-> Prefer the terminal? Install Claude Code (claude.ai/code; on Windows, Git for Windows first, as above), then in this folder run `claude` and type `/start`.
+> Prefer the terminal? Install Claude Code with the one-line command on Anthropic's [setup page](https://code.claude.com/docs/en/setup) (on Windows, Git for Windows first, as above). Then open a **new** terminal window in this folder (an old one won't find `claude` yet), run `claude`, sign in when it asks, and type `/start`.
 
 Use the **Code** tab, not a regular Claude chat. A regular chat (even one with a folder attached) doesn't run this folder's safety checks or panels; see [platforms.md](platforms.md).
 
 ### With Codex (ChatGPT)
 
-**You need:** a ChatGPT account (on a plan that includes Codex; see [Plans and usage](../README.md#plans-and-usage)), and the **ChatGPT desktop app** (Mac, Windows or Linux), updated to the latest version. Download it from OpenAI's [Codex quickstart](https://learn.chatgpt.com/docs/quickstart) and sign in with your ChatGPT account. On Windows the safety scripts run with PowerShell, so you don't need Git for Windows for Codex.
+**You need:** a ChatGPT account (on a plan that includes Codex; see [Plans and usage](../README.md#plans-and-usage)), and the **ChatGPT desktop app** (Mac, Windows or Linux), updated to the latest version. Download it from OpenAI's [Codex quickstart](https://learn.chatgpt.com/docs/quickstart) and sign in with your ChatGPT account. On a Mac, the download is for Apple silicon (M1 or later); on an older Intel Mac, use the Codex CLI in the terminal instead. On Windows the safety scripts run with PowerShell, so you don't need Git for Windows for Codex.
 
-1. In the ChatGPT desktop app, switch to **Codex** and add this folder as a new local project. If the project has more than one folder, make this one the **primary** folder: Codex only reads the rules and settings of the primary folder.
+1. In the ChatGPT desktop app, choose **Codex** from the ChatGPT dropdown and add this folder as a new local project. If the project has more than one folder, make this one the **primary** folder: Codex only reads the rules and settings of the primary folder.
 2. If Codex asks whether to trust this folder, say yes. Without that, Codex skips this folder's settings and safety checks, and if you choose "don't trust" it skips the assistant's rules too.
 3. When it says **Hooks need review**, choose **Trust all and continue**. Hooks are this folder's safety checks and daily greeting; without them, nothing blocks email sending.
 4. Type **set me up** (or `$start`) and press Enter.
