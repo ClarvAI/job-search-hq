@@ -14,6 +14,7 @@ What changed in each version of Job Search HQ, newest first. `/update` shows you
 - **Resume PDFs:** the posting's terms your notes say are on the page are now checked in the finished PDF's text, not just the draft.
 - **Scam checks** now flag recruiters or interviewers on video calls who can't be matched to the real employer (impersonation and deepfakes are rising).
 - **Top-pick flags:** for your top job, a reminder to use an application system's "top choice" flag where it has one (for example Greenhouse's Dream Job).
+- **Easier setup instructions:** a one-click download link, download links inside each setup step, current steps for the Claude and ChatGPT desktop apps, what each app needs (paid Claude plan, macOS 13 or Windows 10, Apple silicon for the Codex desktop app on a Mac), and updating is now just "update".
 - **Fixed:** an Outbox draft for somewhere other than email or LinkedIn showed "other to ..." and said to paste it into LinkedIn.
 
 ## 1.1.0 (2026-10-22)

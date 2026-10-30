@@ -23,7 +23,7 @@ Researched against each app's own documentation on 2026-10-13 (links in each sec
 
 This is the main target: everything was built and tested here first.
 
-**Start.** Desktop: open the Claude desktop app → **Code** tab → **Local** (not Cloud) → **Open folder** → pick this folder → **Trust** → type `/start`. Terminal: open a terminal in the folder, run `claude`, trust the folder, type `/start`. On Windows, install [Git for Windows](https://git-scm.com/download/win) first (below).
+**Start.** Desktop ([download](https://claude.com/download)): sign in → **Code** tab → in the row under the message box, the top entry under **Local** (not Cloud) → the folder button next to it → **Open folder…** → pick this folder → **Trust** if asked → type `/start` ([desktop quickstart](https://code.claude.com/docs/en/desktop-quickstart)). Terminal: install Claude Code ([setup](https://code.claude.com/docs/en/setup)), open a new terminal in the folder, run `claude`, sign in, trust the folder, type `/start`. On Windows, install [Git for Windows](https://git-scm.com/install/windows) first (below).
 
 **What works.** All of it:
 - the rules in `CLAUDE.md` and `AGENTS.md` (Claude Code reads `CLAUDE.md`, which pulls in `AGENTS.md`; it isn't loaded twice) ([memory docs](https://code.claude.com/docs/en/memory));
@@ -45,7 +45,7 @@ This is the main target: everything was built and tested here first.
 
 ## Codex (ChatGPT desktop app, terminal, editor)
 
-**Start.** Desktop app: switch to **Codex**, add this folder as a local project (the **primary** folder if the project has several), trust it, choose **Trust all and continue** at **Hooks need review**, then type **set me up** (or `$start`). Terminal: run `codex` in the folder, trust it, approve the hooks with `/hooks`, then **set me up**. No Git for Windows needed: the safety scripts run with PowerShell on Windows.
+**Start.** Desktop app ([quickstart](https://learn.chatgpt.com/docs/quickstart); the Mac download is for Apple silicon): choose **Codex** from the ChatGPT dropdown, add this folder as a local project (the **primary** folder if the project has several), trust it, choose **Trust all and continue** at **Hooks need review**, then type **set me up** (or `$start`). Terminal: run `codex` in the folder, trust it, approve the hooks with `/hooks`, then **set me up**. No Git for Windows needed: the safety scripts run with PowerShell on Windows.
 
 **What works.**
 - the rules in `AGENTS.md` (in a project with several folders, only the **primary** folder's) ([AGENTS.md](https://learn.chatgpt.com/docs/agent-configuration/agents-md));
