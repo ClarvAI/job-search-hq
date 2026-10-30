@@ -2,7 +2,9 @@
 
 What changed in each version of Job Search HQ, newest first. `/update` shows you the entries newer than the version you have. Versions follow `MAJOR.MINOR.PATCH`: a patch fixes things, a minor version adds things, a major version changes how something you rely on works.
 
-## Unreleased
+## 1.2.0 (2026-10-29)
+
+**After updating from 1.1.0, close and reopen this folder in Claude** so the changed Contacts and Outbox panels load.
 
 - **Not sure what you want yet? `/explore`** (Claude and Codex): a Life Design method blended from Stanford's Designing Your Life, Johns Hopkins' Life Design approach, Herminia Ibarra's research on career change and related work. It starts with what can't change (money, time, place), then what gives you energy, three possible lives, conversations and small experiments, and quick reflection after each try. Notes stay in your own `profile/life-design.md` (added automatically), and `/today` shows experiments when they're due.
 - **`/coach-prep`:** a one-page brief to bring to a career coach, mentor or your school's career office (where you stand, what you've tried, your three questions), and a place to save what they suggested.
