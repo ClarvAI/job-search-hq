@@ -35,6 +35,7 @@ const RELATIONSHIPS: Record<string, string> = {
   'family-intro': 'family intro', 'former-manager': 'former manager', 'former-colleague': 'former colleague',
   alum: 'alum', 'linkedin-connection': 'LinkedIn connection', recruiter: 'recruiter', 'hiring-manager': 'hiring manager',
   interviewer: 'interviewer', 'met-at-event': 'met at an event', cold: 'cold outreach',
+  mentor: 'mentor', 'career-educator': 'career educator',
 }
 
 const summary = atom({ plugin: 'contacts-board', key: 'summary' } as const, null as Summary | null)

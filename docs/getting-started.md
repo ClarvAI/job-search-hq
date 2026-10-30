@@ -64,11 +64,13 @@ Just type what you want in plain English ("find me operations analyst jobs near 
 | Type | What happens |
 |---|---|
 | `/today` | What's due, what's new, and three suggested moves |
+| `/explore` | Not sure what you want yet? What gives you energy, three possible directions, and small experiments to test them |
+| `/coach-prep` | A one-page brief for a meeting with a career coach, mentor or your school's career office, and notes afterward |
 | `/add-job` + links | Paste job links (Indeed, LinkedIn, Handshake, company sites). It saves every detail, adds them to your tracker, and gets the application ready for you to review |
 | `/find-jobs` | Searches for new postings that fit you |
 | `/evaluate-job` + a saved job | Re-check a job you already added: fit, gaps, red flags, apply or skip (new links go to `/add-job`) |
 | `/tailor-resume` | A resume for that job (length and paper size suited to the job's country and your experience), fact-checked against your real experience and saved as a ready-to-send PDF in the job's folder |
-| `/cover-letter` | Short, specific, sounds like you |
+| `/cover-letter` | Short, specific, sounds like you; or it coaches you while you write it yourself |
 | `/apply` | The full application package and a checklist |
 | `/network` | Who to talk to at a company, plus a message draft |
 | `/follow-up` | Drafts every follow-up that's due |

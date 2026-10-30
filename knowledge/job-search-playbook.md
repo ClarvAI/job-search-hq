@@ -44,7 +44,7 @@ id,found_date,company,role,location,remote,pay,posted,link,apply_link,job_id,sou
 name,company,title,relationship,how_we_met,last_contact,next_followup,status,touches,job,linkedin,email,notes
 ```
 
-- **relationship**: `family-intro`, `former-manager`, `former-colleague`, `alum` (same school), `linkedin-connection`, `recruiter`, `hiring-manager`, `interviewer`, `met-at-event`, `cold`
+- **relationship**: `family-intro`, `former-manager`, `former-colleague`, `alum` (same school), `linkedin-connection`, `recruiter`, `hiring-manager`, `interviewer`, `met-at-event`, `cold`, `mentor` (someone mentoring the user, e.g. through a school or professional mentoring program), `career-educator` (their career coach or school career adviser)
 - **touches**: how many messages the user has sent them without a reply (stop at 2). **job**: the job folder this contact relates to, if any.
 - **status**: `to-contact`, `contacted`, `replied`, `talked`, `referred`, `cold`
 - **When the user sends someone a message:** set `last_contact` to the date sent. If `status` is `to-contact`, blank or `contacted` (they haven't replied yet), add 1 to `touches`, set `status` to `contacted`, and set `next_followup` for pure networking (see "Who owns the follow-up date"): 5 business days after the send, or blank once `touches` reaches 2. If they've already replied, talked or referred the user (`replied`, `talked`, `referred`), a message is not an unanswered touch: leave `touches` and `status` alone (never move someone backwards) and don't set `next_followup` unless the user asks for a reminder. Thank-you notes and job updates to people who already helped are this second kind, never a reason to mark someone cold. **When they reply:** `status` → `replied` (or `talked` after a conversation) and `touches` back to 0.
@@ -125,6 +125,7 @@ Stop and tell the user if any of these show up:
 - A sender domain that only looks like the company's (careers-acme.com, acme.careers) or a Reply-To that differs from From; check it letter by letter against the company's real site
 - A "skills test", repository or "interview app" to download and run (malware campaigns use fake recruiters)
 - Task scams: pay for rating, liking or "app optimization", then a deposit to unlock earnings
+- A recruiter or interviewer on a video call who can't be matched to the employer's real site or staff (deepfake and impersonation scams are rising): verify them through the company's own website or main phone line first
 
 Report US scams at ReportFraud.ftc.gov, UK ones to Action Fraud, German ones to the local police (Onlinewache), and always to the job site. Full checklist: `.claude/skills/sync-inbox/references/scam-check.md`.
 

@@ -85,7 +85,7 @@ EXTRA = {
 }
 STARTER_EDITS = ("profile/master-resume.md", "profile/story-bank.md", "profile/voice.md",
                  "profile/references.md", "profile/published-pages.md", "profile/design.md",
-                 "profile/setup-progress.md", "jobs/tracker.csv", "jobs/leads.csv", "contacts/contacts.csv", "history/activity.md",
+                 "profile/setup-progress.md", "profile/life-design.md", "jobs/tracker.csv", "jobs/leads.csv", "contacts/contacts.csv", "history/activity.md",
                  "pages/dashboard.html", "knowledge/field/field-primer.md", "knowledge/field/background.md")
 PROGRESS = b"resume, status, preferences, field-pack"
 THROWAWAY = ("jobs/acme-operations-analyst/resume.check.pdf", "jobs/.DS_Store", "outbox/.DS_Store",

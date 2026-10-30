@@ -373,6 +373,26 @@ test('waiting Gmail drafts can be marked sent or recorded as deleted; a draft ca
   await ui.unmount()
 })
 
+test('a message for another platform (channel: other) copies with wording that names no particular site', async ($, on) => {
+  const files: Record<string, string> = {
+    'outbox/e.md': '---\nchannel: other\nkind: message\nto: Jordan Lee\n---\nHi Jordan, I found you through our alumni network.\n',
+  }
+  setup(on, files)
+  const copied: string[] = []
+  on('ui.copy', (_$: any, e: any) => { copied.push(e.text); return { value: { isCopied: true } } as never })
+  await $.command.run({ command: 'outbox', args: '' } as never)
+  const ui = await $.ui.mount({ plugin: 'outbox', surface: 'terminal', ...PANE } as never)
+  const before = JSON.stringify(await ui.drawn())
+  expect(before).toContain('Message to Jordan Lee')
+  expect(before).not.toContain('other to')
+  await ui.press({ key: 'e.md:copy' })
+  expect(copied[0]).toBe('Hi Jordan, I found you through our alumni network.')
+  const after = JSON.stringify(await ui.drawn())
+  expect(after).toContain('Paste it where you send it')
+  expect(after).not.toContain('Paste it into LinkedIn')
+  await ui.unmount()
+})
+
 test('many drafts are shown a page at a time; where panels can\'t show, /outbox points to the chat', async ($, on) => {
   const files: Record<string, string> = { 'profile/signature.txt': 'Alex Rivera' }
   for (let i = 0; i < 20; i++) files[`outbox/2026-10-${String(i + 10).padStart(2, '0')}-note.md`] = `---\nchannel: email\nto: person${i}@example.com\nsubject: Note ${i}\n---\n${'A long paragraph of text. '.repeat(40)}\n`

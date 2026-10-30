@@ -41,6 +41,7 @@ The board, the panels and read-aloud interviews are in Claude; Codex does the sa
 
 ## What it does
 
+- **Helps you work out what you want** if you're not sure yet: what gives you energy, a few possible directions, and small real experiments to test them (`/explore`, a Life Design method drawn from Stanford, Johns Hopkins and research on career change).
 - **Finds jobs that fit you** and sorts out scams and stale postings, then saves every detail of the ones you like before the posting disappears.
 - **Writes from your real experience.** Resumes and cover letters are built from your own master resume, fact-checked against it, and saved as ready-to-send PDFs.
 - **Keeps track of everything:** a tracker that opens in Excel, a live job board, follow-up dates, and a networking list.
@@ -122,6 +123,7 @@ Take the 10-minute **tour** first (`/tour` in Claude, `$tour` in Codex), then st
 | "Mock interview for Acme" | A spoken practice interview with a timer and a scorecard |
 | "I applied to Acme yesterday" | Updates your tracker and sets the next follow-up date |
 | "Show my board" or "show my outbox" | Your jobs by stage, or the drafts waiting for you |
+| "I'm not sure what I want to do next" | Explores what matters to you, three possible directions, and small ways to try each one |
 | "Back up my stuff" | A dated zip of everything |
 | "Set up automatic checks" | New jobs each morning, an inbox check or follow-up drafts on a schedule, on your own computer (opt-in; they only read, draft and track) |
 
